@@ -1,0 +1,174 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { Sale, SaleItem, PaymentMethod, Location } from '@/types';
+import { useToast } from '@/hooks/use-toast';
+
+// Transform database rows to Sale type
+function transformSale(row: any, items: SaleItem[]): Sale {
+    return {
+        id: row.id,
+        sale_number: row.sale_number,
+        cashier_id: row.cashier_id,
+        cashier_name: row.cashier_name,
+        payment_method: row.payment_method as PaymentMethod,
+        stock_location: row.stock_location as Location,
+        total_amount: row.total_amount,
+        created_at: row.created_at,
+        items: items.filter(item => item.sale_id === row.id),
+    };
+}
+
+// Fetch all sales
+async function fetchSales(): Promise<Sale[]> {
+    const { data: sales, error: salesError } = await supabase
+        .from('sales')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+    if (salesError) throw salesError;
+
+    const { data: items, error: itemsError } = await supabase
+        .from('sale_items')
+        .select('*');
+
+    if (itemsError) throw itemsError;
+
+    const saleItems: SaleItem[] = (items || []).map(item => ({
+        id: item.id,
+        sale_id: item.sale_id,
+        product_id: item.product_id,
+        product_name: item.product_name,
+        barcode: item.barcode,
+        quantity: item.quantity,
+        price: item.price,
+        subtotal: item.subtotal,
+    }));
+
+    return (sales || []).map(row => transformSale(row, saleItems));
+}
+
+// Hook to get all sales
+export function useSales() {
+    return useQuery({
+        queryKey: ['sales'],
+        queryFn: fetchSales,
+    });
+}
+
+// Hook to create a sale
+export function useCreateSale() {
+    const queryClient = useQueryClient();
+    const { toast } = useToast();
+
+    return useMutation({
+        mutationFn: async ({
+            paymentMethod,
+            stockLocation,
+            items,
+            cashierId,
+            cashierName,
+            products,
+        }: {
+            paymentMethod: PaymentMethod;
+            stockLocation: Location;
+            items: Array<{ productId: string; quantity: number }>;
+            cashierId?: string;
+            cashierName: string;
+            products: any[];
+        }) => {
+            // Generate sale number
+            const timestamp = Date.now();
+            const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+            const saleNumber = `INV-${timestamp}-${randomSuffix}`;
+
+            // Calculate items with prices
+            const saleItems = items.map(item => {
+                const product = products.find(p => p.id === item.productId);
+                const price = product?.price || 0;
+                return {
+                    product_id: item.productId,
+                    product_name: product?.name || 'Produk',
+                    barcode: product?.barcode || '',
+                    quantity: item.quantity,
+                    price,
+                    subtotal: price * item.quantity,
+                };
+            });
+
+            const totalAmount = saleItems.reduce((acc, item) => acc + item.subtotal, 0);
+
+            // Create sale
+            const { data: sale, error: saleError } = await supabase
+                .from('sales')
+                .insert({
+                    sale_number: saleNumber,
+                    cashier_id: cashierId,
+                    cashier_name: cashierName,
+                    payment_method: paymentMethod,
+                    stock_location: stockLocation,
+                    total_amount: totalAmount,
+                })
+                .select()
+                .single();
+
+            if (saleError) throw saleError;
+
+            // Create sale items
+            const itemsToInsert = saleItems.map(item => ({
+                ...item,
+                sale_id: sale.id,
+            }));
+
+            const { error: itemsError } = await supabase
+                .from('sale_items')
+                .insert(itemsToInsert);
+
+            if (itemsError) throw itemsError;
+
+            // Update stock and create logs
+            for (const item of items) {
+                const stockField = `stock_${stockLocation}`;
+                const { data: product } = await supabase
+                    .from('products')
+                    .select('*')
+                    .eq('id', item.productId)
+                    .single();
+
+                if (product) {
+                    const newStock = Math.max(0, (product[stockField] || 0) - item.quantity);
+                    await supabase
+                        .from('products')
+                        .update({ [stockField]: newStock })
+                        .eq('id', item.productId);
+
+                    await supabase.from('stock_logs').insert({
+                        product_id: item.productId,
+                        type: 'out',
+                        quantity: item.quantity,
+                        location: stockLocation,
+                        user_id: cashierId,
+                        note: `Penjualan ${saleNumber}`,
+                    });
+                }
+            }
+
+            return sale;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['sales'] });
+            queryClient.invalidateQueries({ queryKey: ['products'] });
+            queryClient.invalidateQueries({ queryKey: ['stock-logs'] });
+            toast({
+                title: 'Penjualan berhasil',
+                description: 'Transaksi penjualan berhasil dicatat',
+            });
+        },
+        onError: (error: Error) => {
+            toast({
+                title: 'Gagal mencatat penjualan',
+                description: error.message,
+                variant: 'destructive',
+            });
+        },
+    });
+}

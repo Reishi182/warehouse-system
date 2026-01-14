@@ -1,0 +1,219 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { Product, Location } from '@/types';
+import { useToast } from '@/hooks/use-toast';
+
+// Transform database row to Product type
+function transformProduct(row: any): Product {
+    return {
+        id: row.id,
+        name: row.name,
+        barcode: row.barcode,
+        price: row.price || 0,
+        image_url: row.image_url,
+        stock: {
+            gudang: row.stock_gudang || 0,
+            toko: row.stock_toko || 0,
+            lainnya: row.stock_lainnya || 0,
+        },
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+    };
+}
+
+// Fetch all products
+async function fetchProducts(): Promise<Product[]> {
+    const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('name', { ascending: true });
+
+    if (error) throw error;
+    return (data || []).map(transformProduct);
+}
+
+// Hook to get all products
+export function useProducts() {
+    return useQuery({
+        queryKey: ['products'],
+        queryFn: fetchProducts,
+    });
+}
+
+// Hook to find product by barcode
+export function useProductByBarcode(products: Product[], barcode: string) {
+    return products.find(p => p.barcode === barcode) || null;
+}
+
+// Hook to add a product
+export function useAddProduct() {
+    const queryClient = useQueryClient();
+    const { toast } = useToast();
+
+    return useMutation({
+        mutationFn: async (product: {
+            name: string;
+            barcode: string;
+            price: number;
+            stock: { gudang: number; toko: number; lainnya: number };
+            image_url?: string;
+        }) => {
+            const { data, error } = await supabase
+                .from('products')
+                .insert({
+                    name: product.name,
+                    barcode: product.barcode,
+                    price: product.price,
+                    stock_gudang: product.stock.gudang,
+                    stock_toko: product.stock.toko,
+                    stock_lainnya: product.stock.lainnya,
+                    image_url: product.image_url,
+                })
+                .select()
+                .single();
+
+            if (error) throw error;
+            return transformProduct(data);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['products'] });
+        },
+        onError: (error: Error) => {
+            toast({
+                title: 'Gagal menambahkan produk',
+                description: error.message,
+                variant: 'destructive',
+            });
+        },
+    });
+}
+
+// Hook to update a product
+export function useUpdateProduct() {
+    const queryClient = useQueryClient();
+    const { toast } = useToast();
+
+    return useMutation({
+        mutationFn: async ({ id, updates }: { id: string; updates: Partial<Product> }) => {
+            const updateData: any = {};
+            if (updates.name !== undefined) updateData.name = updates.name;
+            if (updates.barcode !== undefined) updateData.barcode = updates.barcode;
+            if (updates.price !== undefined) updateData.price = updates.price;
+            if (updates.image_url !== undefined) updateData.image_url = updates.image_url;
+            if (updates.stock) {
+                if (updates.stock.gudang !== undefined) updateData.stock_gudang = updates.stock.gudang;
+                if (updates.stock.toko !== undefined) updateData.stock_toko = updates.stock.toko;
+                if (updates.stock.lainnya !== undefined) updateData.stock_lainnya = updates.stock.lainnya;
+            }
+
+            const { error } = await supabase
+                .from('products')
+                .update(updateData)
+                .eq('id', id);
+
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['products'] });
+        },
+        onError: (error: Error) => {
+            toast({
+                title: 'Gagal memperbarui produk',
+                description: error.message,
+                variant: 'destructive',
+            });
+        },
+    });
+}
+
+// Hook to delete a product
+export function useDeleteProduct() {
+    const queryClient = useQueryClient();
+    const { toast } = useToast();
+
+    return useMutation({
+        mutationFn: async (id: string) => {
+            const { error } = await supabase
+                .from('products')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['products'] });
+            queryClient.invalidateQueries({ queryKey: ['activity-logs'] });
+        },
+        onError: (error: Error) => {
+            toast({
+                title: 'Gagal menghapus produk',
+                description: error.message,
+                variant: 'destructive',
+            });
+        },
+    });
+}
+
+// Hook to add stock
+export function useAddStock() {
+    const queryClient = useQueryClient();
+    const { toast } = useToast();
+
+    return useMutation({
+        mutationFn: async ({
+            productId,
+            quantity,
+            location,
+            userId,
+        }: {
+            productId: string;
+            quantity: number;
+            location: Location;
+            userId?: string;
+        }) => {
+            // Get current product
+            const { data: product, error: productError } = await supabase
+                .from('products')
+                .select('*')
+                .eq('id', productId)
+                .single();
+
+            if (productError) throw productError;
+
+            // Update stock based on location
+            const stockField = `stock_${location}` as const;
+            const currentStock = product[stockField] || 0;
+            const newStock = currentStock + quantity;
+
+            const { error: updateError } = await supabase
+                .from('products')
+                .update({ [stockField]: newStock })
+                .eq('id', productId);
+
+            if (updateError) throw updateError;
+
+            // Log the stock addition
+            const { error: logError } = await supabase.from('stock_logs').insert({
+                product_id: productId,
+                type: 'in',
+                quantity,
+                location,
+                user_id: userId,
+                note: `Penambahan stok di ${location}`,
+            });
+
+            if (logError) throw logError;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['products'] });
+            queryClient.invalidateQueries({ queryKey: ['stock-logs'] });
+        },
+        onError: (error: Error) => {
+            toast({
+                title: 'Gagal menambahkan stok',
+                description: error.message,
+                variant: 'destructive',
+            });
+        },
+    });
+}

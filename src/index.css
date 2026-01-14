@@ -1,0 +1,307 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Luxury Fintech Light Mode - Champagne Gold Theme */
+    --background: 216 18% 96%; /* #f4f6f8 - Soft off-white/pale grey */
+    --foreground: 215 28% 17%; /* #1e293b - Deep charcoal/navy */
+
+    --card: 0 0% 100%;
+    --card-foreground: 215 28% 17%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 28% 17%;
+
+    /* Champagne Gold Primary */
+    --primary: 43 66% 54%; /* #d6a63d - Champagne Gold */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 16% 96%;
+    --secondary-foreground: 215 28% 17%;
+
+    --muted: 220 14% 96%;
+    --muted-foreground: 215 16% 47%; /* #64748b - Slate grey */
+
+    --accent: 43 66% 44%; /* #b3882a - Primary dim */
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 160 84% 39%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 100%;
+
+    --border: 0 0% 0% / 0.06; /* rgba(0,0,0,0.06) subtle border */
+    --input: 220 14% 90%;
+    --ring: 43 66% 54%;
+
+    --radius: 0.5rem;
+
+    /* Sidebar */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 215 28% 17%;
+    --sidebar-primary: 43 66% 54%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 43 66% 54% / 0.1;
+    --sidebar-accent-foreground: 43 66% 44%;
+    --sidebar-border: 0 0% 0% / 0.06;
+    --sidebar-ring: 43 66% 54%;
+
+    /* Charts */
+    --chart-1: 43 66% 54%;
+    --chart-2: 160 84% 39%;
+    --chart-3: 38 92% 50%;
+    --chart-4: 215 28% 17%;
+    --chart-5: 215 16% 70%;
+  }
+
+  .dark {
+    --background: 222 47% 8%;
+    --foreground: 210 40% 98%;
+
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 43 66% 54%;
+    --primary-foreground: 222 47% 11%;
+
+    --secondary: 220 50% 18%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 220 50% 18%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 43 66% 44%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 220 50% 20%;
+    --input: 220 50% 20%;
+    --ring: 43 66% 54%;
+
+    --sidebar-background: 222 47% 6%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 43 66% 54%;
+    --sidebar-primary-foreground: 222 47% 11%;
+    --sidebar-accent: 43 66% 54% / 0.15;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 220 50% 15%;
+    --sidebar-ring: 43 66% 54%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Manrope', sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold tracking-tight;
+  }
+
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--background));
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(215 16% 77%);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--primary));
+  }
+}
+
+@layer components {
+  /* Glass Card - Luxury Fintech Style */
+  .glass-card {
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 
+                0 2px 4px -1px rgba(0, 0, 0, 0.02), 
+                0 10px 15px -3px rgba(0, 0, 0, 0.03);
+    transition: all 0.3s ease;
+  }
+  
+  .glass-card:hover {
+    background: rgba(255, 255, 255, 0.85);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 
+                0 8px 10px -6px rgba(0, 0, 0, 0.01);
+  }
+
+  .dark .glass-card {
+    background: rgba(30, 41, 59, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .dark .glass-card:hover {
+    background: rgba(30, 41, 59, 0.85);
+  }
+
+  /* Glow effect for primary elements */
+  .glow-gold {
+    box-shadow: 0 0 15px rgba(214, 166, 61, 0.25);
+  }
+
+  /* Status Badges */
+  .status-badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border;
+  }
+
+  .status-pending {
+    @apply bg-amber-50 text-amber-600 border-amber-100;
+  }
+
+  .status-approved {
+    @apply bg-emerald-50 text-emerald-600 border-emerald-100;
+  }
+
+  .status-rejected {
+    @apply bg-red-50 text-red-600 border-red-100;
+  }
+
+  .status-completed {
+    @apply bg-blue-50 text-blue-600 border-blue-100;
+  }
+
+  /* Navigation */
+  .nav-link {
+    @apply flex items-center gap-4 px-4 py-3 rounded-xl text-muted-foreground hover:text-foreground hover:bg-slate-50 transition-all duration-300;
+  }
+
+  .nav-link-active {
+    @apply bg-primary/10 border border-primary/20 text-primary shadow-sm;
+  }
+
+  /* Stat Card */
+  .stat-card {
+    @apply glass-card rounded-2xl p-6 hover:border-primary/30 transition-all duration-500;
+  }
+
+  /* Data Table */
+  .data-table {
+    @apply w-full text-sm text-left;
+  }
+
+  .data-table th {
+    @apply px-6 py-4 font-semibold text-xs text-muted-foreground uppercase tracking-wider border-b border-slate-100 bg-slate-50/50;
+  }
+
+  .data-table td {
+    @apply px-6 py-4 border-b border-slate-100;
+  }
+
+  .data-table tr:hover td {
+    @apply bg-slate-50;
+  }
+
+  /* Soft Shadow Utilities */
+  .shadow-soft {
+    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.05);
+  }
+
+  .shadow-glass {
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+  }
+}
+
+@layer utilities {
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.4s ease-out;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.2s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes slideUp {
+    from { 
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to { 
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes scaleIn {
+    from { 
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to { 
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .gradient-text {
+    @apply bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent;
+  }
+
+  .print-only {
+    @apply hidden;
+  }
+}
+
+/* Print Styles */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .print-only,
+  .print-only * {
+    visibility: visible !important;
+    display: block !important;
+  }
+
+  .print-only {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    background: white !important;
+  }
+
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+}
