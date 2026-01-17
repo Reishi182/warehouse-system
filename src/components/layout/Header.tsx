@@ -9,7 +9,7 @@ interface HeaderProps {
 
 export default function Header({ title, subtitle, actions }: HeaderProps) {
   return (
-    <header className="sticky top-0 z-30 h-20 flex items-center justify-between px-8 border-b border-border bg-white/60 backdrop-blur-xl">
+    <header className="sticky top-0 z-30 h-20 flex items-center justify-between px-8 border-b border-border bg-background/60 backdrop-blur-xl">
       {/* Breadcrumb */}
       <div className="hidden md:flex items-center text-muted-foreground text-sm font-medium">
         <span>Overview</span>

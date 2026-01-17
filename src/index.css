@@ -7,8 +7,10 @@
 @layer base {
   :root {
     /* Luxury Fintech Light Mode - Champagne Gold Theme */
-    --background: 216 18% 96%; /* #f4f6f8 - Soft off-white/pale grey */
-    --foreground: 215 28% 17%; /* #1e293b - Deep charcoal/navy */
+    --background: 216 18% 96%;
+    /* #f4f6f8 - Soft off-white/pale grey */
+    --foreground: 215 28% 17%;
+    /* #1e293b - Deep charcoal/navy */
 
     --card: 0 0% 100%;
     --card-foreground: 215 28% 17%;
@@ -17,16 +19,19 @@
     --popover-foreground: 215 28% 17%;
 
     /* Champagne Gold Primary */
-    --primary: 43 66% 54%; /* #d6a63d - Champagne Gold */
+    --primary: 43 66% 54%;
+    /* #d6a63d - Champagne Gold */
     --primary-foreground: 0 0% 100%;
 
     --secondary: 220 16% 96%;
     --secondary-foreground: 215 28% 17%;
 
     --muted: 220 14% 96%;
-    --muted-foreground: 215 16% 47%; /* #64748b - Slate grey */
+    --muted-foreground: 215 16% 47%;
+    /* #64748b - Slate grey */
 
-    --accent: 43 66% 44%; /* #b3882a - Primary dim */
+    --accent: 43 66% 44%;
+    /* #b3882a - Primary dim */
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
@@ -41,7 +46,8 @@
     --info: 199 89% 48%;
     --info-foreground: 0 0% 100%;
 
-    --border: 0 0% 0% / 0.06; /* rgba(0,0,0,0.06) subtle border */
+    --border: 0 0% 0% / 0.06;
+    /* rgba(0,0,0,0.06) subtle border */
     --input: 220 14% 90%;
     --ring: 43 66% 54%;
 
@@ -66,42 +72,59 @@
   }
 
   .dark {
-    --background: 222 47% 8%;
-    --foreground: 210 40% 98%;
+    /* Dark Mode - Deep Navy with Champagne Gold Accents */
+    --background: 222 47% 7%;
+    --foreground: 210 40% 96%;
 
-    --card: 222 47% 11%;
-    --card-foreground: 210 40% 98%;
+    --card: 222 47% 10%;
+    --card-foreground: 210 40% 96%;
 
-    --popover: 222 47% 11%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 222 47% 10%;
+    --popover-foreground: 210 40% 96%;
 
-    --primary: 43 66% 54%;
-    --primary-foreground: 222 47% 11%;
+    --primary: 43 70% 56%;
+    --primary-foreground: 222 47% 8%;
 
-    --secondary: 220 50% 18%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 220 40% 16%;
+    --secondary-foreground: 210 40% 96%;
 
-    --muted: 220 50% 18%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 220 40% 14%;
+    --muted-foreground: 215 20% 60%;
 
-    --accent: 43 66% 44%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 43 66% 50%;
+    --accent-foreground: 222 47% 8%;
 
-    --destructive: 0 62% 30%;
+    --destructive: 0 72% 45%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 220 50% 20%;
-    --input: 220 50% 20%;
-    --ring: 43 66% 54%;
+    --success: 160 84% 35%;
+    --success-foreground: 0 0% 100%;
 
-    --sidebar-background: 222 47% 6%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 43 66% 54%;
-    --sidebar-primary-foreground: 222 47% 11%;
+    --warning: 38 92% 45%;
+    --warning-foreground: 0 0% 100%;
+
+    --info: 199 89% 45%;
+    --info-foreground: 0 0% 100%;
+
+    --border: 220 40% 18%;
+    --input: 220 40% 18%;
+    --ring: 43 70% 56%;
+
+    --sidebar-background: 222 47% 5%;
+    --sidebar-foreground: 210 40% 96%;
+    --sidebar-primary: 43 70% 56%;
+    --sidebar-primary-foreground: 222 47% 8%;
     --sidebar-accent: 43 66% 54% / 0.15;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 220 50% 15%;
-    --sidebar-ring: 43 66% 54%;
+    --sidebar-accent-foreground: 210 40% 96%;
+    --sidebar-border: 220 40% 14%;
+    --sidebar-ring: 43 70% 56%;
+
+    /* Charts */
+    --chart-1: 43 70% 56%;
+    --chart-2: 160 84% 40%;
+    --chart-3: 38 92% 50%;
+    --chart-4: 210 40% 96%;
+    --chart-5: 215 20% 50%;
   }
 }
 
@@ -115,7 +138,12 @@
     font-family: 'Manrope', sans-serif;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     @apply font-bold tracking-tight;
   }
 
@@ -124,35 +152,48 @@
     width: 6px;
     height: 6px;
   }
+
   ::-webkit-scrollbar-track {
     background: hsl(var(--background));
   }
+
   ::-webkit-scrollbar-thumb {
     background: hsl(215 16% 77%);
     border-radius: 3px;
   }
+
   ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--primary));
+  }
+
+  /* Dark mode scrollbar */
+  .dark ::-webkit-scrollbar-thumb {
+    background: hsl(220 40% 25%);
+  }
+
+  .dark ::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--primary));
   }
 }
 
 @layer components {
+
   /* Glass Card - Luxury Fintech Style */
   .glass-card {
     background: rgba(255, 255, 255, 0.75);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     border: 1px solid rgba(255, 255, 255, 0.6);
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 
-                0 2px 4px -1px rgba(0, 0, 0, 0.02), 
-                0 10px 15px -3px rgba(0, 0, 0, 0.03);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02),
+      0 2px 4px -1px rgba(0, 0, 0, 0.02),
+      0 10px 15px -3px rgba(0, 0, 0, 0.03);
     transition: all 0.3s ease;
   }
-  
+
   .glass-card:hover {
     background: rgba(255, 255, 255, 0.85);
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 
-                0 8px 10px -6px rgba(0, 0, 0, 0.01);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05),
+      0 8px 10px -6px rgba(0, 0, 0, 0.01);
   }
 
   .dark .glass-card {
@@ -213,12 +254,24 @@
     @apply px-6 py-4 font-semibold text-xs text-muted-foreground uppercase tracking-wider border-b border-slate-100 bg-slate-50/50;
   }
 
+  .dark .data-table th {
+    @apply border-slate-800 bg-slate-800/50;
+  }
+
   .data-table td {
     @apply px-6 py-4 border-b border-slate-100;
   }
 
+  .dark .data-table td {
+    @apply border-slate-800;
+  }
+
   .data-table tr:hover td {
     @apply bg-slate-50;
+  }
+
+  .dark .data-table tr:hover td {
+    @apply bg-slate-800/50;
   }
 
   /* Soft Shadow Utilities */
@@ -245,27 +298,34 @@
   }
 
   @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
   }
 
   @keyframes slideUp {
-    from { 
+    from {
       opacity: 0;
       transform: translateY(10px);
     }
-    to { 
+
+    to {
       opacity: 1;
       transform: translateY(0);
     }
   }
 
   @keyframes scaleIn {
-    from { 
+    from {
       opacity: 0;
       transform: scale(0.95);
     }
-    to { 
+
+    to {
       opacity: 1;
       transform: scale(1);
     }

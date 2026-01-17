@@ -319,7 +319,7 @@ export default function Sidebar() {
       {/* Desktop Sidebar - Always collapsed, expands on hover */}
       <aside
         className={cn(
-          'fixed left-0 top-0 z-40 h-screen bg-white border-r border-border hidden md:flex flex-col transition-all duration-300 shadow-[4px_0_24px_rgba(0,0,0,0.02)]',
+          'fixed left-0 top-0 z-40 h-screen bg-sidebar border-r border-sidebar-border hidden md:flex flex-col transition-all duration-300 shadow-[4px_0_24px_rgba(0,0,0,0.02)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.2)]',
           isCollapsed ? 'w-20' : 'w-72'
         )}
         onMouseEnter={() => setIsHovered(true)}
@@ -327,7 +327,7 @@ export default function Sidebar() {
       >
         {/* Logo */}
         <div className={cn(
-          'border-b border-border transition-all duration-300',
+          'border-b border-sidebar-border transition-all duration-300',
           isCollapsed ? 'p-4 px-3' : 'p-8'
         )}>
           <Link to="/" className="flex items-center gap-3">
@@ -365,12 +365,12 @@ export default function Sidebar() {
 
         {/* User Profile */}
         <div className={cn(
-          'p-6 border-t border-border transition-all duration-300',
+          'p-6 border-t border-sidebar-border transition-all duration-300',
           isCollapsed && 'px-2 p-4'
         )}>
           {!isCollapsed && (
-            <div className="glass-card p-4 rounded-2xl flex items-center gap-3 mb-3 border border-slate-100 shadow-sm">
-              <div className="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 shadow-inner flex items-center justify-center flex-shrink-0 overflow-hidden">
+            <div className="glass-card p-4 rounded-2xl flex items-center gap-3 mb-3 border border-border shadow-sm">
+              <div className="w-10 h-10 rounded-full bg-muted border border-border shadow-inner flex items-center justify-center flex-shrink-0 overflow-hidden">
                 {profile?.avatar ? (
                   <img
                     src={profile.avatar}
@@ -445,11 +445,39 @@ export default function Sidebar() {
                 <span className="text-xs font-medium">Lainnya</span>
               </button>
             </SheetTrigger>
-            <SheetContent side="bottom" className="h-[70vh] rounded-t-3xl">
+            <SheetContent side="bottom" className="h-[75vh] rounded-t-3xl">
               <SheetHeader className="text-left pb-4">
                 <SheetTitle>Menu Lainnya</SheetTitle>
               </SheetHeader>
-              <div className="grid grid-cols-3 gap-3 overflow-y-auto max-h-[calc(70vh-80px)]">
+
+              {/* User Profile Section */}
+              <div className="flex items-center gap-3 p-4 mb-4 bg-muted/50 rounded-2xl border border-border">
+                <div className="w-12 h-12 rounded-full bg-muted border border-border flex items-center justify-center flex-shrink-0 overflow-hidden">
+                  {profile?.avatar ? (
+                    <img
+                      src={profile.avatar}
+                      alt={profile.name || 'Avatar'}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-lg font-semibold text-foreground">
+                      {profile?.name?.[0]?.toUpperCase() || 'U'}
+                    </span>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-foreground truncate">
+                    {profile?.name || 'User'}
+                  </p>
+                  {role && (
+                    <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full", getRoleBadgeColor(role))}>
+                      {getRoleLabel(role)}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3 overflow-y-auto max-h-[calc(75vh-200px)]">
                 {mobileMoreItems.map((item) => {
                   const isActive = location.pathname === item.href;
                   return (
@@ -468,6 +496,17 @@ export default function Sidebar() {
                     </Link>
                   );
                 })}
+              </div>
+
+              {/* Logout Button */}
+              <div className="mt-4 pt-4 border-t border-border">
+                <button
+                  onClick={signOut}
+                  className="flex items-center justify-center gap-3 w-full px-4 py-3 rounded-2xl text-destructive bg-destructive/10 hover:bg-destructive/20 transition-all duration-200"
+                >
+                  <LogOut className="w-5 h-5" />
+                  <span className="font-semibold">Keluar</span>
+                </button>
               </div>
             </SheetContent>
           </Sheet>

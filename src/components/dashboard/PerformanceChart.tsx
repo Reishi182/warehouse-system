@@ -187,19 +187,19 @@ export function PerformanceChart({
     const periods: TimePeriod[] = ['1D', '1W', '1M', '1Y'];
 
     return (
-        <div className={cn("glass-card rounded-2xl p-6 flex flex-col", className)}>
-            {/* Header */}
-            <div className="flex items-center justify-between mb-6">
+        <div className={cn("glass-card rounded-2xl p-4 sm:p-6 flex flex-col", className)}>
+            {/* Header - Stack on mobile */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-6">
                 <div>
-                    <h3 className="text-lg font-bold text-foreground">{title}</h3>
+                    <h3 className="text-base sm:text-lg font-bold text-foreground">{title}</h3>
                     <div className="flex items-baseline gap-2 mt-1">
-                        <span className="text-3xl font-bold text-primary tracking-tight">{value}</span>
+                        <span className="text-2xl sm:text-3xl font-bold text-primary tracking-tight">{value}</span>
                         {change !== undefined && (
                             <span className={cn(
-                                "text-sm font-bold px-2 py-0.5 rounded border",
+                                "text-xs sm:text-sm font-bold px-2 py-0.5 rounded border",
                                 isPositive
-                                    ? "bg-emerald-50 text-emerald-600 border-emerald-100"
-                                    : "bg-red-50 text-red-600 border-red-100"
+                                    ? "bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800"
+                                    : "bg-red-50 text-red-600 border-red-100 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800"
                             )}>
                                 {isPositive ? '+' : ''}{change}%
                             </span>
@@ -207,16 +207,16 @@ export function PerformanceChart({
                     </div>
                 </div>
 
-                {/* Time Period Selector */}
-                <div className="flex bg-slate-100 rounded-lg p-1 border border-slate-200">
+                {/* Time Period Selector - Full width on mobile */}
+                <div className="flex bg-muted rounded-lg p-1 border border-border w-full sm:w-auto">
                     {periods.map((period) => (
                         <button
                             key={period}
                             onClick={() => setSelectedPeriod(period)}
                             className={cn(
-                                "px-3 py-1 rounded text-xs font-medium transition-all",
+                                "flex-1 sm:flex-none px-3 py-1.5 sm:py-1 rounded text-xs font-medium transition-all",
                                 selectedPeriod === period
-                                    ? "bg-white text-foreground shadow-sm border border-slate-100"
+                                    ? "bg-card text-foreground shadow-sm border border-border"
                                     : "text-muted-foreground hover:text-foreground"
                             )}
                         >
@@ -226,9 +226,11 @@ export function PerformanceChart({
                 </div>
             </div>
 
-            {/* Chart */}
-            <div className="flex-1 w-full min-h-[250px]">
-                <Line data={chartData} options={options} />
+            {/* Chart with horizontal scroll on mobile */}
+            <div className="flex-1 w-full overflow-x-auto">
+                <div className="min-w-[400px] sm:min-w-0 h-[200px] sm:min-h-[250px]">
+                    <Line data={chartData} options={options} />
+                </div>
             </div>
         </div>
     );
