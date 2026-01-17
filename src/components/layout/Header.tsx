@@ -9,22 +9,25 @@ interface HeaderProps {
 
 export default function Header({ title, subtitle, actions }: HeaderProps) {
   return (
-    <header className="sticky top-0 z-30 h-20 flex items-center justify-between px-8 border-b border-border bg-background/60 backdrop-blur-xl">
-      {/* Breadcrumb */}
-      <div className="hidden md:flex items-center text-muted-foreground text-sm font-medium">
-        <span>Overview</span>
-        <ChevronRight className="w-4 h-4 mx-2" />
-        <span className="text-foreground">{title}</span>
+    <header className="sticky top-0 z-30 min-h-16 sm:h-20 flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-8 py-3 sm:py-0 border-b border-border bg-background/60 backdrop-blur-xl gap-2 sm:gap-0">
+      {/* Title Section */}
+      <div className="flex-1 min-w-0">
+        {/* Breadcrumb - Desktop */}
+        <div className="hidden md:flex items-center text-muted-foreground text-sm font-medium">
+          <span>Overview</span>
+          <ChevronRight className="w-4 h-4 mx-2" />
+          <span className="text-foreground">{title}</span>
+        </div>
+
+        {/* Mobile Title */}
+        <div className="md:hidden">
+          <h1 className="text-base sm:text-lg font-bold text-foreground truncate">{title}</h1>
+        </div>
       </div>
 
-      {/* Mobile Title */}
-      <div className="md:hidden">
-        <h1 className="text-lg font-bold text-foreground">{title}</h1>
-      </div>
-
-      {/* Action Buttons */}
+      {/* Action Buttons - Responsive */}
       {actions && (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-end sm:justify-start">
           {actions}
         </div>
       )}

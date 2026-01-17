@@ -210,8 +210,9 @@ export default function Customers() {
             title="Manajemen Pelanggan"
             subtitle="Kelola data pelanggan B2B dan relasi bisnis"
             actions={
-                <Button onClick={() => setIsAddOpen(true)} className="rounded-xl">
-                    <Plus className="mr-2 h-4 w-4" /> Tambah Pelanggan
+                <Button onClick={() => setIsAddOpen(true)} className="rounded-xl text-xs sm:text-sm">
+                    <Plus className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Tambah Pelanggan</span>
                 </Button>
             }
         >

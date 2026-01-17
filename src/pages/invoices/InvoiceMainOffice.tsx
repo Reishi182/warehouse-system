@@ -174,8 +174,9 @@ export default function InvoiceMainOffice() {
             title="Invoices"
             subtitle="Kelola tagihan pelanggan (B2B)"
             actions={
-                <Button onClick={() => setIsCreateOpen(true)} className="rounded-xl">
-                    <Plus className="mr-2 h-4 w-4" /> Create Invoice
+                <Button onClick={() => setIsCreateOpen(true)} className="rounded-xl text-xs sm:text-sm">
+                    <Plus className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Create Invoice</span>
                 </Button>
             }
         >

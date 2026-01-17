@@ -236,9 +236,10 @@ export default function PurchaseOrderMainOffice() {
             actions={
                 <Button
                     onClick={() => setIsCreateOpen(true)}
-                    className="rounded-xl"
+                    className="rounded-xl text-xs sm:text-sm"
                 >
-                    <Plus className="mr-2 h-4 w-4" /> Buat PO Baru
+                    <Plus className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Buat PO Baru</span>
                 </Button>
             }
         >

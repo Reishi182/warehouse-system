@@ -333,10 +333,11 @@ export default function Products() {
             title="Manajemen Produk"
             subtitle="Kelola inventaris produk, pantau stok, dan atur harga"
             actions={
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                     {(role === 'warehouse' || role === 'admin' || role === 'cashier') && (
-                        <Button variant="outline" className="rounded-xl" onClick={() => setStockInDialog(true)}>
-                            <ArrowDownToLine className="mr-2 h-4 w-4" /> Stok Masuk
+                        <Button variant="outline" className="rounded-xl text-xs sm:text-sm" onClick={() => setStockInDialog(true)}>
+                            <ArrowDownToLine className="h-4 w-4 sm:mr-2" />
+                            <span className="hidden sm:inline">Stok Masuk</span>
                         </Button>
                     )}
                     {canAddProduct && (

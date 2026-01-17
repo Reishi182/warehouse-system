@@ -333,8 +333,9 @@ export default function GeneralTransactions() {
             title="Transaksi Umum"
             subtitle="Catat pemasukan dan pengeluaran operasional (Main Office)"
             actions={
-                <Button onClick={() => setIsAddOpen(true)} className="rounded-xl">
-                    <Plus className="mr-2 h-4 w-4" /> Catat Transaksi
+                <Button onClick={() => setIsAddOpen(true)} className="rounded-xl text-xs sm:text-sm">
+                    <Plus className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Catat Transaksi</span>
                 </Button>
             }
         >

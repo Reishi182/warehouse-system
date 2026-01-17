@@ -170,8 +170,9 @@ export default function SuratJalanMainOffice() {
             actions={
                 <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                     <DialogTrigger asChild>
-                        <Button className="rounded-xl">
-                            <Plus className="mr-2 h-4 w-4" /> Buat Surat Jalan
+                        <Button className="rounded-xl text-xs sm:text-sm">
+                            <Plus className="h-4 w-4 sm:mr-2" />
+                            <span className="hidden sm:inline">Buat Surat Jalan</span>
                         </Button>
                     </DialogTrigger>
                     <DialogContent className="max-w-3xl rounded-3xl">
