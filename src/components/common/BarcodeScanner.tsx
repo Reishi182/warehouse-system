@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Camera, X, Keyboard } from 'lucide-react';
+import { Camera, X, Keyboard, SwitchCamera, Flashlight } from 'lucide-react';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -14,12 +15,30 @@ interface BarcodeScannerProps {
   placeholder?: string;
 }
 
+// Supported barcode formats
+const SUPPORTED_FORMATS = [
+  Html5QrcodeSupportedFormats.QR_CODE,
+  Html5QrcodeSupportedFormats.EAN_13,
+  Html5QrcodeSupportedFormats.EAN_8,
+  Html5QrcodeSupportedFormats.UPC_A,
+  Html5QrcodeSupportedFormats.UPC_E,
+  Html5QrcodeSupportedFormats.CODE_128,
+  Html5QrcodeSupportedFormats.CODE_39,
+  Html5QrcodeSupportedFormats.CODE_93,
+  Html5QrcodeSupportedFormats.ITF,
+  Html5QrcodeSupportedFormats.CODABAR,
+];
+
 export default function BarcodeScanner({ onScan, placeholder = 'Masukkan atau scan barcode' }: BarcodeScannerProps) {
   const [barcode, setBarcode] = useState('');
   const [showCamera, setShowCamera] = useState(false);
-  const [stream, setStream] = useState<MediaStream | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [useFrontCamera, setUseFrontCamera] = useState(false);
+
+  const html5QrcodeRef = useRef<Html5Qrcode | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const scannerContainerId = 'barcode-scanner-container';
 
   // Handle physical barcode scanner input (fast typing detection)
   const lastKeyTime = useRef<number>(0);
@@ -28,14 +47,14 @@ export default function BarcodeScanner({ onScan, placeholder = 'Masukkan atau sc
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const currentTime = Date.now();
-      
+
       // If typed quickly (within 50ms), it's likely from a barcode scanner
       if (currentTime - lastKeyTime.current < 50) {
         keyBuffer.current += e.key;
       } else {
         keyBuffer.current = e.key;
       }
-      
+
       lastKeyTime.current = currentTime;
 
       // If Enter is pressed and we have buffered input, it's a barcode scan
@@ -51,37 +70,84 @@ export default function BarcodeScanner({ onScan, placeholder = 'Masukkan atau sc
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onScan]);
 
-  const startCamera = async () => {
+  const startScanner = useCallback(async () => {
+    setCameraError(null);
+    setIsScanning(true);
+
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' }
+      // Create scanner instance
+      const html5Qrcode = new Html5Qrcode(scannerContainerId, {
+        formatsToSupport: SUPPORTED_FORMATS,
+        verbose: false,
       });
-      setStream(mediaStream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-      }
-      setShowCamera(true);
+      html5QrcodeRef.current = html5Qrcode;
+
+      const config = {
+        fps: 10,
+        qrbox: { width: 250, height: 150 },
+        aspectRatio: 1.5,
+      };
+
+      await html5Qrcode.start(
+        { facingMode: useFrontCamera ? 'user' : 'environment' },
+        config,
+        (decodedText) => {
+          // Success callback
+          setBarcode(decodedText);
+          onScan(decodedText);
+          stopScanner();
+        },
+        () => {
+          // Ignore scan failures (not found)
+        }
+      );
     } catch (err) {
-      console.error('Failed to start camera:', err);
-      alert('Tidak dapat mengakses kamera. Pastikan izin kamera telah diberikan.');
+      console.error('Failed to start scanner:', err);
+      setCameraError(
+        err instanceof Error
+          ? err.message
+          : 'Tidak dapat mengakses kamera. Pastikan izin kamera telah diberikan.'
+      );
+      setIsScanning(false);
     }
-  };
+  }, [onScan, useFrontCamera]);
 
-  const stopCamera = useCallback(() => {
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-      setStream(null);
+  const stopScanner = useCallback(async () => {
+    if (html5QrcodeRef.current) {
+      try {
+        const state = html5QrcodeRef.current.getState();
+        if (state === 2) { // SCANNING state
+          await html5QrcodeRef.current.stop();
+        }
+        html5QrcodeRef.current.clear();
+      } catch (err) {
+        console.error('Error stopping scanner:', err);
+      }
+      html5QrcodeRef.current = null;
     }
+    setIsScanning(false);
     setShowCamera(false);
-  }, [stream]);
+  }, []);
 
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
+      if (html5QrcodeRef.current) {
+        html5QrcodeRef.current.stop().catch(() => { });
       }
     };
-  }, [stream]);
+  }, []);
+
+  // Start scanner when dialog opens
+  useEffect(() => {
+    if (showCamera) {
+      // Small delay to ensure DOM is ready
+      const timer = setTimeout(() => {
+        startScanner();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [showCamera, startScanner]);
 
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,12 +156,19 @@ export default function BarcodeScanner({ onScan, placeholder = 'Masukkan atau sc
     }
   };
 
-  // Simulated barcode detection for demo
-  const simulateScan = () => {
-    const demoBarcode = '8991234567890';
-    setBarcode(demoBarcode);
-    onScan(demoBarcode);
-    stopCamera();
+  const toggleCamera = async () => {
+    if (html5QrcodeRef.current && isScanning) {
+      await stopScanner();
+      setUseFrontCamera(!useFrontCamera);
+      setTimeout(() => {
+        startScanner();
+      }, 100);
+    }
+  };
+
+  const openCameraDialog = () => {
+    setShowCamera(true);
+    setCameraError(null);
   };
 
   return (
@@ -107,7 +180,7 @@ export default function BarcodeScanner({ onScan, placeholder = 'Masukkan atau sc
             value={barcode}
             onChange={(e) => setBarcode(e.target.value)}
             placeholder={placeholder}
-            className="pr-20"
+            className="pr-20 rounded-xl"
           />
           <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-1">
             <Button
@@ -116,6 +189,7 @@ export default function BarcodeScanner({ onScan, placeholder = 'Masukkan atau sc
               size="icon"
               className="h-8 w-8"
               onClick={() => inputRef.current?.focus()}
+              title="Input Manual"
             >
               <Keyboard className="w-4 h-4" />
             </Button>
@@ -124,46 +198,87 @@ export default function BarcodeScanner({ onScan, placeholder = 'Masukkan atau sc
               variant="ghost"
               size="icon"
               className="h-8 w-8"
-              onClick={startCamera}
+              onClick={openCameraDialog}
+              title="Scan dengan Kamera"
             >
               <Camera className="w-4 h-4" />
             </Button>
           </div>
         </div>
-        <Button type="submit" disabled={!barcode.trim()}>
+        <Button type="submit" disabled={!barcode.trim()} className="rounded-xl">
           Cari
         </Button>
       </form>
 
-      <Dialog open={showCamera} onOpenChange={stopCamera}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Scan Barcode</DialogTitle>
+      <Dialog open={showCamera} onOpenChange={(open) => !open && stopScanner()}>
+        <DialogContent className="sm:max-w-md p-0 overflow-hidden">
+          <DialogHeader className="p-4 pb-2">
+            <DialogTitle className="flex items-center gap-2">
+              <Camera className="w-5 h-5" />
+              Scan Barcode
+            </DialogTitle>
           </DialogHeader>
-          <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              className="w-full h-full object-cover"
+
+          <div className="relative">
+            {/* Scanner Container */}
+            <div
+              id={scannerContainerId}
+              className="w-full min-h-[300px] bg-black"
             />
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-64 h-24 border-2 border-white/50 rounded-lg">
-                <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-destructive animate-pulse" />
+
+            {/* Error Message */}
+            {cameraError && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/80 p-4">
+                <div className="text-center text-white">
+                  <Camera className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p className="text-sm mb-3">{cameraError}</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={startScanner}
+                    className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+                  >
+                    Coba Lagi
+                  </Button>
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Loading State */}
+            {!isScanning && !cameraError && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black">
+                <div className="text-center text-white">
+                  <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                  <p className="text-sm">Memulai kamera...</p>
+                </div>
+              </div>
+            )}
           </div>
-          <p className="text-sm text-muted-foreground text-center">
-            Arahkan barcode ke dalam kotak
-          </p>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={stopCamera} className="flex-1">
-              <X className="w-4 h-4 mr-2" />
-              Batal
-            </Button>
-            <Button onClick={simulateScan} className="flex-1">
-              Demo Scan
-            </Button>
+
+          <div className="p-4 pt-2 space-y-3">
+            <p className="text-sm text-muted-foreground text-center">
+              Arahkan barcode ke dalam kotak untuk scan otomatis
+            </p>
+
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={toggleCamera}
+                className="flex-1 rounded-xl"
+                disabled={!isScanning}
+              >
+                <SwitchCamera className="w-4 h-4 mr-2" />
+                Ganti Kamera
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={stopScanner}
+                className="flex-1 rounded-xl"
+              >
+                <X className="w-4 h-4 mr-2" />
+                Batal
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
