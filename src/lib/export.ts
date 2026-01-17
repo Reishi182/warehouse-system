@@ -1,7 +1,111 @@
 import * as XLSX from 'xlsx';
-import { saveAs } from 'file-saver';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
-// Generic export function
+// Export column interface for generic exports
+export interface ExportColumn {
+    header: string;
+    accessorKey: string;
+    format?: (value: any, row?: any) => string;
+}
+
+// Generic PDF export function
+export function exportToPDF<T extends object>(
+    data: T[],
+    columns: ExportColumn[],
+    filename: string,
+    config?: { title?: string; subtitle?: string }
+) {
+    const doc = new jsPDF();
+
+    // Add title if provided
+    let yPosition = 15;
+    if (config?.title) {
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.text(config.title, 14, yPosition);
+        yPosition += 8;
+    }
+
+    if (config?.subtitle) {
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100);
+        doc.text(config.subtitle, 14, yPosition);
+        yPosition += 5;
+    }
+
+    // Reset text color
+    doc.setTextColor(0);
+
+    // Prepare table data
+    const headers = columns.map(col => col.header);
+    const rows = data.map(item =>
+        columns.map(col => {
+            const value = (item as any)[col.accessorKey];
+            if (col.format) {
+                return col.format(value, item);
+            }
+            return value != null ? String(value) : '-';
+        })
+    );
+
+    // Generate table
+    autoTable(doc, {
+        head: [headers],
+        body: rows,
+        startY: yPosition + 5,
+        styles: {
+            fontSize: 9,
+            cellPadding: 3,
+        },
+        headStyles: {
+            fillColor: [41, 128, 185],
+            textColor: 255,
+            fontStyle: 'bold',
+        },
+        alternateRowStyles: {
+            fillColor: [245, 245, 245],
+        },
+        margin: { left: 14, right: 14 },
+    });
+
+    // Add footer with date
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        doc.text(
+            `Generated: ${new Date().toLocaleString('id-ID')} - Page ${i} of ${pageCount}`,
+            14,
+            doc.internal.pageSize.height - 10
+        );
+    }
+
+    // Save the PDF
+    doc.save(`${filename}.pdf`);
+}
+
+// Generic Excel export function with column definitions
+export function exportToExcelWithColumns<T extends object>(
+    data: T[],
+    columns: ExportColumn[],
+    filename: string,
+    sheetName = 'Data'
+) {
+    const formattedData = data.map(item => {
+        const row: Record<string, any> = {};
+        columns.forEach(col => {
+            const value = (item as any)[col.accessorKey];
+            row[col.header] = col.format ? col.format(value, item) : (value ?? '-');
+        });
+        return row;
+    });
+    exportToExcel(formattedData, filename, sheetName);
+}
+
+// Generic export function (legacy support)
 export function exportToExcel<T extends object>(
     data: T[],
     filename: string,
@@ -24,7 +128,7 @@ export function exportToExcel<T extends object>(
     const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
     const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 
-    // Use native download since file-saver might not be installed
+    // Use native download
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

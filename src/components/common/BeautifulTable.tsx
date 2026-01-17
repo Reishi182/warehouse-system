@@ -9,7 +9,6 @@ import {
     flexRender,
     SortingState,
     ColumnDef,
-    Row,
 } from '@tanstack/react-table';
 import {
     Table,
@@ -21,8 +20,10 @@ import {
 } from "@/components/ui/table";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Download, ChevronLeft, ChevronRight, Plus, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Plus, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ExportButton } from './ExportButton';
+import { ExportColumn } from '@/lib/export';
 
 export interface Column<T> {
     header: string;
@@ -31,6 +32,7 @@ export interface Column<T> {
     sortable?: boolean;
     cell?: (item: T) => React.ReactNode;
     className?: string;
+    exportFormat?: (value: any, row?: T) => string;  // Format for export
 }
 
 interface EmptyStateConfig {
@@ -53,6 +55,9 @@ interface BeautifulTableProps<T> {
     isLoading?: boolean;
     hideSelection?: boolean;
     hideExport?: boolean;
+    hideSearch?: boolean;
+    exportFilename?: string;
+    exportTitle?: string;
     emptyState?: EmptyStateConfig;
 }
 
@@ -67,6 +72,9 @@ export function BeautifulTable<T extends { id: string }>({
     isLoading = false,
     hideSelection = false,
     hideExport = false,
+    hideSearch = false,
+    exportFilename,
+    exportTitle,
     emptyState,
 }: BeautifulTableProps<T>) {
     const [sorting, setSorting] = React.useState<SortingState>([]);
@@ -109,10 +117,10 @@ export function BeautifulTable<T extends { id: string }>({
                     const canSort = col.sortable !== false && col.accessorKey;
                     return (
                         <div
-                            className={`flex items-center gap-1 ${canSort ? 'cursor-pointer select-none hover:text-gray-600' : ''}`}
+                            className={`flex items-center gap-1 ${canSort ? 'cursor-pointer select-none hover:text-foreground' : ''}`}
                             onClick={() => canSort && column.toggleSorting()}
                         >
-                            <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">
+                            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
                                 {col.header}
                             </span>
                             {canSort && (
@@ -128,7 +136,7 @@ export function BeautifulTable<T extends { id: string }>({
                         return col.cell(row.original);
                     }
                     const value = col.accessorKey ? row.original[col.accessorKey] : null;
-                    return <span className="text-sm text-gray-600">{String(value ?? '')}</span>;
+                    return <span className="text-sm text-muted-foreground">{String(value ?? '')}</span>;
                 },
                 enableSorting: col.sortable !== false,
             });
@@ -158,10 +166,21 @@ export function BeautifulTable<T extends { id: string }>({
         },
     });
 
+    // Generate export columns from our column definitions
+    const exportColumns: ExportColumn[] = React.useMemo(() => {
+        return columns
+            .filter(col => col.accessorKey && col.header)
+            .map(col => ({
+                header: col.header,
+                accessorKey: String(col.accessorKey),
+                format: col.exportFormat,
+            }));
+    }, [columns]);
+
     return (
         <div className="space-y-4">
             <div className="bg-card rounded-2xl border shadow-sm overflow-hidden">
-                {/* Header with Title and Search */}
+                {/* Header with Title and Actions */}
                 {(title || !hideExport || onAdd) && (
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center p-6 pb-4 gap-4">
                         <div>
@@ -178,10 +197,13 @@ export function BeautifulTable<T extends { id: string }>({
 
                         <div className="flex items-center gap-2">
                             {!hideExport && (
-                                <Button variant="outline" size="sm" className="rounded-xl h-9 px-3 font-medium">
-                                    <Download className="w-4 h-4 mr-1.5" />
-                                    Export
-                                </Button>
+                                <ExportButton
+                                    data={table.getFilteredRowModel().rows.map(row => row.original)}
+                                    columns={exportColumns}
+                                    filename={exportFilename || title?.toLowerCase().replace(/\s+/g, '_') || 'export'}
+                                    title={exportTitle || title}
+                                    subtitle={`Exported on ${new Date().toLocaleDateString('id-ID')}`}
+                                />
                             )}
                             {onAdd && (
                                 <Button onClick={onAdd} size="sm" className="rounded-xl h-9 px-4 font-semibold">
@@ -194,17 +216,19 @@ export function BeautifulTable<T extends { id: string }>({
                 )}
 
                 {/* Search Bar */}
-                <div className="px-6 pb-4">
-                    <div className="relative max-w-sm">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            placeholder="Search..."
-                            className="pl-9 h-9 rounded-xl bg-muted/50 border-0 focus-visible:ring-1"
-                            value={globalFilter}
-                            onChange={(e) => setGlobalFilter(e.target.value)}
-                        />
+                {!hideSearch && (
+                    <div className="px-6 pb-4">
+                        <div className="relative max-w-sm">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Search all columns..."
+                                className="pl-9 h-9 rounded-xl bg-muted/50 border-0 focus-visible:ring-1"
+                                value={globalFilter}
+                                onChange={(e) => setGlobalFilter(e.target.value)}
+                            />
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* Table */}
                 <div className="w-full overflow-x-auto">
