@@ -96,6 +96,7 @@ export interface SaleItem {
   quantity: number;
   price: number;
   subtotal: number;
+  discount: number; // percentage discount per item
 }
 
 export interface Sale {
@@ -106,6 +107,9 @@ export interface Sale {
   payment_method: PaymentMethod;
   stock_location: Location;
   total_amount: number;
+  order_discount: number; // percentage discount for entire order
+  amount_paid: number; // amount customer paid
+  change_amount: number; // change returned to customer
   created_at: string;
   items: SaleItem[];
 }

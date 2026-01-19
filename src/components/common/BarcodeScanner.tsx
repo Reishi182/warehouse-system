@@ -40,6 +40,11 @@ export default function BarcodeScanner({ onScan, placeholder = 'Masukkan atau sc
   const inputRef = useRef<HTMLInputElement>(null);
   const scannerContainerId = 'barcode-scanner-container';
 
+  // Debounce refs to prevent multiple detections
+  const isProcessingRef = useRef(false);
+  const lastScannedRef = useRef<string>('');
+  const lastScannedTimeRef = useRef<number>(0);
+
   // Handle physical barcode scanner input (fast typing detection)
   const lastKeyTime = useRef<number>(0);
   const keyBuffer = useRef<string>('');
@@ -73,6 +78,8 @@ export default function BarcodeScanner({ onScan, placeholder = 'Masukkan atau sc
   const startScanner = useCallback(async () => {
     setCameraError(null);
     setIsScanning(true);
+    // Reset processing state when starting scanner
+    isProcessingRef.current = false;
 
     try {
       // Create scanner instance
@@ -92,6 +99,23 @@ export default function BarcodeScanner({ onScan, placeholder = 'Masukkan atau sc
         { facingMode: useFrontCamera ? 'user' : 'environment' },
         config,
         (decodedText) => {
+          const now = Date.now();
+
+          // Debounce: Skip if already processing or same barcode within 2 seconds
+          if (isProcessingRef.current) {
+            return;
+          }
+
+          if (lastScannedRef.current === decodedText &&
+            now - lastScannedTimeRef.current < 2000) {
+            return;
+          }
+
+          // Mark as processing to prevent further callbacks
+          isProcessingRef.current = true;
+          lastScannedRef.current = decodedText;
+          lastScannedTimeRef.current = now;
+
           // Success callback
           setBarcode(decodedText);
           onScan(decodedText);

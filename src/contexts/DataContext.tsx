@@ -22,7 +22,13 @@ interface DataContextType {
   getProductByBarcode: (barcode: string) => Product | undefined;
 
   // Sales actions
-  createSale: (data: { paymentMethod: PaymentMethod; stockLocation: Location; items: Array<{ productId: string; quantity: number }> }) => Promise<boolean>;
+  createSale: (data: {
+    paymentMethod: PaymentMethod;
+    stockLocation: Location;
+    items: Array<{ productId: string; quantity: number; discount: number }>;
+    orderDiscount: number;
+    amountPaid: number;
+  }) => Promise<boolean>;
 
 
   // Stock actions
@@ -247,6 +253,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       payment_method: s.payment_method as PaymentMethod,
       stock_location: s.stock_location as Location,
       total_amount: s.total_amount,
+      order_discount: s.order_discount || 0,
+      amount_paid: s.amount_paid || 0,
+      change_amount: s.change_amount || 0,
       created_at: s.created_at,
       items: (s.sale_items || []).map((it: any): SaleItem => ({
         id: it.id,
@@ -257,6 +266,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         quantity: it.quantity,
         price: it.price,
         subtotal: it.subtotal,
+        discount: it.discount || 0,
       })),
     })));
   };
@@ -359,14 +369,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const createSale = async (data: { paymentMethod: PaymentMethod; stockLocation: Location; items: Array<{ productId: string; quantity: number }> }) => {
+  const createSale = async (data: {
+    paymentMethod: PaymentMethod;
+    stockLocation: Location;
+    items: Array<{ productId: string; quantity: number; discount: number }>;
+    orderDiscount: number;
+    amountPaid: number;
+  }) => {
     if (!user || !profile) return false;
 
     const items = data.items
       .filter(i => i.quantity > 0)
       .map(i => {
         const product = products.find(p => p.id === i.productId);
-        return { product, productId: i.productId, quantity: i.quantity };
+        return { product, productId: i.productId, quantity: i.quantity, discount: i.discount };
       });
 
     if (items.length === 0) {
@@ -396,7 +412,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const rand = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
     const saleNumber = `INV/${yyyy}${mm}${dd}-${rand}`;
 
-    const totalAmount = items.reduce((acc, it) => acc + (it.product!.price * it.quantity), 0);
+    // Calculate subtotal with per-item discounts
+    const subtotal = items.reduce((acc, it) => {
+      const itemTotal = it.product!.price * it.quantity;
+      const itemDiscountAmount = itemTotal * (it.discount / 100);
+      return acc + (itemTotal - itemDiscountAmount);
+    }, 0);
+
+    // Apply order-level discount
+    const orderDiscountAmount = subtotal * (data.orderDiscount / 100);
+    const totalAmount = Math.round(subtotal - orderDiscountAmount);
+
+    // Calculate change
+    const changeAmount = Math.max(0, data.amountPaid - totalAmount);
 
     const { data: saleRow, error: saleError } = await supabase
       .from('sales')
@@ -407,6 +435,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         payment_method: data.paymentMethod,
         stock_location: data.stockLocation,
         total_amount: totalAmount,
+        order_discount: data.orderDiscount,
+        amount_paid: data.amountPaid,
+        change_amount: changeAmount,
       })
       .select()
       .single();
@@ -416,15 +447,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
 
-    const saleItems = items.map(it => ({
-      sale_id: saleRow.id,
-      product_id: it.productId,
-      product_name: it.product!.name,
-      barcode: it.product!.barcode,
-      quantity: it.quantity,
-      price: it.product!.price,
-      subtotal: it.product!.price * it.quantity,
-    }));
+    const saleItems = items.map(it => {
+      const itemTotal = it.product!.price * it.quantity;
+      const itemDiscountAmount = itemTotal * (it.discount / 100);
+      return {
+        sale_id: saleRow.id,
+        product_id: it.productId,
+        product_name: it.product!.name,
+        barcode: it.product!.barcode,
+        quantity: it.quantity,
+        price: it.product!.price,
+        subtotal: Math.round(itemTotal - itemDiscountAmount),
+        discount: it.discount,
+      };
+    });
 
     const { error: itemsError } = await supabase.from('sale_items').insert(saleItems);
     if (itemsError) {
