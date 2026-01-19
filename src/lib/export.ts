@@ -1,7 +1,3 @@
-import * as XLSX from 'xlsx';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
-
 // Export column interface for generic exports
 export interface ExportColumn {
     header: string;
@@ -9,13 +5,53 @@ export interface ExportColumn {
     format?: (value: any, row?: any) => string;
 }
 
-// Generic PDF export function
-export function exportToPDF<T extends object>(
+// Helper functions
+function formatDate(date: Date): string {
+    return date.toISOString().slice(0, 10);
+}
+
+function formatDateTime(dateStr: string): string {
+    const d = new Date(dateStr);
+    return d.toLocaleString('id-ID');
+}
+
+function capitalize(str: string): string {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+function statusLabel(status: string): string {
+    switch (status) {
+        case 'pending': return 'Menunggu';
+        case 'approved': return 'Disetujui';
+        case 'completed': return 'Selesai';
+        case 'rejected': return 'Ditolak';
+        default: return status;
+    }
+}
+
+// Lazy load jsPDF and autoTable
+async function loadPDFLibraries() {
+    const [{ jsPDF }, { default: autoTable }] = await Promise.all([
+        import('jspdf'),
+        import('jspdf-autotable')
+    ]);
+    return { jsPDF, autoTable };
+}
+
+// Lazy load XLSX
+async function loadXLSXLibrary() {
+    const XLSX = await import('xlsx');
+    return XLSX;
+}
+
+// Generic PDF export function (now async)
+export async function exportToPDF<T extends object>(
     data: T[],
     columns: ExportColumn[],
     filename: string,
     config?: { title?: string; subtitle?: string }
 ) {
+    const { jsPDF, autoTable } = await loadPDFLibraries();
     const doc = new jsPDF();
 
     // Add title if provided
@@ -87,8 +123,8 @@ export function exportToPDF<T extends object>(
     doc.save(`${filename}.pdf`);
 }
 
-// Generic Excel export function with column definitions
-export function exportToExcelWithColumns<T extends object>(
+// Generic Excel export function with column definitions (now async)
+export async function exportToExcelWithColumns<T extends object>(
     data: T[],
     columns: ExportColumn[],
     filename: string,
@@ -102,15 +138,17 @@ export function exportToExcelWithColumns<T extends object>(
         });
         return row;
     });
-    exportToExcel(formattedData, filename, sheetName);
+    await exportToExcel(formattedData, filename, sheetName);
 }
 
-// Generic export function (legacy support)
-export function exportToExcel<T extends object>(
+// Generic export function (legacy support - now async)
+export async function exportToExcel<T extends object>(
     data: T[],
     filename: string,
     sheetName = 'Data'
 ) {
+    const XLSX = await loadXLSXLibrary();
+
     const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
@@ -139,8 +177,8 @@ export function exportToExcel<T extends object>(
     URL.revokeObjectURL(url);
 }
 
-// Export products
-export function exportProducts(products: any[]) {
+// Export products (now async)
+export async function exportProducts(products: any[]) {
     const data = products.map(p => ({
         'Nama Produk': p.name,
         'Barcode': p.barcode,
@@ -150,11 +188,11 @@ export function exportProducts(products: any[]) {
         'Stok Lainnya': p.stock?.lainnya || 0,
         'Total Stok': (p.stock?.gudang || 0) + (p.stock?.toko || 0) + (p.stock?.lainnya || 0),
     }));
-    exportToExcel(data, `produk_${formatDate(new Date())}`, 'Produk');
+    await exportToExcel(data, `produk_${formatDate(new Date())}`, 'Produk');
 }
 
-// Export stock logs
-export function exportStockLogs(logs: any[]) {
+// Export stock logs (now async)
+export async function exportStockLogs(logs: any[]) {
     const data = logs.map(l => ({
         'Tanggal': formatDateTime(l.timestamp),
         'Produk': l.product?.name || '-',
@@ -163,11 +201,11 @@ export function exportStockLogs(logs: any[]) {
         'Lokasi': capitalize(l.location),
         'Catatan': l.note || '-',
     }));
-    exportToExcel(data, `stok_log_${formatDate(new Date())}`, 'Stock Logs');
+    await exportToExcel(data, `stok_log_${formatDate(new Date())}`, 'Stock Logs');
 }
 
-// Export sales
-export function exportSales(sales: any[]) {
+// Export sales (now async)
+export async function exportSales(sales: any[]) {
     const data = sales.map(s => ({
         'No. Transaksi': s.sale_number,
         'Tanggal': formatDateTime(s.created_at),
@@ -175,11 +213,11 @@ export function exportSales(sales: any[]) {
         'Metode Bayar': s.payment_method === 'cash' ? 'Tunai' : 'Transfer',
         'Total': s.total_amount,
     }));
-    exportToExcel(data, `penjualan_${formatDate(new Date())}`, 'Penjualan');
+    await exportToExcel(data, `penjualan_${formatDate(new Date())}`, 'Penjualan');
 }
 
-// Export requests
-export function exportRequests(requests: any[]) {
+// Export requests (now async)
+export async function exportRequests(requests: any[]) {
     const data = requests.map(r => ({
         'ID': r.id.slice(0, 8),
         'Tanggal': formatDateTime(r.requested_at),
@@ -189,51 +227,27 @@ export function exportRequests(requests: any[]) {
         'Ke': capitalize(r.to_location),
         'Status': statusLabel(r.status),
     }));
-    exportToExcel(data, `permintaan_stok_${formatDate(new Date())}`, 'Permintaan');
+    await exportToExcel(data, `permintaan_stok_${formatDate(new Date())}`, 'Permintaan');
 }
 
-// Export surat jalan
-export function exportSuratJalan(suratJalans: any[]) {
+// Export surat jalan (now async)
+export async function exportSuratJalan(suratJalans: any[]) {
     const data = suratJalans.map(s => ({
         'Nomor': s.number,
         'Tanggal': formatDateTime(s.created_at),
         'Jumlah Item': s.items?.length || 0,
         'Status': statusLabel(s.status),
     }));
-    exportToExcel(data, `surat_jalan_${formatDate(new Date())}`, 'Surat Jalan');
+    await exportToExcel(data, `surat_jalan_${formatDate(new Date())}`, 'Surat Jalan');
 }
 
-// Export cash transfers
-export function exportCashTransfers(transfers: any[]) {
+// Export cash transfers (now async)
+export async function exportCashTransfers(transfers: any[]) {
     const data = transfers.map(t => ({
         'Tanggal': formatDateTime(t.created_at),
         'Kasir': t.cashier_name,
         'Jumlah': t.amount,
         'Catatan': t.note || '-',
     }));
-    exportToExcel(data, `setoran_${formatDate(new Date())}`, 'Setoran');
-}
-
-// Helper functions
-function formatDate(date: Date): string {
-    return date.toISOString().slice(0, 10);
-}
-
-function formatDateTime(dateStr: string): string {
-    const d = new Date(dateStr);
-    return d.toLocaleString('id-ID');
-}
-
-function capitalize(str: string): string {
-    return str.charAt(0).toUpperCase() + str.slice(1);
-}
-
-function statusLabel(status: string): string {
-    switch (status) {
-        case 'pending': return 'Menunggu';
-        case 'approved': return 'Disetujui';
-        case 'completed': return 'Selesai';
-        case 'rejected': return 'Ditolak';
-        default: return status;
-    }
+    await exportToExcel(data, `setoran_${formatDate(new Date())}`, 'Setoran');
 }

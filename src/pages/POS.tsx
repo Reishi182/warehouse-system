@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, useEffect } from 'react';
+import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import {
     ShoppingCart,
     Trash2,
@@ -13,15 +13,15 @@ import {
     List,
     X,
     Percent,
-    Calculator,
     Keyboard,
-    CheckCircle2,
     Printer
 } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import BarcodeScanner from '@/components/common/BarcodeScanner';
 import PageSkeleton from '@/components/common/PageSkeleton';
 import POSReceipt from '@/components/pos/POSReceipt';
+import { ProductCard } from '@/components/pos/ProductCard';
+import { ProductListItem } from '@/components/pos/ProductListItem';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -199,7 +199,7 @@ export default function POS() {
         addToCart(product);
     };
 
-    const addToCart = (product: Product) => {
+    const addToCart = useCallback((product: Product) => {
         if (product.stock[stockLocation] <= 0) {
             toast({
                 title: 'Stok habis',
@@ -227,7 +227,7 @@ export default function POS() {
             }
             return [...prev, { product, quantity: 1, discount: 0 }];
         });
-    };
+    }, [stockLocation, toast]);
 
     const updateQty = (productId: string, qty: number) => {
         if (qty < 0) return;
@@ -340,137 +340,7 @@ export default function POS() {
         }
     };
 
-    const ProductCard = ({ product }: { product: Product }) => {
-        const stock = product.stock[stockLocation];
-        const isOutOfStock = stock <= 0;
-        const isLowStock = stock > 0 && stock < 10;
-
-        return (
-            <button
-                onClick={() => !isOutOfStock && addToCart(product)}
-                disabled={isOutOfStock}
-                className={cn(
-                    "group relative flex flex-col rounded-2xl border-2 bg-card p-4 text-left transition-all duration-200",
-                    "hover:shadow-xl hover:border-primary hover:-translate-y-1",
-                    isOutOfStock && "opacity-60 cursor-not-allowed hover:translate-y-0 hover:shadow-none"
-                )}
-            >
-                {/* Product Image */}
-                <div className="aspect-square w-full rounded-xl bg-muted/30 mb-3 overflow-hidden flex items-center justify-center relative">
-                    {product.image_url ? (
-                        <img
-                            src={product.image_url}
-                            alt={product.name}
-                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                        />
-                    ) : (
-                        <Package className="w-12 h-12 text-muted-foreground/20" />
-                    )}
-
-                    {/* Out of stock overlay */}
-                    {isOutOfStock && (
-                        <div className="absolute inset-0 bg-background/60 backdrop-blur-[1px] flex items-center justify-center">
-                            <span className="text-destructive font-bold text-sm bg-destructive/10 px-3 py-1 rounded-full border border-destructive/20">
-                                HABIS
-                            </span>
-                        </div>
-                    )}
-
-                    {/* Quick add button on hover */}
-                    {!isOutOfStock && (
-                        <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <div className="bg-primary text-primary-foreground rounded-full p-3 shadow-lg transform scale-75 group-hover:scale-100 transition-transform">
-                                <Plus className="w-5 h-5" />
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* Stock Badge */}
-                <Badge
-                    variant={isOutOfStock ? "destructive" : isLowStock ? "secondary" : "outline"}
-                    className={cn(
-                        "absolute top-3 right-3 text-xs font-semibold",
-                        !isOutOfStock && !isLowStock && "bg-primary/10 text-primary border-primary/20"
-                    )}
-                >
-                    {isOutOfStock ? 'Habis' : `${stock} pcs`}
-                </Badge>
-
-                {/* Product Info */}
-                <h4 className="font-semibold text-sm line-clamp-2 mb-1 group-hover:text-primary transition-colors">
-                    {product.name}
-                </h4>
-                <p className="text-xs text-muted-foreground mb-2 font-mono">{product.barcode}</p>
-                <p className="font-bold text-lg text-primary">
-                    Rp {product.price.toLocaleString('id-ID')}
-                </p>
-            </button>
-        );
-    };
-
-    const ProductListItem = ({ product }: { product: Product }) => {
-        const stock = product.stock[stockLocation];
-        const isOutOfStock = stock <= 0;
-        const isLowStock = stock > 0 && stock < 10;
-
-        return (
-            <button
-                onClick={() => !isOutOfStock && addToCart(product)}
-                disabled={isOutOfStock}
-                className={cn(
-                    "group flex items-center gap-4 w-full p-4 rounded-xl border-2 bg-card transition-all duration-200 text-left",
-                    "hover:shadow-lg hover:border-primary hover:bg-primary/5",
-                    isOutOfStock && "opacity-60 cursor-not-allowed hover:shadow-none hover:bg-card"
-                )}
-            >
-                {/* Product Image */}
-                <div className="w-14 h-14 rounded-xl bg-muted/30 overflow-hidden flex items-center justify-center flex-shrink-0 relative">
-                    {product.image_url ? (
-                        <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
-                    ) : (
-                        <Package className="w-7 h-7 text-muted-foreground/20" />
-                    )}
-                    {isOutOfStock && (
-                        <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
-                            <X className="w-5 h-5 text-destructive" />
-                        </div>
-                    )}
-                </div>
-
-                {/* Product Info */}
-                <div className="flex-1 min-w-0">
-                    <h4 className="font-semibold text-sm truncate group-hover:text-primary transition-colors">
-                        {product.name}
-                    </h4>
-                    <p className="text-xs text-muted-foreground font-mono">{product.barcode}</p>
-                </div>
-
-                {/* Price & Stock */}
-                <div className="text-right">
-                    <p className="font-bold text-lg text-primary">Rp {product.price.toLocaleString('id-ID')}</p>
-                    <Badge
-                        variant={isOutOfStock ? "destructive" : isLowStock ? "secondary" : "outline"}
-                        className={cn(
-                            "text-xs",
-                            !isOutOfStock && !isLowStock && "bg-primary/10 text-primary border-primary/20"
-                        )}
-                    >
-                        {isOutOfStock ? 'Habis' : `Stok: ${stock}`}
-                    </Badge>
-                </div>
-
-                {/* Add indicator */}
-                {!isOutOfStock && (
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                        <div className="bg-primary text-primary-foreground rounded-full p-2">
-                            <Plus className="w-4 h-4" />
-                        </div>
-                    </div>
-                )}
-            </button>
-        );
-    };
+    // ProductCard and ProductListItem are now imported from @/components/pos/*
 
     return (
         <MainLayout title="Point of Sale" subtitle="Sistem kasir untuk penjualan">
@@ -563,13 +433,23 @@ export default function POS() {
                         {viewMode === 'grid' ? (
                             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-3">
                                 {filteredProducts.map((product) => (
-                                    <ProductCard key={product.id} product={product} />
+                                    <ProductCard
+                                        key={product.id}
+                                        product={product}
+                                        stockLocation={stockLocation}
+                                        onAddToCart={addToCart}
+                                    />
                                 ))}
                             </div>
                         ) : (
                             <div className="space-y-2">
                                 {filteredProducts.map((product) => (
-                                    <ProductListItem key={product.id} product={product} />
+                                    <ProductListItem
+                                        key={product.id}
+                                        product={product}
+                                        stockLocation={stockLocation}
+                                        onAddToCart={addToCart}
+                                    />
                                 ))}
                             </div>
                         )}

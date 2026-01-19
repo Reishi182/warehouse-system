@@ -236,9 +236,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const fetchSales = async () => {
     const { data, error } = await supabase
       .from('sales')
-      .select('*, sale_items(*)')
+      .select('id, sale_number, cashier_id, cashier_name, payment_method, stock_location, total_amount, order_discount, amount_paid, change_amount, created_at, sale_items(id, sale_id, product_id, product_name, barcode, quantity, price, subtotal, discount)')
       .order('created_at', { ascending: false })
-      .limit(200);
+      .limit(100);
 
     if (error) {
       console.error('Error fetching sales:', error);
@@ -274,9 +274,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const fetchCashTransfers = async () => {
     const { data, error } = await supabase
       .from('cash_transfers')
-      .select('*')
+      .select('id, cashier_id, cashier_name, amount, transfer_date, created_at, note')
       .order('created_at', { ascending: false })
-      .limit(200);
+      .limit(50);
 
     if (error) {
       console.error('Error fetching cash transfers:', error);
@@ -297,9 +297,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const fetchActivityLogs = async () => {
     const { data, error } = await supabase
       .from('activity_logs')
-      .select('*')
+      .select('id, user_id, user_name, user_role, action, entity_type, entity_id, description, created_at')
       .order('created_at', { ascending: false })
-      .limit(50);
+      .limit(30);
 
     if (error) {
       console.error('Error fetching activity logs:', error);
