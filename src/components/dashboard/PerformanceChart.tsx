@@ -58,27 +58,39 @@ export function PerformanceChart({
     // Transform data based on selected period
     const { displayData, displayLabels } = useMemo(() => {
         const yearLabels = labels || periodLabels['1Y'];
+        const currentMonth = new Date().getMonth();
 
         switch (selectedPeriod) {
             case '1D': {
-                // Simulate hourly data by taking last few data points or generating sample
-                const hourlyData = data.length >= 7
-                    ? data.slice(-7)
-                    : [...Array(7)].map((_, i) => Math.round(data[data.length - 1] * (0.9 + Math.random() * 0.2)));
+                // Show hourly breakdown of today's data (estimate from current month)
+                const todayBase = data[currentMonth] || data[data.length - 1] || 0;
+                const hourlyData = periodLabels['1D'].map((_, i) => {
+                    // Create a smooth curve peaking around midday
+                    const hourFactor = 1 - Math.abs(i - 3) / 4; // Peak at 12:00 (index 3)
+                    return Math.round(todayBase * hourFactor * 0.3);
+                });
                 return { displayData: hourlyData, displayLabels: periodLabels['1D'] };
             }
             case '1W': {
-                // Simulate daily data for a week
-                const weeklyData = data.length >= 7
-                    ? data.slice(-7)
-                    : [...Array(7)].map((_, i) => Math.round(data[data.length - 1] * (0.85 + Math.random() * 0.3)));
+                // Show last 7 days estimate based on current month's data
+                const weekBase = data[currentMonth] || data[data.length - 1] || 0;
+                const dailyAvg = weekBase / 30; // Approx daily average
+                const weeklyData = periodLabels['1W'].map((_, i) => {
+                    // Slight variation across weekdays
+                    const dayFactor = 0.8 + (i < 5 ? 0.3 : 0.1); // Weekdays higher
+                    return Math.round(dailyAvg * dayFactor * 7);
+                });
                 return { displayData: weeklyData, displayLabels: periodLabels['1W'] };
             }
             case '1M': {
-                // Monthly view - 4 weeks
-                const monthlyData = data.length >= 4
-                    ? data.slice(-4)
-                    : [...Array(4)].map((_, i) => Math.round(data[data.length - 1] * (0.8 + Math.random() * 0.4)));
+                // Show 4 weeks of the current month
+                const monthTotal = data[currentMonth] || data[data.length - 1] || 0;
+                const weeklyAvg = monthTotal / 4;
+                const monthlyData = periodLabels['1M'].map((_, i) => {
+                    // Gradually increasing trend through the month
+                    const weekFactor = 0.85 + (i * 0.1);
+                    return Math.round(weeklyAvg * weekFactor);
+                });
                 return { displayData: monthlyData, displayLabels: periodLabels['1M'] };
             }
             case '1Y':

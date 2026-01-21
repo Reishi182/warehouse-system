@@ -235,7 +235,7 @@ export default function SuratJalanMainOffice() {
                                             <SelectContent className="rounded-xl max-h-[200px]">
                                                 {products.map(p => (
                                                     <SelectItem key={p.id} value={p.id} className="rounded-lg my-1 cursor-pointer">
-                                                        {p.name} (Stok: {p.stock.gudang})
+                                                        {p.name} (Stok: {(p as any).stock_gudang ?? p.stock?.gudang ?? 0})
                                                     </SelectItem>
                                                 ))}
                                             </SelectContent>

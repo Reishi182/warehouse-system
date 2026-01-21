@@ -111,12 +111,23 @@ const navGroups: NavItem[] = [
       { label: 'Cash', icon: Wallet, href: '/cash-transfer', roles: ['cashier', 'kepala_toko', 'main_office', 'admin'] },
       { label: 'Riwayat Cash', icon: Receipt, href: '/cash-history', roles: ['main_office', 'admin'] },
       { label: 'Transaksi Umum', icon: Banknote, href: '/finance/transactions', roles: ['main_office', 'admin'] },
-      { label: 'Riwayat Penjualan', icon: Receipt, href: '/sales', roles: ['kepala_toko', 'admin'] },
+      { label: 'Riwayat Penjualan', icon: Receipt, href: '/finance/sales-history', roles: ['cashier', 'kepala_toko', 'main_office', 'admin'] },
     ],
   },
 
   { label: 'Persetujuan', icon: ClipboardCheck, href: '/approval', roles: ['auditor', 'admin'] },
-  { label: 'Laporan', icon: BarChart3, href: '/reports', roles: ['kepala_toko', 'main_office', 'auditor', 'admin'] },
+
+  // Laporan submenu
+  {
+    label: 'Laporan',
+    icon: BarChart3,
+    roles: ['kepala_toko', 'main_office', 'auditor', 'admin'],
+    children: [
+      { label: 'Laporan Stok Harian', icon: Package, href: '/reports/daily-stock', roles: ['kepala_toko', 'admin'] },
+      { label: 'Laporan Umum', icon: BarChart3, href: '/reports', roles: ['kepala_toko', 'main_office', 'auditor', 'admin'] },
+    ],
+  },
+
   { label: 'Pengguna', icon: Users, href: '/users', roles: ['admin'] },
   { label: 'Pengaturan', icon: Settings, href: '/settings', roles: ['warehouse', 'cashier', 'kepala_toko', 'auditor', 'admin', 'main_office'] },
 ];

@@ -139,13 +139,29 @@ export function useApproveCashTransferRequest() {
                 });
 
             if (transferError) throw transferError;
+
+            // Auto-create entry in other_transactions (Transaksi Umum)
+            const { error: otherTransactionError } = await supabase
+                .from('other_transactions')
+                .insert({
+                    transaction_date: today,
+                    type: 'income',
+                    category: 'Setoran Kas',
+                    amount: request.amount,
+                    description: `Setoran kas dari ${request.cashier_name}${request.note ? ` - ${request.note}` : ''}`,
+                    created_by: auditorId,
+                    created_by_name: auditorName,
+                });
+
+            if (otherTransactionError) throw otherTransactionError;
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['cash-transfer-requests'] });
             queryClient.invalidateQueries({ queryKey: ['cash-transfers'] });
+            queryClient.invalidateQueries({ queryKey: ['other_transactions'] });
             toast({
                 title: 'Setoran diterima',
-                description: 'Setoran berhasil dikonfirmasi dan dicatat',
+                description: 'Setoran berhasil dikonfirmasi dan dicatat ke transaksi umum',
             });
         },
         onError: (error: Error) => {
