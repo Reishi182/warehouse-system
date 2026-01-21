@@ -36,7 +36,7 @@ export default function StatsGrid({
 }: StatsGridProps) {
     // Calculate common stats
     const totalProducts = products.length;
-    const totalStock = products.reduce((acc, p) => acc + p.stock.gudang + p.stock.toko + p.stock.lainnya, 0);
+    const totalStock = products.reduce((acc, p) => acc + p.stock.gudang + p.stock.toko, 0);
     const lowStockCount = products.filter(p => p.stock.gudang < 20 || p.stock.toko < 10).length;
     const pendingRequests = requests.filter(r => r.status === 'pending').length;
     const approvedRequests = requests.filter(r => r.status === 'approved').length;

@@ -133,7 +133,6 @@ export default function Sales() {
                     <SelectContent className="rounded-xl">
                       <SelectItem value="gudang" className="rounded-lg cursor-pointer my-1">Gudang</SelectItem>
                       <SelectItem value="toko" className="rounded-lg cursor-pointer my-1">Toko</SelectItem>
-                      <SelectItem value="lainnya" className="rounded-lg cursor-pointer my-1">Lainnya</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

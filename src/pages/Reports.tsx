@@ -30,7 +30,7 @@ export default function Reports() {
 
   // Calculate stats
   const totalProducts = products.length;
-  const totalStock = products.reduce((acc, p) => acc + p.stock.gudang + p.stock.toko + p.stock.lainnya, 0);
+  const totalStock = products.reduce((acc, p) => acc + p.stock.gudang + p.stock.toko, 0);
   const completedRequests = requests.filter(r => r.status === 'completed').length;
   const approvedSuratJalans = suratJalans.filter(s => s.status === 'approved').length;
 
@@ -38,7 +38,6 @@ export default function Reports() {
   const stockByLocationData = [
     { name: 'Gudang', value: products.reduce((acc, p) => acc + p.stock.gudang, 0) },
     { name: 'Toko', value: products.reduce((acc, p) => acc + p.stock.toko, 0) },
-    { name: 'Lainnya', value: products.reduce((acc, p) => acc + p.stock.lainnya, 0) },
   ];
 
   const requestStatusData = [

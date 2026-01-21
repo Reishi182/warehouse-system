@@ -53,16 +53,14 @@ export function RoleCharts({
     const stockDistribution = useMemo(() => {
         const gudang = products.reduce((acc, p) => acc + p.stock.gudang, 0);
         const toko = products.reduce((acc, p) => acc + p.stock.toko, 0);
-        const lainnya = products.reduce((acc, p) => acc + p.stock.lainnya, 0);
         return [
             { label: 'Gudang', value: gudang, color: '#d6a63d' },
             { label: 'Toko', value: toko, color: '#cbd5e1' },
-            { label: 'Lainnya', value: lainnya, color: '#1e293b' },
         ];
     }, [products]);
 
     const totalStock = products.reduce((acc, p) =>
-        acc + p.stock.gudang + p.stock.toko + p.stock.lainnya, 0
+        acc + p.stock.gudang + p.stock.toko, 0
     );
 
     // Request status for donut chart

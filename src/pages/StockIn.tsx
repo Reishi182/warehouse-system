@@ -125,7 +125,7 @@ export default function StockIn() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div className="text-center p-4 bg-gray-50 rounded-2xl border border-gray-100">
                     <p className="text-2xl font-bold text-gray-900">{selectedProduct.stock.gudang}</p>
                     <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mt-1">Gudang</p>
@@ -133,10 +133,6 @@ export default function StockIn() {
                   <div className="text-center p-4 bg-gray-50 rounded-2xl border border-gray-100">
                     <p className="text-2xl font-bold text-gray-900">{selectedProduct.stock.toko}</p>
                     <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mt-1">Toko</p>
-                  </div>
-                  <div className="text-center p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                    <p className="text-2xl font-bold text-gray-900">{selectedProduct.stock.lainnya}</p>
-                    <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mt-1">Lainnya</p>
                   </div>
                 </div>
 
@@ -160,7 +156,6 @@ export default function StockIn() {
                       <SelectContent className="rounded-xl">
                         <SelectItem value="gudang" className="cursor-pointer rounded-lg my-1">Gudang</SelectItem>
                         <SelectItem value="toko" className="cursor-pointer rounded-lg my-1">Toko</SelectItem>
-                        <SelectItem value="lainnya" className="cursor-pointer rounded-lg my-1">Lainnya</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

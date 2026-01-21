@@ -185,8 +185,7 @@ export async function exportProducts(products: any[]) {
         'Harga': p.price,
         'Stok Gudang': p.stock?.gudang || 0,
         'Stok Toko': p.stock?.toko || 0,
-        'Stok Lainnya': p.stock?.lainnya || 0,
-        'Total Stok': (p.stock?.gudang || 0) + (p.stock?.toko || 0) + (p.stock?.lainnya || 0),
+        'Total Stok': (p.stock?.gudang || 0) + (p.stock?.toko || 0),
     }));
     await exportToExcel(data, `produk_${formatDate(new Date())}`, 'Produk');
 }

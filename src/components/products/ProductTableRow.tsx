@@ -22,7 +22,7 @@ interface ProductTableRowProps {
 }
 
 export default function ProductTableRow({ product, canManage, onEdit, onDelete }: ProductTableRowProps) {
-    const total = product.stock.gudang + product.stock.toko + product.stock.lainnya;
+    const total = product.stock.gudang + product.stock.toko;
     const lowStock = product.stock.gudang < 20 || product.stock.toko < 10;
 
     return (
@@ -72,7 +72,6 @@ export default function ProductTableRow({ product, canManage, onEdit, onDelete }
                     {product.stock.toko}
                 </span>
             </td>
-            <td className="text-center font-medium">{product.stock.lainnya}</td>
             <td className="text-center">
                 <span className="font-bold text-primary">{total}</span>
             </td>

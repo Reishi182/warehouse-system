@@ -17,7 +17,6 @@ function transformOpname(row: any): StockOpname {
             stock: {
                 gudang: row.products.stock_gudang || 0,
                 toko: row.products.stock_toko || 0,
-                lainnya: row.products.stock_other || 0,
             },
             created_at: row.products.created_at,
             updated_at: row.products.updated_at,

@@ -22,7 +22,7 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product, canManage, onEdit, onDelete }: ProductCardProps) {
-    const total = product.stock.gudang + product.stock.toko + product.stock.lainnya;
+    const total = product.stock.gudang + product.stock.toko;
     const lowStock = product.stock.gudang < 20 || product.stock.toko < 10;
 
     return (
@@ -96,7 +96,7 @@ export default function ProductCard({ product, canManage, onEdit, onDelete }: Pr
                 </div>
             )}
 
-            <div className="grid grid-cols-3 gap-2 mt-4">
+            <div className="grid grid-cols-2 gap-2 mt-4">
                 <div className="rounded-lg bg-muted/30 p-2 text-center">
                     <p className={cn('text-sm font-semibold', product.stock.gudang < 20 && 'text-warning')}>
                         {product.stock.gudang}
@@ -108,10 +108,6 @@ export default function ProductCard({ product, canManage, onEdit, onDelete }: Pr
                         {product.stock.toko}
                     </p>
                     <p className="text-[11px] text-muted-foreground">Toko</p>
-                </div>
-                <div className="rounded-lg bg-muted/30 p-2 text-center">
-                    <p className="text-sm font-semibold">{product.stock.lainnya}</p>
-                    <p className="text-[11px] text-muted-foreground">Lainnya</p>
                 </div>
             </div>
         </div>

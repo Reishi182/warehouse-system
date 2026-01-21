@@ -42,7 +42,7 @@ interface AddProductDialogProps {
         name: string;
         barcode: string;
         price: number;
-        stock: { gudang: number; toko: number; lainnya: number };
+        stock: { gudang: number; toko: number };
         image_url?: string;
     }) => Promise<boolean>;
     getProductByBarcode: (barcode: string) => Product | undefined;
@@ -240,8 +240,7 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
             stock: canSetStock ? {
                 gudang: newProduct.location === 'gudang' ? newProduct.quantity : 0,
                 toko: newProduct.location === 'toko' ? newProduct.quantity : 0,
-                lainnya: newProduct.location === 'lainnya' ? newProduct.quantity : 0,
-            } : { gudang: 0, toko: 0, lainnya: 0 },
+            } : { gudang: 0, toko: 0 },
             image_url: imageUrl,
         });
 
@@ -373,7 +372,6 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
                                         <SelectContent className="rounded-xl">
                                             <SelectItem value="gudang" className="cursor-pointer rounded-lg my-1">Gudang</SelectItem>
                                             <SelectItem value="toko" className="cursor-pointer rounded-lg my-1">Toko</SelectItem>
-                                            <SelectItem value="lainnya" className="cursor-pointer rounded-lg my-1">Lainnya</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>

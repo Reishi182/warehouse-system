@@ -38,7 +38,6 @@ export default function EditProductDialog({
     const [stockForm, setStockForm] = useState({
         gudang: 0,
         toko: 0,
-        lainnya: 0,
     });
     const [editProductImageFile, setEditProductImageFile] = useState<File | null>(null);
     const [editProductImagePreviewUrl, setEditProductImagePreviewUrl] = useState<string | null>(null);
@@ -55,7 +54,6 @@ export default function EditProductDialog({
             setStockForm({
                 gudang: product.stock.gudang,
                 toko: product.stock.toko,
-                lainnya: product.stock.lainnya,
             });
         }
     }, [product]);
@@ -132,7 +130,6 @@ export default function EditProductDialog({
             updates.stock = {
                 gudang: stockForm.gudang,
                 toko: stockForm.toko,
-                lainnya: stockForm.lainnya,
             };
         }
 
@@ -191,7 +188,7 @@ export default function EditProductDialog({
                     {canEditStock && (
                         <div className="space-y-3 p-4 rounded-xl bg-muted/50 border">
                             <Label className="text-sm font-semibold">Stok</Label>
-                            <div className="grid grid-cols-3 gap-3">
+                            <div className="grid grid-cols-2 gap-3">
                                 <div className="space-y-1">
                                     <Label className="text-xs text-muted-foreground">Gudang</Label>
                                     <Input
@@ -209,16 +206,6 @@ export default function EditProductDialog({
                                         min={0}
                                         value={stockForm.toko}
                                         onChange={(e) => setStockForm({ ...stockForm, toko: parseInt(e.target.value) || 0 })}
-                                        className="rounded-lg h-9"
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <Label className="text-xs text-muted-foreground">Lainnya</Label>
-                                    <Input
-                                        type="number"
-                                        min={0}
-                                        value={stockForm.lainnya}
-                                        onChange={(e) => setStockForm({ ...stockForm, lainnya: parseInt(e.target.value) || 0 })}
                                         className="rounded-lg h-9"
                                     />
                                 </div>

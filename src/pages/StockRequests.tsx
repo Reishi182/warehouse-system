@@ -375,7 +375,6 @@ export default function StockRequests() {
                         <SelectContent className="rounded-xl">
                           <SelectItem value="gudang" className="rounded-lg cursor-pointer my-1 text-sm">Gudang</SelectItem>
                           <SelectItem value="toko" className="rounded-lg cursor-pointer my-1 text-sm">Toko</SelectItem>
-                          <SelectItem value="lainnya" className="rounded-lg cursor-pointer my-1 text-sm">Lainnya</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -386,7 +385,6 @@ export default function StockRequests() {
                         <SelectContent className="rounded-xl">
                           <SelectItem value="gudang" className="rounded-lg cursor-pointer my-1 text-sm">Gudang</SelectItem>
                           <SelectItem value="toko" className="rounded-lg cursor-pointer my-1 text-sm">Toko</SelectItem>
-                          <SelectItem value="lainnya" className="rounded-lg cursor-pointer my-1 text-sm">Lainnya</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>

@@ -48,7 +48,7 @@ export default function Products() {
     // Quick stock adjustment state
     const [stockAdjustDialog, setStockAdjustDialog] = useState(false);
     const [stockAdjustProduct, setStockAdjustProduct] = useState<Product | null>(null);
-    const [stockAdjustments, setStockAdjustments] = useState({ gudang: 0, toko: 0, lainnya: 0 });
+    const [stockAdjustments, setStockAdjustments] = useState({ gudang: 0, toko: 0 });
 
     // Stock In modal state
     const [stockInDialog, setStockInDialog] = useState(false);
@@ -150,7 +150,7 @@ export default function Products() {
         name: string;
         barcode: string;
         price: number;
-        stock: { gudang: number; toko: number; lainnya: number };
+        stock: { gudang: number; toko: number };
         image_url?: string;
     }): Promise<boolean> => {
         const success = await addProduct(product);
@@ -183,7 +183,7 @@ export default function Products() {
     // Quick stock adjustment functions
     const openStockAdjustDialog = (product: Product) => {
         setStockAdjustProduct(product);
-        setStockAdjustments({ gudang: 0, toko: 0, lainnya: 0 });
+        setStockAdjustments({ gudang: 0, toko: 0 });
         setStockAdjustDialog(true);
     };
 
@@ -193,7 +193,6 @@ export default function Products() {
         const newStock = {
             gudang: Math.max(0, stockAdjustProduct.stock.gudang + stockAdjustments.gudang),
             toko: Math.max(0, stockAdjustProduct.stock.toko + stockAdjustments.toko),
-            lainnya: Math.max(0, stockAdjustProduct.stock.lainnya + stockAdjustments.lainnya),
         };
 
         await updateProduct(stockAdjustProduct.id, { stock: newStock });
@@ -276,7 +275,7 @@ export default function Products() {
             header: 'Total Stok',
             sortable: false,
             cell: (item: Product) => {
-                const total = item.stock.gudang + item.stock.toko + item.stock.lainnya;
+                const total = item.stock.gudang + item.stock.toko;
                 return (
                     <span className={`font-bold ${total < 5 ? 'text-destructive' : 'text-green-600'}`}>
                         {total} Unit
@@ -496,45 +495,12 @@ export default function Products() {
                                     </div>
                                 </div>
 
-                                {/* Lainnya */}
-                                <div className="flex items-center justify-between gap-4">
-                                    <div>
-                                        <Label className="text-sm">Lainnya</Label>
-                                        <p className="text-xs text-muted-foreground">
-                                            Saat ini: {stockAdjustProduct.stock.lainnya}
-                                        </p>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <Button
-                                            size="icon"
-                                            variant="outline"
-                                            className="h-8 w-8 rounded-full"
-                                            onClick={() => setStockAdjustments(prev => ({ ...prev, lainnya: prev.lainnya - 1 }))}
-                                        >
-                                            <Minus className="w-4 h-4" />
-                                        </Button>
-                                        <Input
-                                            type="number"
-                                            value={stockAdjustments.lainnya}
-                                            onChange={(e) => setStockAdjustments(prev => ({ ...prev, lainnya: parseInt(e.target.value) || 0 }))}
-                                            className="w-20 text-center h-8 rounded-lg"
-                                        />
-                                        <Button
-                                            size="icon"
-                                            variant="outline"
-                                            className="h-8 w-8 rounded-full"
-                                            onClick={() => setStockAdjustments(prev => ({ ...prev, lainnya: prev.lainnya + 1 }))}
-                                        >
-                                            <Plus className="w-4 h-4" />
-                                        </Button>
-                                    </div>
-                                </div>
                             </div>
 
                             {/* Preview new stock values */}
                             <div className="p-3 bg-primary/5 rounded-xl border border-primary/20">
                                 <p className="text-xs text-muted-foreground mb-2">Stok baru setelah penyesuaian:</p>
-                                <div className="grid grid-cols-3 gap-2 text-center">
+                                <div className="grid grid-cols-2 gap-2 text-center">
                                     <div>
                                         <p className="text-xs text-muted-foreground">Gudang</p>
                                         <p className="font-bold text-primary">
@@ -545,12 +511,6 @@ export default function Products() {
                                         <p className="text-xs text-muted-foreground">Toko</p>
                                         <p className="font-bold text-primary">
                                             {Math.max(0, stockAdjustProduct.stock.toko + stockAdjustments.toko)}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-muted-foreground">Lainnya</p>
-                                        <p className="font-bold text-primary">
-                                            {Math.max(0, stockAdjustProduct.stock.lainnya + stockAdjustments.lainnya)}
                                         </p>
                                     </div>
                                 </div>
@@ -606,7 +566,7 @@ export default function Products() {
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-3 gap-2 text-center">
+                                <div className="grid grid-cols-2 gap-2 text-center">
                                     <div className="p-2 bg-muted/30 rounded-lg">
                                         <p className="text-lg font-bold">{stockInProduct.stock.gudang}</p>
                                         <p className="text-xs text-muted-foreground">Gudang</p>
@@ -614,10 +574,6 @@ export default function Products() {
                                     <div className="p-2 bg-muted/30 rounded-lg">
                                         <p className="text-lg font-bold">{stockInProduct.stock.toko}</p>
                                         <p className="text-xs text-muted-foreground">Toko</p>
-                                    </div>
-                                    <div className="p-2 bg-muted/30 rounded-lg">
-                                        <p className="text-lg font-bold">{stockInProduct.stock.lainnya}</p>
-                                        <p className="text-xs text-muted-foreground">Lainnya</p>
                                     </div>
                                 </div>
 
@@ -641,7 +597,6 @@ export default function Products() {
                                             <SelectContent className="rounded-xl">
                                                 <SelectItem value="gudang">Gudang</SelectItem>
                                                 <SelectItem value="toko">Toko</SelectItem>
-                                                <SelectItem value="lainnya">Lainnya</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>

@@ -16,7 +16,7 @@ interface DataContextType {
   loading: boolean;
 
   // Product actions
-  addProduct: (product: { name: string; barcode: string; price: number; stock: { gudang: number; toko: number; lainnya: number }; image_url?: string }) => Promise<boolean>;
+  addProduct: (product: { name: string; barcode: string; price: number; stock: { gudang: number; toko: number }; image_url?: string }) => Promise<boolean>;
   updateProduct: (id: string, updates: Partial<Product>) => Promise<void>;
   deleteProduct: (id: string) => Promise<boolean>;
   getProductByBarcode: (barcode: string) => Product | undefined;
@@ -85,8 +85,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       image_url: p.image_url,
       stock: {
         gudang: p.stock_gudang,
-        toko: p.stock_toko,
-        lainnya: p.stock_lainnya
+        toko: p.stock_toko
       },
       created_at: p.created_at,
       updated_at: p.updated_at
@@ -115,8 +114,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         image_url: r.products.image_url,
         stock: {
           gudang: r.products.stock_gudang,
-          toko: r.products.stock_toko,
-          lainnya: r.products.stock_lainnya
+          toko: r.products.stock_toko
         },
         created_at: r.products.created_at,
         updated_at: r.products.updated_at
@@ -191,8 +189,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         image_url: l.products.image_url,
         stock: {
           gudang: l.products.stock_gudang,
-          toko: l.products.stock_toko,
-          lainnya: l.products.stock_lainnya
+          toko: l.products.stock_toko
         },
         created_at: l.products.created_at,
         updated_at: l.products.updated_at
@@ -234,11 +231,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const fetchSales = async () => {
-    const { data, error } = await supabase
+    // Cashier only sees their own sales; other roles see all
+    const isCashier = profile?.role === 'cashier';
+
+    let query = supabase
       .from('sales')
       .select('id, sale_number, cashier_id, cashier_name, payment_method, stock_location, total_amount, order_discount, amount_paid, change_amount, created_at, sale_items(id, sale_id, product_id, product_name, barcode, quantity, price, subtotal, discount)')
       .order('created_at', { ascending: false })
       .limit(100);
+
+    // Filter by cashier_id for cashier role
+    if (isCashier && user?.id) {
+      query = query.eq('cashier_id', user.id);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('Error fetching sales:', error);
@@ -272,11 +279,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const fetchCashTransfers = async () => {
-    const { data, error } = await supabase
+    // Cashier only sees their own transfers; other roles see all
+    const isCashier = profile?.role === 'cashier';
+
+    let query = supabase
       .from('cash_transfers')
       .select('id, cashier_id, cashier_name, amount, transfer_date, created_at, note')
       .order('created_at', { ascending: false })
       .limit(50);
+
+    // Filter by cashier_id for cashier role
+    if (isCashier && user?.id) {
+      query = query.eq('cashier_id', user.id);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('Error fetching cash transfers:', error);
@@ -505,7 +522,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
 
-  const addProduct = async (product: { name: string; barcode: string; price: number; stock: { gudang: number; toko: number; lainnya: number }; image_url?: string }) => {
+  const addProduct = async (product: { name: string; barcode: string; price: number; stock: { gudang: number; toko: number }; image_url?: string }) => {
     const { data: inserted, error } = await supabase
       .from('products')
       .insert({
@@ -514,7 +531,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         price: product.price,
         stock_gudang: product.stock.gudang,
         stock_toko: product.stock.toko,
-        stock_lainnya: product.stock.lainnya,
         image_url: product.image_url
       })
       .select()
@@ -553,7 +569,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (updates.stock) {
       updateData.stock_gudang = updates.stock.gudang;
       updateData.stock_toko = updates.stock.toko;
-      updateData.stock_lainnya = updates.stock.lainnya;
     }
 
     const { error } = await supabase.from('products').update(updateData).eq('id', id);

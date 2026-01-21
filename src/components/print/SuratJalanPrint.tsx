@@ -11,7 +11,6 @@ export default function SuratJalanPrint({ suratJalan }: SuratJalanPrintProps) {
     switch (loc) {
       case 'gudang': return 'Gudang';
       case 'toko': return 'Toko';
-      case 'lainnya': return 'Lainnya';
       default: return loc;
     }
   };

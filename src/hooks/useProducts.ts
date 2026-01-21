@@ -14,7 +14,6 @@ function transformProduct(row: any): Product {
         stock: {
             gudang: row.stock_gudang || 0,
             toko: row.stock_toko || 0,
-            lainnya: row.stock_lainnya || 0,
         },
         created_at: row.created_at,
         updated_at: row.updated_at,
@@ -55,7 +54,7 @@ export function useAddProduct() {
             name: string;
             barcode: string;
             price: number;
-            stock: { gudang: number; toko: number; lainnya: number };
+            stock: { gudang: number; toko: number };
             image_url?: string;
         }) => {
             const { data, error } = await supabase
@@ -66,7 +65,6 @@ export function useAddProduct() {
                     price: product.price,
                     stock_gudang: product.stock.gudang,
                     stock_toko: product.stock.toko,
-                    stock_lainnya: product.stock.lainnya,
                     image_url: product.image_url,
                 })
                 .select()
@@ -103,7 +101,6 @@ export function useUpdateProduct() {
             if (updates.stock) {
                 if (updates.stock.gudang !== undefined) updateData.stock_gudang = updates.stock.gudang;
                 if (updates.stock.toko !== undefined) updateData.stock_toko = updates.stock.toko;
-                if (updates.stock.lainnya !== undefined) updateData.stock_lainnya = updates.stock.lainnya;
             }
 
             const { error } = await supabase

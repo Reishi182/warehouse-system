@@ -1,4 +1,4 @@
-export type UserRole = 'warehouse' | 'cashier' | 'main_office' | 'auditor' | 'admin';
+export type UserRole = 'warehouse' | 'cashier' | 'kepala_toko' | 'main_office' | 'auditor' | 'admin';
 
 export interface User {
   id: string;
@@ -8,7 +8,7 @@ export interface User {
   avatar?: string;
 }
 
-export type Location = 'gudang' | 'toko' | 'lainnya';
+export type Location = 'gudang' | 'toko';
 
 export type PaymentMethod = 'cash' | 'transfer';
 
@@ -21,7 +21,6 @@ export interface Product {
   stock: {
     gudang: number;
     toko: number;
-    lainnya: number;
     reserved?: number;
   };
   created_at: string;

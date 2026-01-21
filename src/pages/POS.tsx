@@ -1,6 +1,7 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import {
     ShoppingCart,
+    CheckCircle2,
     Trash2,
     Plus,
     Minus,
@@ -407,7 +408,6 @@ export default function POS() {
                             <SelectContent className="rounded-xl">
                                 <SelectItem value="toko" className="rounded-lg">🏪 Toko</SelectItem>
                                 <SelectItem value="gudang" className="rounded-lg">📦 Gudang</SelectItem>
-                                <SelectItem value="lainnya" className="rounded-lg">📍 Lainnya</SelectItem>
                             </SelectContent>
                         </Select>
 
