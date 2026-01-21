@@ -25,14 +25,7 @@ export default function Settings() {
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
 
-  if (authLoading || !profile) {
-    return (
-      <MainLayout title="Pengaturan" subtitle="Konfigurasi sistem inventaris">
-        <PageSkeleton variant="form" />
-      </MainLayout>
-    );
-  }
-
+  // ALL HOOKS MUST BE BEFORE ANY EARLY RETURNS
   const [companyName, setCompanyName] = useState('Vertical Building');
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [lowStockAlert, setLowStockAlert] = useState(true);
@@ -43,6 +36,15 @@ export default function Settings() {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
+
+  if (authLoading || !profile) {
+    return (
+      <MainLayout title="Pengaturan" subtitle="Konfigurasi sistem inventaris">
+        <PageSkeleton variant="form" />
+      </MainLayout>
+    );
+  }
+
 
   const handleAvatarChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;

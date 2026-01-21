@@ -28,6 +28,12 @@ export default function Approval() {
   const { suratJalans, updateSuratJalanStatus, loading } = useData();
   const { toast } = useToast();
 
+  // ALL HOOKS MUST BE BEFORE ANY EARLY RETURNS
+  const [selectedSJ, setSelectedSJ] = useState<SuratJalan | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'rejected'>('pending');
+
   if (loading) {
     return (
       <MainLayout title="Persetujuan" subtitle="Review dan setujui surat jalan">
@@ -36,10 +42,6 @@ export default function Approval() {
     );
   }
 
-  const [selectedSJ, setSelectedSJ] = useState<SuratJalan | null>(null);
-  const [rejectReason, setRejectReason] = useState('');
-  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'rejected'>('pending');
 
   const handleApprove = (sj: SuratJalan) => {
     updateSuratJalanStatus(sj.id, 'approved');
