@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
 import { Notification, UserRole } from '@/types';
 
 /**
@@ -12,7 +11,6 @@ import { Notification, UserRole } from '@/types';
 export function useRealtimeNotifications(userId?: string) {
     const { toast } = useToast();
     const queryClient = useQueryClient();
-    const navigate = useNavigate();
     const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
     useEffect(() => {
@@ -35,15 +33,7 @@ export function useRealtimeNotifications(userId?: string) {
                     // Show toast notification
                     toast({
                         title: notification.title,
-                        description: notification.message,
-                        action: notification.link ? (
-                            <button
-                                onClick={() => navigate(notification.link!)}
-                                className="shrink-0 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-                            >
-                                Lihat
-                            </button>
-                        ) : undefined,
+                        description: notification.message + (notification.link ? ' (Klik notification untuk melihat)' : ''),
                     });
 
                     // Play notification sound (optional)
@@ -68,7 +58,7 @@ export function useRealtimeNotifications(userId?: string) {
                 supabase.removeChannel(channelRef.current);
             }
         };
-    }, [userId, toast, queryClient, navigate]);
+    }, [userId, toast, queryClient]);
 }
 
 /**

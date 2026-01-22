@@ -179,27 +179,6 @@ export default function POS() {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [items]);
 
-    if (loading) {
-        return (
-            <MainLayout title="Point of Sale" subtitle="Sistem kasir untuk penjualan">
-                <PageSkeleton variant="dashboard" />
-            </MainLayout>
-        );
-    }
-
-    const handleScan = (barcode: string) => {
-        const product = getProductByBarcode(barcode);
-        if (!product) {
-            toast({
-                title: 'Produk tidak ditemukan',
-                description: `Barcode: ${barcode}`,
-                variant: 'destructive'
-            });
-            return;
-        }
-        addToCart(product);
-    };
-
     const addToCart = useCallback((product: Product) => {
         if (product.stock[stockLocation] <= 0) {
             toast({
@@ -229,6 +208,27 @@ export default function POS() {
             return [...prev, { product, quantity: 1, discount: 0 }];
         });
     }, [stockLocation, toast]);
+
+    if (loading) {
+        return (
+            <MainLayout title="Point of Sale" subtitle="Sistem kasir untuk penjualan">
+                <PageSkeleton variant="dashboard" />
+            </MainLayout>
+        );
+    }
+
+    const handleScan = (barcode: string) => {
+        const product = getProductByBarcode(barcode);
+        if (!product) {
+            toast({
+                title: 'Produk tidak ditemukan',
+                description: `Barcode: ${barcode}`,
+                variant: 'destructive'
+            });
+            return;
+        }
+        addToCart(product);
+    };
 
     const updateQty = (productId: string, qty: number) => {
         if (qty < 0) return;

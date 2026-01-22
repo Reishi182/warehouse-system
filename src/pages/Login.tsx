@@ -14,6 +14,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const { signIn } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -31,6 +32,15 @@ export default function Login() {
           variant: 'destructive',
         });
       } else {
+        // Store remember me preference
+        if (rememberMe) {
+          localStorage.setItem('rememberMe', 'true');
+        } else {
+          localStorage.removeItem('rememberMe');
+          // Set flag to clear session on browser close
+          sessionStorage.setItem('clearSessionOnClose', 'true');
+        }
+
         toast({
           title: 'Berhasil masuk',
           description: 'Selamat datang kembali!',
@@ -43,15 +53,15 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f4f6f8] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#f4f6f8] dark:bg-slate-900 flex items-center justify-center p-4">
       {/* Background decoration */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-[-20%] right-[-10%] w-[800px] h-[800px] bg-primary/5 rounded-full blur-[120px]" />
-        <div className="absolute bottom-[-10%] left-[10%] w-[600px] h-[600px] bg-blue-100/40 rounded-full blur-[120px]" />
+        <div className="absolute top-[-20%] right-[-10%] w-[800px] h-[800px] bg-primary/5 dark:bg-primary/10 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-10%] left-[10%] w-[600px] h-[600px] bg-blue-100/40 dark:bg-blue-900/30 rounded-full blur-[120px]" />
       </div>
 
       <div className="w-full max-w-[480px] z-10">
-        <div className="bg-white rounded-[2rem] shadow-[0_20px_40px_-10px_rgba(0,0,0,0.05)] p-8 md:p-12 border border-white/50 relative overflow-hidden">
+        <div className="bg-white dark:bg-slate-800 rounded-[2rem] shadow-[0_20px_40px_-10px_rgba(0,0,0,0.05)] dark:shadow-[0_20px_40px_-10px_rgba(0,0,0,0.3)] p-8 md:p-12 border border-white/50 dark:border-slate-700 relative overflow-hidden">
 
           {/* Logo */}
           <div className="flex justify-center mb-8">
@@ -62,17 +72,17 @@ export default function Login() {
 
           {/* Header */}
           <div className="text-center mb-10">
-            <h1 className="text-3xl font-bold text-[#1e293b] tracking-tight mb-2">
+            <h1 className="text-3xl font-bold text-[#1e293b] dark:text-white tracking-tight mb-2">
               Welcome Back
             </h1>
-            <p className="text-muted-foreground text-sm font-medium">
+            <p className="text-muted-foreground dark:text-slate-400 text-sm font-medium">
               Enter your credentials to access the ERP
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Email Address</Label>
+              <Label htmlFor="email" className="text-xs font-bold text-muted-foreground dark:text-slate-400 uppercase tracking-wider">Email Address</Label>
               <div className="relative">
                 <Input
                   id="email"
@@ -81,14 +91,14 @@ export default function Login() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@company.com"
                   required
-                  className="rounded-xl h-12 pr-10 bg-slate-50 border-slate-200 focus:bg-white transition-colors"
+                  className="rounded-xl h-12 pr-10 bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600 focus:bg-white dark:focus:bg-slate-600 transition-colors dark:text-white"
                 />
                 <Mail className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Password</Label>
+              <Label htmlFor="password" className="text-xs font-bold text-muted-foreground dark:text-slate-400 uppercase tracking-wider">Password</Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -97,7 +107,7 @@ export default function Login() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
                   required
-                  className="rounded-xl h-12 pr-10 bg-slate-50 border-slate-200 focus:bg-white transition-colors"
+                  className="rounded-xl h-12 pr-10 bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600 focus:bg-white dark:focus:bg-slate-600 transition-colors dark:text-white"
                 />
                 <button
                   type="button"
@@ -111,12 +121,17 @@ export default function Login() {
 
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <Checkbox id="remember" className="rounded border-slate-300 data-[state=checked]:bg-primary data-[state=checked]:border-primary" />
-                <label htmlFor="remember" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-500">
+                <Checkbox
+                  id="remember"
+                  checked={rememberMe}
+                  onCheckedChange={(checked) => setRememberMe(!!checked)}
+                  className="rounded border-slate-300 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                />
+                <label htmlFor="remember" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-500 dark:text-slate-400">
                   Remember me
                 </label>
               </div>
-              <button type="button" className="text-sm font-bold text-[#1e293b] hover:text-primary transition-colors">
+              <button type="button" className="text-sm font-bold text-[#1e293b] dark:text-slate-200 hover:text-primary transition-colors">
                 Forgot password?
               </button>
             </div>
