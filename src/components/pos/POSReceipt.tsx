@@ -53,6 +53,7 @@ const POSReceipt = forwardRef<HTMLDivElement, POSReceiptProps>(({
     return (
         <div
             ref={ref}
+            id="pos-receipt"
             className="bg-white text-black font-mono text-xs w-[280px] mx-auto shadow-lg print:shadow-none"
             style={{ fontFamily: "'Courier New', Courier, monospace" }}
         >

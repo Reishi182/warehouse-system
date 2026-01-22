@@ -347,12 +347,15 @@
   }
 
   .print-only,
-  .print-only * {
+  .print-only *,
+  #pos-receipt,
+  #pos-receipt * {
     visibility: visible !important;
     display: block !important;
   }
 
-  .print-only {
+  .print-only,
+  #pos-receipt {
     position: absolute;
     left: 0;
     top: 0;
@@ -361,7 +364,7 @@
   }
 
   @page {
-    size: A4;
-    margin: 10mm;
+    size: 80mm auto;
+    margin: 0;
   }
 }
