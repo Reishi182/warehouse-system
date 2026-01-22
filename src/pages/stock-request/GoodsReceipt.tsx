@@ -1,5 +1,5 @@
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useAuth, useRole } from '@/contexts/AuthContext';
 import { useStockRequests } from '@/hooks/useStockRequests';
 import { useStockShipments } from '@/hooks/useStockShipments';
@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Camera, Upload, CheckCircle, PackageCheck } from 'lucide-react';
+import { Camera, CheckCircle, PackageCheck, AlertTriangle, Loader2, Pen } from 'lucide-react';
 import { format } from 'date-fns';
 import {
     Dialog,
@@ -20,28 +20,29 @@ import {
     DialogFooter,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import SignatureCanvas from '@/components/common/SignatureCanvas';
+
+interface ReceivedItemState {
+    productId: string;
+    productName: string;
+    quantityShipped: number;
+    quantityReceived: number;
+    quantityDamaged: number;
+}
 
 export default function GoodsReceipt() {
     const role = useRole();
-    const { user } = useAuth();
+    const { user, profile } = useAuth();
 
-    // Use shipments hook to get shipments with status 'approved' (meaning Auditor approved, ready for receipt)
-    // Actually, based on workflow, the request status is 'pending_receipt' after auditor approval.
-    // We can fetch requests in 'pending_receipt' status assigned to this cashier.
     const { requests } = useStockRequests();
     const { receiveGoods } = useGoodsReceipt();
-
-    // Get shipments data to show details - simplified by using requests which already have shipment info relation?
-    // Current request query joins items, but not shipment directly. 
-    // Let's filter requests that are 'pending_receipt'
-
-    // Fetch shipments to link? Or use useStockShipments list filtered?
-    const { shipments } = useStockShipments(); // This gets all shipments
+    const { shipments } = useStockShipments();
 
     const incomingShipments = shipments.filter(s =>
-        s.status === 'approved' && // Auditor approved
-        s.request?.cashier_id === user?.id && // For this cashier
-        s.request?.status === 'pending_receipt' // Not yet completed
+        s.status === 'approved' &&
+        s.request?.cashier_id === user?.id &&
+        s.request?.status === 'pending_receipt'
     );
 
     const [selectedShipment, setSelectedShipment] = useState<any>(null);
@@ -49,6 +50,8 @@ export default function GoodsReceipt() {
     const [photoPreview, setPhotoPreview] = useState<string | null>(null);
     const [note, setNote] = useState('');
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [receivedItems, setReceivedItems] = useState<ReceivedItemState[]>([]);
+    const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleOpenReceipt = (shipment: any) => {
@@ -56,6 +59,18 @@ export default function GoodsReceipt() {
         setPhotoFile(null);
         setPhotoPreview(null);
         setNote('');
+        setSignatureDataUrl(null);
+
+        // Initialize received items with shipped quantities
+        const items: ReceivedItemState[] = shipment.items?.map((item: any) => ({
+            productId: item.product_id,
+            productName: item.product?.name || 'Unknown',
+            quantityShipped: item.quantity_shipped,
+            quantityReceived: item.quantity_shipped, // Default to shipped qty
+            quantityDamaged: 0,
+        })) || [];
+
+        setReceivedItems(items);
         setIsDialogOpen(true);
     };
 
@@ -67,6 +82,27 @@ export default function GoodsReceipt() {
         }
     };
 
+    const updateReceivedItem = (index: number, field: 'quantityReceived' | 'quantityDamaged', value: number) => {
+        setReceivedItems(prev => {
+            const updated = [...prev];
+            updated[index] = { ...updated[index], [field]: Math.max(0, value) };
+            return updated;
+        });
+    };
+
+    const handleSignatureSave = useCallback((dataUrl: string) => {
+        setSignatureDataUrl(dataUrl);
+    }, []);
+
+    // Check if there's any discrepancy
+    const hasDiscrepancy = receivedItems.some(
+        item => item.quantityReceived !== item.quantityShipped || item.quantityDamaged > 0
+    );
+
+    // Validation
+    const canSubmit = photoFile &&
+        (!hasDiscrepancy || (hasDiscrepancy && signatureDataUrl));
+
     const handleSubmit = async () => {
         if (!selectedShipment || !photoFile) return;
 
@@ -74,15 +110,18 @@ export default function GoodsReceipt() {
             requestId: selectedShipment.stock_request_id,
             shipmentId: selectedShipment.id,
             receivedBy: user?.id || '',
+            receivedByName: profile?.name || 'Unknown',
             photoFile: photoFile,
-            note: note
+            note: note,
+            signatureDataUrl: signatureDataUrl || undefined,
+            items: receivedItems,
         });
 
         setIsDialogOpen(false);
     };
 
     if (role !== 'cashier' && role !== 'admin') {
-        return <MainLayout title="Akses Ditolak" subtitle="Hanya kasir yang dapat mengakses halaman ini">{null}</MainLayout>;
+        return <MainLayout title="Akses Ditolak" subtitle="Hanya kasir/kepala toko yang dapat mengakses halaman ini">{null}</MainLayout>;
     }
 
     return (
@@ -132,22 +171,76 @@ export default function GoodsReceipt() {
                         </div>
                     )}
                 </section>
-
-                {/* Completed History could go here */}
             </div>
 
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogContent className="max-w-md">
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle>Bukti Penerimaan Barang</DialogTitle>
+                        <DialogTitle>Konfirmasi Penerimaan Barang</DialogTitle>
                     </DialogHeader>
-                    <div className="space-y-4 py-4">
-                        <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded text-sm text-blue-700 dark:text-blue-300">
-                            Pastikan barang yang diterima sudah sesuai dengan data pengiriman. Stok toko akan otomatis bertambah setelah konfirmasi.
+                    <div className="space-y-6 py-4">
+                        {/* Discrepancy Alert */}
+                        {hasDiscrepancy && (
+                            <Alert variant="destructive" className="bg-amber-50 border-amber-200 text-amber-800">
+                                <AlertTriangle className="w-4 h-4" />
+                                <AlertDescription>
+                                    <strong>Terdeteksi Selisih!</strong> Jumlah diterima berbeda dengan jumlah dikirim.
+                                    Foto bukti dan tanda tangan <strong>WAJIB</strong> diisi.
+                                </AlertDescription>
+                            </Alert>
+                        )}
+
+                        {/* Items with Qty Input */}
+                        <div className="space-y-3">
+                            <Label className="text-base font-semibold">Detail Penerimaan Per Item</Label>
+                            <div className="border rounded-lg overflow-hidden">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-muted">
+                                        <tr>
+                                            <th className="text-left p-3">Produk</th>
+                                            <th className="text-center p-3 w-24">Dikirim</th>
+                                            <th className="text-center p-3 w-28">Diterima</th>
+                                            <th className="text-center p-3 w-28">Rusak</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {receivedItems.map((item, idx) => {
+                                            const hasItemDiscrepancy = item.quantityReceived !== item.quantityShipped || item.quantityDamaged > 0;
+                                            return (
+                                                <tr key={item.productId} className={hasItemDiscrepancy ? 'bg-amber-50 dark:bg-amber-900/20' : ''}>
+                                                    <td className="p-3 font-medium">{item.productName}</td>
+                                                    <td className="p-3 text-center font-mono">{item.quantityShipped}</td>
+                                                    <td className="p-3">
+                                                        <Input
+                                                            type="number"
+                                                            min={0}
+                                                            max={item.quantityShipped}
+                                                            value={item.quantityReceived}
+                                                            onChange={e => updateReceivedItem(idx, 'quantityReceived', parseInt(e.target.value) || 0)}
+                                                            className="text-center h-8"
+                                                        />
+                                                    </td>
+                                                    <td className="p-3">
+                                                        <Input
+                                                            type="number"
+                                                            min={0}
+                                                            max={item.quantityReceived}
+                                                            value={item.quantityDamaged}
+                                                            onChange={e => updateReceivedItem(idx, 'quantityDamaged', parseInt(e.target.value) || 0)}
+                                                            className="text-center h-8"
+                                                        />
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
 
+                        {/* Photo Upload */}
                         <div className="space-y-2">
-                            <Label>Upload Foto Bukti (Faktur/Barang)</Label>
+                            <Label>Upload Foto Bukti {hasDiscrepancy && <span className="text-red-500">*</span>}</Label>
                             <div
                                 className="border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors"
                                 onClick={() => fileInputRef.current?.click()}
@@ -170,10 +263,31 @@ export default function GoodsReceipt() {
                             </div>
                         </div>
 
+                        {/* Signature - only required if discrepancy */}
+                        {hasDiscrepancy && (
+                            <div className="space-y-2">
+                                <Label className="flex items-center gap-2">
+                                    <Pen className="w-4 h-4" />
+                                    Tanda Tangan Penerima <span className="text-red-500">*</span>
+                                </Label>
+                                <SignatureCanvas
+                                    onSave={handleSignatureSave}
+                                    width={400}
+                                    height={150}
+                                />
+                                {signatureDataUrl && (
+                                    <p className="text-xs text-green-600 flex items-center gap-1">
+                                        <CheckCircle className="w-3 h-3" /> Tanda tangan tersimpan
+                                    </p>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Note */}
                         <div className="space-y-2">
                             <Label>Catatan Penerimaan</Label>
                             <Textarea
-                                placeholder="Kondisi barang baik, diterima oleh..."
+                                placeholder="Kondisi barang, catatan khusus..."
                                 value={note}
                                 onChange={e => setNote(e.target.value)}
                             />
@@ -181,8 +295,18 @@ export default function GoodsReceipt() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Batal</Button>
-                        <Button onClick={handleSubmit} disabled={!photoFile || receiveGoods.isPending}>
-                            {receiveGoods.isPending ? 'Memproses...' : 'Konfirmasi & Simpan'}
+                        <Button
+                            onClick={handleSubmit}
+                            disabled={!canSubmit || receiveGoods.isPending}
+                            className={hasDiscrepancy ? 'bg-amber-600 hover:bg-amber-700' : ''}
+                        >
+                            {receiveGoods.isPending ? (
+                                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Memproses...</>
+                            ) : hasDiscrepancy ? (
+                                'Konfirmasi dengan Selisih'
+                            ) : (
+                                'Konfirmasi & Simpan'
+                            )}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

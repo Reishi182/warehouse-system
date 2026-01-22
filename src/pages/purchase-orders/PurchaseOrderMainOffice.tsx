@@ -49,8 +49,11 @@ interface POItem {
     id: string;
     productId: string;
     productName: string;
+    barcode?: string; // For new products
+    unit?: string; // For new products
     quantity: number;
     unitPrice: number;
+    isNewProduct?: boolean; // Flag for products not in catalog
 }
 
 const statusLabels: Record<string, { label: string; color: string }> = {
@@ -78,11 +81,18 @@ export default function PurchaseOrderMainOffice() {
     const [destination, setDestination] = useState<PODestination>('gudang');
     const [notes, setNotes] = useState('');
     const [items, setItems] = useState<POItem[]>([]);
+    const [customPONumber, setCustomPONumber] = useState(''); // Custom PO number
 
     // Add item state
     const [selectedProductId, setSelectedProductId] = useState('');
     const [itemQty, setItemQty] = useState(1);
     const [itemPrice, setItemPrice] = useState(0);
+
+    // New product mode state
+    const [isNewProductMode, setIsNewProductMode] = useState(false);
+    const [newProductName, setNewProductName] = useState('');
+    const [newProductBarcode, setNewProductBarcode] = useState('');
+    const [newProductUnit, setNewProductUnit] = useState('pcs');
 
     const { data: selectedPO, isLoading: selectedPOLoading } = usePurchaseOrder(selectedPOId || '');
 
@@ -98,20 +108,46 @@ export default function PurchaseOrderMainOffice() {
     }, [items]);
 
     const handleAddItem = () => {
-        if (!selectedProductId || itemQty <= 0 || itemPrice <= 0) return;
-        const product = products.find(p => p.id === selectedProductId);
-        if (!product) return;
+        if (itemQty <= 0 || itemPrice <= 0) return;
 
-        const newItem: POItem = {
-            id: crypto.randomUUID(),
-            productId: product.id,
-            productName: product.name,
-            quantity: itemQty,
-            unitPrice: itemPrice,
-        };
+        if (isNewProductMode) {
+            // New product mode - use free text input
+            if (!newProductName.trim()) return;
 
-        setItems([...items, newItem]);
-        setSelectedProductId('');
+            const newItem: POItem = {
+                id: crypto.randomUUID(),
+                productId: '', // No product ID for new products
+                productName: newProductName.trim(),
+                barcode: newProductBarcode.trim() || undefined,
+                unit: newProductUnit || 'pcs',
+                quantity: itemQty,
+                unitPrice: itemPrice,
+                isNewProduct: true,
+            };
+
+            setItems([...items, newItem]);
+            setNewProductName('');
+            setNewProductBarcode('');
+            setNewProductUnit('pcs');
+        } else {
+            // Existing product mode
+            if (!selectedProductId) return;
+            const product = products.find(p => p.id === selectedProductId);
+            if (!product) return;
+
+            const newItem: POItem = {
+                id: crypto.randomUUID(),
+                productId: product.id,
+                productName: product.name,
+                quantity: itemQty,
+                unitPrice: itemPrice,
+                isNewProduct: false,
+            };
+
+            setItems([...items, newItem]);
+            setSelectedProductId('');
+        }
+
         setItemQty(1);
         setItemPrice(0);
     };
@@ -129,11 +165,15 @@ export default function PurchaseOrderMainOffice() {
             notes: notes || undefined,
             createdBy: user?.id || '',
             createdByName: profile?.name || '',
+            customNumber: customPONumber.trim() || undefined, // Custom PO number
             items: items.map(item => ({
                 productId: item.productId,
                 productName: item.productName,
                 quantity: item.quantity,
                 unitPrice: item.unitPrice,
+                isNewProduct: item.isNewProduct,
+                barcode: item.barcode,
+                unit: item.unit,
             })),
         });
 
@@ -142,6 +182,7 @@ export default function PurchaseOrderMainOffice() {
         setDestination('gudang');
         setNotes('');
         setItems([]);
+        setCustomPONumber('');
         setIsCreateOpen(false);
     };
 
@@ -336,51 +377,139 @@ export default function PurchaseOrderMainOffice() {
                                 </div>
                             </div>
 
+                            {/* Custom PO Number */}
+                            <div className="space-y-2">
+                                <Label>Nomor PO</Label>
+                                <Input
+                                    value={customPONumber}
+                                    onChange={(e) => setCustomPONumber(e.target.value)}
+                                    placeholder="PO-001 (kosongkan untuk auto)"
+                                    className="max-w-xs"
+                                />
+                                <p className="text-xs text-muted-foreground">Kosongkan jika ingin nomor otomatis</p>
+                            </div>
+
                             {/* Add Item */}
                             <Card>
                                 <CardHeader className="pb-3">
-                                    <CardTitle className="text-base flex items-center gap-2">
-                                        <Package className="w-4 h-4" />
-                                        Tambah Item
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="flex gap-3 items-end">
-                                        <div className="flex-1 space-y-2">
-                                            <Label>Produk</Label>
-                                            <Select value={selectedProductId} onValueChange={setSelectedProductId}>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Pilih produk" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {products.map(p => (
-                                                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
+                                    <div className="flex items-center justify-between">
+                                        <CardTitle className="text-base flex items-center gap-2">
+                                            <Package className="w-4 h-4" />
+                                            Tambah Item
+                                        </CardTitle>
+                                        <div className="flex items-center gap-2">
+                                            <Label htmlFor="new-product-toggle" className="text-sm text-muted-foreground cursor-pointer">
+                                                Produk Baru?
+                                            </Label>
+                                            <button
+                                                id="new-product-toggle"
+                                                type="button"
+                                                onClick={() => setIsNewProductMode(!isNewProductMode)}
+                                                className={`relative w-11 h-6 rounded-full transition-colors ${isNewProductMode ? 'bg-primary' : 'bg-muted'
+                                                    }`}
+                                            >
+                                                <span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${isNewProductMode ? 'translate-x-5' : 'translate-x-0'
+                                                    }`} />
+                                            </button>
                                         </div>
-                                        <div className="w-24 space-y-2">
-                                            <Label>Qty</Label>
-                                            <Input
-                                                type="number"
-                                                min={1}
-                                                value={itemQty}
-                                                onChange={(e) => setItemQty(parseInt(e.target.value) || 1)}
-                                            />
-                                        </div>
-                                        <div className="w-40 space-y-2">
-                                            <Label>Harga Satuan</Label>
-                                            <Input
-                                                type="number"
-                                                min={0}
-                                                value={itemPrice}
-                                                onChange={(e) => setItemPrice(parseInt(e.target.value) || 0)}
-                                            />
-                                        </div>
-                                        <Button onClick={handleAddItem} disabled={!selectedProductId}>
-                                            <Plus className="w-4 h-4" />
-                                        </Button>
                                     </div>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    {isNewProductMode ? (
+                                        /* New Product Mode - Text Inputs */
+                                        <>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="space-y-2">
+                                                    <Label>Nama Produk *</Label>
+                                                    <Input
+                                                        value={newProductName}
+                                                        onChange={(e) => setNewProductName(e.target.value)}
+                                                        placeholder="Nama produk baru"
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label>Barcode (opsional)</Label>
+                                                    <Input
+                                                        value={newProductBarcode}
+                                                        onChange={(e) => setNewProductBarcode(e.target.value)}
+                                                        placeholder="Barcode/SKU"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-3 items-end">
+                                                <div className="w-24 space-y-2">
+                                                    <Label>Unit</Label>
+                                                    <Input
+                                                        value={newProductUnit}
+                                                        onChange={(e) => setNewProductUnit(e.target.value)}
+                                                        placeholder="pcs"
+                                                    />
+                                                </div>
+                                                <div className="w-24 space-y-2">
+                                                    <Label>Qty</Label>
+                                                    <Input
+                                                        type="number"
+                                                        min={1}
+                                                        value={itemQty}
+                                                        onChange={(e) => setItemQty(parseInt(e.target.value) || 1)}
+                                                    />
+                                                </div>
+                                                <div className="flex-1 space-y-2">
+                                                    <Label>Harga Satuan</Label>
+                                                    <Input
+                                                        type="number"
+                                                        min={0}
+                                                        value={itemPrice}
+                                                        onChange={(e) => setItemPrice(parseInt(e.target.value) || 0)}
+                                                    />
+                                                </div>
+                                                <Button onClick={handleAddItem} disabled={!newProductName.trim()}>
+                                                    <Plus className="w-4 h-4" />
+                                                </Button>
+                                            </div>
+                                            <p className="text-xs text-muted-foreground">
+                                                💡 Produk baru akan dibuat otomatis saat PO diterima.
+                                            </p>
+                                        </>
+                                    ) : (
+                                        /* Existing Product Mode - Dropdown */
+                                        <div className="flex gap-3 items-end">
+                                            <div className="flex-1 space-y-2">
+                                                <Label>Produk</Label>
+                                                <Select value={selectedProductId} onValueChange={setSelectedProductId}>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Pilih produk" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {products.map(p => (
+                                                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="w-24 space-y-2">
+                                                <Label>Qty</Label>
+                                                <Input
+                                                    type="number"
+                                                    min={1}
+                                                    value={itemQty}
+                                                    onChange={(e) => setItemQty(parseInt(e.target.value) || 1)}
+                                                />
+                                            </div>
+                                            <div className="w-40 space-y-2">
+                                                <Label>Harga Satuan</Label>
+                                                <Input
+                                                    type="number"
+                                                    min={0}
+                                                    value={itemPrice}
+                                                    onChange={(e) => setItemPrice(parseInt(e.target.value) || 0)}
+                                                />
+                                            </div>
+                                            <Button onClick={handleAddItem} disabled={!selectedProductId}>
+                                                <Plus className="w-4 h-4" />
+                                            </Button>
+                                        </div>
+                                    )}
                                 </CardContent>
                             </Card>
 
@@ -395,10 +524,20 @@ export default function PurchaseOrderMainOffice() {
                                             {items.map((item, idx) => (
                                                 <div key={item.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
                                                     <div className="flex-1">
-                                                        <p className="font-medium">{item.productName}</p>
+                                                        <div className="flex items-center gap-2">
+                                                            <p className="font-medium">{item.productName}</p>
+                                                            {item.isNewProduct && (
+                                                                <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full">
+                                                                    Produk Baru
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                         <p className="text-sm text-muted-foreground">
-                                                            {item.quantity} x Rp {item.unitPrice.toLocaleString('id-ID')} = Rp {(item.quantity * item.unitPrice).toLocaleString('id-ID')}
+                                                            {item.quantity} {item.unit || 'pcs'} x Rp {item.unitPrice.toLocaleString('id-ID')} = Rp {(item.quantity * item.unitPrice).toLocaleString('id-ID')}
                                                         </p>
+                                                        {item.barcode && (
+                                                            <p className="text-xs text-muted-foreground font-mono">Barcode: {item.barcode}</p>
+                                                        )}
                                                     </div>
                                                     <Button size="sm" variant="ghost" onClick={() => handleRemoveItem(item.id)}>
                                                         <Trash2 className="w-4 h-4 text-destructive" />

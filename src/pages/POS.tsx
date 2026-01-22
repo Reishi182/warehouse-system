@@ -53,6 +53,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useData } from '@/contexts/DataContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { useStoreSettings } from '@/hooks/useStoreSettings';
 import { Location, PaymentMethod, Product } from '@/types';
 import { cn } from '@/lib/utils';
 import { useReactToPrint } from 'react-to-print';
@@ -87,6 +88,7 @@ export default function POS() {
     const { products, getProductByBarcode, createSale, sales, loading } = useData();
     const { profile } = useAuth();
     const { toast } = useToast();
+    const { data: storeSettings } = useStoreSettings();
 
     const [stockLocation, setStockLocation] = useState<Location>('toko');
     const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
@@ -812,6 +814,8 @@ export default function POS() {
                                 paymentMethod={lastSale.method}
                                 amountPaid={lastSale.amountPaid}
                                 change={lastSale.change}
+                                storeName={storeSettings?.store_name}
+                                storeAddress={storeSettings?.store_address}
                             />
                         )}
                     </div>

@@ -55,6 +55,7 @@ export default function CashTransfer() {
   const [selectedDate, setSelectedDate] = useState<string>(toISODate(new Date()));
   const [amount, setAmount] = useState<number>(0);
   const [note, setNote] = useState<string>('');
+  const [discrepancyReason, setDiscrepancyReason] = useState<string>(''); // Reason if amount differs
 
   // Reject dialog
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
@@ -75,6 +76,11 @@ export default function CashTransfer() {
   const isApproverView = isMainOffice || isAdmin;
   const canCreateRequest = isCashier || isAdmin;
   const todayStr = toISODate(new Date());
+
+  // Yesterday's date for deposit reference
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = toISODate(yesterday);
 
   // ALL useMemo hooks MUST be before the loading return
   const myCashSales = useMemo(() => {
@@ -139,6 +145,25 @@ export default function CashTransfer() {
 
   // Kasir: Saldo Tersedia = Cash Sales - (Approved + Pending)
   const kasirSaldoTersedia = Math.max(0, totalCashSales - totalMyApproved - myPendingAmount);
+
+  // Yesterday's cash sales (for deposit reference) - kasir only
+  const yesterdayCashSales = useMemo(() => {
+    if (!canCreateRequest) return [];
+    return sales.filter(
+      (s) =>
+        s.payment_method === 'cash' &&
+        sameISODate(s.created_at, yesterdayStr) &&
+        (!!user?.id ? s.cashier_id === user.id : true),
+    );
+  }, [sales, yesterdayStr, user?.id, canCreateRequest]);
+
+  const totalYesterdaySales = useMemo(
+    () => yesterdayCashSales.reduce((acc, s) => acc + s.total_amount, 0),
+    [yesterdayCashSales]
+  );
+
+  // Check if amount differs from yesterday's sales (discrepancy)
+  const hasDiscrepancy = amount > 0 && totalYesterdaySales > 0 && amount !== totalYesterdaySales;
 
   // NOW we can have the loading return - AFTER all hooks
 
@@ -224,10 +249,11 @@ export default function CashTransfer() {
   ];
 
   const handleSubmitRequest = async () => {
-    if (totalCashSales === 0) {
+    // Deposit is based on YESTERDAY's sales
+    if (totalYesterdaySales === 0) {
       toast({
         title: 'Tidak bisa membuat permintaan',
-        description: 'Total cash masuk hari ini adalah 0',
+        description: 'Total penjualan kemarin adalah 0',
         variant: 'destructive',
       });
       return;
@@ -242,24 +268,34 @@ export default function CashTransfer() {
       return;
     }
 
-    if (amount > kasirSaldoTersedia) {
+    // If amount differs from yesterday's sales, require reason
+    if (hasDiscrepancy && !discrepancyReason.trim()) {
       toast({
-        title: 'Nominal melebihi saldo tersedia',
-        description: `Saldo tersedia: Rp ${kasirSaldoTersedia.toLocaleString('id-ID')}`,
+        title: 'Alasan diperlukan',
+        description: 'Nominal berbeda dengan penjualan kemarin, harap berikan alasan',
         variant: 'destructive',
       });
       return;
     }
 
+    // Combine note with discrepancy reason if applicable
+    let finalNote = note;
+    if (hasDiscrepancy && discrepancyReason.trim()) {
+      const diff = amount - totalYesterdaySales;
+      const diffStr = diff > 0 ? `+Rp ${diff.toLocaleString('id-ID')}` : `-Rp ${Math.abs(diff).toLocaleString('id-ID')}`;
+      finalNote = `[Selisih ${diffStr}] ${discrepancyReason}${note ? ` | ${note}` : ''}`;
+    }
+
     await createRequest.mutateAsync({
       amount,
-      note: note || null,
+      note: finalNote || null,
       cashierId: user?.id,
       cashierName: profile?.name || 'Kasir',
     });
 
     setAmount(0);
     setNote('');
+    setDiscrepancyReason('');
   };
 
   const handleApprove = async (requestId: string) => {
@@ -322,16 +358,24 @@ export default function CashTransfer() {
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <ArrowUpFromLine className="w-5 h-5" />
-                  Ajukan Setoran ke Main Office
+                  Setoran Penjualan Kemarin
                 </DialogTitle>
               </DialogHeader>
               <div className="space-y-4 mt-4">
-                {totalCashSales === 0 && !isMainOffice ? (
+                {totalYesterdaySales === 0 && !isMainOffice ? (
                   <div className="p-4 rounded-lg border bg-muted/30 text-center text-muted-foreground">
-                    Tidak ada cash masuk hari ini. Tidak bisa membuat permintaan setoran.
+                    Tidak ada penjualan cash kemarin. Tidak bisa membuat permintaan setoran.
                   </div>
                 ) : (
                   <>
+                    {/* Yesterday's Sales Info */}
+                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-xl p-4 border border-blue-100 dark:border-blue-800">
+                      <p className="text-sm text-muted-foreground">Penjualan Cash Kemarin ({format(yesterday, 'dd MMM yyyy', { locale: localeId })})</p>
+                      <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                        Rp {totalYesterdaySales.toLocaleString('id-ID')}
+                      </p>
+                    </div>
+
                     <div className="grid grid-cols-1 gap-4">
                       <div className="space-y-2">
                         <Label>Nominal Setoran</Label>
@@ -341,17 +385,35 @@ export default function CashTransfer() {
                           value={amount}
                           onChange={(e) => setAmount(parseInt(e.target.value) || 0)}
                         />
-                        {kasirSaldoTersedia > 0 && (
-                          <Button type="button" variant="outline" size="sm" onClick={() => setAmount(kasirSaldoTersedia)}>
-                            Isi saldo tersedia (Rp {kasirSaldoTersedia.toLocaleString('id-ID')})
+                        {totalYesterdaySales > 0 && (
+                          <Button type="button" variant="outline" size="sm" onClick={() => setAmount(totalYesterdaySales)}>
+                            Isi sesuai penjualan kemarin (Rp {totalYesterdaySales.toLocaleString('id-ID')})
                           </Button>
                         )}
-                        {myPendingAmount > 0 && (
-                          <p className="text-xs text-amber-600">
-                            ⚠️ Rp {myPendingAmount.toLocaleString('id-ID')} sedang menunggu persetujuan
-                          </p>
-                        )}
                       </div>
+
+                      {/* Discrepancy Warning */}
+                      {hasDiscrepancy && (
+                        <div className="bg-amber-50 dark:bg-amber-950/30 rounded-xl p-4 border border-amber-200 dark:border-amber-800">
+                          <p className="text-sm font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-2">
+                            ⚠️ Nominal berbeda dari penjualan kemarin
+                          </p>
+                          <p className="text-xs text-amber-600 dark:text-amber-500 mt-1">
+                            Selisih: Rp {Math.abs(amount - totalYesterdaySales).toLocaleString('id-ID')} ({amount > totalYesterdaySales ? 'lebih' : 'kurang'})
+                          </p>
+                          <div className="mt-3 space-y-2">
+                            <Label className="text-amber-700 dark:text-amber-400">Alasan Selisih (wajib)</Label>
+                            <Textarea
+                              value={discrepancyReason}
+                              onChange={(e) => setDiscrepancyReason(e.target.value)}
+                              placeholder="Jelaskan alasan mengapa nominal berbeda..."
+                              rows={2}
+                              className="bg-white dark:bg-neutral-900"
+                            />
+                          </div>
+                        </div>
+                      )}
+
                       <div className="space-y-2">
                         <Label>Catatan (opsional)</Label>
                         <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="contoh: setor sore hari" />
@@ -360,7 +422,7 @@ export default function CashTransfer() {
                     <Button
                       className="w-full"
                       size="lg"
-                      disabled={amount <= 0 || createRequest.isPending}
+                      disabled={amount <= 0 || createRequest.isPending || (hasDiscrepancy && !discrepancyReason.trim())}
                       onClick={() => {
                         handleSubmitRequest();
                         setIsCreateOpen(false);

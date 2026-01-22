@@ -100,11 +100,15 @@ interface CreatePOInput {
     notes?: string;
     createdBy: string;
     createdByName: string;
+    customNumber?: string; // Custom PO number (optional)
     items: Array<{
         productId: string;
         productName: string;
         quantity: number;
         unitPrice: number;
+        isNewProduct?: boolean;
+        barcode?: string;
+        unit?: string;
     }>;
 }
 
@@ -114,18 +118,22 @@ export function useCreatePurchaseOrder() {
 
     return useMutation({
         mutationFn: async (input: CreatePOInput) => {
-            // Generate PO number
-            const { data: poNumberData, error: poNumError } = await supabase
-                .rpc('generate_po_number');
+            // Use custom number if provided, otherwise generate
+            let poNumber = input.customNumber?.trim();
 
-            if (poNumError) {
-                // Fallback: generate simple PO number
-                const now = new Date();
-                const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
-                const randomNum = Math.floor(Math.random() * 9999).toString().padStart(4, '0');
-                var poNumber = `PO-${dateStr}-${randomNum}`;
-            } else {
-                var poNumber = poNumberData;
+            if (!poNumber) {
+                const { data: poNumberData, error: poNumError } = await supabase
+                    .rpc('generate_po_number');
+
+                if (poNumError) {
+                    // Fallback: generate simple PO number
+                    const now = new Date();
+                    const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+                    const randomNum = Math.floor(Math.random() * 9999).toString().padStart(4, '0');
+                    poNumber = `PO-${dateStr}-${randomNum}`;
+                } else {
+                    poNumber = poNumberData;
+                }
             }
 
             // Calculate total

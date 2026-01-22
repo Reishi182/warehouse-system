@@ -1,4 +1,4 @@
-export type UserRole = 'warehouse' | 'cashier' | 'kepala_toko' | 'main_office' | 'auditor' | 'admin';
+export type UserRole = 'warehouse' | 'cashier' | 'main_office' | 'auditor' | 'admin';
 
 export interface User {
   id: string;
@@ -408,5 +408,106 @@ export interface OtherTransaction {
   proof_url?: string | null;
   created_by?: string | null;
   created_by_name?: string | null;
+  created_at: string;
+}
+
+// Direct Order (Supplier -> Customer, bypass warehouse)
+export type DirectOrderStatus = 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
+
+export interface DirectOrderItem {
+  id: string;
+  direct_order_id: string;
+  product_name: string;
+  quantity: number;
+  unit: string;
+  price: number;
+  total: number;
+  note?: string | null;
+}
+
+export interface DirectOrder {
+  id: string;
+  order_number: string;
+  supplier_id: string;
+  supplier_name: string;
+  customer_id: string;
+  customer_name: string;
+  delivery_address: string;
+  delivery_phone?: string | null;
+  status: DirectOrderStatus;
+  shipping_cost: number;
+  total_amount: number;
+  notes?: string | null;
+  created_by?: string | null;
+  created_by_name?: string | null;
+  confirmed_at?: string | null;
+  shipped_at?: string | null;
+  delivered_at?: string | null;
+  cancelled_at?: string | null;
+  cancelled_reason?: string | null;
+  created_at: string;
+  updated_at: string;
+  items?: DirectOrderItem[];
+  supplier?: Supplier;
+  customer?: Customer;
+}
+
+// Marketplace Orders
+export type MarketplaceType = 'tokopedia' | 'shopee' | 'lazada' | 'bukalapak' | 'other';
+export type MarketplaceOrderStatus = 'pending_arrival' | 'completed' | 'received_with_issue' | 'return_pending' | 'return_complete' | 'cancelled';
+export type MarketplaceReturnStatus = 'pending' | 'picked_up' | 'completed';
+
+export interface MarketplaceOrderItem {
+  id: string;
+  order_id: string;
+  product_id?: string | null;
+  product_name: string;
+  barcode?: string | null;
+  unit?: string;
+  quantity_ordered: number;
+  quantity_received?: number;
+  quantity_damaged?: number;
+  unit_price: number;
+  total_price: number;
+  damage_notes?: string | null;
+  created_at: string;
+  product?: Product;
+}
+
+export interface MarketplaceOrder {
+  id: string;
+  order_number: string;
+  marketplace: MarketplaceType;
+  marketplace_order_id?: string | null;
+  destination: 'gudang' | 'toko';
+  status: MarketplaceOrderStatus;
+  total_amount: number;
+  invoice_url?: string | null;
+  notes?: string | null;
+  created_by?: string | null;
+  created_by_name?: string | null;
+  received_by?: string | null;
+  received_by_name?: string | null;
+  received_at?: string | null;
+  has_discrepancy?: boolean;
+  signature_url?: string | null;
+  created_at: string;
+  updated_at: string;
+  items?: MarketplaceOrderItem[];
+  returns?: MarketplaceReturn[];
+}
+
+export interface MarketplaceReturn {
+  id: string;
+  order_id: string;
+  reason: string;
+  status: MarketplaceReturnStatus;
+  items_json?: unknown;
+  pickup_proof_url?: string | null;
+  return_proof_url?: string | null;
+  created_by?: string | null;
+  created_by_name?: string | null;
+  completed_by?: string | null;
+  completed_at?: string | null;
   created_at: string;
 }

@@ -22,7 +22,7 @@ import {
   ChevronRight,
   Boxes,
   CreditCard,
-  FileStack,
+  FileStack, RotateCcw,
   Banknote,
 } from 'lucide-react';
 import { useAuth, useRole } from '@/contexts/AuthContext';
@@ -56,22 +56,22 @@ interface NavItem {
 
 // Grouped navigation with submenus
 const navGroups: NavItem[] = [
-  { label: 'Dashboard', icon: LayoutDashboard, href: '/', roles: ['warehouse', 'cashier', 'kepala_toko', 'auditor', 'admin', 'main_office'] },
+  { label: 'Dashboard', icon: LayoutDashboard, href: '/', roles: ['warehouse', 'cashier', 'auditor', 'admin', 'main_office'] },
   { label: 'Kasir (POS)', icon: ShoppingCart, href: '/pos', roles: ['cashier', 'admin'] },
-  { label: 'Produk', icon: Package, href: '/products', roles: ['warehouse', 'cashier', 'kepala_toko', 'auditor', 'admin', 'main_office'] },
+  { label: 'Produk', icon: Package, href: '/products', roles: ['warehouse', 'cashier', 'auditor', 'admin', 'main_office'] },
 
   // Stok submenu
   {
     label: 'Stok',
     icon: Boxes,
-    roles: ['warehouse', 'kepala_toko', 'auditor', 'admin', 'main_office'],
+    roles: ['warehouse', 'cashier', 'auditor', 'admin', 'main_office'],
     children: [
       { label: 'Stok Masuk', icon: ArrowDownToLine, href: '/stock-in', roles: ['warehouse', 'admin'] },
       { label: 'Stok Opname', icon: ClipboardCheck, href: '/stock-opname', roles: ['auditor', 'admin'] },
-      { label: 'Permintaan Stok', icon: ArrowUpFromLine, href: '/requests', roles: ['kepala_toko', 'admin'] },
+      { label: 'Permintaan Stok', icon: ArrowUpFromLine, href: '/requests', roles: ['cashier', 'admin'] },
       { label: 'Proses Permintaan', icon: Package, href: '/requests/shipments', roles: ['warehouse', 'admin'] },
       { label: 'Persetujuan Stok', icon: ClipboardCheck, href: '/requests/approval', roles: ['main_office', 'admin'] },
-      { label: 'Penerimaan Barang', icon: ArrowDownToLine, href: '/requests/receipt', roles: ['kepala_toko', 'admin'] },
+      { label: 'Penerimaan Barang', icon: ArrowDownToLine, href: '/requests/receipt', roles: ['cashier', 'admin'] },
     ],
   },
 
@@ -79,12 +79,25 @@ const navGroups: NavItem[] = [
   {
     label: 'Purchase Order',
     icon: FileStack,
-    roles: ['warehouse', 'kepala_toko', 'auditor', 'admin', 'main_office'],
+    roles: ['warehouse', 'cashier', 'auditor', 'admin', 'main_office'],
     children: [
       { label: 'Supplier', icon: Building2, href: '/suppliers', roles: ['main_office', 'admin'] },
       { label: 'Buat PO', icon: FileText, href: '/purchase-orders', roles: ['main_office', 'admin'] },
       { label: 'Approval PO', icon: ClipboardCheck, href: '/purchase-orders/approval', roles: ['auditor', 'admin'] },
-      { label: 'Penerimaan PO', icon: ArrowDownToLine, href: '/purchase-orders/receipt', roles: ['warehouse', 'kepala_toko', 'admin'] },
+      { label: 'Penerimaan PO', icon: ArrowDownToLine, href: '/purchase-orders/receipt', roles: ['warehouse', 'cashier', 'admin'] },
+      { label: 'Direct Order', icon: Truck, href: '/direct-orders', roles: ['main_office', 'admin'] },
+    ],
+  },
+
+  // Marketplace submenu
+  {
+    label: 'Marketplace',
+    icon: ShoppingCart,
+    roles: ['warehouse', 'cashier', 'admin', 'main_office'],
+    children: [
+      { label: 'Pesanan', icon: FileText, href: '/marketplace', roles: ['main_office', 'admin'] },
+      { label: 'Penerimaan', icon: ArrowDownToLine, href: '/marketplace/receipt', roles: ['warehouse', 'cashier', 'admin'] },
+      { label: 'Return', icon: RotateCcw, href: '/marketplace/returns', roles: ['warehouse', 'cashier', 'main_office', 'admin'] },
     ],
   },
 
@@ -106,12 +119,12 @@ const navGroups: NavItem[] = [
   {
     label: 'Keuangan',
     icon: CreditCard,
-    roles: ['cashier', 'kepala_toko', 'auditor', 'admin', 'main_office'],
+    roles: ['cashier', 'auditor', 'admin', 'main_office'],
     children: [
-      { label: 'Cash', icon: Wallet, href: '/cash-transfer', roles: ['cashier', 'kepala_toko', 'main_office', 'admin'] },
-      { label: 'Riwayat Cash', icon: Receipt, href: '/cash-history', roles: ['main_office', 'admin'] },
+      { label: 'Setoran Cash', icon: Wallet, href: '/cash-transfer', roles: ['cashier', 'main_office', 'admin'] },
+      { label: 'Riwayat Setoram=n', icon: Receipt, href: '/cash-history', roles: ['main_office', 'admin'] },
       { label: 'Transaksi Umum', icon: Banknote, href: '/finance/transactions', roles: ['main_office', 'admin'] },
-      { label: 'Riwayat Penjualan', icon: Receipt, href: '/finance/sales-history', roles: ['cashier', 'kepala_toko', 'main_office', 'admin'] },
+      { label: 'Riwayat Penjualan', icon: Receipt, href: '/finance/sales-history', roles: ['cashier', 'main_office', 'admin'] },
     ],
   },
 
@@ -121,15 +134,15 @@ const navGroups: NavItem[] = [
   {
     label: 'Laporan',
     icon: BarChart3,
-    roles: ['kepala_toko', 'main_office', 'auditor', 'admin'],
+    roles: ['cashier', 'main_office', 'auditor', 'admin'],
     children: [
-      { label: 'Laporan Stok Harian', icon: Package, href: '/reports/daily-stock', roles: ['kepala_toko', 'admin'] },
-      { label: 'Laporan Umum', icon: BarChart3, href: '/reports', roles: ['kepala_toko', 'main_office', 'auditor', 'admin'] },
+      { label: 'Laporan Stok Harian', icon: Package, href: '/reports/daily-stock', roles: ['cashier', 'admin'] },
+      { label: 'Laporan Umum', icon: BarChart3, href: '/reports', roles: ['cashier', 'main_office', 'auditor', 'admin'] },
     ],
   },
 
   { label: 'Pengguna', icon: Users, href: '/users', roles: ['admin'] },
-  { label: 'Pengaturan', icon: Settings, href: '/settings', roles: ['warehouse', 'cashier', 'kepala_toko', 'auditor', 'admin', 'main_office'] },
+  { label: 'Pengaturan', icon: Settings, href: '/settings', roles: ['warehouse', 'cashier', 'auditor', 'admin', 'main_office'] },
 ];
 
 export default function Sidebar() {
@@ -183,7 +196,6 @@ export default function Sidebar() {
       case 'admin': return 'bg-accent text-accent-foreground';
       case 'auditor': return 'bg-info/20 text-info';
       case 'cashier': return 'bg-warning/20 text-warning';
-      case 'kepala_toko': return 'bg-orange-500/20 text-orange-600';
       case 'warehouse': return 'bg-success/20 text-success';
       case 'main_office': return 'bg-primary/20 text-primary';
       default: return 'bg-muted text-muted-foreground';
@@ -195,7 +207,6 @@ export default function Sidebar() {
       case 'admin': return 'Admin';
       case 'auditor': return 'Auditor';
       case 'cashier': return 'Kasir';
-      case 'kepala_toko': return 'Kepala Toko';
       case 'warehouse': return 'Gudang';
       case 'main_office': return 'Kantor Pusat';
       default: return userRole;

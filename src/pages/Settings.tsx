@@ -1,5 +1,5 @@
-import { useState, type ChangeEvent } from 'react';
-import { Settings as SettingsIcon, Building2, Bell, Shield, Database, Save, User as UserIcon, Upload, Sun, Moon, Monitor } from 'lucide-react';
+import { useState, useEffect, type ChangeEvent } from 'react';
+import { Settings as SettingsIcon, Building2, Bell, Shield, Database, Save, User as UserIcon, Upload, Sun, Moon, Monitor, Store, Loader2 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import MainLayout from '@/components/layout/MainLayout';
 import PageSkeleton from '@/components/common/PageSkeleton';
@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import { useAuth, useRole } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { useStoreSettings, useUpdateStoreSettings } from '@/hooks/useStoreSettings';
 
 export default function Settings() {
   const { profile, updateProfile, loading: authLoading } = useAuth();
@@ -25,8 +26,16 @@ export default function Settings() {
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
 
+  // Store settings
+  const { data: storeSettings, isLoading: storeLoading } = useStoreSettings();
+  const updateStoreSettings = useUpdateStoreSettings();
+
   // ALL HOOKS MUST BE BEFORE ANY EARLY RETURNS
-  const [companyName, setCompanyName] = useState('Vertical Building');
+  const [storeName, setStoreName] = useState('');
+  const [storeAddress, setStoreAddress] = useState('');
+  const [storePhone, setStorePhone] = useState('');
+  const [storeEmail, setStoreEmail] = useState('');
+
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [lowStockAlert, setLowStockAlert] = useState(true);
   const [lowStockThreshold, setLowStockThreshold] = useState(20);
@@ -36,6 +45,16 @@ export default function Settings() {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
+
+  // Load store settings into state
+  useEffect(() => {
+    if (storeSettings) {
+      setStoreName(storeSettings.store_name);
+      setStoreAddress(storeSettings.store_address);
+      setStorePhone(storeSettings.store_phone);
+      setStoreEmail(storeSettings.store_email);
+    }
+  }, [storeSettings]);
 
   if (authLoading || !profile) {
     return (
@@ -252,44 +271,73 @@ export default function Settings() {
           </div>
         )}
 
-        {/* Company Settings */}
+        {/* Store/Company Settings - untuk struk */}
         {role === 'admin' && (
           <div className="glass-card rounded-3xl p-6 animate-slide-up">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Building2 className="w-5 h-5 text-primary" />
+                <Store className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <h3 className="font-semibold">Informasi Perusahaan</h3>
-                <p className="text-sm text-muted-foreground">Pengaturan dasar perusahaan</p>
+                <h3 className="font-semibold">Pengaturan Toko</h3>
+                <p className="text-sm text-muted-foreground">Informasi yang akan muncul di struk</p>
               </div>
             </div>
             <Separator className="my-4" />
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label>Nama Perusahaan</Label>
+                <Label>Nama Toko</Label>
                 <Input
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
+                  value={storeName}
+                  onChange={(e) => setStoreName(e.target.value)}
+                  placeholder="Nama toko Anda"
                 />
               </div>
               <div className="space-y-2">
                 <Label>Alamat</Label>
-                <Input placeholder="Alamat perusahaan" />
+                <Input
+                  value={storeAddress}
+                  onChange={(e) => setStoreAddress(e.target.value)}
+                  placeholder="Alamat lengkap toko"
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Telepon</Label>
-                  <Input placeholder="+62" />
+                  <Input
+                    value={storePhone}
+                    onChange={(e) => setStorePhone(e.target.value)}
+                    placeholder="021-1234567"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Email</Label>
-                  <Input type="email" placeholder="email@perusahaan.com" />
+                  <Input
+                    type="email"
+                    value={storeEmail}
+                    onChange={(e) => setStoreEmail(e.target.value)}
+                    placeholder="email@toko.com"
+                  />
                 </div>
               </div>
+              <Button
+                onClick={() => updateStoreSettings.mutate({
+                  store_name: storeName,
+                  store_address: storeAddress,
+                  store_phone: storePhone,
+                  store_email: storeEmail,
+                })}
+                disabled={updateStoreSettings.isPending}
+                className="w-full"
+              >
+                {updateStoreSettings.isPending ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Menyimpan...</>
+                ) : (
+                  <><Save className="w-4 h-4 mr-2" />Simpan Pengaturan Toko</>
+                )}
+              </Button>
             </div>
           </div>
-
         )}
 
         {/* Notification Settings */}

@@ -62,7 +62,10 @@ export default function SuratJalanMainOffice() {
     const [recipientAddress, setRecipientAddress] = useState('');
     const [recipientPhone, setRecipientPhone] = useState('');
     const [recipientEmail, setRecipientEmail] = useState('');
+    const [sourceLocation, setSourceLocation] = useState<'gudang' | 'toko'>('gudang');
     const [selectedItems, setSelectedItems] = useState<{ productId: string, quantity: number, productName: string }[]>([]);
+    const [customNumber, setCustomNumber] = useState(''); // Custom document number
+    const [customerPoFile, setCustomerPoFile] = useState<File | null>(null); // Optional customer PO
 
     // Product Selection State
     const [selectedProduct, setSelectedProduct] = useState<string>('');
@@ -77,11 +80,12 @@ export default function SuratJalanMainOffice() {
         }
     });
 
-    // Fetch Products for selection
+    // Fetch Products for selection based on source location
     const { data: products = [] } = useQuery({
-        queryKey: ['products-available'],
+        queryKey: ['products-available', sourceLocation],
         queryFn: async () => {
-            const { data } = await supabase.from('products').select('*').gt('stock_gudang', 0);
+            const stockColumn = sourceLocation === 'gudang' ? 'stock_gudang' : 'stock_toko';
+            const { data } = await supabase.from('products').select('*').gt(stockColumn, 0);
             return data as Product[];
         }
     });
@@ -140,15 +144,36 @@ export default function SuratJalanMainOffice() {
         setSelectedItems(newItems);
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (!user) return;
+
+        // Upload customer PO file if provided
+        let customerPoUrl: string | undefined;
+        if (customerPoFile) {
+            const fileExt = customerPoFile.name.split('.').pop();
+            const fileName = `customer-po/${Date.now()}.${fileExt}`;
+            const { error: uploadError } = await supabase.storage
+                .from('documents')
+                .upload(fileName, customerPoFile);
+
+            if (!uploadError) {
+                const { data: urlData } = supabase.storage
+                    .from('documents')
+                    .getPublicUrl(fileName);
+                customerPoUrl = urlData.publicUrl;
+            }
+        }
+
         createSuratJalan.mutate({
             recipientName,
             recipientAddress,
             recipientPhone,
             recipientEmail,
             items: selectedItems,
-            userId: user.id
+            userId: user.id,
+            sourceLocation,
+            customNumber: customNumber.trim() || undefined, // Custom number or auto
+            customerPoUrl, // Optional attachment URL
         }, {
             onSuccess: () => {
                 setDialogOpen(false);
@@ -159,6 +184,9 @@ export default function SuratJalanMainOffice() {
                 setRecipientPhone('');
                 setRecipientEmail('');
                 setSelectedItems([]);
+                setSourceLocation('gudang');
+                setCustomNumber('');
+                setCustomerPoFile(null);
             }
         });
     };
@@ -197,6 +225,32 @@ export default function SuratJalanMainOffice() {
                                 </Select>
                             </div>
 
+                            {/* Custom Number & PO Attachment */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Nomor Surat Jalan</Label>
+                                    <Input
+                                        value={customNumber}
+                                        onChange={(e) => setCustomNumber(e.target.value)}
+                                        placeholder="SJ-001 (kosongkan untuk auto)"
+                                        className="rounded-xl h-11"
+                                    />
+                                    <p className="text-xs text-muted-foreground">Kosongkan jika ingin nomor otomatis</p>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Lampiran PO Pelanggan (opsional)</Label>
+                                    <Input
+                                        type="file"
+                                        accept=".pdf,.jpg,.jpeg,.png"
+                                        onChange={(e) => setCustomerPoFile(e.target.files?.[0] || null)}
+                                        className="rounded-xl h-11"
+                                    />
+                                    {customerPoFile && (
+                                        <p className="text-xs text-green-600">📎 {customerPoFile.name}</p>
+                                    )}
+                                </div>
+                            </div>
+
                             {/* Auto-filled customer info */}
                             {selectedCustomerId && (
                                 <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl p-4 space-y-3 border border-indigo-100">
@@ -225,9 +279,37 @@ export default function SuratJalanMainOffice() {
 
                             <div className="border-t pt-4">
                                 <h4 className="text-sm font-medium mb-4">Item Pengiriman</h4>
+
+                                {/* Source Location Selector */}
+                                <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+                                    <Label className="text-blue-700 dark:text-blue-300 mb-2 block">Lokasi Asal Barang</Label>
+                                    <div className="flex gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => { setSourceLocation('gudang'); setSelectedItems([]); setSelectedProduct(''); }}
+                                            className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${sourceLocation === 'gudang'
+                                                ? 'bg-blue-600 text-white shadow-md'
+                                                : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border'
+                                                }`}
+                                        >
+                                            📦 Gudang
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => { setSourceLocation('toko'); setSelectedItems([]); setSelectedProduct(''); }}
+                                            className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${sourceLocation === 'toko'
+                                                ? 'bg-green-600 text-white shadow-md'
+                                                : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border'
+                                                }`}
+                                        >
+                                            🏪 Toko
+                                        </button>
+                                    </div>
+                                </div>
+
                                 <div className="flex gap-4 items-end mb-4">
                                     <div className="flex-1 space-y-2">
-                                        <Label>Produk</Label>
+                                        <Label>Produk dari {sourceLocation === 'gudang' ? 'Gudang' : 'Toko'}</Label>
                                         <Select value={selectedProduct} onValueChange={setSelectedProduct}>
                                             <SelectTrigger className="rounded-xl h-11 bg-white border-gray-200">
                                                 <SelectValue placeholder="Pilih Produk..." />
@@ -235,7 +317,7 @@ export default function SuratJalanMainOffice() {
                                             <SelectContent className="rounded-xl max-h-[200px]">
                                                 {products.map(p => (
                                                     <SelectItem key={p.id} value={p.id} className="rounded-lg my-1 cursor-pointer">
-                                                        {p.name} (Stok: {(p as any).stock_gudang ?? p.stock?.gudang ?? 0})
+                                                        {p.name} (Stok: {sourceLocation === 'gudang' ? (p as any).stock_gudang : (p as any).stock_toko})
                                                     </SelectItem>
                                                 ))}
                                             </SelectContent>

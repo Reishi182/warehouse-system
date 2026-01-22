@@ -167,8 +167,7 @@ export function hasPermission(role: UserRole | undefined, permission: string): b
 
   const permissions: Record<UserRole, string[]> = {
     warehouse: ['view_stock', 'scan_barcode', 'create_request', 'stock_in', 'ship_stock'],
-    cashier: ['view_stock', 'pos', 'cash_transfer'],
-    kepala_toko: ['view_stock', 'view_requests', 'receive_goods', 'receive_po', 'view_sales', 'view_cash', 'view_reports'],
+    cashier: ['view_stock', 'pos', 'cash_transfer', 'view_requests', 'receive_goods', 'receive_po', 'view_sales', 'view_cash', 'view_reports'],
     auditor: ['view_surat_jalan', 'approve_reject', 'view_reports', 'verify_shipments'],
     main_office: ['approve_requests', 'manage_cash', 'view_reports'],
     admin: ['*'],

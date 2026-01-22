@@ -43,6 +43,11 @@ const GeneralTransactions = React.lazy(() => import('@/pages/finance/GeneralTran
 const SalesHistory = React.lazy(() => import('@/pages/finance/SalesHistory'));
 const DailyStockReport = React.lazy(() => import('@/pages/reports/DailyStockReport'));
 const POS = React.lazy(() => import('./pages/POS'));
+const DirectOrders = React.lazy(() => import('./pages/direct-orders/DirectOrders'));
+const DirectOrderDetail = React.lazy(() => import('./pages/direct-orders/DirectOrderDetail'));
+const MarketplaceOrders = React.lazy(() => import('./pages/marketplace/MarketplaceOrders'));
+const MarketplaceReceipt = React.lazy(() => import('./pages/marketplace/MarketplaceReceipt'));
+const MarketplaceReturns = React.lazy(() => import('./pages/marketplace/MarketplaceReturns'));
 const NotFound = React.lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -229,6 +234,15 @@ function AppRoutes() {
         <Route path="/purchase-orders" element={<ProtectedRoute><PurchaseOrderMainOffice /></ProtectedRoute>} />
         <Route path="/purchase-orders/approval" element={<ProtectedRoute><PurchaseOrderAuditor /></ProtectedRoute>} />
         <Route path="/purchase-orders/receipt" element={<ProtectedRoute><PurchaseOrderReceipt /></ProtectedRoute>} />
+
+        {/* Direct Order Routes (Supplier -> Customer) */}
+        <Route path="/direct-orders" element={<ProtectedRoute><DirectOrders /></ProtectedRoute>} />
+        <Route path="/direct-orders/:id" element={<ProtectedRoute><DirectOrderDetail /></ProtectedRoute>} />
+
+        {/* Marketplace Order Routes */}
+        <Route path="/marketplace" element={<ProtectedRoute><MarketplaceOrders /></ProtectedRoute>} />
+        <Route path="/marketplace/receipt" element={<ProtectedRoute><MarketplaceReceipt /></ProtectedRoute>} />
+        <Route path="/marketplace/returns" element={<ProtectedRoute><MarketplaceReturns /></ProtectedRoute>} />
 
         <Route path="/finance/transactions" element={
           <ProtectedRoute>
