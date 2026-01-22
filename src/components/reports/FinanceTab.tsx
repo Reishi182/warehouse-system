@@ -27,6 +27,15 @@ export default function FinanceTab({
     totalCashTransfer,
     saldoBelumDisetor,
 }: FinanceTabProps) {
+    const formatCurrency = (value: number) => {
+        if (value >= 1000000) {
+            return `Rp ${(value / 1000000).toFixed(1)}jt`;
+        } else if (value >= 1000) {
+            return `Rp ${(value / 1000).toFixed(0)}rb`;
+        }
+        return `Rp ${value.toLocaleString('id-ID')}`;
+    };
+
     // Column definitions for sales table
     const salesColumns: Column<Sale>[] = [
         {
@@ -43,8 +52,8 @@ export default function FinanceTab({
             accessorKey: 'payment_method',
             cell: (item: Sale) => (
                 <span className={`px-2 py-1 rounded-full text-xs font-semibold ${item.payment_method === 'cash'
-                        ? 'bg-yellow-100 text-yellow-700'
-                        : 'bg-green-100 text-green-700'
+                    ? 'bg-yellow-100 text-yellow-700'
+                    : 'bg-green-100 text-green-700'
                     }`}>
                     {item.payment_method === 'cash' ? 'Cash' : 'Transfer'}
                 </span>
@@ -112,36 +121,46 @@ export default function FinanceTab({
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 <StatCard
                     title="Total Penjualan"
-                    value={`Rp ${totalSalesAmount.toLocaleString('id-ID')}`}
+                    value={formatCurrency(totalSalesAmount)}
+                    subtitle="Total pendapatan"
                     icon={ShoppingCart}
-                    iconClassName="bg-primary/10 text-primary"
+                    gradient="blue"
+                    animationDelay={0}
                 />
                 <StatCard
                     title="Cash Masuk"
-                    value={`Rp ${totalCashSales.toLocaleString('id-ID')}`}
+                    value={formatCurrency(totalCashSales)}
+                    subtitle="Pembayaran tunai"
                     icon={Wallet}
-                    iconClassName="bg-warning/10 text-warning"
+                    gradient="amber"
+                    animationDelay={100}
                 />
                 <StatCard
                     title="Transfer"
-                    value={`Rp ${totalTransferSales.toLocaleString('id-ID')}`}
+                    value={formatCurrency(totalTransferSales)}
+                    subtitle="Pembayaran transfer"
                     icon={ArrowRightLeft}
-                    iconClassName="bg-info/10 text-info"
+                    gradient="cyan"
+                    animationDelay={200}
                 />
                 <StatCard
                     title="Setoran Cash"
-                    value={`Rp ${totalCashTransfer.toLocaleString('id-ID')}`}
+                    value={formatCurrency(totalCashTransfer)}
+                    subtitle="Sudah disetor"
                     icon={ArrowDownToLine}
-                    iconClassName="bg-success/10 text-success"
+                    gradient="green"
+                    animationDelay={300}
                 />
                 <StatCard
                     title="Saldo Cash"
-                    value={`Rp ${saldoBelumDisetor.toLocaleString('id-ID')}`}
+                    value={formatCurrency(saldoBelumDisetor)}
+                    subtitle="Belum disetor"
                     icon={ArrowUpFromLine}
-                    iconClassName="bg-accent/10 text-accent"
+                    gradient="orange"
+                    animationDelay={400}
                 />
             </div>
 

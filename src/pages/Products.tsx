@@ -356,6 +356,8 @@ export default function Products() {
                         title="Total Produk"
                         value={stats.total}
                         icon={<Package className="w-5 h-5" />}
+                        gradient="blue"
+                        animationDelay={0}
                     />
                     <StatsCard
                         title="Stok Rendah"
@@ -363,16 +365,22 @@ export default function Products() {
                         icon={<AlertTriangle className="w-5 h-5" />}
                         subtitle={stats.lowStock > 0 ? "perlu restock" : undefined}
                         subtitleType="warning"
+                        gradient="orange"
+                        animationDelay={100}
                     />
                     <StatsCard
                         title="Stok Gudang"
                         value={stats.totalGudang.toLocaleString()}
                         icon={<Warehouse className="w-5 h-5" />}
+                        gradient="amber"
+                        animationDelay={200}
                     />
                     <StatsCard
                         title="Stok Toko"
                         value={stats.totalToko.toLocaleString()}
                         icon={<Store className="w-5 h-5" />}
+                        gradient="emerald"
+                        animationDelay={300}
                     />
                 </StatsGrid>
 

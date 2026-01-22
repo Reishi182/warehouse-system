@@ -16,37 +16,56 @@ export default function FinanceStatsGrid({
     totalCashTransfer,
     saldoBelumDisetor,
 }: FinanceStatsGridProps) {
+    const formatCurrency = (value: number) => {
+        if (value >= 1000000) {
+            return `Rp ${(value / 1000000).toFixed(1)}jt`;
+        } else if (value >= 1000) {
+            return `Rp ${(value / 1000).toFixed(0)}rb`;
+        }
+        return `Rp ${value.toLocaleString('id-ID')}`;
+    };
+
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
             <StatCard
                 title="Penjualan Hari Ini"
-                value={`Rp ${totalSalesAmount.toLocaleString('id-ID')}`}
+                value={formatCurrency(totalSalesAmount)}
+                subtitle="Total pendapatan"
                 icon={ShoppingCart}
-                iconClassName="bg-primary/10 text-primary"
+                gradient="blue"
+                animationDelay={0}
             />
             <StatCard
                 title="Cash Masuk"
-                value={`Rp ${totalCashSales.toLocaleString('id-ID')}`}
+                value={formatCurrency(totalCashSales)}
+                subtitle="Pembayaran tunai"
                 icon={Wallet}
-                iconClassName="bg-warning/10 text-warning"
+                gradient="amber"
+                animationDelay={100}
             />
             <StatCard
                 title="Transfer"
-                value={`Rp ${totalTransferSales.toLocaleString('id-ID')}`}
+                value={formatCurrency(totalTransferSales)}
+                subtitle="Pembayaran transfer"
                 icon={ArrowRightLeft}
-                iconClassName="bg-info/10 text-info"
+                gradient="cyan"
+                animationDelay={200}
             />
             <StatCard
                 title="Setoran Cash"
-                value={`Rp ${totalCashTransfer.toLocaleString('id-ID')}`}
+                value={formatCurrency(totalCashTransfer)}
+                subtitle="Sudah disetor"
                 icon={ArrowDownToLine}
-                iconClassName="bg-success/10 text-success"
+                gradient="green"
+                animationDelay={300}
             />
             <StatCard
                 title="Saldo Cash"
-                value={`Rp ${saldoBelumDisetor.toLocaleString('id-ID')}`}
+                value={formatCurrency(saldoBelumDisetor)}
+                subtitle="Belum disetor"
                 icon={ArrowUpFromLine}
-                iconClassName="bg-accent/10 text-accent"
+                gradient="orange"
+                animationDelay={400}
             />
         </div>
     );

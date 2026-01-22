@@ -15,3 +15,9 @@ export { default as DashboardActivityHub } from './DashboardActivityHub';
 export { PerformanceChart } from './PerformanceChart';
 export { DonutChart } from './DonutChart';
 export { RoleCharts } from './RoleCharts';
+
+// Revenue Dashboard Components
+export { default as RevenueSummaryCards } from './RevenueSummaryCards';
+export { default as RevenueComparisonChart } from './RevenueComparisonChart';
+export { default as RevenueByPaymentChart } from './RevenueByPaymentChart';
+export { default as TopRevenueProducts } from './TopRevenueProducts';

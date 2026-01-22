@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Receipt, Banknote, CreditCard, TrendingUp, ArrowUpRight } from 'lucide-react';
+import { Receipt, Banknote, TrendingUp, Wallet, ArrowUpRight } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Sale } from '@/types';
@@ -15,85 +15,132 @@ export default function CashierStatsGrid({ salesToday, totalCashTransfer }: Cash
         const count = salesToday.length;
         const totalAmount = salesToday.reduce((acc, s) => acc + s.total_amount, 0);
         const cashSales = salesToday.filter(s => s.payment_method === 'cash');
-        const transferSales = salesToday.filter(s => s.payment_method === 'transfer');
         const cashAmount = cashSales.reduce((acc, s) => acc + s.total_amount, 0);
-        const transferAmount = transferSales.reduce((acc, s) => acc + s.total_amount, 0);
         const saldoBelumDisetor = Math.max(0, cashAmount - totalCashTransfer);
 
         return {
             count,
             totalAmount,
             cashAmount,
-            transferAmount,
             cashCount: cashSales.length,
-            transferCount: transferSales.length,
             saldoBelumDisetor,
         };
     }, [salesToday, totalCashTransfer]);
 
+    const formatCurrency = (value: number) => {
+        if (value >= 1000000) {
+            return `Rp ${(value / 1000000).toFixed(1)}jt`;
+        } else if (value >= 1000) {
+            return `Rp ${(value / 1000).toFixed(0)}rb`;
+        }
+        return `Rp ${value.toLocaleString('id-ID')}`;
+    };
+
+    const cards = [
+        {
+            title: 'Total Transaksi',
+            value: stats.count,
+            subtitle: 'transaksi hari ini',
+            icon: Receipt,
+            gradient: 'from-blue-500/20 via-blue-500/10 to-transparent',
+            iconBg: 'bg-blue-500/20',
+            iconColor: 'text-blue-600 dark:text-blue-400',
+            valueColor: 'text-blue-600 dark:text-blue-400',
+            link: null,
+        },
+        {
+            title: 'Total Penjualan',
+            value: formatCurrency(stats.totalAmount),
+            subtitle: 'pendapatan hari ini',
+            icon: TrendingUp,
+            gradient: 'from-emerald-500/20 via-emerald-500/10 to-transparent',
+            iconBg: 'bg-emerald-500/20',
+            iconColor: 'text-emerald-600 dark:text-emerald-400',
+            valueColor: 'text-emerald-600 dark:text-emerald-400',
+            link: { to: '/pos', label: 'POS' },
+        },
+        {
+            title: 'Cash Masuk',
+            value: formatCurrency(stats.cashAmount),
+            subtitle: `${stats.cashCount} transaksi tunai`,
+            icon: Banknote,
+            gradient: 'from-violet-500/20 via-violet-500/10 to-transparent',
+            iconBg: 'bg-violet-500/20',
+            iconColor: 'text-violet-600 dark:text-violet-400',
+            valueColor: 'text-violet-600 dark:text-violet-400',
+            link: null,
+        },
+        {
+            title: 'Belum Disetor',
+            value: formatCurrency(stats.saldoBelumDisetor),
+            subtitle: 'perlu setor',
+            icon: Wallet,
+            gradient: 'from-amber-500/20 via-amber-500/10 to-transparent',
+            iconBg: 'bg-amber-500/20',
+            iconColor: 'text-amber-600 dark:text-amber-400',
+            valueColor: 'text-amber-600 dark:text-amber-400',
+            link: { to: '/cash-transfer', label: 'Setor' },
+        },
+    ];
+
     return (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            {/* Total Transaksi */}
-            <Card className="rounded-2xl border-0 shadow-md bg-gradient-to-br from-primary/5 to-primary/10">
-                <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-2">
-                        <Receipt className="w-5 h-5 text-primary" />
-                        <Badge variant="secondary" className="rounded-full text-xs">
-                            Hari ini
-                        </Badge>
-                    </div>
-                    <p className="text-2xl font-bold">{stats.count}</p>
-                    <p className="text-xs text-muted-foreground">Total Transaksi</p>
-                </CardContent>
-            </Card>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+            {cards.map((card, index) => {
+                const Icon = card.icon;
 
-            {/* Total Penjualan */}
-            <Card className="rounded-2xl border-0 shadow-md bg-gradient-to-br from-green-500/5 to-green-500/10">
-                <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-2">
-                        <TrendingUp className="w-5 h-5 text-green-600" />
-                        <Link to="/pos" className="text-xs text-primary hover:underline flex items-center gap-1">
-                            POS <ArrowUpRight className="w-3 h-3" />
-                        </Link>
-                    </div>
-                    <p className="text-2xl font-bold text-green-600">
-                        Rp {stats.totalAmount.toLocaleString('id-ID')}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Total Penjualan</p>
-                </CardContent>
-            </Card>
+                return (
+                    <Card
+                        key={card.title}
+                        className={`
+                            relative overflow-hidden border-0 shadow-lg 
+                            bg-gradient-to-br ${card.gradient}
+                            backdrop-blur-xl
+                            hover:shadow-xl hover:scale-[1.02]
+                            transition-all duration-300 ease-out
+                            animate-slide-up
+                        `}
+                        style={{ animationDelay: `${index * 100}ms` }}
+                    >
+                        {/* Decorative glow */}
+                        <div className="absolute -top-12 -right-12 w-32 h-32 bg-gradient-to-br from-white/20 to-transparent rounded-full blur-2xl" />
 
-            {/* Cash Masuk */}
-            <Card className="rounded-2xl border-0 shadow-md bg-gradient-to-br from-emerald-500/5 to-emerald-500/10">
-                <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-2">
-                        <Banknote className="w-5 h-5 text-emerald-600" />
-                        <Badge className="rounded-full text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30">
-                            {stats.cashCount} trx
-                        </Badge>
-                    </div>
-                    <p className="text-2xl font-bold text-emerald-600">
-                        Rp {stats.cashAmount.toLocaleString('id-ID')}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Total Cash Masuk</p>
-                </CardContent>
-            </Card>
+                        <CardContent className="p-5 relative">
+                            {/* Header */}
+                            <div className="flex items-center justify-between mb-4">
+                                <div className={`p-2.5 rounded-xl ${card.iconBg} backdrop-blur-sm`}>
+                                    <Icon className={`w-5 h-5 ${card.iconColor}`} />
+                                </div>
 
-            {/* Saldo Belum Disetor */}
-            <Card className="rounded-2xl border-0 shadow-md bg-gradient-to-br from-amber-500/5 to-amber-500/10">
-                <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-2">
-                        <CreditCard className="w-5 h-5 text-amber-600" />
-                        <Link to="/cash-transfer" className="text-xs text-primary hover:underline flex items-center gap-1">
-                            Setor <ArrowUpRight className="w-3 h-3" />
-                        </Link>
-                    </div>
-                    <p className="text-2xl font-bold text-amber-600">
-                        Rp {stats.saldoBelumDisetor.toLocaleString('id-ID')}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Belum Disetor</p>
-                </CardContent>
-            </Card>
+                                {card.link ? (
+                                    <Link
+                                        to={card.link.to}
+                                        className="text-xs text-primary hover:underline flex items-center gap-1 font-medium"
+                                    >
+                                        {card.link.label} <ArrowUpRight className="w-3 h-3" />
+                                    </Link>
+                                ) : (
+                                    <Badge variant="secondary" className="rounded-full text-xs bg-muted/50">
+                                        Hari ini
+                                    </Badge>
+                                )}
+                            </div>
+
+                            {/* Value */}
+                            <div className="space-y-1">
+                                <p className={`text-2xl xl:text-3xl font-bold ${card.valueColor} tracking-tight`}>
+                                    {card.value}
+                                </p>
+                                <p className="text-sm text-muted-foreground font-medium">
+                                    {card.title}
+                                </p>
+                                <p className="text-xs text-muted-foreground/70">
+                                    {card.subtitle}
+                                </p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                );
+            })}
         </div>
     );
 }

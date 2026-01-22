@@ -1,6 +1,10 @@
 import { useMemo } from 'react';
 import { PerformanceChart } from './PerformanceChart';
 import { DonutChart } from './DonutChart';
+import RevenueSummaryCards from './RevenueSummaryCards';
+import RevenueComparisonChart from './RevenueComparisonChart';
+import RevenueByPaymentChart from './RevenueByPaymentChart';
+import TopRevenueProducts from './TopRevenueProducts';
 import { UserRole } from '@/types';
 import { Product, Sale, StockOutRequest, SuratJalan, CashTransfer } from '@/types';
 
@@ -128,41 +132,69 @@ export function RoleCharts({
         switch (role) {
             case 'admin':
                 return (
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                        <div className="lg:col-span-2">
-                            <PerformanceChart
-                                title="Performa Penjualan"
-                                value={`Rp ${totalRevenue.toLocaleString('id-ID')}`}
-                                change={revenueChange}
-                                data={monthlySalesData}
+                    <div className="space-y-6 mb-6">
+                        {/* Revenue Summary Cards */}
+                        <RevenueSummaryCards sales={sales} />
+
+                        {/* Charts Row 1 */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <RevenueComparisonChart sales={sales} />
+                            <RevenueByPaymentChart sales={sales} />
+                        </div>
+
+                        {/* Charts Row 2 */}
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <div className="lg:col-span-2">
+                                <PerformanceChart
+                                    title="Performa Penjualan"
+                                    value={`Rp ${totalRevenue.toLocaleString('id-ID')}`}
+                                    change={revenueChange}
+                                    data={monthlySalesData}
+                                />
+                            </div>
+                            <TopRevenueProducts sales={sales} products={products} />
+                        </div>
+
+                        {/* Stock Distribution */}
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <DonutChart
+                                title="Distribusi Stok"
+                                totalLabel="Total"
+                                totalValue={totalStock.toLocaleString('id-ID')}
+                                data={stockDistribution}
+                            />
+                            <DonutChart
+                                title="Status Permintaan"
+                                totalLabel="Total"
+                                totalValue={requests.length.toString()}
+                                data={requestStatus}
+                            />
+                            <DonutChart
+                                title="Status Surat Jalan"
+                                totalLabel="Total"
+                                totalValue={suratJalans.length.toString()}
+                                data={suratJalanStatus}
                             />
                         </div>
-                        <DonutChart
-                            title="Distribusi Stok"
-                            totalLabel="Total"
-                            totalValue={totalStock.toLocaleString('id-ID')}
-                            data={stockDistribution}
-                        />
                     </div>
                 );
 
             case 'cashier':
                 return (
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                        <div className="lg:col-span-2">
-                            <PerformanceChart
-                                title="Transaksi Harian"
-                                value={`Rp ${totalRevenue.toLocaleString('id-ID')}`}
-                                change={revenueChange}
-                                data={monthlySalesData}
+                    <div className="space-y-6 mb-6">
+                        {/* Revenue Summary - Daily focus for cashier */}
+                        <RevenueSummaryCards sales={sales} />
+
+                        {/* Charts */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <RevenueByPaymentChart sales={sales} days={7} />
+                            <DonutChart
+                                title="Status Permintaan Stok"
+                                totalLabel="Total"
+                                totalValue={requests.length.toString()}
+                                data={requestStatus}
                             />
                         </div>
-                        <DonutChart
-                            title="Status Permintaan Stok"
-                            totalLabel="Total"
-                            totalValue={requests.length.toString()}
-                            data={requestStatus}
-                        />
                     </div>
                 );
 
@@ -208,21 +240,44 @@ export function RoleCharts({
 
             case 'main_office':
                 return (
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                        <div className="lg:col-span-2">
-                            <PerformanceChart
-                                title="Pendapatan B2B"
-                                value={`Rp ${totalRevenue.toLocaleString('id-ID')}`}
-                                change={revenueChange}
-                                data={monthlySalesData}
+                    <div className="space-y-6 mb-6">
+                        {/* Revenue Summary */}
+                        <RevenueSummaryCards sales={sales} />
+
+                        {/* Charts Row 1 */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <RevenueComparisonChart sales={sales} />
+                            <RevenueByPaymentChart sales={sales} />
+                        </div>
+
+                        {/* Charts Row 2 */}
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <div className="lg:col-span-2">
+                                <PerformanceChart
+                                    title="Pendapatan B2B"
+                                    value={`Rp ${totalRevenue.toLocaleString('id-ID')}`}
+                                    change={revenueChange}
+                                    data={monthlySalesData}
+                                />
+                            </div>
+                            <TopRevenueProducts sales={sales} products={products} />
+                        </div>
+
+                        {/* Status Charts */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <DonutChart
+                                title="Status Surat Jalan"
+                                totalLabel="Total"
+                                totalValue={suratJalans.length.toString()}
+                                data={suratJalanStatus}
+                            />
+                            <DonutChart
+                                title="Status Permintaan"
+                                totalLabel="Total"
+                                totalValue={requests.length.toString()}
+                                data={requestStatus}
                             />
                         </div>
-                        <DonutChart
-                            title="Status Surat Jalan"
-                            totalLabel="Total"
-                            totalValue={suratJalans.length.toString()}
-                            data={suratJalanStatus}
-                        />
                     </div>
                 );
 

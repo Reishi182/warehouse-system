@@ -22,30 +22,38 @@ export default function OverviewTab({
     return (
         <>
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
                 <StatCard
                     title="Total Produk"
                     value={totalProducts}
+                    subtitle="Produk terdaftar"
                     icon={Package}
-                    iconClassName="bg-primary/10 text-primary"
+                    gradient="blue"
+                    animationDelay={0}
                 />
                 <StatCard
                     title="Total Stok"
-                    value={totalStock.toLocaleString()}
+                    value={totalStock.toLocaleString('id-ID')}
+                    subtitle="Unit tersedia"
                     icon={ArrowDownToLine}
-                    iconClassName="bg-accent/10 text-accent"
+                    gradient="purple"
+                    animationDelay={100}
                 />
                 <StatCard
                     title="Permintaan Selesai"
                     value={completedRequests}
+                    subtitle="Request completed"
                     icon={ArrowUpFromLine}
-                    iconClassName="bg-success/10 text-success"
+                    gradient="green"
+                    animationDelay={200}
                 />
                 <StatCard
                     title="Surat Jalan Disetujui"
                     value={approvedSuratJalans}
+                    subtitle="Approved"
                     icon={FileText}
-                    iconClassName="bg-info/10 text-info"
+                    gradient="cyan"
+                    animationDelay={300}
                 />
             </div>
 
