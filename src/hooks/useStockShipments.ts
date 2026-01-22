@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { StockShipment, StockShipmentItem } from '@/types';
+import { sendNotificationToRole, sendNotificationToUser } from '@/hooks/useRealtimeNotifications';
 
 export function useStockShipments() {
     const { toast } = useToast();
@@ -76,6 +77,14 @@ export function useStockShipments() {
             queryClient.invalidateQueries({ queryKey: ['stock-shipments'] });
             queryClient.invalidateQueries({ queryKey: ['stock-requests'] });
             toast({ title: 'Pengiriman Dibuat', description: 'Menunggu verifikasi Auditor' });
+
+            // Notify auditor about new shipment
+            sendNotificationToRole('auditor', {
+                title: 'Pengiriman Baru',
+                message: 'Ada pengiriman stok baru dari Gudang yang perlu diverifikasi',
+                type: 'info',
+                link: '/stock-request/shipments',
+            });
         }
     });
 
@@ -125,10 +134,27 @@ export function useStockShipments() {
 
             if (reqUpdateError) throw reqUpdateError;
         },
-        onSuccess: () => {
+        onSuccess: (_data, variables) => {
             queryClient.invalidateQueries({ queryKey: ['stock-shipments'] });
             queryClient.invalidateQueries({ queryKey: ['stock-requests'] });
             toast({ title: 'Pengiriman Disetujui', description: 'Stok gudang telah dikurangi' });
+
+            // Get the request to notify the cashier
+            supabase
+                .from('stock_requests')
+                .select('cashier_id, request_number')
+                .eq('id', variables.requestId)
+                .single()
+                .then(({ data: req }) => {
+                    if (req?.cashier_id) {
+                        sendNotificationToUser(req.cashier_id, {
+                            title: 'Stok Dalam Perjalanan',
+                            message: `Permintaan ${req.request_number || ''} telah disetujui dan barang dalam perjalanan`,
+                            type: 'success',
+                            link: '/stock-request/receipt',
+                        });
+                    }
+                });
         }
     });
 

@@ -10,6 +10,7 @@ import { DataProvider } from "@/contexts/DataContext";
 import { SidebarProvider } from "@/contexts/SidebarContext";
 import ErrorBoundary from "@/components/common/ErrorBoundary";
 import PageSkeleton from "@/components/common/PageSkeleton";
+import { RealtimeNotificationProvider } from "@/components/common/RealtimeNotificationProvider";
 
 // Lazy load all pages for better performance (code splitting)
 const Login = React.lazy(() => import("./pages/Login"));
@@ -252,7 +253,9 @@ const App = () => (
                 <Toaster />
                 <Sonner />
                 <HashRouter>
-                  <AppRoutes />
+                  <RealtimeNotificationProvider>
+                    <AppRoutes />
+                  </RealtimeNotificationProvider>
                 </HashRouter>
               </TooltipProvider>
             </SidebarProvider>

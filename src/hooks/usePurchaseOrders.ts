@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { PurchaseOrder, PurchaseOrderItem, POStatus } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { sendNotificationToRole, sendNotificationToUser } from '@/hooks/useRealtimeNotifications';
 
 // Fetch all purchase orders with supplier info
 export function usePurchaseOrders(statusFilter?: POStatus | POStatus[]) {
@@ -166,11 +167,19 @@ export function useCreatePurchaseOrder() {
 
             return po;
         },
-        onSuccess: () => {
+        onSuccess: (po) => {
             queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
             toast({
                 title: 'Berhasil',
                 description: 'Purchase Order berhasil dibuat',
+            });
+
+            // Notify auditors about new PO
+            sendNotificationToRole('auditor', {
+                title: 'PO Baru Menunggu Approval',
+                message: `Purchase Order ${po.po_number} membutuhkan persetujuan Anda`,
+                type: 'info',
+                link: '/purchase-orders/auditor',
             });
         },
         onError: (error: Error) => {
@@ -195,6 +204,13 @@ export function useApprovePurchaseOrder() {
 
     return useMutation({
         mutationFn: async (input: ApprovePOInput) => {
+            // Get PO details first for notification
+            const { data: po } = await supabase
+                .from('purchase_orders')
+                .select('po_number, created_by')
+                .eq('id', input.poId)
+                .single();
+
             const { error } = await supabase
                 .from('purchase_orders')
                 .update({
@@ -207,13 +223,32 @@ export function useApprovePurchaseOrder() {
                 .eq('id', input.poId);
 
             if (error) throw error;
+            return po;
         },
-        onSuccess: () => {
+        onSuccess: (po) => {
             queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
             toast({
                 title: 'Berhasil',
                 description: 'Purchase Order berhasil diapprove',
             });
+
+            // Notify main_office about approval
+            sendNotificationToRole('main_office', {
+                title: 'PO Disetujui',
+                message: `Purchase Order ${po?.po_number} telah disetujui, menunggu penerimaan barang`,
+                type: 'success',
+                link: '/purchase-orders',
+            });
+
+            // Also notify the creator if exists
+            if (po?.created_by) {
+                sendNotificationToUser(po.created_by, {
+                    title: 'PO Disetujui',
+                    message: `Purchase Order ${po?.po_number} telah disetujui`,
+                    type: 'success',
+                    link: '/purchase-orders',
+                });
+            }
         },
         onError: (error: Error) => {
             toast({
@@ -238,6 +273,13 @@ export function useRejectPurchaseOrder() {
 
     return useMutation({
         mutationFn: async (input: RejectPOInput) => {
+            // Get PO details first for notification
+            const { data: po } = await supabase
+                .from('purchase_orders')
+                .select('po_number, created_by')
+                .eq('id', input.poId)
+                .single();
+
             const { error } = await supabase
                 .from('purchase_orders')
                 .update({
@@ -251,13 +293,32 @@ export function useRejectPurchaseOrder() {
                 .eq('id', input.poId);
 
             if (error) throw error;
+            return po;
         },
-        onSuccess: () => {
+        onSuccess: (po) => {
             queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
             toast({
                 title: 'Berhasil',
                 description: 'Purchase Order berhasil ditolak',
             });
+
+            // Notify main_office about rejection
+            sendNotificationToRole('main_office', {
+                title: 'PO Ditolak',
+                message: `Purchase Order ${po?.po_number} ditolak oleh Auditor`,
+                type: 'error',
+                link: '/purchase-orders',
+            });
+
+            // Also notify the creator if exists
+            if (po?.created_by) {
+                sendNotificationToUser(po.created_by, {
+                    title: 'PO Ditolak',
+                    message: `Purchase Order ${po?.po_number} telah ditolak`,
+                    type: 'error',
+                    link: '/purchase-orders',
+                });
+            }
         },
         onError: (error: Error) => {
             toast({
@@ -273,7 +334,16 @@ interface ConfirmReceiptInput {
     poId: string;
     receivedBy: string;
     receivedByName: string;
+    receivedItems: Array<{
+        itemId: string;
+        productId: string;
+        productName: string;
+        orderedQty: number;
+        receivedQty: number;
+        damagedQty: number;
+    }>;
     photoUrl?: string;
+    signatureUrl?: string;
     notes?: string;
 }
 
@@ -283,7 +353,7 @@ export function useConfirmPOReceipt() {
 
     return useMutation({
         mutationFn: async (input: ConfirmReceiptInput) => {
-            // Get PO and items
+            // Get PO details
             const { data: po, error: poError } = await supabase
                 .from('purchase_orders')
                 .select('*, items:purchase_order_items(*)')
@@ -292,7 +362,30 @@ export function useConfirmPOReceipt() {
 
             if (poError) throw poError;
 
-            // Create receipt record
+            // Calculate discrepancy
+            let totalOrdered = 0;
+            let totalReceived = 0;
+            let totalDamaged = 0;
+            const discrepancyItems: string[] = [];
+
+            for (const item of input.receivedItems) {
+                totalOrdered += item.orderedQty;
+                totalReceived += item.receivedQty;
+                totalDamaged += item.damagedQty;
+
+                const shortage = item.orderedQty - item.receivedQty;
+                if (shortage > 0 || item.damagedQty > 0) {
+                    discrepancyItems.push(
+                        `${item.productName}: Dipesan ${item.orderedQty}, ` +
+                        `Diterima ${item.receivedQty}` +
+                        (item.damagedQty > 0 ? `, Rusak ${item.damagedQty}` : '')
+                    );
+                }
+            }
+
+            const hasDiscrepancy = totalReceived < totalOrdered || totalDamaged > 0;
+
+            // Create receipt record with discrepancy info
             const { error: receiptError } = await supabase
                 .from('po_receipts')
                 .insert([{
@@ -300,64 +393,99 @@ export function useConfirmPOReceipt() {
                     received_by: input.receivedBy,
                     received_by_name: input.receivedByName,
                     photo_url: input.photoUrl || null,
+                    signature_url: input.signatureUrl || null,
                     notes: input.notes || null,
+                    has_discrepancy: hasDiscrepancy,
+                    total_ordered: totalOrdered,
+                    total_received: totalReceived,
+                    total_damaged: totalDamaged,
                 }]);
 
             if (receiptError) throw receiptError;
 
-            // Update stock for each item
+            // Update stock for each item (only received qty, not ordered)
             const destination = po.destination as 'gudang' | 'toko';
-            for (const item of (po.items || [])) {
-                if (!item.product_id) continue;
+            for (const item of input.receivedItems) {
+                if (!item.productId || item.receivedQty <= 0) continue;
 
                 // Get current stock
                 const { data: product, error: prodError } = await supabase
                     .from('products')
                     .select('stock_gudang, stock_toko')
-                    .eq('id', item.product_id)
+                    .eq('id', item.productId)
                     .single();
 
                 if (prodError) continue;
 
-                // Update the appropriate stock location
+                // Only add RECEIVED quantity (not ordered)
                 const stockField = destination === 'gudang' ? 'stock_gudang' : 'stock_toko';
                 const currentStock = destination === 'gudang' ? (product.stock_gudang || 0) : (product.stock_toko || 0);
-                const newStock = currentStock + item.quantity;
+                const newStock = currentStock + item.receivedQty;
 
                 await supabase
                     .from('products')
                     .update({ [stockField]: newStock })
-                    .eq('id', item.product_id);
+                    .eq('id', item.productId);
 
                 // Log stock change
+                const noteDetails = item.receivedQty < item.orderedQty
+                    ? `Penerimaan PO: ${po.po_number} (Selisih: ${item.orderedQty - item.receivedQty})`
+                    : `Penerimaan PO: ${po.po_number}`;
+
                 await supabase.from('stock_logs').insert([{
-                    product_id: item.product_id,
+                    product_id: item.productId,
                     type: 'in',
-                    quantity: item.quantity,
+                    quantity: item.receivedQty,
                     location: destination,
                     user_id: input.receivedBy,
-                    note: `Penerimaan PO: ${po.po_number}`,
+                    note: noteDetails,
                 }]);
             }
 
-            // Update PO status to completed
+            // Update PO status
             const { error: updateError } = await supabase
                 .from('purchase_orders')
                 .update({
-                    status: 'completed',
+                    status: hasDiscrepancy ? 'completed_with_discrepancy' : 'completed',
                     updated_at: new Date().toISOString(),
                 })
                 .eq('id', input.poId);
 
             if (updateError) throw updateError;
+
+            // If discrepancy, notify main_office and auditor
+            if (hasDiscrepancy) {
+                const discrepancyMessage =
+                    `PO ${po.po_number}: Dipesan ${totalOrdered} unit, Diterima ${totalReceived} unit` +
+                    (totalDamaged > 0 ? `, Rusak ${totalDamaged} unit` : '') +
+                    `. Perlu follow-up dengan supplier.`;
+
+                await sendNotificationToRole(['main_office', 'auditor'], {
+                    title: `⚠️ Selisih Penerimaan PO`,
+                    message: discrepancyMessage,
+                    type: 'warning',
+                    link: '/purchase-orders',
+                });
+            }
+
+            return { po, hasDiscrepancy, discrepancyItems };
         },
-        onSuccess: () => {
+        onSuccess: (result) => {
             queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
             queryClient.invalidateQueries({ queryKey: ['products'] });
-            toast({
-                title: 'Berhasil',
-                description: 'Penerimaan barang berhasil dikonfirmasi dan stok telah diperbarui',
-            });
+
+            if (result.hasDiscrepancy) {
+                toast({
+                    title: '⚠️ Penerimaan dengan Selisih',
+                    description: 'Stok diperbarui. Main Office dan Auditor telah dinotifikasi.',
+                    variant: 'destructive',
+                });
+            } else {
+                toast({
+                    title: 'Berhasil',
+                    description: 'Penerimaan barang berhasil dikonfirmasi dan stok telah diperbarui',
+                });
+            }
         },
         onError: (error: Error) => {
             toast({
@@ -368,3 +496,4 @@ export function useConfirmPOReceipt() {
         },
     });
 }
+

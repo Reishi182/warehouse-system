@@ -1,13 +1,15 @@
-import { useState } from 'react';
-import { Package, Check, Eye, Upload, Camera, Wallet } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Package, Check, Eye, Camera, Wallet, AlertTriangle } from 'lucide-react';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import MainLayout from '@/components/layout/MainLayout';
 import PageSkeleton from '@/components/common/PageSkeleton';
+import SignatureCanvas, { SignatureCanvasRef } from '@/components/common/SignatureCanvas';
 import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import {
     Dialog,
     DialogContent,
@@ -22,10 +24,19 @@ import {
 } from '@/components/ui/card';
 import { useAuth, useRole } from '@/contexts/AuthContext';
 import { usePendingReceiptPOs, usePurchaseOrder, useConfirmPOReceipt } from '@/hooks/usePurchaseOrders';
-import { PurchaseOrder } from '@/types';
+import { PurchaseOrder, PurchaseOrderItem } from '@/types';
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
+
+interface ReceivedItemState {
+    itemId: string;
+    productId: string;
+    productName: string;
+    orderedQty: number;
+    receivedQty: number;
+    damagedQty: number;
+}
 
 export default function PurchaseOrderReceipt() {
     const { user, profile } = useAuth();
@@ -45,6 +56,10 @@ export default function PurchaseOrderReceipt() {
     const [photoFile, setPhotoFile] = useState<File | null>(null);
     const [photoPreview, setPhotoPreview] = useState<string | null>(null);
     const [uploading, setUploading] = useState(false);
+    const [signatureData, setSignatureData] = useState<string | null>(null);
+    const [receivedItems, setReceivedItems] = useState<ReceivedItemState[]>([]);
+
+    const signatureRef = useRef<SignatureCanvasRef>(null);
 
     const { data: selectedPO, isLoading: selectedPOLoading } = usePurchaseOrder(selectedPOId || '');
 
@@ -58,7 +73,32 @@ export default function PurchaseOrderReceipt() {
         setNotes('');
         setPhotoFile(null);
         setPhotoPreview(null);
+        setSignatureData(null);
+
+        // Initialize received items from PO items
+        if (po.items) {
+            setReceivedItems(po.items.map(item => ({
+                itemId: item.id,
+                productId: item.product_id || '',
+                productName: item.product_name,
+                orderedQty: item.quantity,
+                receivedQty: item.quantity, // Pre-fill with ordered qty
+                damagedQty: 0,
+            })));
+        }
         setIsConfirmOpen(true);
+    };
+
+    const updateReceivedQty = (itemId: string, qty: number) => {
+        setReceivedItems(prev => prev.map(item =>
+            item.itemId === itemId ? { ...item, receivedQty: Math.max(0, qty) } : item
+        ));
+    };
+
+    const updateDamagedQty = (itemId: string, qty: number) => {
+        setReceivedItems(prev => prev.map(item =>
+            item.itemId === itemId ? { ...item, damagedQty: Math.max(0, qty) } : item
+        ));
     };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -73,49 +113,74 @@ export default function PurchaseOrderReceipt() {
         }
     };
 
+    // Calculate discrepancy stats
+    const totalOrdered = receivedItems.reduce((sum, item) => sum + item.orderedQty, 0);
+    const totalReceived = receivedItems.reduce((sum, item) => sum + item.receivedQty, 0);
+    const totalDamaged = receivedItems.reduce((sum, item) => sum + item.damagedQty, 0);
+    const hasDiscrepancy = totalReceived < totalOrdered || totalDamaged > 0;
+
     const handleConfirm = async () => {
         if (!selectedPOId) return;
 
         let photoUrl: string | undefined;
+        let signatureUrl: string | undefined;
 
-        // Upload photo if provided
-        if (photoFile) {
-            setUploading(true);
-            try {
+        setUploading(true);
+        try {
+            // Upload photo if provided
+            if (photoFile) {
                 const fileExt = photoFile.name.split('.').pop();
                 const fileName = `po_receipts/${selectedPOId}_${Date.now()}.${fileExt}`;
 
-                const { data, error } = await supabase.storage
+                const { error: uploadError } = await supabase.storage
                     .from('uploads')
                     .upload(fileName, photoFile);
 
-                if (error) throw error;
-
-                const { data: urlData } = supabase.storage
-                    .from('uploads')
-                    .getPublicUrl(fileName);
-
-                photoUrl = urlData.publicUrl;
-            } catch (err) {
-                console.error('Upload failed:', err);
-            } finally {
-                setUploading(false);
+                if (!uploadError) {
+                    const { data: urlData } = supabase.storage
+                        .from('uploads')
+                        .getPublicUrl(fileName);
+                    photoUrl = urlData.publicUrl;
+                }
             }
+
+            // Upload signature if provided
+            if (signatureData) {
+                const blob = await fetch(signatureData).then(r => r.blob());
+                const signatureFileName = `po_receipts/sig_${selectedPOId}_${Date.now()}.png`;
+
+                const { error: sigError } = await supabase.storage
+                    .from('uploads')
+                    .upload(signatureFileName, blob);
+
+                if (!sigError) {
+                    const { data: sigUrlData } = supabase.storage
+                        .from('uploads')
+                        .getPublicUrl(signatureFileName);
+                    signatureUrl = sigUrlData.publicUrl;
+                }
+            }
+
+            await confirmReceipt.mutateAsync({
+                poId: selectedPOId,
+                receivedBy: user?.id || '',
+                receivedByName: profile?.name || '',
+                receivedItems,
+                photoUrl,
+                signatureUrl,
+                notes: notes || undefined,
+            });
+
+            setIsConfirmOpen(false);
+            setSelectedPOId(null);
+            setNotes('');
+            setPhotoFile(null);
+            setPhotoPreview(null);
+            setSignatureData(null);
+            setReceivedItems([]);
+        } finally {
+            setUploading(false);
         }
-
-        await confirmReceipt.mutateAsync({
-            poId: selectedPOId,
-            receivedBy: user?.id || '',
-            receivedByName: profile?.name || '',
-            photoUrl,
-            notes: notes || undefined,
-        });
-
-        setIsConfirmOpen(false);
-        setSelectedPOId(null);
-        setNotes('');
-        setPhotoFile(null);
-        setPhotoPreview(null);
     };
 
     const columns: Column<PurchaseOrder>[] = [
@@ -162,7 +227,7 @@ export default function PurchaseOrderReceipt() {
                     </Button>
                     <Button size="sm" onClick={() => openConfirmDialog(item)} className="gap-1">
                         <Check className="w-4 h-4" />
-                        Konfirmasi
+                        Terima
                     </Button>
                 </div>
             ),
@@ -267,9 +332,9 @@ export default function PurchaseOrderReceipt() {
                     </DialogContent>
                 </Dialog>
 
-                {/* Confirm Receipt Dialog */}
+                {/* Confirm Receipt Dialog - Enhanced with per-item input */}
                 <Dialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
-                    <DialogContent className="max-w-md">
+                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                         <DialogHeader>
                             <DialogTitle className="flex items-center gap-2">
                                 <Package className="w-5 h-5" />
@@ -278,12 +343,74 @@ export default function PurchaseOrderReceipt() {
                         </DialogHeader>
                         <div className="space-y-4 mt-4">
                             <p className="text-sm text-muted-foreground">
-                                Konfirmasi bahwa barang dari PO ini telah diterima. Stok akan otomatis ditambahkan ke {destination === 'gudang' ? 'Gudang' : 'Toko'}.
+                                Masukkan jumlah barang yang diterima dan kondisi barang rusak (jika ada).
                             </p>
+
+                            {/* Discrepancy Alert */}
+                            {hasDiscrepancy && (
+                                <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg flex items-start gap-2">
+                                    <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                                    <div>
+                                        <p className="font-medium text-amber-800 dark:text-amber-200">Terdeteksi Selisih!</p>
+                                        <p className="text-sm text-amber-700 dark:text-amber-300">
+                                            Dipesan: {totalOrdered} unit • Diterima: {totalReceived} unit
+                                            {totalDamaged > 0 && ` • Rusak: ${totalDamaged} unit`}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Per-item quantity input */}
+                            <Card>
+                                <CardHeader className="pb-3">
+                                    <CardTitle className="text-base">Daftar Barang</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="space-y-3">
+                                        {receivedItems.map((item) => {
+                                            const itemHasIssue = item.receivedQty < item.orderedQty || item.damagedQty > 0;
+                                            return (
+                                                <div
+                                                    key={item.itemId}
+                                                    className={`p-3 rounded-lg border ${itemHasIssue ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' : 'bg-muted/30'}`}
+                                                >
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <p className="font-medium">{item.productName}</p>
+                                                        <Badge variant="outline">Dipesan: {item.orderedQty}</Badge>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <div>
+                                                            <Label className="text-xs">Diterima</Label>
+                                                            <Input
+                                                                type="number"
+                                                                min={0}
+                                                                max={item.orderedQty}
+                                                                value={item.receivedQty}
+                                                                onChange={(e) => updateReceivedQty(item.itemId, parseInt(e.target.value) || 0)}
+                                                                className="h-9 mt-1"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <Label className="text-xs text-red-600">Rusak</Label>
+                                                            <Input
+                                                                type="number"
+                                                                min={0}
+                                                                value={item.damagedQty}
+                                                                onChange={(e) => updateDamagedQty(item.itemId, parseInt(e.target.value) || 0)}
+                                                                className="h-9 mt-1"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </CardContent>
+                            </Card>
 
                             {/* Photo Upload */}
                             <div className="space-y-2">
-                                <Label>Foto Bukti Penerimaan</Label>
+                                <Label>Foto Bukti Penerimaan {hasDiscrepancy && <span className="text-red-500">*</span>}</Label>
                                 <div className="border-2 border-dashed rounded-lg p-4 text-center">
                                     {photoPreview ? (
                                         <div className="space-y-2">
@@ -312,13 +439,24 @@ export default function PurchaseOrderReceipt() {
                                 </div>
                             </div>
 
+                            {/* Digital Signature */}
+                            <div className="space-y-2">
+                                <Label>Tanda Tangan Digital {hasDiscrepancy && <span className="text-red-500">*</span>}</Label>
+                                <SignatureCanvas
+                                    ref={signatureRef}
+                                    onSignatureChange={setSignatureData}
+                                    width={450}
+                                    height={150}
+                                />
+                            </div>
+
                             {/* Notes */}
                             <div className="space-y-2">
-                                <Label>Catatan (opsional)</Label>
+                                <Label>Catatan {hasDiscrepancy && '(wajib jika ada selisih)'}</Label>
                                 <Textarea
                                     value={notes}
                                     onChange={(e) => setNotes(e.target.value)}
-                                    placeholder="Catatan penerimaan..."
+                                    placeholder="Catatan penerimaan, keterangan selisih, dll..."
                                     rows={3}
                                 />
                             </div>
@@ -329,13 +467,13 @@ export default function PurchaseOrderReceipt() {
                                 </Button>
                                 <Button
                                     onClick={handleConfirm}
-                                    disabled={confirmReceipt.isPending || uploading}
+                                    disabled={confirmReceipt.isPending || uploading || (hasDiscrepancy && (!photoFile || !signatureData))}
                                     className="gap-1"
                                 >
                                     {confirmReceipt.isPending || uploading ? 'Memproses...' : (
                                         <>
                                             <Check className="w-4 h-4" />
-                                            Konfirmasi & Tambah Stok
+                                            {hasDiscrepancy ? 'Konfirmasi dengan Selisih' : 'Konfirmasi & Tambah Stok'}
                                         </>
                                     )}
                                 </Button>

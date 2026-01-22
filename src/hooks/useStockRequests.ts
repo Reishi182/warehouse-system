@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { NewStockRequest, NewStockRequestItem, NewRequestStatus } from '@/types';
+import { sendNotificationToRole, sendNotificationToUser } from '@/hooks/useRealtimeNotifications';
 
 export function useStockRequests() {
     const { toast } = useToast();
@@ -84,6 +85,14 @@ export function useStockRequests() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['stock-requests'] });
             toast({ title: 'Permintaan Berhasil', description: 'Permintaan stok telah dikirim ke Main Office' });
+
+            // Notify main_office about new stock request
+            sendNotificationToRole('main_office', {
+                title: 'Permintaan Stok Baru',
+                message: 'Ada permintaan stok baru dari kasir yang perlu diproses',
+                type: 'info',
+                link: '/stock-request/approvals',
+            });
         },
         onError: (error) => {
             toast({ title: 'Gagal', description: error.message, variant: 'destructive' });
@@ -119,6 +128,14 @@ export function useStockRequests() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['stock-requests'] });
             toast({ title: 'Permintaan Disetujui', description: 'Permintaan diteruskan ke Gudang' });
+
+            // Notify warehouse about approved request
+            sendNotificationToRole('warehouse', {
+                title: 'Permintaan Stok Baru',
+                message: 'Ada permintaan stok yang disetujui Main Office, siap untuk diproses',
+                type: 'info',
+                link: '/stock-request/shipments',
+            });
         },
         onError: (error) => {
             toast({ title: 'Gagal', description: error.message, variant: 'destructive' });
@@ -161,9 +178,26 @@ export function useStockRequests() {
 
             if (error) throw error;
         },
-        onSuccess: () => {
+        onSuccess: (_data, variables) => {
             queryClient.invalidateQueries({ queryKey: ['stock-requests'] });
             toast({ title: 'Permintaan Ditolak', description: 'Status beubah menjadi Ditolak' });
+
+            // Get the request to notify the cashier
+            supabase
+                .from('stock_requests')
+                .select('cashier_id, request_number')
+                .eq('id', variables.requestId)
+                .single()
+                .then(({ data: req }) => {
+                    if (req?.cashier_id) {
+                        sendNotificationToUser(req.cashier_id, {
+                            title: 'Permintaan Ditolak',
+                            message: `Permintaan stok ${req.request_number || ''} telah ditolak`,
+                            type: 'error',
+                            link: '/stock-request/new',
+                        });
+                    }
+                });
         },
     });
 

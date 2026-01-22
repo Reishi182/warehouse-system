@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { CashTransferRequest, CashTransferRequestStatus } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { sendNotificationToRole, sendNotificationToUser } from '@/hooks/useRealtimeNotifications';
 
 // Transform database row to CashTransferRequest type
 function transformRequest(row: any): CashTransferRequest {
@@ -76,7 +77,15 @@ export function useCreateCashTransferRequest() {
             queryClient.invalidateQueries({ queryKey: ['cash-transfer-requests'] });
             toast({
                 title: 'Permintaan setoran dibuat',
-                description: 'Menunggu persetujuan Main Office',
+                description: 'Menunggu persetujuan Auditor',
+            });
+
+            // Notify auditor about new cash transfer request
+            sendNotificationToRole('auditor', {
+                title: 'Setoran Kas Baru',
+                message: 'Ada permintaan setoran kas baru yang perlu diproses',
+                type: 'info',
+                link: '/cash-transfer',
             });
         },
         onError: (error: Error) => {
@@ -155,7 +164,7 @@ export function useApproveCashTransferRequest() {
 
             if (otherTransactionError) throw otherTransactionError;
         },
-        onSuccess: () => {
+        onSuccess: (_data, variables) => {
             queryClient.invalidateQueries({ queryKey: ['cash-transfer-requests'] });
             queryClient.invalidateQueries({ queryKey: ['cash-transfers'] });
             queryClient.invalidateQueries({ queryKey: ['other_transactions'] });
@@ -163,6 +172,23 @@ export function useApproveCashTransferRequest() {
                 title: 'Setoran diterima',
                 description: 'Setoran berhasil dikonfirmasi dan dicatat ke transaksi umum',
             });
+
+            // Get the request to notify the cashier
+            supabase
+                .from('cash_transfer_requests')
+                .select('cashier_id, amount')
+                .eq('id', variables.requestId)
+                .single()
+                .then(({ data: req }) => {
+                    if (req?.cashier_id) {
+                        sendNotificationToUser(req.cashier_id, {
+                            title: 'Setoran Disetujui',
+                            message: `Setoran kas Rp ${req.amount?.toLocaleString('id-ID')} telah disetujui`,
+                            type: 'success',
+                            link: '/cash-transfer',
+                        });
+                    }
+                });
         },
         onError: (error: Error) => {
             toast({
@@ -204,12 +230,29 @@ export function useRejectCashTransferRequest() {
 
             if (error) throw error;
         },
-        onSuccess: () => {
+        onSuccess: (_data, variables) => {
             queryClient.invalidateQueries({ queryKey: ['cash-transfer-requests'] });
             toast({
                 title: 'Setoran ditolak',
                 description: 'Permintaan setoran berhasil ditolak',
             });
+
+            // Get the request to notify the cashier
+            supabase
+                .from('cash_transfer_requests')
+                .select('cashier_id, amount')
+                .eq('id', variables.requestId)
+                .single()
+                .then(({ data: req }) => {
+                    if (req?.cashier_id) {
+                        sendNotificationToUser(req.cashier_id, {
+                            title: 'Setoran Ditolak',
+                            message: `Setoran kas Rp ${req.amount?.toLocaleString('id-ID')} ditolak`,
+                            type: 'error',
+                            link: '/cash-transfer',
+                        });
+                    }
+                });
         },
         onError: (error: Error) => {
             toast({
