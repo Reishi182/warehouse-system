@@ -68,6 +68,11 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
     const [cameraError, setCameraError] = useState<string | null>(null);
     const [useFrontCamera, setUseFrontCamera] = useState(false);
     const html5QrcodeRef = useRef<Html5Qrcode | null>(null);
+
+    // Debounce refs to prevent multiple detections
+    const isProcessingRef = useRef(false);
+    const lastScannedRef = useRef<string>('');
+    const lastScannedTimeRef = useRef<number>(0);
     const scannerContainerId = 'add-product-scanner-container';
 
     // Only auditor and admin can set initial stock
@@ -75,20 +80,26 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
 
     // Camera scanner functions
     const stopScanner = useCallback(async () => {
-        if (html5QrcodeRef.current && isScanning) {
+        if (html5QrcodeRef.current) {
             try {
-                await html5QrcodeRef.current.stop();
+                const state = html5QrcodeRef.current.getState();
+                if (state === 2) { // SCANNING state
+                    await html5QrcodeRef.current.stop();
+                }
                 html5QrcodeRef.current.clear();
             } catch (error) {
                 console.error('Error stopping scanner:', error);
             }
+            html5QrcodeRef.current = null;
         }
         setIsScanning(false);
-    }, [isScanning]);
+    }, []);
 
     const startScanner = useCallback(async () => {
         setCameraError(null);
         setIsScanning(true);
+        // Reset processing state when starting scanner
+        isProcessingRef.current = false;
 
         try {
             const html5Qrcode = new Html5Qrcode(scannerContainerId, {
@@ -107,6 +118,23 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
                 { facingMode: useFrontCamera ? 'user' : 'environment' },
                 config,
                 (decodedText) => {
+                    const now = Date.now();
+
+                    // Debounce: Skip if already processing or same barcode within 2 seconds
+                    if (isProcessingRef.current) {
+                        return;
+                    }
+
+                    if (lastScannedRef.current === decodedText &&
+                        now - lastScannedTimeRef.current < 2000) {
+                        return;
+                    }
+
+                    // Mark as processing to prevent further callbacks
+                    isProcessingRef.current = true;
+                    lastScannedRef.current = decodedText;
+                    lastScannedTimeRef.current = now;
+
                     // Barcode scanned successfully
                     setNewProduct(prev => ({ ...prev, barcode: decodedText }));
                     toast({
@@ -138,10 +166,8 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
                 startScanner();
             }, 300);
             return () => clearTimeout(timer);
-        } else {
-            stopScanner();
         }
-    }, [showCamera, startScanner, stopScanner]);
+    }, [showCamera, startScanner]);
 
     // Cleanup on unmount
     useEffect(() => {
