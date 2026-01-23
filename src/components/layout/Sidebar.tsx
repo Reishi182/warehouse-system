@@ -24,6 +24,7 @@ import {
   CreditCard,
   FileStack, RotateCcw,
   Banknote,
+  BookOpen,
 } from 'lucide-react';
 import { useAuth, useRole } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -57,6 +58,7 @@ interface NavItem {
 // Grouped navigation with submenus
 const navGroups: NavItem[] = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/', roles: ['warehouse', 'cashier', 'auditor', 'admin', 'main_office'] },
+  { label: 'Panduan', icon: BookOpen, href: '/guide', roles: ['warehouse', 'cashier', 'auditor', 'admin', 'main_office'] },
   { label: 'Kasir (POS)', icon: ShoppingCart, href: '/pos', roles: ['cashier', 'admin'] },
   { label: 'Produk', icon: Package, href: '/products', roles: ['warehouse', 'cashier', 'auditor', 'admin', 'main_office'] },
 

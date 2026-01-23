@@ -49,6 +49,7 @@ const MarketplaceOrders = React.lazy(() => import('./pages/marketplace/Marketpla
 const MarketplaceReceipt = React.lazy(() => import('./pages/marketplace/MarketplaceReceipt'));
 const MarketplaceReturns = React.lazy(() => import('./pages/marketplace/MarketplaceReturns'));
 const NotFound = React.lazy(() => import("./pages/NotFound"));
+const Guide = React.lazy(() => import("./pages/Guide"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -114,6 +115,12 @@ function AppRoutes() {
         <Route path="/" element={
           <ProtectedRoute>
             <Dashboard />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/guide" element={
+          <ProtectedRoute>
+            <Guide />
           </ProtectedRoute>
         } />
 
