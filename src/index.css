@@ -340,27 +340,22 @@
   }
 }
 
-/* Print Styles */
+/* Print Styles - Using react-to-print handles isolation, these are fallback styles */
 @media print {
-  body * {
-    visibility: hidden;
+
+  /* Hide screen-only elements when printing directly from browser */
+  .no-print {
+    display: none !important;
   }
 
-  .print-only,
-  .print-only *,
-  #pos-receipt,
-  #pos-receipt * {
-    visibility: visible !important;
-    display: block !important;
-  }
-
-  .print-only,
+  /* Ensure receipt prints with correct styling */
   #pos-receipt {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
     background: white !important;
+    color: black !important;
+    width: 80mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
   }
 
   @page {

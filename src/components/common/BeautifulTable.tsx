@@ -257,8 +257,8 @@ export function BeautifulTable<T extends { id: string }>({
             <div className={cn(
                 "rounded-2xl overflow-hidden transition-all duration-300 relative",
                 isPremium
-                    ? "bg-gradient-to-br from-background via-background to-muted/30 border-0 shadow-xl backdrop-blur-xl"
-                    : "bg-card border shadow-sm"
+                    ? "bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-lg"
+                    : "bg-white dark:bg-card border border-gray-100 dark:border-gray-800 shadow-sm"
             )}>
                 {/* Decorative gradient overlay for premium */}
                 {isPremium && (
@@ -267,10 +267,7 @@ export function BeautifulTable<T extends { id: string }>({
 
                 {/* Header with Title and Actions */}
                 {(title || !hideExport || onAdd) && (
-                    <div className={cn(
-                        "flex flex-col md:flex-row justify-between items-start md:items-center p-6 pb-4 gap-4 relative",
-                        isPremium && "border-b border-border/50"
-                    )}>
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center p-6 pb-4 gap-4 relative">
                         <div>
                             {title && (
                                 <div className="flex items-center gap-3">
@@ -336,7 +333,7 @@ export function BeautifulTable<T extends { id: string }>({
                     <div className="flex flex-col sm:flex-row gap-3">
                         {/* Search Input */}
                         {!hideSearch && (
-                            <div className="relative flex-1 max-w-md">
+                            <div className="relative mt-4 flex-1 max-w-md">
                                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                 <Input
                                     placeholder="Search all columns..."
@@ -541,12 +538,7 @@ export function BeautifulTable<T extends { id: string }>({
                             {table.getHeaderGroups().map((headerGroup) => (
                                 <TableRow
                                     key={headerGroup.id}
-                                    className={cn(
-                                        "hover:bg-transparent",
-                                        isPremium
-                                            ? "bg-gradient-to-r from-muted/40 via-muted/30 to-muted/40"
-                                            : "bg-muted/30"
-                                    )}
+                                    className="border-b border-gray-100 dark:border-gray-800 hover:bg-transparent bg-gray-50/50 dark:bg-gray-800/30"
                                 >
                                     {headerGroup.headers.map((header, idx) => (
                                         <TableHead
@@ -578,16 +570,12 @@ export function BeautifulTable<T extends { id: string }>({
                                         key={row.id}
                                         className={cn(
                                             "transition-all duration-200",
-                                            "border-b border-white/30 dark:border-white/10",
+                                            "border-b border-gray-100 dark:border-gray-800",
                                             row.getIsSelected()
                                                 ? "bg-primary/5"
-                                                : rowIdx % 2 === 1
-                                                    ? isPremium ? "bg-muted/10" : "bg-muted/20"
-                                                    : "",
-                                            !row.getIsSelected() && "hover:bg-muted/30",
-                                            isPremium && "animate-slide-up"
+                                                : "bg-white dark:bg-gray-900",
+                                            !row.getIsSelected() && "hover:bg-gray-50 dark:hover:bg-gray-800/50"
                                         )}
-                                        style={isPremium ? { animationDelay: `${rowIdx * 30}ms` } : undefined}
                                     >
                                         {row.getVisibleCells().map((cell, idx) => (
                                             <TableCell
@@ -653,10 +641,7 @@ export function BeautifulTable<T extends { id: string }>({
                 </div>
 
                 {/* Premium Pagination */}
-                <div className={cn(
-                    "flex flex-col sm:flex-row items-center justify-between p-6 pt-4 gap-4",
-                    isPremium ? "border-t border-border/50" : "border-t"
-                )}>
+                <div className="flex flex-col sm:flex-row items-center justify-between p-6 pt-4 gap-4 bg-gray-50/50 dark:bg-gray-800/30">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <span>Showing</span>
                         <span className="font-semibold text-foreground">

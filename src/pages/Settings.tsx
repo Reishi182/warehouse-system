@@ -19,6 +19,7 @@ import {
 import { useAuth, useRole } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useStoreSettings, useUpdateStoreSettings } from '@/hooks/useStoreSettings';
+import { compressImageToFile, formatFileSize } from '@/lib/imageCompression';
 
 export default function Settings() {
   const { profile, updateProfile, loading: authLoading } = useAuth();
@@ -65,7 +66,7 @@ export default function Settings() {
   }
 
 
-  const handleAvatarChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
     if (!file) return;
 
@@ -74,15 +75,37 @@ export default function Settings() {
       return;
     }
 
-    const maxBytes = 3 * 1024 * 1024;
+    const maxBytes = 10 * 1024 * 1024; // Allow up to 10MB, we'll compress it
     if (file.size > maxBytes) {
-      toast({ title: 'Ukuran terlalu besar', description: 'Maksimal ukuran avatar 3MB', variant: 'destructive' });
+      toast({ title: 'Ukuran terlalu besar', description: 'Maksimal ukuran avatar 10MB', variant: 'destructive' });
       return;
     }
 
-    if (avatarPreviewUrl) URL.revokeObjectURL(avatarPreviewUrl);
-    setAvatarFile(file);
-    setAvatarPreviewUrl(URL.createObjectURL(file));
+    try {
+      // Auto-compress avatar
+      const compressedFile = await compressImageToFile(file, {
+        maxWidth: 400,
+        maxHeight: 400,
+        quality: 0.85,
+        format: 'image/webp',
+      });
+
+      if (avatarPreviewUrl) URL.revokeObjectURL(avatarPreviewUrl);
+      setAvatarFile(compressedFile);
+      setAvatarPreviewUrl(URL.createObjectURL(compressedFile));
+
+      if (file.size !== compressedFile.size) {
+        toast({
+          title: 'Gambar dikompres',
+          description: `${formatFileSize(file.size)} → ${formatFileSize(compressedFile.size)}`,
+        });
+      }
+    } catch (error) {
+      console.error('Compression failed:', error);
+      if (avatarPreviewUrl) URL.revokeObjectURL(avatarPreviewUrl);
+      setAvatarFile(file);
+      setAvatarPreviewUrl(URL.createObjectURL(file));
+    }
   };
 
   const handleOpenProfileDialog = (open: boolean) => {

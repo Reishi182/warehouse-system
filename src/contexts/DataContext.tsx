@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { Product, StockOutRequest, SuratJalan, StockLog, Notification, Location, RequestStatus, Sale, SaleItem, PaymentMethod, CashTransfer, ActivityLog } from '@/types';
 import { useAuth } from './AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -336,6 +336,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     })));
   };
 
+  // Use a ref to track if we've done the initial load
+  const hasLoadedRef = React.useRef(false);
+
   const refreshData = useCallback(async () => {
     if (!isAuthenticated) {
       setLoading(false);
@@ -354,11 +357,114 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       fetchActivityLogs()
     ]);
     setLoading(false);
-  }, [isAuthenticated, user]);
+    hasLoadedRef.current = true;
+  }, [isAuthenticated]);
+
+  // Only run refreshData on initial auth or when user first authenticates
+  useEffect(() => {
+    // Reset loaded state when user logs out
+    if (!isAuthenticated) {
+      hasLoadedRef.current = false;
+      return;
+    }
+    // Skip if already loaded and just a re-render
+    if (hasLoadedRef.current) {
+      return;
+    }
+    refreshData();
+  }, [isAuthenticated]); // Only depend on isAuthenticated, not user object
+
+  // Supabase Realtime subscriptions for live data updates
+  const realtimeChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   useEffect(() => {
-    refreshData();
-  }, [refreshData]);
+    if (!isAuthenticated) {
+      // Cleanup channel if user logs out
+      if (realtimeChannelRef.current) {
+        supabase.removeChannel(realtimeChannelRef.current);
+        realtimeChannelRef.current = null;
+      }
+      return;
+    }
+
+    // Create a single channel for all table subscriptions
+    const channel = supabase
+      .channel('data-changes')
+      // Products changes
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'products' },
+        () => {
+          fetchProducts();
+        }
+      )
+      // Sales changes
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'sales' },
+        () => {
+          fetchSales();
+        }
+      )
+      // Stock logs changes
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'stock_logs' },
+        () => {
+          fetchStockLogs();
+        }
+      )
+      // Cash transfers changes
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'cash_transfers' },
+        () => {
+          fetchCashTransfers();
+        }
+      )
+      // Stock requests changes
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'stock_out_requests' },
+        () => {
+          fetchRequests();
+        }
+      )
+      // Surat jalan changes
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'surat_jalan' },
+        () => {
+          fetchSuratJalans();
+        }
+      )
+      // Activity logs changes
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'activity_logs' },
+        () => {
+          fetchActivityLogs();
+        }
+      )
+      .subscribe((status) => {
+        console.log('[Realtime] Subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          console.log('[Realtime] ✅ Connected to realtime updates');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('[Realtime] ❌ Failed to connect - check if tables are enabled in Supabase Replication');
+        }
+      });
+
+    realtimeChannelRef.current = channel;
+
+    return () => {
+      if (realtimeChannelRef.current) {
+        console.log('[Realtime] Unsubscribing from channel');
+        supabase.removeChannel(realtimeChannelRef.current);
+        realtimeChannelRef.current = null;
+      }
+    };
+  }, [isAuthenticated]);
 
   const addNotification = async (notification: { title: string; message: string; type: string; link?: string }) => {
     if (!user) return;
@@ -586,6 +692,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     });
 
     await fetchProducts();
+
+    // Broadcast to other devices/tabs
+    try {
+      const { broadcastProductUpdate } = await import('@/hooks/useProducts');
+      await broadcastProductUpdate();
+    } catch (e) {
+      console.log('[DataContext] Broadcast not available');
+    }
   };
 
   const deleteProduct = async (id: string) => {

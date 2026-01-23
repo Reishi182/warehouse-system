@@ -61,6 +61,7 @@ import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
+import { compressImageToFile, isImageFile } from '@/lib/imageCompression';
 
 export default function GeneralTransactions() {
     const { user, profile } = useAuth();
@@ -93,12 +94,17 @@ export default function GeneralTransactions() {
         if (file) {
             setUploading(true);
             try {
-                const fileExt = file.name.split('.').pop();
+                // Auto-compress if it's an image
+                const fileToUpload = isImageFile(file)
+                    ? await compressImageToFile(file, { maxWidth: 1200, maxHeight: 1200, quality: 0.8 })
+                    : file;
+
+                const fileExt = fileToUpload.name.split('.').pop();
                 const fileName = `transactions/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
 
                 const { error } = await supabase.storage
                     .from('uploads')
-                    .upload(fileName, file);
+                    .upload(fileName, fileToUpload);
 
                 if (error) throw error;
 

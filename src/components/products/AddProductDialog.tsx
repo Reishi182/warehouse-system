@@ -22,6 +22,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Location, Product, UserRole } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
+import { compressImageToFile, formatFileSize } from '@/lib/imageCompression';
 
 // Supported barcode formats
 const SUPPORTED_FORMATS = [
@@ -186,7 +187,7 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
         }
     };
 
-    const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const handleImageChange = async (e: ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0] || null;
         if (!file) return;
 
@@ -199,22 +200,48 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
             return;
         }
 
-        const maxBytes = 5 * 1024 * 1024;
+        const maxBytes = 10 * 1024 * 1024; // Allow up to 10MB input, we'll compress it
         if (file.size > maxBytes) {
             toast({
                 title: 'Ukuran terlalu besar',
-                description: 'Maksimal ukuran foto 5MB',
+                description: 'Maksimal ukuran foto 10MB',
                 variant: 'destructive',
             });
             return;
         }
 
-        if (productImagePreviewUrl) {
-            URL.revokeObjectURL(productImagePreviewUrl);
-        }
+        try {
+            // Auto-compress image
+            const compressedFile = await compressImageToFile(file, {
+                maxWidth: 800,
+                maxHeight: 800,
+                quality: 0.8,
+                format: 'image/webp',
+            });
 
-        setProductImageFile(file);
-        setProductImagePreviewUrl(URL.createObjectURL(file));
+            if (productImagePreviewUrl) {
+                URL.revokeObjectURL(productImagePreviewUrl);
+            }
+
+            setProductImageFile(compressedFile);
+            setProductImagePreviewUrl(URL.createObjectURL(compressedFile));
+
+            // Show compression info
+            if (file.size !== compressedFile.size) {
+                toast({
+                    title: 'Gambar dikompres',
+                    description: `${formatFileSize(file.size)} → ${formatFileSize(compressedFile.size)}`,
+                });
+            }
+        } catch (error) {
+            console.error('Compression failed:', error);
+            // Fallback to original file
+            if (productImagePreviewUrl) {
+                URL.revokeObjectURL(productImagePreviewUrl);
+            }
+            setProductImageFile(file);
+            setProductImagePreviewUrl(URL.createObjectURL(file));
+        }
     };
 
     const handleAddProduct = async () => {

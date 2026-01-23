@@ -36,6 +36,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Product, Customer } from '@/types';
 import StatusBadge from '@/components/common/StatusBadge';
+import { compressImageToFile, isImageFile } from '@/lib/imageCompression';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import {
@@ -150,11 +151,16 @@ export default function SuratJalanMainOffice() {
         // Upload customer PO file if provided
         let customerPoUrl: string | undefined;
         if (customerPoFile) {
-            const fileExt = customerPoFile.name.split('.').pop();
+            // Auto-compress if it's an image
+            const fileToUpload = isImageFile(customerPoFile)
+                ? await compressImageToFile(customerPoFile, { maxWidth: 1200, maxHeight: 1200, quality: 0.8 })
+                : customerPoFile;
+
+            const fileExt = fileToUpload.name.split('.').pop();
             const fileName = `customer-po/${Date.now()}.${fileExt}`;
             const { error: uploadError } = await supabase.storage
                 .from('documents')
-                .upload(fileName, customerPoFile);
+                .upload(fileName, fileToUpload);
 
             if (!uploadError) {
                 const { data: urlData } = supabase.storage

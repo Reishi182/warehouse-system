@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import PageSkeleton from '@/components/common/PageSkeleton';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
@@ -19,10 +19,12 @@ import {
     User,
     TrendingUp,
     DollarSign,
+    Printer,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import {
     Select,
     SelectContent,
@@ -35,7 +37,15 @@ import {
     CollapsibleContent,
     CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import { useReactToPrint } from 'react-to-print';
+import POSReceipt from '@/components/pos/POSReceipt';
 
 function toISODate(d: Date) {
     const yyyy = d.getFullYear();
@@ -51,6 +61,24 @@ export default function SalesHistory() {
     const [selectedCashier, setSelectedCashier] = useState<string>('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [expandedSales, setExpandedSales] = useState<Set<string>>(new Set());
+    const [selectedSaleForPrint, setSelectedSaleForPrint] = useState<Sale | null>(null);
+    const [printDialogOpen, setPrintDialogOpen] = useState(false);
+    const receiptRef = useRef<HTMLDivElement>(null);
+
+    // Print handler
+    const handlePrint = useReactToPrint({
+        contentRef: receiptRef,
+        documentTitle: selectedSaleForPrint?.sale_number || 'Receipt',
+        onAfterPrint: () => {
+            setPrintDialogOpen(false);
+            setSelectedSaleForPrint(null);
+        },
+    });
+
+    const openPrintDialog = (sale: Sale) => {
+        setSelectedSaleForPrint(sale);
+        setPrintDialogOpen(true);
+    };
 
     // Get unique cashiers
     const cashiers = useMemo(() => {
@@ -318,6 +346,22 @@ export default function SalesHistory() {
                                                             </tfoot>
                                                         </table>
                                                     </div>
+
+                                                    {/* Print Button */}
+                                                    <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                openPrintDialog(sale);
+                                                            }}
+                                                            className="gap-2 rounded-xl"
+                                                        >
+                                                            <Printer className="h-4 w-4" />
+                                                            Cetak Struk
+                                                        </Button>
+                                                    </div>
                                                 </div>
                                             </CollapsibleContent>
                                         </div>
@@ -328,6 +372,57 @@ export default function SalesHistory() {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Print Receipt Dialog */}
+            <Dialog open={printDialogOpen} onOpenChange={setPrintDialogOpen}>
+                <DialogContent className="max-w-md p-0 overflow-hidden">
+                    <DialogHeader className="p-4 border-b">
+                        <DialogTitle className="flex items-center gap-2">
+                            <Printer className="h-5 w-5" />
+                            Cetak Ulang Struk
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="p-4 bg-gray-100 dark:bg-gray-800 max-h-[60vh] overflow-y-auto">
+                        {selectedSaleForPrint && (
+                            <POSReceipt
+                                ref={receiptRef}
+                                saleNumber={selectedSaleForPrint.sale_number}
+                                cashierName={selectedSaleForPrint.cashier_name || 'Unknown'}
+                                date={new Date(selectedSaleForPrint.created_at)}
+                                items={selectedSaleForPrint.items?.map(item => ({
+                                    name: item.product_name,
+                                    quantity: item.quantity,
+                                    price: item.price,
+                                    discount: 0,
+                                    subtotal: item.subtotal,
+                                })) || []}
+                                subtotal={selectedSaleForPrint.items?.reduce((sum, item) => sum + item.subtotal, 0) || 0}
+                                orderDiscount={0}
+                                total={selectedSaleForPrint.total_amount}
+                                paymentMethod={selectedSaleForPrint.payment_method}
+                                amountPaid={selectedSaleForPrint.total_amount}
+                                change={0}
+                            />
+                        )}
+                    </div>
+                    <div className="p-4 border-t bg-white dark:bg-gray-900 flex justify-end gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={() => setPrintDialogOpen(false)}
+                            className="rounded-xl"
+                        >
+                            Batal
+                        </Button>
+                        <Button
+                            onClick={() => handlePrint()}
+                            className="rounded-xl gap-2"
+                        >
+                            <Printer className="h-4 w-4" />
+                            Cetak
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </MainLayout>
     );
 }

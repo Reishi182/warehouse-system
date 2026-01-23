@@ -22,6 +22,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import SignatureCanvas from '@/components/common/SignatureCanvas';
+import { compressImageToFile } from '@/lib/imageCompression';
 
 interface ReceivedItemState {
     productId: string;
@@ -74,11 +75,23 @@ export default function GoodsReceipt() {
         setIsDialogOpen(true);
     };
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            setPhotoFile(file);
-            setPhotoPreview(URL.createObjectURL(file));
+            try {
+                // Auto-compress image
+                const compressedFile = await compressImageToFile(file, {
+                    maxWidth: 1200,
+                    maxHeight: 1200,
+                    quality: 0.8,
+                });
+                setPhotoFile(compressedFile);
+                setPhotoPreview(URL.createObjectURL(compressedFile));
+            } catch {
+                // Fallback to original
+                setPhotoFile(file);
+                setPhotoPreview(URL.createObjectURL(file));
+            }
         }
     };
 
@@ -90,7 +103,7 @@ export default function GoodsReceipt() {
         });
     };
 
-    const handleSignatureSave = useCallback((dataUrl: string) => {
+    const handleSignatureSave = useCallback((dataUrl: string | null) => {
         setSignatureDataUrl(dataUrl);
     }, []);
 
@@ -271,7 +284,7 @@ export default function GoodsReceipt() {
                                     Tanda Tangan Penerima <span className="text-red-500">*</span>
                                 </Label>
                                 <SignatureCanvas
-                                    onSave={handleSignatureSave}
+                                    onSignatureChange={handleSignatureSave}
                                     width={400}
                                     height={150}
                                 />

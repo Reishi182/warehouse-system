@@ -28,6 +28,7 @@ import { PurchaseOrder, PurchaseOrderItem } from '@/types';
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
+import { compressImageToFile } from '@/lib/imageCompression';
 
 interface ReceivedItemState {
     itemId: string;
@@ -101,15 +102,31 @@ export default function PurchaseOrderReceipt() {
         ));
     };
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            setPhotoFile(file);
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setPhotoPreview(reader.result as string);
-            };
-            reader.readAsDataURL(file);
+            try {
+                // Auto-compress image
+                const compressedFile = await compressImageToFile(file, {
+                    maxWidth: 1200,
+                    maxHeight: 1200,
+                    quality: 0.8,
+                });
+                setPhotoFile(compressedFile);
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    setPhotoPreview(reader.result as string);
+                };
+                reader.readAsDataURL(compressedFile);
+            } catch {
+                // Fallback to original
+                setPhotoFile(file);
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    setPhotoPreview(reader.result as string);
+                };
+                reader.readAsDataURL(file);
+            }
         }
     };
 

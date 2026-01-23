@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { Plus, FileText, Printer, Eye, Trash2, Package, Check, X } from 'lucide-react';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import MainLayout from '@/components/layout/MainLayout';
@@ -44,6 +44,7 @@ import {
 import { PurchaseOrder, PODestination, Product } from '@/types';
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
+import { useReactToPrint } from 'react-to-print';
 
 interface POItem {
     id: string;
@@ -75,6 +76,17 @@ export default function PurchaseOrderMainOffice() {
     const [isViewOpen, setIsViewOpen] = useState(false);
     const [selectedPOId, setSelectedPOId] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState('all');
+    const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false);
+    const printRef = useRef<HTMLDivElement>(null);
+
+    // Print handler using react-to-print
+    const handlePrintAction = useReactToPrint({
+        contentRef: printRef,
+        documentTitle: selectedPOId ? `PO-${selectedPOId}` : 'Purchase Order',
+        onAfterPrint: () => {
+            setIsPrintDialogOpen(false);
+        },
+    });
 
     // Form state
     const [supplierId, setSupplierId] = useState('');
@@ -193,9 +205,7 @@ export default function PurchaseOrderMainOffice() {
 
     const handlePrint = (po: PurchaseOrder) => {
         setSelectedPOId(po.id);
-        setTimeout(() => {
-            window.print();
-        }, 500);
+        setIsPrintDialogOpen(true);
     };
 
     const columns: Column<PurchaseOrder>[] = [
@@ -667,6 +677,116 @@ export default function PurchaseOrderMainOffice() {
                     </DialogContent>
                 </Dialog>
             </div>
+
+            {/* Print Dialog */}
+            <Dialog open={isPrintDialogOpen} onOpenChange={setIsPrintDialogOpen}>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Printer className="w-5 h-5" />
+                            Cetak Purchase Order
+                        </DialogTitle>
+                    </DialogHeader>
+                    {selectedPOLoading ? (
+                        <div className="py-8 text-center text-muted-foreground">Memuat...</div>
+                    ) : selectedPO ? (
+                        <>
+                            {/* Printable Content */}
+                            <div
+                                ref={printRef}
+                                className="bg-white text-black p-6 print:p-0"
+                                style={{ fontFamily: 'Arial, sans-serif' }}
+                            >
+                                {/* Header */}
+                                <div className="text-center border-b-2 border-black pb-4 mb-4">
+                                    <h1 className="text-xl font-bold">PURCHASE ORDER</h1>
+                                    <p className="text-sm text-gray-600 mt-1">No: {selectedPO.po_number}</p>
+                                </div>
+
+                                {/* Info Grid */}
+                                <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
+                                    <div>
+                                        <p className="text-gray-500">Supplier</p>
+                                        <p className="font-semibold">{selectedPO.supplier?.name || '-'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-gray-500">Tujuan</p>
+                                        <p className="font-semibold capitalize">{selectedPO.destination}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-gray-500">Tanggal</p>
+                                        <p className="font-semibold">{format(new Date(selectedPO.created_at), 'dd MMMM yyyy', { locale: localeId })}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-gray-500">Dibuat Oleh</p>
+                                        <p className="font-semibold">{selectedPO.created_by_name || '-'}</p>
+                                    </div>
+                                </div>
+
+                                {/* Items Table */}
+                                <table className="w-full text-sm border-collapse border border-gray-300 mb-4">
+                                    <thead>
+                                        <tr className="bg-gray-100">
+                                            <th className="border border-gray-300 p-2 text-left">No</th>
+                                            <th className="border border-gray-300 p-2 text-left">Produk</th>
+                                            <th className="border border-gray-300 p-2 text-right">Qty</th>
+                                            <th className="border border-gray-300 p-2 text-right">Harga</th>
+                                            <th className="border border-gray-300 p-2 text-right">Subtotal</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {selectedPO.items?.map((item, idx) => (
+                                            <tr key={item.id}>
+                                                <td className="border border-gray-300 p-2">{idx + 1}</td>
+                                                <td className="border border-gray-300 p-2">{item.product_name}</td>
+                                                <td className="border border-gray-300 p-2 text-right">{item.quantity}</td>
+                                                <td className="border border-gray-300 p-2 text-right">Rp {item.unit_price.toLocaleString('id-ID')}</td>
+                                                <td className="border border-gray-300 p-2 text-right">Rp {item.total_price.toLocaleString('id-ID')}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr className="bg-gray-50 font-bold">
+                                            <td colSpan={4} className="border border-gray-300 p-2 text-right">TOTAL</td>
+                                            <td className="border border-gray-300 p-2 text-right">Rp {selectedPO.total_amount.toLocaleString('id-ID')}</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+
+                                {selectedPO.notes && (
+                                    <div className="text-sm mb-4">
+                                        <p className="text-gray-500">Catatan:</p>
+                                        <p>{selectedPO.notes}</p>
+                                    </div>
+                                )}
+
+                                {/* Signature Area */}
+                                <div className="grid grid-cols-2 gap-8 mt-8 text-sm text-center">
+                                    <div>
+                                        <p className="mb-16">Dibuat Oleh,</p>
+                                        <p className="border-t border-black pt-1">{selectedPO.created_by_name || '(________________)'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="mb-16">Disetujui Oleh,</p>
+                                        <p className="border-t border-black pt-1">(________________)</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex justify-end gap-3 pt-4 border-t">
+                                <Button variant="outline" onClick={() => setIsPrintDialogOpen(false)}>
+                                    Batal
+                                </Button>
+                                <Button onClick={() => handlePrintAction()} className="gap-2">
+                                    <Printer className="w-4 h-4" />
+                                    Cetak
+                                </Button>
+                            </div>
+                        </>
+                    ) : null}
+                </DialogContent>
+            </Dialog>
         </MainLayout>
     );
 }

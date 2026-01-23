@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Product, Location } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { useEffect } from 'react';
 
 // Transform database row to Product type
 function transformProduct(row: any): Product {
@@ -31,11 +32,56 @@ async function fetchProducts(): Promise<Product[]> {
     return (data || []).map(transformProduct);
 }
 
-// Hook to get all products
+// Hook to get all products with realtime updates
 export function useProducts() {
+    const queryClient = useQueryClient();
+
+    // Set up realtime subscription with broadcast fallback
+    useEffect(() => {
+        // Method 1: Subscribe to postgres_changes (may be blocked by RLS)
+        const pgChannel = supabase
+            .channel('products-pg-changes')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'products' },
+                (payload) => {
+                    console.log('[Realtime PG] Products changed:', payload.eventType);
+                    queryClient.invalidateQueries({ queryKey: ['products'] });
+                }
+            )
+            .subscribe((status) => {
+                console.log('[Realtime Products PG] Status:', status);
+            });
+
+        // Method 2: Subscribe to broadcast channel (not affected by RLS)
+        const broadcastChannel = supabase
+            .channel('products-broadcast')
+            .on('broadcast', { event: 'products-updated' }, () => {
+                console.log('[Realtime Broadcast] Products updated signal received');
+                queryClient.invalidateQueries({ queryKey: ['products'] });
+            })
+            .subscribe((status) => {
+                console.log('[Realtime Broadcast] Status:', status);
+            });
+
+        return () => {
+            supabase.removeChannel(pgChannel);
+            supabase.removeChannel(broadcastChannel);
+        };
+    }, [queryClient]);
+
     return useQuery({
         queryKey: ['products'],
         queryFn: fetchProducts,
+    });
+}
+
+// Helper function to broadcast product updates (call this after mutations)
+export async function broadcastProductUpdate() {
+    await supabase.channel('products-broadcast').send({
+        type: 'broadcast',
+        event: 'products-updated',
+        payload: { timestamp: Date.now() },
     });
 }
 
@@ -73,8 +119,10 @@ export function useAddProduct() {
             if (error) throw error;
             return transformProduct(data);
         },
-        onSuccess: () => {
+        onSuccess: async () => {
             queryClient.invalidateQueries({ queryKey: ['products'] });
+            // Broadcast to other devices/tabs
+            await broadcastProductUpdate();
         },
         onError: (error: Error) => {
             toast({
@@ -110,8 +158,10 @@ export function useUpdateProduct() {
 
             if (error) throw error;
         },
-        onSuccess: () => {
+        onSuccess: async () => {
             queryClient.invalidateQueries({ queryKey: ['products'] });
+            // Broadcast to other devices/tabs
+            await broadcastProductUpdate();
         },
         onError: (error: Error) => {
             toast({
@@ -137,9 +187,11 @@ export function useDeleteProduct() {
 
             if (error) throw error;
         },
-        onSuccess: () => {
+        onSuccess: async () => {
             queryClient.invalidateQueries({ queryKey: ['products'] });
             queryClient.invalidateQueries({ queryKey: ['activity-logs'] });
+            // Broadcast to other devices/tabs
+            await broadcastProductUpdate();
         },
         onError: (error: Error) => {
             toast({
@@ -201,9 +253,11 @@ export function useAddStock() {
 
             if (logError) throw logError;
         },
-        onSuccess: () => {
+        onSuccess: async () => {
             queryClient.invalidateQueries({ queryKey: ['products'] });
             queryClient.invalidateQueries({ queryKey: ['stock-logs'] });
+            // Broadcast to other devices/tabs
+            await broadcastProductUpdate();
         },
         onError: (error: Error) => {
             toast({

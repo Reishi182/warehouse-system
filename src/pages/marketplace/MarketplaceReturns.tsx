@@ -19,6 +19,7 @@ import { MarketplaceReturn, MarketplaceOrder } from '@/types';
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
+import { compressImageToFile, isImageFile } from '@/lib/imageCompression';
 
 type ReturnWithOrder = MarketplaceReturn & { marketplace_orders: MarketplaceOrder };
 
@@ -47,11 +48,16 @@ export default function MarketplaceReturns() {
         }
 
         // Upload file
-        const fileExt = proofFile.name.split('.').pop();
+        // Auto-compress if it's an image
+        const fileToUpload = isImageFile(proofFile)
+            ? await compressImageToFile(proofFile, { maxWidth: 1200, maxHeight: 1200, quality: 0.8 })
+            : proofFile;
+
+        const fileExt = fileToUpload.name.split('.').pop();
         const fileName = `marketplace-returns/${selectedReturn.id}-${uploadType}-${Date.now()}.${fileExt}`;
         const { error: uploadError } = await supabase.storage
             .from('documents')
-            .upload(fileName, proofFile);
+            .upload(fileName, fileToUpload);
 
         if (uploadError) {
             toast({ title: 'Gagal upload file', description: uploadError.message, variant: 'destructive' });

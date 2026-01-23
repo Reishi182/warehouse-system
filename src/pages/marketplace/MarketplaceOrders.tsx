@@ -31,6 +31,7 @@ import { MarketplaceOrder, MarketplaceType, Product } from '@/types';
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
+import { compressImageToFile, isImageFile } from '@/lib/imageCompression';
 
 interface OrderItem {
     id: string;
@@ -146,11 +147,16 @@ export default function MarketplaceOrders() {
         // Upload invoice if provided
         let invoiceUrl: string | undefined;
         if (invoiceFile) {
-            const fileExt = invoiceFile.name.split('.').pop();
+            // Auto-compress if it's an image
+            const fileToUpload = isImageFile(invoiceFile)
+                ? await compressImageToFile(invoiceFile, { maxWidth: 1200, maxHeight: 1200, quality: 0.8 })
+                : invoiceFile;
+
+            const fileExt = fileToUpload.name.split('.').pop();
             const fileName = `marketplace-invoices/${Date.now()}.${fileExt}`;
             const { error: uploadError } = await supabase.storage
                 .from('documents')
-                .upload(fileName, invoiceFile);
+                .upload(fileName, fileToUpload);
 
             if (!uploadError) {
                 const { data: urlData } = supabase.storage
