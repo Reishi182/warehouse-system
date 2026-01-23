@@ -184,12 +184,18 @@ export function useUpdateSuratJalanStatus() {
 
                     if (product) {
                         const fromStock = Math.max(0, (product[fromField] || 0) - item.quantity);
-                        const toField = `stock_${item.to_location}`;
-                        const toStock = (product[toField] || 0) + item.quantity;
+                        const updateData: any = { [fromField]: fromStock };
+
+                        // Only increase destination stock if it's an internal location
+                        if (['gudang', 'toko'].includes(item.to_location)) {
+                            const toField = `stock_${item.to_location}`;
+                            const toStock = (product[toField] || 0) + item.quantity;
+                            updateData[toField] = toStock;
+                        }
 
                         await supabase
                             .from('products')
-                            .update({ [fromField]: fromStock, [toField]: toStock })
+                            .update(updateData)
                             .eq('id', item.product_id);
 
                         // Log the movement

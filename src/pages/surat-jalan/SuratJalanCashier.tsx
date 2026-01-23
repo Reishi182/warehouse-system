@@ -1,11 +1,10 @@
-
 import { useState } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import PageSkeleton from '@/components/common/PageSkeleton';
 import { useSuratJalanB2B } from '@/hooks/useSuratJalanB2B';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Package, Truck, ArrowRight, Clock, CheckCircle, List } from 'lucide-react';
+import { Package, Truck, ArrowRight, Clock, CheckCircle, List, Store } from 'lucide-react';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import {
     Dialog,
@@ -16,31 +15,29 @@ import {
     DialogFooter,
 } from '@/components/ui/dialog';
 
-export default function SuratJalanWarehouse() {
+export default function SuratJalanCashier() {
     const { user } = useAuth();
     const { suratJalans, processOrder, isLoading } = useSuratJalanB2B();
     const [selectedSj, setSelectedSj] = useState<any | null>(null);
 
     if (isLoading) {
         return (
-            <MainLayout title="Pengiriman B2B (Gudang)" subtitle="Proses surat jalan dari Main Office">
+            <MainLayout title="Pengiriman Toko (Kasir)" subtitle="Proses surat jalan dari Main Office">
                 <PageSkeleton variant="table" />
             </MainLayout>
         );
     }
 
-    // Filter for pending warehouse orders (source_location = gudang OR null)
-    // AND status is 'pending' (previously we looked for pending_warehouse, now standardizing on pending)
+    // Filter for pending STORE orders (source_location = toko)
     const pendingOrders = suratJalans.filter((sj: any) =>
         (sj.status === 'pending') &&
-        (!sj.source_location || sj.source_location === 'gudang')
+        (sj.source_location === 'toko')
     );
 
-    // Processing/Completed in this context (for history viewing) - shows completed ones handled by warehouse?
-    // Or maybe show what was recently completed.
+    // Processing/Completed in this context (for history viewing)
     const completedOrders = suratJalans.filter((sj: any) =>
         sj.status === 'completed' &&
-        (!sj.source_location || sj.source_location === 'gudang')
+        (sj.source_location === 'toko')
     );
 
     const handleProcessOrder = () => {
@@ -49,7 +46,7 @@ export default function SuratJalanWarehouse() {
         processOrder.mutate({
             suratJalanId: selectedSj.id,
             processedBy: user.id,
-            sourceLocation: 'gudang'
+            sourceLocation: 'toko'
         }, {
             onSuccess: () => {
                 setSelectedSj(null);
@@ -58,7 +55,7 @@ export default function SuratJalanWarehouse() {
     };
 
     return (
-        <MainLayout title="Pengiriman B2B (Gudang)" subtitle="Proses surat jalan dari Main Office">
+        <MainLayout title="Pengiriman Toko (Kasir)" subtitle="Proses surat jalan dari Main Office (Toko)">
             <div className="space-y-8">
                 <StatsGrid columns={3}>
                     <StatsCard
@@ -76,7 +73,7 @@ export default function SuratJalanWarehouse() {
                     />
                     <StatsCard
                         title="Total"
-                        value={suratJalans.length}
+                        value={suratJalans.filter((sj: any) => sj.source_location === 'toko').length}
                         icon={<List className="w-5 h-5" />}
                     />
                 </StatsGrid>
@@ -84,7 +81,7 @@ export default function SuratJalanWarehouse() {
                 {/* Pending Section */}
                 <div>
                     <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                        <Package className="h-5 w-5 text-orange-500" />
+                        <Store className="h-5 w-5 text-orange-500" />
                         Perlu Diproses ({pendingOrders.length})
                     </h3>
 
@@ -121,7 +118,7 @@ export default function SuratJalanWarehouse() {
 
                         {pendingOrders.length === 0 && (
                             <div className="text-center py-8 bg-muted/20 rounded-lg border border-dashed">
-                                <p className="text-muted-foreground">Tidak ada pesanan yang perlu diproses</p>
+                                <p className="text-muted-foreground">Tidak ada pesanan Toko yang perlu diproses</p>
                             </div>
                         )}
                     </div>
@@ -154,9 +151,9 @@ export default function SuratJalanWarehouse() {
             <Dialog open={!!selectedSj} onOpenChange={(open) => !open && setSelectedSj(null)}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Konfirmasi Pengiriman</DialogTitle>
+                        <DialogTitle>Konfirmasi Pengiriman Toko</DialogTitle>
                         <DialogDescription>
-                            Tindakan ini akan <strong>mengurangi stok gudang</strong> dan menyelesaikan pesanan.
+                            Tindakan ini akan <strong>mengurangi stok toko</strong> dan menyelesaikan pesanan.
                             Pastikan barang fisik sudah siap.
                         </DialogDescription>
                     </DialogHeader>

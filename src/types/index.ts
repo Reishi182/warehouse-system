@@ -511,3 +511,36 @@ export interface MarketplaceReturn {
   completed_at?: string | null;
   created_at: string;
 }
+
+// ==================================================
+// STOCK RETURN SYSTEM TYPES (Toko -> Gudang)
+// ==================================================
+
+export type StockReturnStatus = 'pending_main_office' | 'approved' | 'rejected';
+
+export interface StockReturnItem {
+  id: string;
+  stock_return_id: string;
+  product_id: string;
+  product?: Product;
+  quantity: number;
+  unit: string;
+  note?: string | null;
+  created_at?: string;
+}
+
+export interface StockReturn {
+  id: string;
+  return_number?: string | null;
+  cashier_id: string;
+  cashier_name: string;
+  reason: string;
+  status: StockReturnStatus;
+  main_office_id?: string | null;
+  main_office_name?: string | null;
+  approved_at?: string | null;
+  rejected_reason?: string | null;
+  created_at: string;
+  updated_at: string;
+  items?: StockReturnItem[];
+}

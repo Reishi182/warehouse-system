@@ -33,6 +33,7 @@ const StockApprovals = React.lazy(() => import('@/pages/stock-request/StockAppro
 const GoodsReceipt = React.lazy(() => import('@/pages/stock-request/GoodsReceipt'));
 const SuratJalanMainOffice = React.lazy(() => import('@/pages/surat-jalan/SuratJalanMainOffice'));
 const SuratJalanWarehouse = React.lazy(() => import('@/pages/surat-jalan/SuratJalanWarehouse'));
+const SuratJalanCashier = React.lazy(() => import('@/pages/surat-jalan/SuratJalanCashier'));
 const SuratJalanAuditor = React.lazy(() => import('@/pages/surat-jalan/SuratJalanAuditor'));
 const InvoiceMainOffice = React.lazy(() => import('@/pages/invoices/InvoiceMainOffice'));
 const Suppliers = React.lazy(() => import('@/pages/suppliers/Suppliers'));
@@ -48,6 +49,8 @@ const DirectOrderDetail = React.lazy(() => import('./pages/direct-orders/DirectO
 const MarketplaceOrders = React.lazy(() => import('./pages/marketplace/MarketplaceOrders'));
 const MarketplaceReceipt = React.lazy(() => import('./pages/marketplace/MarketplaceReceipt'));
 const MarketplaceReturns = React.lazy(() => import('./pages/marketplace/MarketplaceReturns'));
+const StockReturnCreate = React.lazy(() => import('@/pages/stock-return/StockReturnCreate'));
+const StockReturnApproval = React.lazy(() => import('@/pages/stock-return/StockReturnApproval'));
 const NotFound = React.lazy(() => import("./pages/NotFound"));
 const Guide = React.lazy(() => import("./pages/Guide"));
 
@@ -133,6 +136,7 @@ function AppRoutes() {
         <Route path="/surat-jalan" element={<ProtectedRoute><SuratJalanMainOffice /></ProtectedRoute>} />
         <Route path="/invoices" element={<ProtectedRoute><InvoiceMainOffice /></ProtectedRoute>} />
         <Route path="/surat-jalan/warehouse" element={<ProtectedRoute><SuratJalanWarehouse /></ProtectedRoute>} />
+        <Route path="/surat-jalan/cashier" element={<ProtectedRoute><SuratJalanCashier /></ProtectedRoute>} />
         <Route path="/surat-jalan/auditor" element={<ProtectedRoute><SuratJalanAuditor /></ProtectedRoute>} />
         <Route path="/stock-in" element={
           <ProtectedRoute>
@@ -256,6 +260,10 @@ function AppRoutes() {
             <GeneralTransactions />
           </ProtectedRoute>
         } />
+
+        {/* Stock Return Routes (Toko -> Gudang) */}
+        <Route path="/stock-return" element={<ProtectedRoute><StockReturnCreate /></ProtectedRoute>} />
+        <Route path="/stock-return/approval" element={<ProtectedRoute><StockReturnApproval /></ProtectedRoute>} />
 
         <Route path="*" element={<NotFound />} />
       </Routes>

@@ -1,8 +1,41 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { PurchaseOrder, PurchaseOrderItem, POStatus } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { sendNotificationToRole, sendNotificationToUser } from '@/hooks/useRealtimeNotifications';
+
+/**
+ * Hook to subscribe to real-time changes on purchase_orders table.
+ * This will automatically invalidate and refetch PO data when changes occur.
+ */
+export function usePurchaseOrdersRealtime() {
+    const queryClient = useQueryClient();
+
+    useEffect(() => {
+        const channel = supabase
+            .channel('purchase_orders_changes')
+            .on(
+                'postgres_changes',
+                {
+                    event: '*', // Listen to INSERT, UPDATE, DELETE
+                    schema: 'public',
+                    table: 'purchase_orders',
+                },
+                (payload) => {
+                    console.log('PO Realtime change detected:', payload.eventType);
+                    // Invalidate all purchase_orders queries to refetch data
+                    queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
+                    queryClient.invalidateQueries({ queryKey: ['purchase_order'] });
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [queryClient]);
+}
 
 // Fetch all purchase orders with supplier info
 export function usePurchaseOrders(statusFilter?: POStatus | POStatus[]) {

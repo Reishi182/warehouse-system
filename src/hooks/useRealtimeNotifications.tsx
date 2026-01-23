@@ -77,7 +77,8 @@ export async function sendNotificationToRole(
 ) {
     try {
         // Get all users with the specified role(s)
-        let query = supabase.from('profiles').select('id');
+        // Use user_id since notifications.user_id references auth.users.id
+        let query = supabase.from('profiles').select('user_id');
 
         if (Array.isArray(role)) {
             query = query.in('role', role);
@@ -97,9 +98,11 @@ export async function sendNotificationToRole(
             return;
         }
 
+        console.log(`Sending notification to ${users.length} user(s) with role: ${role}`);
+
         // Create notifications for all users
         const notifications = users.map(user => ({
-            user_id: user.id,
+            user_id: user.user_id, // Use user_id, not id
             title: notification.title,
             message: notification.message,
             type: notification.type,

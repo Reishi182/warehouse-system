@@ -56,13 +56,19 @@ export function useSuratJalanB2B() {
             const insertData: Record<string, unknown> = {
                 number: docNum,
                 recipient_name: data.recipientName,
-                recipient_address: data.recipientAddress,
+                recipient_address: data.recipientAddress || '',
+                recipient_phone: data.recipientPhone || null,
+                recipient_email: data.recipientEmail || null,
                 type: 'B2B',
-                status: 'pending_warehouse', // Both gudang and toko go to warehouse/auditor approval
+                status: 'pending', // Both gudang and toko go to warehouse/auditor approval
                 created_by: data.userId,
                 source_location: location,
-                customer_po_url: data.customerPoUrl || null, // Optional attachment
             };
+
+            // Only add customer_po_url if provided (column may not exist in older schemas)
+            if (data.customerPoUrl) {
+                insertData.customer_po_url = data.customerPoUrl;
+            }
 
             const { data: sj, error: sjError } = await supabase
                 .from('surat_jalan')
@@ -70,7 +76,10 @@ export function useSuratJalanB2B() {
                 .select()
                 .single();
 
-            if (sjError) throw sjError;
+            if (sjError) {
+                console.error('Surat Jalan insert error:', sjError);
+                throw new Error(`Gagal membuat Surat Jalan: ${sjError.message}`);
+            }
 
             // 3. Insert Items & Reserve Stock from correct location
             const itemsToInsert = data.items.map(item => ({
@@ -128,74 +137,43 @@ export function useSuratJalanB2B() {
         }
     });
 
-    // Create Goods Issue Note (Warehouse)
-    const createIssueNote = useMutation({
+    // Process Order (Warehouse/Cashier) -> COMMIT STOCK + COMPLETE
+    // Combines Issue Note creation + Verification
+    const processOrder = useMutation({
         mutationFn: async (data: {
             suratJalanId: string;
-            issuedBy: string;
+            processedBy: string; // warehouse or cashier id
+            sourceLocation: 'gudang' | 'toko';
         }) => {
-            // 1. Get SP Number
+            const { suratJalanId, processedBy, sourceLocation } = data;
+
+            // 1. Get Stock Out Number (SP) - Generate Issue Note Number
             const { data: docNum, error: fnError } = await supabase.rpc('get_next_document_number', { doc_type: 'SP' });
             if (fnError) throw fnError;
 
-            // 2. Create Note
-            const { error } = await supabase
+            // 2. Create Goods Issue Note (Auto Approved)
+            const { error: noteError } = await supabase
                 .from('goods_issue_notes')
                 .insert({
                     issue_number: docNum as string,
-                    surat_jalan_id: data.suratJalanId,
-                    issued_by: data.issuedBy,
-                    status: 'pending_auditor'
+                    surat_jalan_id: suratJalanId,
+                    issued_by: processedBy,
+                    status: 'approved', // Auto approved
+                    auditor_id: processedBy, // Self-approved? or leave null? Let's use processor id or null.
+                    verified_at: new Date().toISOString()
                 });
 
-            if (error) throw error;
+            if (noteError) throw noteError;
 
-            // 3. Update SJ Status
-            await supabase.from('surat_jalan').update({ status: 'processing' }).eq('id', data.suratJalanId);
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['surat-jalan-b2b'] });
-            toast({ title: 'Surat Pengeluaran Dibuat', description: 'Menunggu verifikasi Auditor' });
-        }
-    });
-
-    // Verify Issue Note (Auditor) -> COMMIT STOCK
-    const verifyIssueNote = useMutation({
-        mutationFn: async (data: {
-            issueNoteId: string;
-            suratJalanId: string;
-            auditorId: string;
-        }) => {
-            // 1. Update Note Status
-            const { error: updateError } = await supabase
-                .from('goods_issue_notes')
-                .update({
-                    status: 'approved',
-                    auditor_id: data.auditorId,
-                    verified_at: new Date().toISOString()
-                })
-                .eq('id', data.issueNoteId);
-
-            if (updateError) throw updateError;
-
-            // 2. Get SJ to check source_location
-            const { data: sj } = await supabase
-                .from('surat_jalan')
-                .select('source_location')
-                .eq('id', data.suratJalanId)
-                .single();
-
-            const sourceLocation = sj?.source_location || 'gudang';
-
-            // 3. Update SJ Status
-            await supabase.from('surat_jalan').update({ status: 'completed' }).eq('id', data.suratJalanId);
+            // 3. Update SJ Status to Completed
+            await supabase.from('surat_jalan').update({ status: 'completed' }).eq('id', suratJalanId);
 
             // 4. COMMIT STOCK based on source location
-            const { data: items } = await supabase.from('surat_jalan_items').select('*').eq('surat_jalan_id', data.suratJalanId);
+            const { data: items } = await supabase.from('surat_jalan_items').select('*').eq('surat_jalan_id', suratJalanId);
 
             for (const item of items || []) {
                 if (sourceLocation === 'gudang') {
-                    // Gudang: use existing RPC to commit stock (deduct gudang, release reservation)
+                    // Gudang: use RPC to commit stock (deduct gudang, release reservation)
                     const { error: commitError } = await supabase.rpc('commit_stock_issue', {
                         p_product_id: item.product_id,
                         p_quantity: item.quantity
@@ -214,28 +192,38 @@ export function useSuratJalanB2B() {
                         await supabase.from('products')
                             .update({ stock_toko: newStock })
                             .eq('id', item.product_id);
+
+                        // Also log movement if possible (optional but good practice)
                     }
                 }
             }
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['surat-jalan-b2b'] });
-            toast({ title: 'Verifikasi Berhasil', description: 'Stok telah dikurangi' });
+            toast({ title: 'Pesanan Selesai', description: 'Stok telah dikurangi dan surat jalan selesai.' });
         }
     });
 
     // Cancel Surat Jalan (Main Office) -> RELEASE RESERVATION
     const cancelSuratJalan = useMutation({
         mutationFn: async (suratJalanId: string) => {
-            // 1. Release Reservation
-            const { data: items } = await supabase.from('surat_jalan_items').select('*').eq('surat_jalan_id', suratJalanId);
+            // 1. Release Reservation (only if gudang? or check reserved?)
+            // Assumption: logic inside release_stock_reservation likely checks or handles it.
+            // But wait, for Toko we didn't reserve.
+            // So we should check source location of SJ before calling release.
 
-            for (const item of items || []) {
-                const { error: releaseError } = await supabase.rpc('release_stock_reservation', {
-                    p_product_id: item.product_id,
-                    p_quantity: item.quantity
-                });
-                if (releaseError) throw releaseError;
+            const { data: sj } = await supabase.from('surat_jalan').select('source_location').eq('id', suratJalanId).single();
+            const isGudang = !sj?.source_location || sj.source_location === 'gudang';
+
+            if (isGudang) {
+                const { data: items } = await supabase.from('surat_jalan_items').select('*').eq('surat_jalan_id', suratJalanId);
+                for (const item of items || []) {
+                    const { error: releaseError } = await supabase.rpc('release_stock_reservation', {
+                        p_product_id: item.product_id,
+                        p_quantity: item.quantity
+                    });
+                    if (releaseError) throw releaseError;
+                }
             }
 
             // 2. Update Status
@@ -243,7 +231,7 @@ export function useSuratJalanB2B() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['surat-jalan-b2b'] });
-            toast({ title: 'Order Dibatalkan', description: 'Stok reservation telah dilepas' });
+            toast({ title: 'Order Dibatalkan', description: 'Status diperbarui' });
         }
     });
 
@@ -251,8 +239,7 @@ export function useSuratJalanB2B() {
         suratJalans,
         isLoading,
         createSuratJalan,
-        createIssueNote,
-        verifyIssueNote,
+        processOrder,
         cancelSuratJalan
     };
 }
