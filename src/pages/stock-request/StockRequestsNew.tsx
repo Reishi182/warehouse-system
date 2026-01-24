@@ -77,9 +77,12 @@ export default function StockRequestsNew() {
         setRequestItems([]);
     };
 
+    // Filter products: only show products with warehouse stock > 0
     const filteredProducts = products.filter(p =>
-        p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.barcode.includes(searchTerm)
+        p.stock.gudang > 0 && (
+            p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            p.barcode.includes(searchTerm)
+        )
     );
 
     return (
