@@ -1,30 +1,35 @@
 import toast, { Toaster as HotToaster } from 'react-hot-toast';
-import { CheckCircle, XCircle, Info, X, ExternalLink } from 'lucide-react';
+import { CheckCircle, XCircle, AlertTriangle, Info, X, ExternalLink, Sparkles } from 'lucide-react';
 import { toastLinks } from '@/hooks/use-toast';
 
-// Premium Toast Component with Glassmorphism Design
+// Super Premium Toast Component with Advanced Glassmorphism & Dark Mode Support
 export function Toaster() {
   const handleNavigate = (toastId: string) => {
     const link = toastLinks.get(toastId);
     if (link) {
       toast.dismiss(toastId);
-      // Use window.location for navigation since we're outside React Router context
       window.location.href = link;
     }
   };
 
   return (
     <>
-      {/* Global Styles for Premium Toast */}
+      {/* Global Styles for Super Premium Toast */}
       <style>{`
         @keyframes toast-slide-in {
           0% {
-            transform: translateX(100%) scale(0.9);
+            transform: translateX(120%) scale(0.8) rotateY(-10deg);
             opacity: 0;
+            filter: blur(4px);
+          }
+          50% {
+            transform: translateX(-5%) scale(1.02) rotateY(0deg);
+            filter: blur(0px);
           }
           100% {
-            transform: translateX(0) scale(1);
+            transform: translateX(0) scale(1) rotateY(0deg);
             opacity: 1;
+            filter: blur(0px);
           }
         }
         
@@ -34,48 +39,63 @@ export function Toaster() {
             opacity: 1;
           }
           100% {
-            transform: translateX(100%) scale(0.9);
+            transform: translateX(120%) scale(0.8);
             opacity: 0;
+            filter: blur(4px);
           }
         }
         
         @keyframes progress-shrink {
-          from {
-            transform: scaleX(1);
+          from { transform: scaleX(1); }
+          to { transform: scaleX(0); }
+        }
+        
+        @keyframes icon-bounce {
+          0%, 100% { transform: scale(1) rotate(0deg); }
+          25% { transform: scale(1.15) rotate(-5deg); }
+          50% { transform: scale(1.05) rotate(0deg); }
+          75% { transform: scale(1.1) rotate(5deg); }
+        }
+        
+        @keyframes glow-pulse {
+          0%, 100% { 
+            box-shadow: 0 0 20px var(--glow-color),
+                        0 0 40px var(--glow-color),
+                        0 0 60px var(--glow-color-faded);
           }
-          to {
-            transform: scaleX(0);
+          50% { 
+            box-shadow: 0 0 30px var(--glow-color),
+                        0 0 60px var(--glow-color),
+                        0 0 80px var(--glow-color-faded);
           }
         }
         
-        @keyframes icon-pulse {
-          0%, 100% {
-            transform: scale(1);
-          }
-          50% {
-            transform: scale(1.1);
-          }
+        @keyframes shimmer-wave {
+          0% { transform: translateX(-100%) skewX(-15deg); }
+          100% { transform: translateX(200%) skewX(-15deg); }
         }
         
-        @keyframes shimmer {
-          0% {
-            background-position: -200% 0;
-          }
-          100% {
-            background-position: 200% 0;
-          }
+        @keyframes border-glow {
+          0%, 100% { opacity: 0.5; }
+          50% { opacity: 1; }
+        }
+        
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-3px); }
         }
         
         .premium-toast {
-          animation: toast-slide-in 0.4s cubic-bezier(0.21, 1.02, 0.73, 1) forwards;
+          animation: toast-slide-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+          perspective: 1000px;
         }
         
         .premium-toast[data-visible="false"] {
-          animation: toast-slide-out 0.3s cubic-bezier(0.21, 1.02, 0.73, 1) forwards;
+          animation: toast-slide-out 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
         }
         
         .premium-toast-icon {
-          animation: icon-pulse 0.6s ease-out;
+          animation: icon-bounce 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
         
         .premium-toast-progress {
@@ -84,27 +104,69 @@ export function Toaster() {
         }
         
         .premium-toast-shimmer {
-          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
-          background-size: 200% 100%;
-          animation: shimmer 2s infinite;
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 50%;
+          height: 100%;
+          background: linear-gradient(
+            90deg, 
+            transparent, 
+            rgba(255,255,255,0.15), 
+            transparent
+          );
+          animation: shimmer-wave 3s infinite;
+          pointer-events: none;
+        }
+        
+        .premium-toast-glow {
+          animation: glow-pulse 2s ease-in-out infinite;
+        }
+        
+        .premium-toast-float {
+          animation: float 3s ease-in-out infinite;
+        }
+        
+        .premium-toast-border {
+          animation: border-glow 2s ease-in-out infinite;
         }
         
         .premium-toast-link {
-          transition: all 0.2s ease;
+          transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
         
         .premium-toast-link:hover {
-          transform: translateX(2px);
+          transform: translateY(-2px) scale(1.02);
+          filter: brightness(1.1);
+        }
+        
+        .premium-toast-link:active {
+          transform: translateY(0px) scale(0.98);
+        }
+        
+        .premium-toast-dismiss {
+          transition: all 0.2s ease;
+        }
+        
+        .premium-toast-dismiss:hover {
+          transform: rotate(90deg) scale(1.1);
+        }
+        
+        /* Dark mode detection */
+        @media (prefers-color-scheme: dark) {
+          .premium-toast-container {
+            --bg-opacity: 0.85;
+          }
         }
       `}</style>
 
       <HotToaster
         position="top-right"
         reverseOrder={false}
-        gutter={12}
+        gutter={16}
         containerStyle={{
-          top: 20,
-          right: 20,
+          top: 24,
+          right: 24,
         }}
         toastOptions={{
           duration: 4000,
@@ -113,64 +175,123 @@ export function Toaster() {
         {(t) => {
           const hasLink = toastLinks.has(t.id);
 
+          // Define theme colors for each type
+          const themes = {
+            error: {
+              primary: '#ef4444',
+              secondary: '#dc2626',
+              accent: '#fca5a5',
+              bg: 'linear-gradient(145deg, rgba(127, 29, 29, 0.95) 0%, rgba(153, 27, 27, 0.9) 50%, rgba(185, 28, 28, 0.85) 100%)',
+              bgLight: 'linear-gradient(145deg, rgba(254, 226, 226, 0.98) 0%, rgba(254, 202, 202, 0.95) 100%)',
+              text: '#fecaca',
+              textLight: '#7f1d1d',
+              glow: 'rgba(239, 68, 68, 0.4)',
+              glowFaded: 'rgba(239, 68, 68, 0.1)',
+              border: 'rgba(239, 68, 68, 0.5)',
+              icon: XCircle,
+            },
+            success: {
+              primary: '#10b981',
+              secondary: '#059669',
+              accent: '#6ee7b7',
+              bg: 'linear-gradient(145deg, rgba(6, 78, 59, 0.95) 0%, rgba(4, 120, 87, 0.9) 50%, rgba(5, 150, 105, 0.85) 100%)',
+              bgLight: 'linear-gradient(145deg, rgba(209, 250, 229, 0.98) 0%, rgba(167, 243, 208, 0.95) 100%)',
+              text: '#a7f3d0',
+              textLight: '#064e3b',
+              glow: 'rgba(16, 185, 129, 0.4)',
+              glowFaded: 'rgba(16, 185, 129, 0.1)',
+              border: 'rgba(16, 185, 129, 0.5)',
+              icon: CheckCircle,
+            },
+            warning: {
+              primary: '#f59e0b',
+              secondary: '#d97706',
+              accent: '#fcd34d',
+              bg: 'linear-gradient(145deg, rgba(120, 53, 15, 0.95) 0%, rgba(146, 64, 14, 0.9) 50%, rgba(180, 83, 9, 0.85) 100%)',
+              bgLight: 'linear-gradient(145deg, rgba(254, 243, 199, 0.98) 0%, rgba(253, 230, 138, 0.95) 100%)',
+              text: '#fde68a',
+              textLight: '#78350f',
+              glow: 'rgba(245, 158, 11, 0.4)',
+              glowFaded: 'rgba(245, 158, 11, 0.1)',
+              border: 'rgba(245, 158, 11, 0.5)',
+              icon: AlertTriangle,
+            },
+            info: {
+              primary: '#6366f1',
+              secondary: '#4f46e5',
+              accent: '#a5b4fc',
+              bg: 'linear-gradient(145deg, rgba(49, 46, 129, 0.95) 0%, rgba(67, 56, 202, 0.9) 50%, rgba(79, 70, 229, 0.85) 100%)',
+              bgLight: 'linear-gradient(145deg, rgba(238, 242, 255, 0.98) 0%, rgba(224, 231, 255, 0.95) 100%)',
+              text: '#c7d2fe',
+              textLight: '#312e81',
+              glow: 'rgba(99, 102, 241, 0.4)',
+              glowFaded: 'rgba(99, 102, 241, 0.1)',
+              border: 'rgba(99, 102, 241, 0.5)',
+              icon: Info,
+            },
+          };
+
+          // Get theme based on toast type
+          const themeKey = t.type === 'error' ? 'error' : t.type === 'success' ? 'success' : 'info';
+          const theme = themes[themeKey];
+          const IconComponent = theme.icon;
+
+          // Check if dark mode (using CSS custom property or system preference)
+          const isDarkMode = typeof window !== 'undefined' &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches;
+
           return (
             <div
-              className="premium-toast"
+              className="premium-toast premium-toast-float"
               data-visible={t.visible}
               style={{
+                '--glow-color': theme.glow,
+                '--glow-color-faded': theme.glowFaded,
                 display: 'flex',
                 flexDirection: 'column',
-                maxWidth: '420px',
-                minWidth: '320px',
-                background: t.type === 'error'
-                  ? 'linear-gradient(135deg, rgba(254, 226, 226, 0.95) 0%, rgba(254, 202, 202, 0.9) 100%)'
-                  : t.type === 'success'
-                    ? 'linear-gradient(135deg, rgba(220, 252, 231, 0.95) 0%, rgba(187, 247, 208, 0.9) 100%)'
-                    : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(249, 250, 251, 0.9) 100%)',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                borderRadius: '16px',
-                boxShadow: t.type === 'error'
-                  ? '0 20px 40px -12px rgba(239, 68, 68, 0.25), 0 8px 16px -8px rgba(239, 68, 68, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.5)'
-                  : t.type === 'success'
-                    ? '0 20px 40px -12px rgba(34, 197, 94, 0.25), 0 8px 16px -8px rgba(34, 197, 94, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.5)'
-                    : '0 20px 40px -12px rgba(0, 0, 0, 0.15), 0 8px 16px -8px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
-                border: t.type === 'error'
-                  ? '1px solid rgba(239, 68, 68, 0.3)'
-                  : t.type === 'success'
-                    ? '1px solid rgba(34, 197, 94, 0.3)'
-                    : '1px solid rgba(229, 231, 235, 0.8)',
+                maxWidth: '440px',
+                minWidth: '340px',
+                background: isDarkMode ? theme.bg : theme.bgLight,
+                backdropFilter: 'blur(24px) saturate(180%)',
+                WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+                borderRadius: '20px',
+                boxShadow: `
+                  0 25px 50px -12px ${theme.glow},
+                  0 12px 24px -8px rgba(0, 0, 0, 0.15),
+                  inset 0 1px 0 rgba(255, 255, 255, ${isDarkMode ? '0.1' : '0.8'}),
+                  inset 0 -1px 0 rgba(0, 0, 0, 0.05)
+                `,
+                border: `1px solid ${theme.border}`,
                 overflow: 'hidden',
                 position: 'relative',
-              }}
+              } as React.CSSProperties}
             >
-              {/* Shimmer Effect Overlay */}
+              {/* Animated Shimmer Wave */}
+              <div className="premium-toast-shimmer" />
+
+              {/* Glowing Border Effect */}
               <div
-                className="premium-toast-shimmer"
+                className="premium-toast-border"
                 style={{
                   position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: '100%',
+                  inset: -1,
+                  borderRadius: '20px',
+                  background: `linear-gradient(135deg, ${theme.primary}40, transparent, ${theme.secondary}40)`,
                   pointerEvents: 'none',
-                  opacity: 0.3,
+                  zIndex: 0,
                 }}
               />
 
               {/* Main Content Row */}
-              <div style={{ display: 'flex', alignItems: 'stretch' }}>
-                {/* Left Accent Bar */}
+              <div style={{ display: 'flex', alignItems: 'stretch', position: 'relative', zIndex: 1 }}>
+                {/* Left Gradient Accent Bar */}
                 <div
                   style={{
-                    width: '4px',
-                    background: t.type === 'error'
-                      ? 'linear-gradient(180deg, #ef4444 0%, #dc2626 100%)'
-                      : t.type === 'success'
-                        ? 'linear-gradient(180deg, #22c55e 0%, #16a34a 100%)'
-                        : 'linear-gradient(180deg, #3b82f6 0%, #2563eb 100%)',
-                    borderRadius: '4px 0 0 4px',
+                    width: '5px',
+                    background: `linear-gradient(180deg, ${theme.accent} 0%, ${theme.primary} 50%, ${theme.secondary} 100%)`,
+                    borderRadius: '20px 0 0 20px',
                     flexShrink: 0,
+                    boxShadow: `0 0 20px ${theme.glow}`,
                   }}
                 />
 
@@ -180,40 +301,32 @@ export function Toaster() {
                     flex: 1,
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '14px',
-                    padding: '16px 18px',
+                    gap: '16px',
+                    padding: '18px 20px',
                   }}
                 >
-                  {/* Premium Icon with Gradient Background */}
+                  {/* Premium Animated Icon */}
                   <div
-                    className="premium-toast-icon"
+                    className="premium-toast-icon premium-toast-glow"
                     style={{
-                      width: '42px',
-                      height: '42px',
-                      borderRadius: '12px',
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '14px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       flexShrink: 0,
-                      background: t.type === 'error'
-                        ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
-                        : t.type === 'success'
-                          ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)'
-                          : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                      boxShadow: t.type === 'error'
-                        ? '0 4px 12px -2px rgba(239, 68, 68, 0.4)'
-                        : t.type === 'success'
-                          ? '0 4px 12px -2px rgba(34, 197, 94, 0.4)'
-                          : '0 4px 12px -2px rgba(59, 130, 246, 0.4)',
-                    }}
+                      background: `linear-gradient(135deg, ${theme.primary} 0%, ${theme.secondary} 100%)`,
+                      boxShadow: `
+                        0 8px 20px -4px ${theme.glow},
+                        inset 0 1px 0 rgba(255, 255, 255, 0.3),
+                        inset 0 -1px 0 rgba(0, 0, 0, 0.1)
+                      `,
+                      '--glow-color': theme.glow,
+                      '--glow-color-faded': theme.glowFaded,
+                    } as React.CSSProperties}
                   >
-                    {t.type === 'error' ? (
-                      <XCircle size={24} color="white" strokeWidth={2.5} />
-                    ) : t.type === 'success' ? (
-                      <CheckCircle size={24} color="white" strokeWidth={2.5} />
-                    ) : (
-                      <Info size={24} color="white" strokeWidth={2.5} />
-                    )}
+                    <IconComponent size={26} color="white" strokeWidth={2.5} />
                   </div>
 
                   {/* Message Content */}
@@ -221,52 +334,40 @@ export function Toaster() {
                     <p
                       style={{
                         margin: 0,
-                        fontSize: '14px',
+                        fontSize: '15px',
                         fontWeight: 600,
-                        color: t.type === 'error'
-                          ? '#991b1b'
-                          : t.type === 'success'
-                            ? '#166534'
-                            : '#1f2937',
+                        color: isDarkMode ? theme.text : theme.textLight,
                         lineHeight: 1.5,
                         letterSpacing: '-0.01em',
+                        textShadow: isDarkMode ? '0 1px 2px rgba(0,0,0,0.2)' : 'none',
                       }}
                     >
                       {typeof t.message === 'string' ? t.message : 'Notification'}
                     </p>
                   </div>
 
-                  {/* Dismiss Button */}
+                  {/* Premium Dismiss Button */}
                   <button
                     onClick={() => toast.dismiss(t.id)}
+                    className="premium-toast-dismiss"
                     style={{
-                      width: '32px',
-                      height: '32px',
-                      borderRadius: '8px',
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '10px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       border: 'none',
-                      background: 'rgba(0, 0, 0, 0.05)',
+                      background: isDarkMode
+                        ? 'rgba(255, 255, 255, 0.1)'
+                        : 'rgba(0, 0, 0, 0.06)',
                       cursor: 'pointer',
                       flexShrink: 0,
-                      transition: 'all 0.2s ease',
-                      color: t.type === 'error'
-                        ? '#991b1b'
-                        : t.type === 'success'
-                          ? '#166534'
-                          : '#6b7280',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'rgba(0, 0, 0, 0.1)';
-                      e.currentTarget.style.transform = 'scale(1.05)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'rgba(0, 0, 0, 0.05)';
-                      e.currentTarget.style.transform = 'scale(1)';
+                      color: isDarkMode ? theme.text : theme.textLight,
+                      backdropFilter: 'blur(8px)',
                     }}
                   >
-                    <X size={16} strokeWidth={2.5} />
+                    <X size={18} strokeWidth={2.5} />
                   </button>
                 </div>
               </div>
@@ -280,51 +381,57 @@ export function Toaster() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '8px',
-                    padding: '10px 18px',
-                    margin: '0 16px 12px 16px',
-                    background: t.type === 'error'
-                      ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
-                      : t.type === 'success'
-                        ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)'
-                        : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                    gap: '10px',
+                    padding: '12px 20px',
+                    margin: '0 18px 14px 18px',
+                    background: `linear-gradient(135deg, ${theme.primary} 0%, ${theme.secondary} 100%)`,
                     border: 'none',
-                    borderRadius: '10px',
+                    borderRadius: '12px',
                     cursor: 'pointer',
                     color: 'white',
-                    fontSize: '13px',
+                    fontSize: '14px',
                     fontWeight: 600,
-                    letterSpacing: '0.01em',
-                    boxShadow: t.type === 'error'
-                      ? '0 4px 12px -2px rgba(239, 68, 68, 0.35)'
-                      : t.type === 'success'
-                        ? '0 4px 12px -2px rgba(34, 197, 94, 0.35)'
-                        : '0 4px 12px -2px rgba(59, 130, 246, 0.35)',
+                    letterSpacing: '0.02em',
+                    boxShadow: `
+                      0 8px 20px -4px ${theme.glow},
+                      inset 0 1px 0 rgba(255, 255, 255, 0.2)
+                    `,
+                    position: 'relative',
+                    zIndex: 1,
                   }}
                 >
+                  <Sparkles size={16} strokeWidth={2} />
                   <span>Lihat Detail</span>
                   <ExternalLink size={14} strokeWidth={2.5} />
                 </button>
               )}
 
-              {/* Progress Bar */}
+              {/* Animated Progress Bar */}
               <div
-                className="premium-toast-progress"
                 style={{
                   position: 'absolute',
                   bottom: 0,
                   left: 0,
                   right: 0,
-                  height: '3px',
-                  background: t.type === 'error'
-                    ? 'linear-gradient(90deg, #ef4444, #f87171)'
-                    : t.type === 'success'
-                      ? 'linear-gradient(90deg, #22c55e, #4ade80)'
-                      : 'linear-gradient(90deg, #3b82f6, #60a5fa)',
-                  animationDuration: `${t.duration || 4000}ms`,
-                  opacity: t.visible ? 1 : 0,
+                  height: '4px',
+                  background: isDarkMode
+                    ? 'rgba(255, 255, 255, 0.1)'
+                    : 'rgba(0, 0, 0, 0.05)',
+                  overflow: 'hidden',
+                  zIndex: 1,
                 }}
-              />
+              >
+                <div
+                  className="premium-toast-progress"
+                  style={{
+                    height: '100%',
+                    background: `linear-gradient(90deg, ${theme.accent}, ${theme.primary}, ${theme.secondary})`,
+                    animationDuration: `${t.duration || 4000}ms`,
+                    opacity: t.visible ? 1 : 0,
+                    boxShadow: `0 0 10px ${theme.glow}`,
+                  }}
+                />
+              </div>
             </div>
           );
         }}
@@ -332,4 +439,3 @@ export function Toaster() {
     </>
   );
 }
-

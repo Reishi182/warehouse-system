@@ -64,21 +64,36 @@ export function useStockRequests() {
                 note: item.note
             }));
 
-            // 3. Reserve Stock
-            for (const item of data.items) {
-                const { error: reserveError } = await supabase.rpc('reserve_stock', {
-                    p_product_id: item.productId,
-                    p_quantity: item.quantity
-                });
+            // 3. Reserve Stock with rollback support
+            const reservedItems: { productId: string; quantity: number }[] = [];
+            try {
+                for (const item of data.items) {
+                    const { error: reserveError } = await supabase.rpc('reserve_stock', {
+                        p_product_id: item.productId,
+                        p_quantity: item.quantity
+                    });
 
-                if (reserveError) throw reserveError;
+                    if (reserveError) throw reserveError;
+                    reservedItems.push({ productId: item.productId, quantity: item.quantity });
+                }
+
+                const { error: itemsError } = await supabase
+                    .from('stock_request_items')
+                    .insert(itemsToInsert);
+
+                if (itemsError) throw itemsError;
+            } catch (error) {
+                // Rollback: release any reserved stock
+                for (const reserved of reservedItems) {
+                    await supabase.rpc('release_stock_reservation', {
+                        p_product_id: reserved.productId,
+                        p_quantity: reserved.quantity
+                    });
+                }
+                // Delete the request header if items failed
+                await supabase.from('stock_requests').delete().eq('id', request.id);
+                throw error;
             }
-
-            const { error: itemsError } = await supabase
-                .from('stock_request_items')
-                .insert(itemsToInsert);
-
-            if (itemsError) throw itemsError;
 
             return request;
         },
@@ -91,7 +106,7 @@ export function useStockRequests() {
                 title: 'Permintaan Stok Baru',
                 message: 'Ada permintaan stok baru dari kasir yang perlu diproses',
                 type: 'info',
-                link: '/stock-request/approvals',
+                link: '/requests/approval',
             });
         },
         onError: (error) => {
@@ -134,7 +149,7 @@ export function useStockRequests() {
                 title: 'Permintaan Stok Baru',
                 message: 'Ada permintaan stok yang disetujui Main Office, siap untuk diproses',
                 type: 'info',
-                link: '/stock-request/shipments',
+                link: '/requests/shipments',
             });
         },
         onError: (error) => {
@@ -175,12 +190,10 @@ export function useStockRequests() {
                 });
                 if (releaseError) throw releaseError;
             }
-
-            if (error) throw error;
         },
         onSuccess: (_data, variables) => {
             queryClient.invalidateQueries({ queryKey: ['stock-requests'] });
-            toast({ title: 'Permintaan Ditolak', description: 'Status beubah menjadi Ditolak' });
+            toast({ title: 'Permintaan Ditolak', description: 'Status berubah menjadi Ditolak' });
 
             // Get the request to notify the cashier
             supabase
@@ -194,7 +207,7 @@ export function useStockRequests() {
                             title: 'Permintaan Ditolak',
                             message: `Permintaan stok ${req.request_number || ''} telah ditolak`,
                             type: 'error',
-                            link: '/stock-request/new',
+                            link: '/requests',
                         });
                     }
                 });
@@ -238,12 +251,68 @@ export function useStockRequests() {
         },
     });
 
+    // Cancel Request (Cashier - for pending requests only)
+    const cancelRequest = useMutation({
+        mutationFn: async (requestId: string) => {
+            // First check if the request is still pending
+            const { data: request, error: fetchError } = await supabase
+                .from('stock_requests')
+                .select('status')
+                .eq('id', requestId)
+                .single();
+
+            if (fetchError) throw fetchError;
+
+            // Only allow cancellation for pending_main_office status
+            if (request.status !== 'pending_main_office') {
+                throw new Error('Hanya permintaan yang masih pending yang dapat dibatalkan');
+            }
+
+            // Update status to cancelled
+            const { error } = await supabase
+                .from('stock_requests')
+                .update({
+                    status: 'cancelled'
+                })
+                .eq('id', requestId);
+
+            if (error) throw error;
+
+            // RELEASE STOCK RESERVATION
+            // 1. Fetch Items
+            const { data: items, error: itemsError } = await supabase
+                .from('stock_request_items')
+                .select('*')
+                .eq('stock_request_id', requestId);
+
+            if (itemsError) throw itemsError;
+
+            // 2. Release Stock
+            for (const item of items || []) {
+                const { error: releaseError } = await supabase.rpc('release_stock_reservation', {
+                    p_product_id: item.product_id,
+                    p_quantity: item.quantity
+                });
+                if (releaseError) throw releaseError;
+            }
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['stock-requests'] });
+            queryClient.invalidateQueries({ queryKey: ['products'] });
+            toast({ title: 'Permintaan Dibatalkan', description: 'Permintaan stok telah dibatalkan' });
+        },
+        onError: (error) => {
+            toast({ title: 'Gagal Membatalkan', description: error.message, variant: 'destructive' });
+        },
+    });
+
     return {
         requests,
         isLoading,
         createRequest,
         approveRequest,
         rejectRequest,
-        resubmitRequest
+        resubmitRequest,
+        cancelRequest
     };
 }

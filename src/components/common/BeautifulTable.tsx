@@ -63,7 +63,7 @@ export interface Column<T> {
     sortable?: boolean;
     filterable?: boolean;
     filterOptions?: { label: string; value: string }[];
-    cell?: (item: T) => React.ReactNode;
+    cell?: (item: T, index?: number) => React.ReactNode;
     className?: string;
     exportFormat?: (value: any, row?: T) => string;
 }
@@ -81,7 +81,7 @@ interface BeautifulTableProps<T> {
     columns: Column<T>[];
     title?: string;
     subtitle?: string;
-    onSearch?: (query: string) => void;
+    onSearch?: (query: string) => void; // @deprecated - not implemented, use globalFilter instead
     onAdd?: () => void;
     addButtonLabel?: string;
     itemsPerPage?: number;
@@ -119,11 +119,27 @@ export function BeautifulTable<T extends { id: string }>({
     const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
     const [rowSelection, setRowSelection] = React.useState({});
     const [showFilters, setShowFilters] = React.useState(false);
+    const [pageSize, setPageSize] = React.useState(itemsPerPage);
+
+    // Page size options
+    const pageSizeOptions = [5, 10, 25, 50, -1]; // -1 means "All"
 
     const isPremium = variant === 'premium';
 
     // Get filterable columns
     const filterableColumns = columns.filter(col => col.filterable && col.accessorKey);
+
+    // Get unique values for each filterable column (for auto-generated filter options)
+    const getUniqueValues = React.useCallback((accessorKey: keyof T) => {
+        const values = new Set<string>();
+        data.forEach(item => {
+            const value = item[accessorKey];
+            if (value !== null && value !== undefined) {
+                values.add(String(value));
+            }
+        });
+        return Array.from(values).sort();
+    }, [data]);
 
     // Convert our Column interface to TanStack ColumnDef
     const tanstackColumns = React.useMemo<ColumnDef<T>[]>(() => {
@@ -154,49 +170,150 @@ export function BeautifulTable<T extends { id: string }>({
 
         // Map user columns
         columns.forEach((col, idx) => {
+            const columnId = String(col.accessorKey || idx);
+            const canFilter = col.filterable && col.accessorKey;
+
             cols.push({
-                id: String(col.accessorKey || idx),
+                id: columnId,
                 accessorKey: col.accessorKey as string,
                 header: ({ column }) => {
                     const canSort = col.sortable !== false && col.accessorKey;
                     const isSorted = column.getIsSorted();
+                    const currentFilter = columnFilters.find(f => f.id === columnId);
+                    const hasFilter = !!currentFilter;
+
+                    // Get filter options - either from column config or auto-generate from unique values
+                    const filterOptions = col.filterOptions || (
+                        canFilter ? getUniqueValues(col.accessorKey!).map(v => ({ label: v, value: v })) : []
+                    );
 
                     return (
-                        <div
-                            className={cn(
-                                "flex items-center gap-1.5 group",
-                                canSort && "cursor-pointer select-none"
-                            )}
-                            onClick={() => canSort && column.toggleSorting()}
-                        >
-                            <span className={cn(
-                                "text-xs font-bold uppercase tracking-wider transition-colors",
-                                isPremium ? "text-muted-foreground/80 group-hover:text-foreground" : "text-muted-foreground"
-                            )}>
-                                {col.header}
-                            </span>
-                            {canSort && (
-                                <div className={cn(
-                                    "flex items-center justify-center w-5 h-5 rounded-md transition-all",
-                                    isSorted
-                                        ? "bg-primary/10"
-                                        : "opacity-40 group-hover:opacity-100"
+                        <div className="flex items-center gap-1">
+                            {/* Column Name & Sort */}
+                            <div
+                                className={cn(
+                                    "flex items-center gap-1.5 group",
+                                    canSort && "cursor-pointer select-none"
+                                )}
+                                onClick={() => canSort && column.toggleSorting()}
+                            >
+                                <span className={cn(
+                                    "text-xs font-bold uppercase tracking-wider transition-colors",
+                                    isPremium ? "text-muted-foreground/80 group-hover:text-foreground" : "text-muted-foreground"
                                 )}>
-                                    {isSorted === 'asc' ? (
-                                        <ArrowUp className="w-3.5 h-3.5 text-primary" />
-                                    ) : isSorted === 'desc' ? (
-                                        <ArrowDown className="w-3.5 h-3.5 text-primary" />
-                                    ) : (
-                                        <ArrowUpDown className="w-3.5 h-3.5" />
-                                    )}
-                                </div>
+                                    {col.header}
+                                </span>
+                                {canSort && (
+                                    <div className={cn(
+                                        "flex items-center justify-center w-5 h-5 rounded-md transition-all",
+                                        isSorted
+                                            ? "bg-primary/10"
+                                            : "opacity-40 group-hover:opacity-100"
+                                    )}>
+                                        {isSorted === 'asc' ? (
+                                            <ArrowUp className="w-3.5 h-3.5 text-primary" />
+                                        ) : isSorted === 'desc' ? (
+                                            <ArrowDown className="w-3.5 h-3.5 text-primary" />
+                                        ) : (
+                                            <ArrowUpDown className="w-3.5 h-3.5" />
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Column Filter Dropdown */}
+                            {canFilter && filterOptions.length > 0 && (
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className={cn(
+                                                "h-6 w-6 rounded-md ml-1 transition-all",
+                                                hasFilter
+                                                    ? "bg-primary/20 text-primary hover:bg-primary/30"
+                                                    : "opacity-50 hover:opacity-100 hover:bg-muted"
+                                            )}
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            <Filter className="w-3 h-3" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent
+                                        align="start"
+                                        className={cn(
+                                            "min-w-[180px] max-h-[300px] overflow-y-auto",
+                                            isPremium && "rounded-xl border-border/50"
+                                        )}
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">
+                                            Filter {col.header}
+                                        </DropdownMenuLabel>
+                                        <DropdownMenuSeparator />
+
+                                        {/* Clear Filter Option */}
+                                        <DropdownMenuItem
+                                            onClick={() => {
+                                                setColumnFilters(prev => prev.filter(f => f.id !== columnId));
+                                            }}
+                                            className={cn(
+                                                "gap-2",
+                                                !hasFilter && "text-muted-foreground"
+                                            )}
+                                        >
+                                            <X className="w-3.5 h-3.5" />
+                                            Tampilkan Semua
+                                            {!hasFilter && (
+                                                <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">
+                                                    Active
+                                                </Badge>
+                                            )}
+                                        </DropdownMenuItem>
+
+                                        <DropdownMenuSeparator />
+
+                                        {/* Filter Options */}
+                                        {filterOptions.map(opt => {
+                                            const isSelected = currentFilter?.value === opt.value;
+                                            return (
+                                                <DropdownMenuItem
+                                                    key={opt.value}
+                                                    onClick={() => {
+                                                        setColumnFilters(prev => {
+                                                            const existing = prev.filter(f => f.id !== columnId);
+                                                            return [...existing, { id: columnId, value: opt.value }];
+                                                        });
+                                                    }}
+                                                    className={cn(
+                                                        "gap-2 cursor-pointer",
+                                                        isSelected && "bg-primary/10 text-primary"
+                                                    )}
+                                                >
+                                                    <div className={cn(
+                                                        "w-3 h-3 rounded-full border-2 flex-shrink-0",
+                                                        isSelected
+                                                            ? "border-primary bg-primary"
+                                                            : "border-muted-foreground/30"
+                                                    )} />
+                                                    <span className="truncate">{opt.label}</span>
+                                                    {isSelected && (
+                                                        <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">
+                                                            Active
+                                                        </Badge>
+                                                    )}
+                                                </DropdownMenuItem>
+                                            );
+                                        })}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             )}
                         </div>
                     );
                 },
                 cell: ({ row }) => {
                     if (col.cell) {
-                        return col.cell(row.original);
+                        return col.cell(row.original, row.index);
                     }
                     const value = col.accessorKey ? row.original[col.accessorKey] : null;
                     return <span className="text-sm text-foreground">{String(value ?? '')}</span>;
@@ -207,7 +324,10 @@ export function BeautifulTable<T extends { id: string }>({
         });
 
         return cols;
-    }, [columns, hideSelection, isPremium]);
+    }, [columns, hideSelection, isPremium, columnFilters, getUniqueValues, setColumnFilters]);
+
+    // Effective page size (handle "All" case)
+    const effectivePageSize = pageSize === -1 ? data.length || 1 : pageSize;
 
     const table = useReactTable({
         data,
@@ -217,6 +337,10 @@ export function BeautifulTable<T extends { id: string }>({
             globalFilter,
             columnFilters,
             rowSelection,
+            pagination: {
+                pageIndex: 0,
+                pageSize: effectivePageSize,
+            },
         },
         onSortingChange: setSorting,
         onGlobalFilterChange: setGlobalFilter,
@@ -227,10 +351,12 @@ export function BeautifulTable<T extends { id: string }>({
         getFilteredRowModel: getFilteredRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
         enableRowSelection: !hideSelection,
-        initialState: {
-            pagination: { pageSize: itemsPerPage },
-        },
     });
+
+    // Update table page size when pageSize changes
+    React.useEffect(() => {
+        table.setPageSize(effectivePageSize);
+    }, [effectivePageSize, table]);
 
     // Generate export columns from our column definitions
     const exportColumns: ExportColumn[] = React.useMemo(() => {
@@ -360,28 +486,6 @@ export function BeautifulTable<T extends { id: string }>({
                         {/* Filter & Sort Controls */}
                         <div className="flex items-center gap-2">
 
-                            {/* Filter Toggle */}
-                            {!hideFilters && filterableColumns.length > 0 && (
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setShowFilters(!showFilters)}
-                                    className={cn(
-                                        "h-10 gap-2",
-                                        isPremium ? "rounded-xl border-border/50" : "rounded-lg",
-                                        (showFilters || columnFilters.length > 0) && "border-primary/50 bg-primary/5"
-                                    )}
-                                >
-                                    <Filter className="w-4 h-4" />
-                                    <span className="hidden sm:inline">Filter</span>
-                                    {columnFilters.length > 0 && (
-                                        <Badge variant="secondary" className="ml-1 px-1.5 py-0 h-5 text-xs">
-                                            {columnFilters.length}
-                                        </Badge>
-                                    )}
-                                </Button>
-                            )}
-
                             {/* Clear All Filters */}
                             {hasActiveFilters && (
                                 <Button
@@ -394,91 +498,12 @@ export function BeautifulTable<T extends { id: string }>({
                                     )}
                                 >
                                     <X className="w-4 h-4" />
-                                    <span className="hidden sm:inline">Clear</span>
+                                    <span className="hidden sm:inline">Clear Filters</span>
                                 </Button>
                             )}
                         </div>
                     </div>
 
-                    {/* Expandable Column Filters */}
-                    {showFilters && filterableColumns.length > 0 && (
-                        <div className={cn(
-                            "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 p-4 rounded-xl animate-slide-up",
-                            isPremium ? "bg-muted/20 border border-border/30" : "bg-muted/30"
-                        )}>
-                            {filterableColumns.map((col) => {
-                                const columnId = String(col.accessorKey);
-                                const currentFilter = columnFilters.find(f => f.id === columnId);
-
-                                if (col.filterOptions) {
-                                    // Dropdown filter
-                                    return (
-                                        <div key={columnId} className="space-y-1.5">
-                                            <label className="text-xs font-medium text-muted-foreground">
-                                                {col.header}
-                                            </label>
-                                            <Select
-                                                value={currentFilter?.value as string || ''}
-                                                onValueChange={(value) => {
-                                                    if (value === '_all_') {
-                                                        setColumnFilters(prev => prev.filter(f => f.id !== columnId));
-                                                    } else {
-                                                        setColumnFilters(prev => {
-                                                            const existing = prev.filter(f => f.id !== columnId);
-                                                            return [...existing, { id: columnId, value }];
-                                                        });
-                                                    }
-                                                }}
-                                            >
-                                                <SelectTrigger className={cn(
-                                                    "h-9",
-                                                    isPremium && "rounded-lg bg-background/50"
-                                                )}>
-                                                    <SelectValue placeholder="All" />
-                                                </SelectTrigger>
-                                                <SelectContent className={cn(isPremium && "rounded-xl")}>
-                                                    <SelectItem value="_all_">All</SelectItem>
-                                                    {col.filterOptions.map(opt => (
-                                                        <SelectItem key={opt.value} value={opt.value}>
-                                                            {opt.label}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    );
-                                }
-
-                                // Text filter
-                                return (
-                                    <div key={columnId} className="space-y-1.5">
-                                        <label className="text-xs font-medium text-muted-foreground">
-                                            {col.header}
-                                        </label>
-                                        <Input
-                                            placeholder={`Filter ${col.header.toLowerCase()}...`}
-                                            value={(currentFilter?.value as string) || ''}
-                                            onChange={(e) => {
-                                                const value = e.target.value;
-                                                if (!value) {
-                                                    setColumnFilters(prev => prev.filter(f => f.id !== columnId));
-                                                } else {
-                                                    setColumnFilters(prev => {
-                                                        const existing = prev.filter(f => f.id !== columnId);
-                                                        return [...existing, { id: columnId, value }];
-                                                    });
-                                                }
-                                            }}
-                                            className={cn(
-                                                "h-9",
-                                                isPremium && "rounded-lg bg-background/50"
-                                            )}
-                                        />
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
 
                     {/* Active Filters Tags */}
                     {(columnFilters.length > 0 || sorting.length > 0) && (
@@ -507,6 +532,8 @@ export function BeautifulTable<T extends { id: string }>({
                             })}
                             {columnFilters.map((filter) => {
                                 const col = columns.find(c => String(c.accessorKey) === filter.id);
+                                // Get the label from filterOptions if available
+                                const filterLabel = col?.filterOptions?.find(opt => opt.value === filter.value)?.label || String(filter.value);
                                 return (
                                     <Badge
                                         key={`filter-${filter.id}`}
@@ -517,7 +544,7 @@ export function BeautifulTable<T extends { id: string }>({
                                         )}
                                     >
                                         <Filter className="w-3 h-3" />
-                                        {col?.header}: {String(filter.value)}
+                                        {col?.header}: {filterLabel}
                                         <button
                                             onClick={() => setColumnFilters(prev => prev.filter(f => f.id !== filter.id))}
                                             className="ml-1 p-0.5 rounded hover:bg-violet-500/20"
@@ -642,19 +669,50 @@ export function BeautifulTable<T extends { id: string }>({
 
                 {/* Premium Pagination */}
                 <div className="flex flex-col sm:flex-row items-center justify-between p-6 pt-4 gap-4 bg-gray-50/50 dark:bg-gray-800/30">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <span>Showing</span>
-                        <span className="font-semibold text-foreground">
-                            {table.getFilteredRowModel().rows.length === 0 ? 0 : table.getState().pagination.pageIndex * itemsPerPage + 1}
-                        </span>
-                        <span>to</span>
-                        <span className="font-semibold text-foreground">
-                            {Math.min((table.getState().pagination.pageIndex + 1) * itemsPerPage, table.getFilteredRowModel().rows.length)}
-                        </span>
-                        <span>of</span>
-                        <span className="font-semibold text-foreground">
-                            {table.getFilteredRowModel().rows.length}
-                        </span>
+                    <div className="flex items-center gap-4">
+                        {/* Page Size Selector */}
+                        <div className="flex items-center gap-2 text-sm">
+                            <span className="text-muted-foreground">Show</span>
+                            <Select
+                                value={String(pageSize)}
+                                onValueChange={(value) => {
+                                    const newSize = parseInt(value);
+                                    setPageSize(newSize);
+                                    table.setPageIndex(0); // Reset to first page
+                                }}
+                            >
+                                <SelectTrigger className={cn(
+                                    "w-[75px] h-8",
+                                    isPremium && "rounded-lg"
+                                )}>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className={cn(isPremium && "rounded-xl")}>
+                                    {pageSizeOptions.map(size => (
+                                        <SelectItem key={size} value={String(size)}>
+                                            {size === -1 ? 'All' : size}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <span className="text-muted-foreground">entries</span>
+                        </div>
+
+                        {/* Showing info */}
+                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                            <span>Showing</span>
+                            <span className="font-semibold text-foreground">
+                                {table.getFilteredRowModel().rows.length === 0 ? 0 : table.getState().pagination.pageIndex * effectivePageSize + 1}
+                            </span>
+                            <span>to</span>
+                            <span className="font-semibold text-foreground">
+                                {Math.min((table.getState().pagination.pageIndex + 1) * effectivePageSize, table.getFilteredRowModel().rows.length)}
+                            </span>
+                            <span>of</span>
+                            <span className="font-semibold text-foreground">
+                                {table.getFilteredRowModel().rows.length}
+                            </span>
+                        </div>
                     </div>
 
                     <div className="flex items-center gap-2">

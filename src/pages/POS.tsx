@@ -472,40 +472,45 @@ export default function POS() {
 
                 {/* Right Panel - Cart (hidden on mobile when products is active) */}
                 <Card className={cn(
-                    "w-full md:w-96 flex flex-col rounded-2xl border-2 shadow-xl bg-card",
+                    "w-full md:w-96 flex flex-col rounded-2xl border-2 shadow-2xl bg-gradient-to-b from-card via-card to-muted/30 backdrop-blur-sm",
+                    "relative overflow-hidden",
                     mobileTab === 'products' && "hidden md:flex"
                 )}>
-                    <CardHeader className="pb-3 border-b">
+                    {/* Subtle gradient overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/5 pointer-events-none" />
+                    <CardHeader className="pb-3 border-b bg-gradient-to-r from-primary/10 via-transparent to-transparent relative z-10">
                         <div className="flex items-center justify-between">
                             <CardTitle className="flex items-center gap-2">
-                                <ShoppingCart className="w-5 h-5" />
-                                Keranjang
+                                <div className="p-2 rounded-lg bg-primary/10 shadow-sm">
+                                    <ShoppingCart className="w-5 h-5 text-primary" />
+                                </div>
+                                <span className="bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text">Keranjang</span>
                                 {items.length > 0 && (
-                                    <Badge variant="secondary" className="rounded-full">
+                                    <Badge className="rounded-full bg-primary/10 text-primary border-primary/20 shadow-sm shadow-primary/10">
                                         {items.reduce((acc, it) => acc + it.quantity, 0)}
                                     </Badge>
                                 )}
                             </CardTitle>
                             {items.length > 0 && (
-                                <Button variant="ghost" size="sm" onClick={clearCart} className="text-destructive hover:text-destructive">
+                                <Button variant="ghost" size="sm" onClick={clearCart} className="text-destructive hover:text-destructive hover:bg-destructive/10 rounded-xl">
                                     <Trash2 className="w-4 h-4 mr-1" />
                                     Hapus
                                 </Button>
                             )}
                         </div>
                         {/* Today's Stats */}
-                        <div className="flex gap-2 mt-2">
-                            <Badge variant="outline" className="rounded-full">
+                        <div className="flex gap-2 mt-3">
+                            <Badge variant="outline" className="rounded-full bg-background/50 backdrop-blur-sm shadow-sm">
                                 <Receipt className="w-3 h-3 mr-1" />
                                 {todayStats.count} transaksi
                             </Badge>
-                            <Badge className="rounded-full bg-green-500/10 text-green-600 border-green-200">
+                            <Badge className="rounded-full bg-gradient-to-r from-emerald-500/20 to-green-500/20 text-emerald-600 border-emerald-500/30 shadow-sm shadow-emerald-500/10">
                                 Rp {todayStats.total.toLocaleString('id-ID')}
                             </Badge>
                         </div>
                     </CardHeader>
 
-                    <CardContent className="flex-1 flex flex-col p-4 overflow-hidden">
+                    <CardContent className="flex-1 flex flex-col p-4 overflow-hidden relative z-10">
                         {/* Cart Items */}
                         {items.length === 0 ? (
                             <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
@@ -627,11 +632,16 @@ export default function POS() {
                                 </div>
 
                                 {/* Payment Method */}
-                                <div className="grid grid-cols-2 gap-2">
+                                <div className="grid grid-cols-2 gap-3">
                                     <Button
                                         variant={paymentMethod === 'cash' ? 'default' : 'outline'}
                                         onClick={() => setPaymentMethod('cash')}
-                                        className="rounded-xl h-12"
+                                        className={cn(
+                                            "rounded-xl h-12 transition-all duration-300",
+                                            paymentMethod === 'cash'
+                                                ? "bg-gradient-to-r from-emerald-500 to-green-500 shadow-lg shadow-emerald-500/30 border-0"
+                                                : "hover:border-emerald-500/50 hover:bg-emerald-500/5"
+                                        )}
                                     >
                                         <Banknote className="w-5 h-5 mr-2" />
                                         Tunai (F2)
@@ -639,20 +649,34 @@ export default function POS() {
                                     <Button
                                         variant={paymentMethod === 'transfer' ? 'default' : 'outline'}
                                         onClick={() => setPaymentMethod('transfer')}
-                                        className="rounded-xl h-12"
+                                        className={cn(
+                                            "rounded-xl h-12 transition-all duration-300",
+                                            paymentMethod === 'transfer'
+                                                ? "bg-gradient-to-r from-blue-500 to-indigo-500 shadow-lg shadow-blue-500/30 border-0"
+                                                : "hover:border-blue-500/50 hover:bg-blue-500/5"
+                                        )}
                                     >
                                         <CreditCard className="w-5 h-5 mr-2" />
                                         Transfer
                                     </Button>
                                 </div>
 
-                                {/* Checkout Button */}
+                                {/* Premium Checkout Button */}
                                 <Button
                                     size="lg"
-                                    className="w-full rounded-xl h-14 text-lg font-bold shadow-lg shadow-primary/30"
+                                    className={cn(
+                                        "w-full rounded-xl h-14 text-lg font-bold transition-all duration-300",
+                                        "bg-gradient-to-r from-primary via-primary to-primary/90",
+                                        "shadow-xl shadow-primary/40",
+                                        "hover:shadow-2xl hover:shadow-primary/50 hover:scale-[1.02]",
+                                        "active:scale-[0.98]",
+                                        "relative overflow-hidden"
+                                    )}
                                     disabled={items.length === 0 || isProcessing}
                                     onClick={openCheckoutDialog}
                                 >
+                                    {/* Shimmer effect */}
+                                    <div className="absolute inset-0 -translate-x-full hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12" />
                                     {isProcessing ? (
                                         <>
                                             <span className="animate-spin mr-2">⏳</span>
@@ -684,10 +708,13 @@ export default function POS() {
 
             {/* Checkout Confirmation Dialog */}
             <Dialog open={showCheckoutDialog} onOpenChange={setShowCheckoutDialog}>
-                <DialogContent className="max-w-md">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                            <ShoppingCart className="w-5 h-5" />
+                <DialogContent className="max-w-md rounded-2xl border-2 overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/5 pointer-events-none" />
+                    <DialogHeader className="relative z-10">
+                        <DialogTitle className="flex items-center gap-3">
+                            <div className="p-2 rounded-xl bg-primary/10 shadow-sm">
+                                <ShoppingCart className="w-5 h-5 text-primary" />
+                            </div>
                             Konfirmasi Pembayaran
                         </DialogTitle>
                         <DialogDescription>
@@ -695,34 +722,46 @@ export default function POS() {
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="space-y-4">
+                    <div className="space-y-4 relative z-10">
                         {/* Order Summary */}
-                        <div className="p-4 bg-muted/50 rounded-xl space-y-2">
+                        <div className="p-4 bg-gradient-to-br from-muted/50 to-muted/20 rounded-xl space-y-2 border">
                             <div className="flex justify-between text-sm">
                                 <span>Subtotal ({items.length} item)</span>
-                                <span>Rp {subtotal.toLocaleString('id-ID')}</span>
+                                <span className="font-medium">Rp {subtotal.toLocaleString('id-ID')}</span>
                             </div>
                             {orderDiscount > 0 && (
-                                <div className="flex justify-between text-sm text-green-600">
+                                <div className="flex justify-between text-sm text-emerald-600">
                                     <span>Diskon ({orderDiscount}%)</span>
                                     <span>-Rp {Math.round(subtotal * orderDiscount / 100).toLocaleString('id-ID')}</span>
                                 </div>
                             )}
                             <div className="flex justify-between font-bold text-lg pt-2 border-t">
                                 <span>Total</span>
-                                <span className="text-primary">Rp {totalAmount.toLocaleString('id-ID')}</span>
+                                <span className="bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
+                                    Rp {totalAmount.toLocaleString('id-ID')}
+                                </span>
                             </div>
                         </div>
 
                         {/* Payment Method Display */}
-                        <div className="flex items-center gap-3 p-3 bg-primary/5 rounded-xl">
-                            {paymentMethod === 'cash' ? (
-                                <Banknote className="w-6 h-6 text-primary" />
-                            ) : (
-                                <CreditCard className="w-6 h-6 text-primary" />
-                            )}
+                        <div className={cn(
+                            "flex items-center gap-3 p-4 rounded-xl border-2 transition-all",
+                            paymentMethod === 'cash'
+                                ? "bg-gradient-to-r from-emerald-500/10 to-green-500/10 border-emerald-500/30"
+                                : "bg-gradient-to-r from-blue-500/10 to-indigo-500/10 border-blue-500/30"
+                        )}>
+                            <div className={cn(
+                                "p-2 rounded-lg",
+                                paymentMethod === 'cash' ? "bg-emerald-500/20" : "bg-blue-500/20"
+                            )}>
+                                {paymentMethod === 'cash' ? (
+                                    <Banknote className="w-6 h-6 text-emerald-600" />
+                                ) : (
+                                    <CreditCard className="w-6 h-6 text-blue-600" />
+                                )}
+                            </div>
                             <div>
-                                <p className="font-medium">Metode Pembayaran</p>
+                                <p className="font-semibold">Metode Pembayaran</p>
                                 <p className="text-sm text-muted-foreground">
                                     {paymentMethod === 'cash' ? 'Tunai' : 'Transfer Bank'}
                                 </p>
