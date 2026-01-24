@@ -18,6 +18,9 @@ const REALTIME_TABLES = [
     { table: 'cash_transfer_requests', queryKeys: ['cash-transfer-requests'] },
     { table: 'products', queryKeys: ['products'] },
     { table: 'notifications', queryKeys: ['notifications'] },
+    { table: 'sales', queryKeys: ['sales', 'sales-history'] },
+    { table: 'cash_transfers', queryKeys: ['cash-transfers', 'cash-history'] },
+    { table: 'backorders', queryKeys: ['backorders'] },
 ] as const;
 
 /**

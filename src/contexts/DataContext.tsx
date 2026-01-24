@@ -374,95 +374,56 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     refreshData();
   }, [isAuthenticated]); // Only depend on isAuthenticated, not user object
 
-  // Supabase Realtime subscriptions for live data updates
-  const realtimeChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  // Supabase Realtime subscriptions for live data updates - SEPARATE channels per table for reliability
+  const realtimeChannelsRef = useRef<ReturnType<typeof supabase.channel>[]>([]);
 
   useEffect(() => {
     if (!isAuthenticated) {
-      // Cleanup channel if user logs out
-      if (realtimeChannelRef.current) {
-        supabase.removeChannel(realtimeChannelRef.current);
-        realtimeChannelRef.current = null;
-      }
+      // Cleanup channels if user logs out
+      realtimeChannelsRef.current.forEach(ch => supabase.removeChannel(ch));
+      realtimeChannelsRef.current = [];
       return;
     }
 
-    // Create a single channel for all table subscriptions
-    const channel = supabase
-      .channel('data-changes')
-      // Products changes
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'products' },
-        () => {
-          fetchProducts();
-        }
-      )
-      // Sales changes
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'sales' },
-        () => {
-          fetchSales();
-        }
-      )
-      // Stock logs changes
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'stock_logs' },
-        () => {
-          fetchStockLogs();
-        }
-      )
-      // Cash transfers changes
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'cash_transfers' },
-        () => {
-          fetchCashTransfers();
-        }
-      )
-      // Stock requests changes
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'stock_out_requests' },
-        () => {
-          fetchRequests();
-        }
-      )
-      // Surat jalan changes
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'surat_jalan' },
-        () => {
-          fetchSuratJalans();
-        }
-      )
-      // Activity logs changes
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'activity_logs' },
-        () => {
-          fetchActivityLogs();
-        }
-      )
-      .subscribe((status) => {
-        console.log('[Realtime] Subscription status:', status);
-        if (status === 'SUBSCRIBED') {
-          console.log('[Realtime] ✅ Connected to realtime updates');
-        } else if (status === 'CHANNEL_ERROR') {
-          console.error('[Realtime] ❌ Failed to connect - check if tables are enabled in Supabase Replication');
-        }
-      });
+    // Create SEPARATE channels for each table (Supabase works better this way)
+    const tables = [
+      { table: 'products', callback: fetchProducts },
+      { table: 'sales', callback: fetchSales },
+      { table: 'stock_logs', callback: fetchStockLogs },
+      { table: 'cash_transfers', callback: fetchCashTransfers },
+      { table: 'stock_out_requests', callback: fetchRequests },
+      { table: 'surat_jalan', callback: fetchSuratJalans },
+      { table: 'activity_logs', callback: fetchActivityLogs },
+    ];
 
-    realtimeChannelRef.current = channel;
+    const channels = tables.map(({ table, callback }) => {
+      const channel = supabase
+        .channel(`data_${table}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table },
+          (payload) => {
+            console.log(`[Realtime] ${table} changed:`, payload.eventType);
+            callback();
+          }
+        )
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            console.log(`[Realtime] ✅ Subscribed to ${table}`);
+          } else if (status === 'CHANNEL_ERROR') {
+            console.error(`[Realtime] ❌ ${table} - ENABLE REPLICATION IN SUPABASE DASHBOARD!`);
+          }
+        });
+      return channel;
+    });
+
+    realtimeChannelsRef.current = channels;
+    console.log(`[Realtime] Created ${channels.length} separate channel subscriptions`);
 
     return () => {
-      if (realtimeChannelRef.current) {
-        console.log('[Realtime] Unsubscribing from channel');
-        supabase.removeChannel(realtimeChannelRef.current);
-        realtimeChannelRef.current = null;
-      }
+      console.log('[Realtime] Unsubscribing from all channels');
+      realtimeChannelsRef.current.forEach(ch => supabase.removeChannel(ch));
+      realtimeChannelsRef.current = [];
     };
   }, [isAuthenticated]);
 

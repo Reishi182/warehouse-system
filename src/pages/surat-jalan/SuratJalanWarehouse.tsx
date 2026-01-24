@@ -1,11 +1,12 @@
-
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import PageSkeleton from '@/components/common/PageSkeleton';
 import { useSuratJalanB2B } from '@/hooks/useSuratJalanB2B';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Package, Truck, ArrowRight, Clock, CheckCircle, List } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Package, Truck, CheckCircle, List, Clock, Store, Warehouse, Camera, PenTool, User, FileText, AlertCircle } from 'lucide-react';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import {
     Dialog,
@@ -15,58 +16,201 @@ import {
     DialogDescription,
     DialogFooter,
 } from '@/components/ui/dialog';
+import SignaturePad, { SignaturePadRef } from '@/components/common/SignaturePad';
+import { supabase } from '@/integrations/supabase/client';
+import { compressImageToFile, isImageFile } from '@/lib/imageCompression';
+import { format } from 'date-fns';
+import { id as idLocale } from 'date-fns/locale';
+import { useToast } from '@/hooks/use-toast';
 
 export default function SuratJalanWarehouse() {
     const { user } = useAuth();
-    const { suratJalans, processOrder, isLoading } = useSuratJalanB2B();
+    const { suratJalans, completeOrder, isLoading } = useSuratJalanB2B();
+    const { toast } = useToast();
     const [selectedSj, setSelectedSj] = useState<any | null>(null);
+    const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Form State
+    const [deliveryPhoto, setDeliveryPhoto] = useState<File | null>(null);
+    const [deliveryPhotoPreview, setDeliveryPhotoPreview] = useState<string | null>(null);
+    const [senderName, setSenderName] = useState('');
+    const [receiverName, setReceiverName] = useState('');
+    const [hasSenderSignature, setHasSenderSignature] = useState(false);
+    const [hasReceiverSignature, setHasReceiverSignature] = useState(false);
+
+    // Refs
+    const senderSignatureRef = useRef<SignaturePadRef>(null);
+    const receiverSignatureRef = useRef<SignaturePadRef>(null);
 
     if (isLoading) {
         return (
-            <MainLayout title="Pengiriman B2B (Gudang)" subtitle="Proses surat jalan dari Main Office">
+            <MainLayout title="Selesaikan Pengiriman" subtitle="Selesaikan pengiriman dengan bukti">
                 <PageSkeleton variant="table" />
             </MainLayout>
         );
     }
 
-    // Filter for pending warehouse orders (source_location = gudang OR null)
-    // AND status is 'pending' (previously we looked for pending_warehouse, now standardizing on pending)
-    const pendingOrders = suratJalans.filter((sj: any) =>
-        (sj.status === 'pending') &&
-        (!sj.source_location || sj.source_location === 'gudang')
-    );
+    // Filter for processing orders (waiting for warehouse to complete)
+    const processingOrders = suratJalans.filter((sj: any) => sj.status === 'processing');
+    const completedOrders = suratJalans.filter((sj: any) => sj.status === 'completed');
+    const pendingCount = suratJalans.filter((sj: any) => ['pending_review', 'approved'].includes(sj.status)).length;
 
-    // Processing/Completed in this context (for history viewing) - shows completed ones handled by warehouse?
-    // Or maybe show what was recently completed.
-    const completedOrders = suratJalans.filter((sj: any) =>
-        sj.status === 'completed' &&
-        (!sj.source_location || sj.source_location === 'gudang')
-    );
+    const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
 
-    const handleProcessOrder = () => {
+        setDeliveryPhoto(file);
+
+        // Create preview
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setDeliveryPhotoPreview(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const handleOpenComplete = (sj: any) => {
+        setSelectedSj(sj);
+        setDeliveryPhoto(null);
+        setDeliveryPhotoPreview(null);
+        setSenderName('');
+        setReceiverName(sj.recipient_name || ''); // Pre-fill with recipient name
+        setHasSenderSignature(false);
+        setHasReceiverSignature(false);
+        setCompleteDialogOpen(true);
+    };
+
+    const uploadFile = async (file: File | Blob, folder: string): Promise<string> => {
+        const fileExt = file instanceof File ? file.name.split('.').pop() : 'png';
+        const fileName = `${folder}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+            .from('documents')
+            .upload(fileName, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data: urlData } = supabase.storage.from('documents').getPublicUrl(fileName);
+        return urlData.publicUrl;
+    };
+
+    const handleCompleteOrder = async () => {
         if (!selectedSj || !user) return;
 
-        processOrder.mutate({
-            suratJalanId: selectedSj.id,
-            processedBy: user.id,
-            sourceLocation: 'gudang'
-        }, {
-            onSuccess: () => {
-                setSelectedSj(null);
-            }
-        });
+        // Validation
+        if (!deliveryPhoto) {
+            toast({ title: 'Error', description: 'Foto bukti pengiriman wajib diupload', variant: 'destructive' });
+            return;
+        }
+        if (!senderName.trim()) {
+            toast({ title: 'Error', description: 'Nama pengirim wajib diisi', variant: 'destructive' });
+            return;
+        }
+        if (!receiverName.trim()) {
+            toast({ title: 'Error', description: 'Nama penerima wajib diisi', variant: 'destructive' });
+            return;
+        }
+        if (!hasSenderSignature || senderSignatureRef.current?.isEmpty()) {
+            toast({ title: 'Error', description: 'Tanda tangan pengirim wajib diisi', variant: 'destructive' });
+            return;
+        }
+        if (!hasReceiverSignature || receiverSignatureRef.current?.isEmpty()) {
+            toast({ title: 'Error', description: 'Tanda tangan penerima wajib diisi', variant: 'destructive' });
+            return;
+        }
+
+        setIsSubmitting(true);
+
+        try {
+            // 1. Upload delivery photo
+            const fileToUpload = isImageFile(deliveryPhoto)
+                ? await compressImageToFile(deliveryPhoto, { maxWidth: 1200, maxHeight: 1200, quality: 0.8 })
+                : deliveryPhoto;
+            const deliveryPhotoUrl = await uploadFile(fileToUpload, 'delivery-photos');
+
+            // 2. Upload signatures
+            const senderSignatureUrl = await new Promise<string>((resolve, reject) => {
+                senderSignatureRef.current?.toBlob(async (blob) => {
+                    if (!blob) {
+                        reject(new Error('Failed to get sender signature'));
+                        return;
+                    }
+                    try {
+                        const url = await uploadFile(blob, 'signatures');
+                        resolve(url);
+                    } catch (err) {
+                        reject(err);
+                    }
+                }, 'image/png');
+            });
+
+            const receiverSignatureUrl = await new Promise<string>((resolve, reject) => {
+                receiverSignatureRef.current?.toBlob(async (blob) => {
+                    if (!blob) {
+                        reject(new Error('Failed to get receiver signature'));
+                        return;
+                    }
+                    try {
+                        const url = await uploadFile(blob, 'signatures');
+                        resolve(url);
+                    } catch (err) {
+                        reject(err);
+                    }
+                }, 'image/png');
+            });
+
+            // 3. Complete order
+            await completeOrder.mutateAsync({
+                suratJalanId: selectedSj.id,
+                completedBy: user.id,
+                deliveryPhotoUrl,
+                receiverSignatureUrl,
+                senderSignatureUrl,
+                receiverName: receiverName.trim(),
+                senderName: senderName.trim(),
+            });
+
+            setCompleteDialogOpen(false);
+            setSelectedSj(null);
+        } catch (error: any) {
+            toast({
+                title: 'Gagal',
+                description: error.message || 'Terjadi kesalahan saat menyelesaikan pesanan',
+                variant: 'destructive'
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const getStatusBadge = (status: string) => {
+        switch (status) {
+            case 'processing':
+                return <span className="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full flex items-center gap-1"><Truck className="h-3 w-3" /> Dalam Pengiriman</span>;
+            case 'completed':
+                return <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full flex items-center gap-1"><CheckCircle className="h-3 w-3" /> Selesai</span>;
+            default:
+                return <span className="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded-full">{status}</span>;
+        }
     };
 
     return (
-        <MainLayout title="Pengiriman B2B (Gudang)" subtitle="Proses surat jalan dari Main Office">
-            <div className="space-y-8">
-                <StatsGrid columns={3}>
+        <MainLayout title="Selesaikan Pengiriman" subtitle="Selesaikan pengiriman dengan bukti foto dan tanda tangan">
+            <div className="space-y-6">
+                <StatsGrid columns={4}>
                     <StatsCard
-                        title="Perlu Diproses"
-                        value={pendingOrders.length}
+                        title="Perlu Diselesaikan"
+                        value={processingOrders.length}
                         icon={<Truck className="w-5 h-5" />}
-                        subtitle={pendingOrders.length > 0 ? "menunggu pengiriman" : undefined}
+                        subtitle={processingOrders.length > 0 ? "siap kirim" : undefined}
                         subtitleType="warning"
+                    />
+                    <StatsCard
+                        title="Menunggu"
+                        value={pendingCount}
+                        icon={<Clock className="w-5 h-5" />}
+                        subtitle="review/proses kasir"
                     />
                     <StatsCard
                         title="Selesai"
@@ -81,101 +225,258 @@ export default function SuratJalanWarehouse() {
                     />
                 </StatsGrid>
 
-                {/* Pending Section */}
-                <div>
-                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                        <Package className="h-5 w-5 text-orange-500" />
-                        Perlu Diproses ({pendingOrders.length})
-                    </h3>
+                {/* Processing Orders - Need to Complete */}
+                {processingOrders.length > 0 && (
+                    <div>
+                        <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                            <Truck className="h-5 w-5 text-purple-500" />
+                            Perlu Diselesaikan ({processingOrders.length})
+                        </h3>
+                        <div className="grid gap-4">
+                            {processingOrders.map((sj: any) => (
+                                <div key={sj.id} className="bg-card border-2 border-purple-200 rounded-xl p-6 shadow-md hover:shadow-lg transition-shadow">
+                                    <div className="flex flex-col lg:flex-row justify-between gap-4">
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                                <span className="font-bold text-xl">{sj.number}</span>
+                                                {getStatusBadge(sj.status)}
+                                                {sj.source_location === 'toko' ? (
+                                                    <span className="bg-green-50 text-green-700 text-xs px-2 py-1 rounded-full flex items-center gap-1">
+                                                        <Store className="h-3 w-3" /> Dari Toko
+                                                    </span>
+                                                ) : (
+                                                    <span className="bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded-full flex items-center gap-1">
+                                                        <Warehouse className="h-3 w-3" /> Dari Gudang
+                                                    </span>
+                                                )}
+                                            </div>
 
-                    <div className="grid gap-4">
-                        {pendingOrders.map((sj: any) => (
-                            <div key={sj.id} className="bg-card border rounded-lg p-6 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                                <div>
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <span className="font-bold text-lg">{sj.number}</span>
-                                        <span className="bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full">Menunggu Pengiriman</span>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                                                <div>
+                                                    <p className="text-sm text-muted-foreground">Penerima</p>
+                                                    <p className="font-semibold">{sj.recipient_name}</p>
+                                                    <p className="text-sm text-muted-foreground">{sj.recipient_address}</p>
+                                                    {sj.recipient_phone && (
+                                                        <p className="text-sm text-muted-foreground">📞 {sj.recipient_phone}</p>
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm text-muted-foreground">Diproses</p>
+                                                    <p className="font-semibold">
+                                                        {sj.processed_at && format(new Date(sj.processed_at), 'dd MMM yyyy, HH:mm', { locale: idLocale })}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            {/* Items */}
+                                            <div className="mt-4 bg-muted/50 p-3 rounded-md">
+                                                <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">Daftar Barang</p>
+                                                <ul className="text-sm space-y-1">
+                                                    {sj.items?.map((item: any) => (
+                                                        <li key={item.id} className="flex gap-2">
+                                                            <span className="font-mono text-primary font-bold">{item.quantity}x</span>
+                                                            <span>{item.product_name}</span>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex flex-col gap-2 justify-center">
+                                            <Button
+                                                size="lg"
+                                                onClick={() => handleOpenComplete(sj)}
+                                                className="bg-green-600 hover:bg-green-700"
+                                            >
+                                                <CheckCircle className="mr-2 h-4 w-4" />
+                                                Selesaikan Pengiriman
+                                            </Button>
+                                        </div>
                                     </div>
-                                    <p className="text-muted-foreground font-medium">{sj.recipient_name}</p>
-                                    <p className="text-sm text-muted-foreground">{sj.recipient_address}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
-                                    <div className="mt-4 bg-muted/50 p-3 rounded-md">
-                                        <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">Daftar Barang</p>
-                                        <ul className="text-sm space-y-1">
-                                            {sj.items?.map((item: any) => (
-                                                <li key={item.id} className="flex gap-2">
-                                                    <span className="font-mono text-primary font-bold">{item.quantity}x</span>
-                                                    <span>{item.product_name}</span>
-                                                </li>
-                                            ))}
-                                        </ul>
+                {/* Empty State */}
+                {processingOrders.length === 0 && (
+                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6 text-center">
+                        <Package className="h-12 w-12 text-blue-600 mx-auto mb-3" />
+                        <h3 className="font-bold text-blue-800 dark:text-blue-200">Tidak Ada Pengiriman Aktif</h3>
+                        <p className="text-sm text-blue-600 dark:text-blue-400">Pesanan yang diproses kasir akan muncul di sini</p>
+                    </div>
+                )}
+
+                {/* Completed History */}
+                {completedOrders.length > 0 && (
+                    <div>
+                        <h3 className="text-lg font-bold mb-4 text-muted-foreground">Riwayat Selesai</h3>
+                        <div className="grid gap-3 opacity-75">
+                            {completedOrders.slice(0, 10).map((sj: any) => (
+                                <div key={sj.id} className="bg-card border rounded-lg p-4 hover:bg-muted/50 transition-colors">
+                                    <div className="flex justify-between items-center">
+                                        <div className="flex items-center gap-3">
+                                            <div className="h-10 w-10 rounded-lg bg-green-100 flex items-center justify-center">
+                                                <CheckCircle className="h-5 w-5 text-green-600" />
+                                            </div>
+                                            <div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-bold">{sj.number}</span>
+                                                    {getStatusBadge(sj.status)}
+                                                </div>
+                                                <p className="text-sm text-muted-foreground">{sj.recipient_name}</p>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-sm text-muted-foreground">
+                                                {sj.completed_at && format(new Date(sj.completed_at), 'dd MMM yyyy', { locale: idLocale })}
+                                            </p>
+                                            {sj.sender_name && sj.receiver_name && (
+                                                <p className="text-xs text-green-600">
+                                                    ✓ {sj.sender_name} → {sj.receiver_name}
+                                                </p>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
-
-                                <Button size="lg" onClick={() => setSelectedSj(sj)}>
-                                    <Truck className="mr-2 h-4 w-4" />
-                                    Proses & Kirim
-                                </Button>
-                            </div>
-                        ))}
-
-                        {pendingOrders.length === 0 && (
-                            <div className="text-center py-8 bg-muted/20 rounded-lg border border-dashed">
-                                <p className="text-muted-foreground">Tidak ada pesanan yang perlu diproses</p>
-                            </div>
-                        )}
+                            ))}
+                        </div>
                     </div>
-                </div>
-
-                {/* History */}
-                <div>
-                    <h3 className="text-lg font-bold mb-4 text-muted-foreground">Riwayat Selesai</h3>
-                    <div className="grid gap-4 opacity-75">
-                        {completedOrders.slice(0, 5).map((sj: any) => (
-                            <div key={sj.id} className="bg-card border rounded-lg p-4 flex justify-between items-center">
-                                <div>
-                                    <p className="font-semibold">{sj.number}</p>
-                                    <p className="text-sm text-muted-foreground">Ke: {sj.recipient_name}</p>
-                                    <p className="text-xs text-green-600 mt-1">Selesai</p>
-                                </div>
-                                <div className="text-right">
-                                    <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
-                                        Terkirim
-                                    </span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
+                )}
             </div>
 
-            {/* Confirmation Dialog */}
-            <Dialog open={!!selectedSj} onOpenChange={(open) => !open && setSelectedSj(null)}>
-                <DialogContent>
+            {/* Complete Order Dialog */}
+            <Dialog open={completeDialogOpen} onOpenChange={(open) => !isSubmitting && setCompleteDialogOpen(open)}>
+                <DialogContent className="max-w-2xl rounded-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle>Konfirmasi Pengiriman</DialogTitle>
+                        <DialogTitle className="flex items-center gap-2">
+                            <CheckCircle className="h-5 w-5 text-green-600" />
+                            Selesaikan Pengiriman
+                        </DialogTitle>
                         <DialogDescription>
-                            Tindakan ini akan <strong>mengurangi stok gudang</strong> dan menyelesaikan pesanan.
-                            Pastikan barang fisik sudah siap.
+                            Upload bukti pengiriman dan tanda tangan untuk menyelesaikan pesanan
                         </DialogDescription>
                     </DialogHeader>
 
                     {selectedSj && (
-                        <div className="bg-muted p-4 rounded-md my-2 text-sm">
-                            <p><b>Penerima:</b> {selectedSj.recipient_name}</p>
-                            <p><b>Total Item:</b> {selectedSj.items?.length} jenis barang</p>
+                        <div className="space-y-6">
+                            {/* Order Info */}
+                            <div className="bg-muted p-4 rounded-lg">
+                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                    <div>
+                                        <p className="text-muted-foreground">No. Surat Jalan</p>
+                                        <p className="font-bold text-lg">{selectedSj.number}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-muted-foreground">Penerima</p>
+                                        <p className="font-semibold">{selectedSj.recipient_name}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Photo Upload */}
+                            <div className="space-y-2">
+                                <Label className="flex items-center gap-2">
+                                    <Camera className="h-4 w-4" />
+                                    Foto Bukti Pengiriman <span className="text-red-500">*</span>
+                                </Label>
+                                <Input
+                                    type="file"
+                                    accept="image/*"
+                                    capture="environment"
+                                    onChange={handlePhotoChange}
+                                    className="rounded-xl"
+                                />
+                                {deliveryPhotoPreview && (
+                                    <div className="mt-2">
+                                        <img
+                                            src={deliveryPhotoPreview}
+                                            alt="Preview"
+                                            className="rounded-lg max-h-48 object-cover border"
+                                        />
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Sender Info */}
+                            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 space-y-4">
+                                <h4 className="font-semibold flex items-center gap-2 text-blue-800 dark:text-blue-200">
+                                    <User className="h-4 w-4" />
+                                    Data Pengirim (Yang Mengantar)
+                                </h4>
+                                <div className="space-y-2">
+                                    <Label>Nama Pengirim <span className="text-red-500">*</span></Label>
+                                    <Input
+                                        value={senderName}
+                                        onChange={(e) => setSenderName(e.target.value)}
+                                        placeholder="Masukkan nama pengantar barang"
+                                        className="rounded-xl bg-white"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="flex items-center gap-2">
+                                        <PenTool className="h-4 w-4" />
+                                        Tanda Tangan Pengirim <span className="text-red-500">*</span>
+                                    </Label>
+                                    <SignaturePad
+                                        ref={senderSignatureRef}
+                                        width={400}
+                                        height={150}
+                                        onSignatureChange={setHasSenderSignature}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Receiver Info */}
+                            <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-4 space-y-4">
+                                <h4 className="font-semibold flex items-center gap-2 text-green-800 dark:text-green-200">
+                                    <User className="h-4 w-4" />
+                                    Data Penerima (Customer)
+                                </h4>
+                                <div className="space-y-2">
+                                    <Label>Nama Penerima <span className="text-red-500">*</span></Label>
+                                    <Input
+                                        value={receiverName}
+                                        onChange={(e) => setReceiverName(e.target.value)}
+                                        placeholder="Masukkan nama penerima barang"
+                                        className="rounded-xl bg-white"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="flex items-center gap-2">
+                                        <PenTool className="h-4 w-4" />
+                                        Tanda Tangan Penerima <span className="text-red-500">*</span>
+                                    </Label>
+                                    <SignaturePad
+                                        ref={receiverSignatureRef}
+                                        width={400}
+                                        height={150}
+                                        onSignatureChange={setHasReceiverSignature}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Warning */}
+                            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 flex items-start gap-2">
+                                <AlertCircle className="h-5 w-5 text-yellow-600 shrink-0 mt-0.5" />
+                                <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                                    Pastikan semua data sudah benar. Stok akan dikurangi setelah pengiriman diselesaikan.
+                                </p>
+                            </div>
                         </div>
                     )}
 
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setSelectedSj(null)}>Batal</Button>
+                        <Button variant="outline" onClick={() => setCompleteDialogOpen(false)} disabled={isSubmitting}>
+                            Batal
+                        </Button>
                         <Button
-                            onClick={handleProcessOrder}
-                            disabled={processOrder.isPending}
-                            className="bg-primary hover:bg-primary/90"
+                            onClick={handleCompleteOrder}
+                            disabled={isSubmitting || !deliveryPhoto || !senderName.trim() || !receiverName.trim() || !hasSenderSignature || !hasReceiverSignature}
+                            className="bg-green-600 hover:bg-green-700"
                         >
-                            {processOrder.isPending ? 'Memproses...' : 'Ya, Proses & Kirim'}
+                            {isSubmitting ? 'Menyimpan...' : 'Selesaikan Pengiriman'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

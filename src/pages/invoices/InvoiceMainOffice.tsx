@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import PageSkeleton from '@/components/common/PageSkeleton';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -14,15 +14,23 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import CreateInvoiceForm from './components/CreateInvoiceForm';
+import PrintInvoice from '@/components/print/PrintInvoice';
+import { useStoreSettings } from '@/hooks/useStoreSettings';
+import { useReactToPrint } from 'react-to-print';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { toast } from 'sonner';
-import { FileText, Download, Plus, Wallet } from 'lucide-react';
+import { FileText, Download, Plus, Wallet, Printer } from 'lucide-react';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
+
 
 export default function InvoiceMainOffice() {
     const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false);
+    const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
+    const printRef = useRef<HTMLDivElement>(null);
     const queryClient = useQueryClient();
+    const { data: storeSettings } = useStoreSettings();
 
     // Fetch Invoices with related Customer data
     const { data: invoices = [], isLoading } = useQuery({
@@ -40,6 +48,41 @@ export default function InvoiceMainOffice() {
                 ...inv,
                 recipient_name: inv.customer?.name || inv.recipient_name
             })) as Invoice[];
+        }
+    });
+
+    // Fetch single invoice with items for print
+    const { data: selectedInvoice, isLoading: selectedInvoiceLoading } = useQuery({
+        queryKey: ['invoice', selectedInvoiceId],
+        queryFn: async () => {
+            if (!selectedInvoiceId) return null;
+
+            const { data: inv, error: invError } = await supabase
+                .from('invoices')
+                .select('*, customer:customers(*)')
+                .eq('id', selectedInvoiceId)
+                .single();
+
+            if (invError) throw invError;
+
+            const { data: items, error: itemsError } = await supabase
+                .from('invoice_items')
+                .select('*')
+                .eq('invoice_id', selectedInvoiceId);
+
+            if (itemsError) throw itemsError;
+
+            return { ...inv, items } as Invoice;
+        },
+        enabled: !!selectedInvoiceId
+    });
+
+    // Print handler
+    const handlePrintAction = useReactToPrint({
+        contentRef: printRef,
+        documentTitle: selectedInvoice?.invoice_number || 'Invoice',
+        onAfterPrint: () => {
+            setIsPrintDialogOpen(false);
         }
     });
 
@@ -103,6 +146,11 @@ export default function InvoiceMainOffice() {
         createInvoice.mutate(data);
     };
 
+    const handlePrint = (invoice: Invoice) => {
+        setSelectedInvoiceId(invoice.id);
+        setIsPrintDialogOpen(true);
+    };
+
     const columns = [
         {
             header: 'Invoice',
@@ -159,8 +207,16 @@ export default function InvoiceMainOffice() {
         },
         {
             header: '',
-            cell: () => (
-                <div className="flex justify-end">
+            cell: (item: Invoice) => (
+                <div className="flex justify-end gap-1">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full"
+                        onClick={() => handlePrint(item)}
+                    >
+                        <Printer className="w-5 h-5" />
+                    </Button>
                     <Button variant="ghost" size="icon" className="text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full">
                         <Download className="w-5 h-5" />
                     </Button>
@@ -235,6 +291,41 @@ export default function InvoiceMainOffice() {
                             onCancel={() => setIsCreateOpen(false)}
                         />
                     </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Print Dialog */}
+            <Dialog open={isPrintDialogOpen} onOpenChange={setIsPrintDialogOpen}>
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Printer className="w-5 h-5" />
+                            Cetak Invoice
+                        </DialogTitle>
+                    </DialogHeader>
+                    {selectedInvoiceLoading ? (
+                        <div className="py-8 text-center text-muted-foreground">Memuat...</div>
+                    ) : selectedInvoice ? (
+                        <>
+                            <PrintInvoice
+                                ref={printRef}
+                                invoice={selectedInvoice}
+                                companyName={storeSettings?.store_name}
+                                companyAddress={storeSettings?.store_address}
+                                companyPhone={storeSettings?.store_phone}
+                                companyEmail={storeSettings?.store_email}
+                            />
+                            <div className="flex justify-end gap-3 pt-4 border-t">
+                                <Button variant="outline" onClick={() => setIsPrintDialogOpen(false)}>
+                                    Batal
+                                </Button>
+                                <Button onClick={() => handlePrintAction()} className="gap-2">
+                                    <Printer className="w-4 h-4" />
+                                    Cetak
+                                </Button>
+                            </div>
+                        </>
+                    ) : null}
                 </DialogContent>
             </Dialog>
         </MainLayout>

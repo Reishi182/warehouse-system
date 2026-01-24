@@ -6,400 +6,119 @@ import { useSuratJalanB2B } from '@/hooks/useSuratJalanB2B';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import {
     Dialog,
     DialogContent,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
+    DialogDescription,
     DialogFooter,
 } from '@/components/ui/dialog';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
-import { Plus, Trash2, FileText, CheckCircle, Clock, Package, TruckIcon, Users, ArrowRight, Sparkles } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { Product, Customer } from '@/types';
-import StatusBadge from '@/components/common/StatusBadge';
-import { compressImageToFile, isImageFile } from '@/lib/imageCompression';
+import { FileText, CheckCircle, Clock, Package, TruckIcon, XCircle, Store, Warehouse, Eye, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { useNavigate } from 'react-router-dom';
 
 export default function SuratJalanMainOffice() {
     const { user } = useAuth();
-    const { suratJalans, createSuratJalan, cancelSuratJalan, isLoading } = useSuratJalanB2B();
-    const [dialogOpen, setDialogOpen] = useState(false);
-    const [isAlertOpen, setIsAlertOpen] = useState(false);
-    const navigate = useNavigate();
-
-    // Form State
-    const [selectedCustomerId, setSelectedCustomerId] = useState('');
-    const [recipientName, setRecipientName] = useState('');
-    const [recipientAddress, setRecipientAddress] = useState('');
-    const [recipientPhone, setRecipientPhone] = useState('');
-    const [recipientEmail, setRecipientEmail] = useState('');
-    const [sourceLocation, setSourceLocation] = useState<'gudang' | 'toko'>('gudang');
-    const [selectedItems, setSelectedItems] = useState<{ productId: string, quantity: number, productName: string }[]>([]);
-    const [customNumber, setCustomNumber] = useState(''); // Custom document number
-    const [customerPoFile, setCustomerPoFile] = useState<File | null>(null); // Optional customer PO
-
-    // Product Selection State
-    const [selectedProduct, setSelectedProduct] = useState<string>('');
-    const [quantity, setQuantity] = useState<number>(1);
-
-    // Fetch Customers
-    const { data: customers = [] } = useQuery({
-        queryKey: ['customers'],
-        queryFn: async () => {
-            const { data } = await supabase.from('customers').select('*').order('name');
-            return data as Customer[];
-        }
-    });
-
-    // Fetch Products for selection based on source location
-    const { data: products = [] } = useQuery({
-        queryKey: ['products-available', sourceLocation],
-        queryFn: async () => {
-            const stockColumn = sourceLocation === 'gudang' ? 'stock_gudang' : 'stock_toko';
-            const { data } = await supabase.from('products').select('*').gt(stockColumn, 0);
-            return data as Product[];
-        }
-    });
+    const { suratJalans, reviewSuratJalan, cancelSuratJalan, isLoading } = useSuratJalanB2B();
+    const [selectedSj, setSelectedSj] = useState<any | null>(null);
+    const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+    const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+    const [reviewNotes, setReviewNotes] = useState('');
+    const [isApproving, setIsApproving] = useState(true);
 
     if (isLoading) {
         return (
-            <MainLayout title="Surat Jalan (B2B)" subtitle="Kelola pengiriman ke pihak luar">
+            <MainLayout title="Review Surat Jalan" subtitle="Review dan approve surat jalan dari Kasir">
                 <PageSkeleton variant="table" />
             </MainLayout>
         );
     }
 
-    // Stats calculations
+    // Filter orders by status
+    const pendingReview = suratJalans.filter((sj: any) => sj.status === 'pending_review');
+    const approved = suratJalans.filter((sj: any) => sj.status === 'approved');
+    const processing = suratJalans.filter((sj: any) => sj.status === 'processing');
+    const completed = suratJalans.filter((sj: any) => sj.status === 'completed');
+    const rejected = suratJalans.filter((sj: any) => sj.status === 'rejected');
+
     const stats = {
-        total: suratJalans.length,
-        pending: suratJalans.filter((s: any) => s.status === 'pending_warehouse').length,
-        processing: suratJalans.filter((s: any) => s.status === 'processing').length,
-        completed: suratJalans.filter((s: any) => s.status === 'completed').length,
+        pendingReview: pendingReview.length,
+        approved: approved.length,
+        processing: processing.length,
+        completed: completed.length,
     };
 
-    // Handle customer selection - auto-fill fields
-    const handleCustomerSelect = (customerId: string) => {
-        setSelectedCustomerId(customerId);
-        const customer = customers.find(c => c.id === customerId);
-        if (customer) {
-            setRecipientName(customer.name);
-            setRecipientAddress(customer.address || '');
-            setRecipientPhone(customer.phone || '');
-            setRecipientEmail(customer.email || '');
-        }
+    const handleOpenReview = (sj: any, approve: boolean) => {
+        setSelectedSj(sj);
+        setIsApproving(approve);
+        setReviewNotes('');
+        setReviewDialogOpen(true);
     };
 
-    const handleAddItem = () => {
-        if (!selectedProduct || quantity <= 0) return;
-        const product = products.find(p => p.id === selectedProduct);
-        if (!product) return;
+    const handleSubmitReview = () => {
+        if (!selectedSj || !user) return;
 
-        // Check if already added
-        if (selectedItems.find(i => i.productId === selectedProduct)) {
-            return;
-        }
-
-        setSelectedItems([...selectedItems, {
-            productId: selectedProduct,
-            quantity: quantity,
-            productName: product.name
-        }]);
-
-        setSelectedProduct('');
-        setQuantity(1);
-    };
-
-    const handleRemoveItem = (index: number) => {
-        const newItems = [...selectedItems];
-        newItems.splice(index, 1);
-        setSelectedItems(newItems);
-    };
-
-    const handleSubmit = async () => {
-        if (!user) return;
-
-        // Upload customer PO file if provided
-        let customerPoUrl: string | undefined;
-        if (customerPoFile) {
-            // Auto-compress if it's an image
-            const fileToUpload = isImageFile(customerPoFile)
-                ? await compressImageToFile(customerPoFile, { maxWidth: 1200, maxHeight: 1200, quality: 0.8 })
-                : customerPoFile;
-
-            const fileExt = fileToUpload.name.split('.').pop();
-            const fileName = `customer-po/${Date.now()}.${fileExt}`;
-            const { error: uploadError } = await supabase.storage
-                .from('documents')
-                .upload(fileName, fileToUpload);
-
-            if (!uploadError) {
-                const { data: urlData } = supabase.storage
-                    .from('documents')
-                    .getPublicUrl(fileName);
-                customerPoUrl = urlData.publicUrl;
-            }
-        }
-
-        createSuratJalan.mutate({
-            recipientName,
-            recipientAddress,
-            recipientPhone,
-            recipientEmail,
-            items: selectedItems,
-            userId: user.id,
-            sourceLocation,
-            customNumber: customNumber.trim() || undefined, // Custom number or auto
-            customerPoUrl, // Optional attachment URL
+        reviewSuratJalan.mutate({
+            suratJalanId: selectedSj.id,
+            reviewedBy: user.id,
+            approved: isApproving,
+            notes: reviewNotes.trim() || undefined,
         }, {
             onSuccess: () => {
-                setDialogOpen(false);
-                setIsAlertOpen(true);
-                setSelectedCustomerId('');
-                setRecipientName('');
-                setRecipientAddress('');
-                setRecipientPhone('');
-                setRecipientEmail('');
-                setSelectedItems([]);
-                setSourceLocation('gudang');
-                setCustomNumber('');
-                setCustomerPoFile(null);
+                setReviewDialogOpen(false);
+                setSelectedSj(null);
+                setReviewNotes('');
             }
         });
     };
 
+    const handleViewDetail = (sj: any) => {
+        setSelectedSj(sj);
+        setDetailDialogOpen(true);
+    };
+
+    const getStatusBadge = (status: string) => {
+        switch (status) {
+            case 'pending_review':
+                return <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full flex items-center gap-1"><Clock className="h-3 w-3" /> Menunggu Review</span>;
+            case 'approved':
+                return <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full flex items-center gap-1"><CheckCircle className="h-3 w-3" /> Disetujui</span>;
+            case 'processing':
+                return <span className="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full flex items-center gap-1"><TruckIcon className="h-3 w-3" /> Diproses</span>;
+            case 'completed':
+                return <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full flex items-center gap-1"><CheckCircle className="h-3 w-3" /> Selesai</span>;
+            case 'rejected':
+                return <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full flex items-center gap-1"><XCircle className="h-3 w-3" /> Ditolak</span>;
+            case 'cancelled':
+                return <span className="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded-full">Dibatalkan</span>;
+            default:
+                return <span className="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded-full">{status}</span>;
+        }
+    };
+
     return (
-        <MainLayout
-            title="Surat Jalan (B2B)"
-            subtitle="Kelola pengiriman barang ke pihak luar (B2B)"
-            actions={
-                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                    <DialogTrigger asChild>
-                        <Button className="rounded-xl text-xs sm:text-sm">
-                            <Plus className="h-4 w-4 sm:mr-2" />
-                            <span className="hidden sm:inline">Buat Surat Jalan</span>
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-3xl rounded-3xl">
-                        <DialogHeader>
-                            <DialogTitle>Buat Surat Jalan B2B</DialogTitle>
-                        </DialogHeader>
-                        <div className="space-y-4 py-4">
-                            {/* Customer Selection */}
-                            <div className="space-y-2">
-                                <Label>Pilih Pelanggan</Label>
-                                <Select value={selectedCustomerId} onValueChange={handleCustomerSelect}>
-                                    <SelectTrigger className="rounded-xl h-11 bg-white border-gray-200">
-                                        <SelectValue placeholder="Pilih Pelanggan..." />
-                                    </SelectTrigger>
-                                    <SelectContent className="rounded-xl max-h-[200px]">
-                                        {customers.map(c => (
-                                            <SelectItem key={c.id} value={c.id} className="rounded-lg my-1 cursor-pointer">
-                                                {c.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            {/* Custom Number & PO Attachment */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Nomor Surat Jalan</Label>
-                                    <Input
-                                        value={customNumber}
-                                        onChange={(e) => setCustomNumber(e.target.value)}
-                                        placeholder="SJ-001 (kosongkan untuk auto)"
-                                        className="rounded-xl h-11"
-                                    />
-                                    <p className="text-xs text-muted-foreground">Kosongkan jika ingin nomor otomatis</p>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Lampiran PO Pelanggan (opsional)</Label>
-                                    <Input
-                                        type="file"
-                                        accept=".pdf,.jpg,.jpeg,.png"
-                                        onChange={(e) => setCustomerPoFile(e.target.files?.[0] || null)}
-                                        className="rounded-xl h-11"
-                                    />
-                                    {customerPoFile && (
-                                        <p className="text-xs text-green-600">📎 {customerPoFile.name}</p>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Auto-filled customer info */}
-                            {selectedCustomerId && (
-                                <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl p-4 space-y-3 border border-indigo-100">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <p className="text-xs text-indigo-600 font-medium mb-1">Nama Penerima</p>
-                                            <p className="font-semibold text-gray-900">{recipientName}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-xs text-indigo-600 font-medium mb-1">No. Telepon</p>
-                                            <p className="font-semibold text-gray-900">{recipientPhone || '-'}</p>
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <p className="text-xs text-indigo-600 font-medium mb-1">Email</p>
-                                            <p className="font-semibold text-gray-900">{recipientEmail || '-'}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-xs text-indigo-600 font-medium mb-1">Alamat</p>
-                                            <p className="font-semibold text-gray-900">{recipientAddress || '-'}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            <div className="border-t pt-4">
-                                <h4 className="text-sm font-medium mb-4">Item Pengiriman</h4>
-
-                                {/* Source Location Selector */}
-                                <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
-                                    <Label className="text-blue-700 dark:text-blue-300 mb-2 block">Lokasi Asal Barang</Label>
-                                    <div className="flex gap-2">
-                                        <button
-                                            type="button"
-                                            onClick={() => { setSourceLocation('gudang'); setSelectedItems([]); setSelectedProduct(''); }}
-                                            className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${sourceLocation === 'gudang'
-                                                ? 'bg-blue-600 text-white shadow-md'
-                                                : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border'
-                                                }`}
-                                        >
-                                            📦 Gudang
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => { setSourceLocation('toko'); setSelectedItems([]); setSelectedProduct(''); }}
-                                            className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${sourceLocation === 'toko'
-                                                ? 'bg-green-600 text-white shadow-md'
-                                                : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border'
-                                                }`}
-                                        >
-                                            🏪 Toko
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div className="flex gap-4 items-end mb-4">
-                                    <div className="flex-1 space-y-2">
-                                        <Label>Produk dari {sourceLocation === 'gudang' ? 'Gudang' : 'Toko'}</Label>
-                                        <Select value={selectedProduct} onValueChange={setSelectedProduct}>
-                                            <SelectTrigger className="rounded-xl h-11 bg-white border-gray-200">
-                                                <SelectValue placeholder="Pilih Produk..." />
-                                            </SelectTrigger>
-                                            <SelectContent className="rounded-xl max-h-[200px]">
-                                                {products.map(p => (
-                                                    <SelectItem key={p.id} value={p.id} className="rounded-lg my-1 cursor-pointer">
-                                                        {p.name} (Stok: {sourceLocation === 'gudang' ? (p as any).stock_gudang : (p as any).stock_toko})
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="w-24 space-y-2">
-                                        <Label>Jumlah</Label>
-                                        <Input
-                                            type="number"
-                                            className="rounded-xl h-11"
-                                            value={quantity}
-                                            onChange={(e) => setQuantity(e.target.valueAsNumber)}
-                                            min="1"
-                                        />
-                                    </div>
-                                    <Button onClick={handleAddItem} type="button" className="h-11 rounded-xl px-4">
-                                        <Plus className="w-5 h-5" />
-                                    </Button>
-                                </div>
-
-                                {selectedItems.length > 0 && (
-                                    <div className="rounded-xl border overflow-hidden">
-                                        <table className="w-full text-sm">
-                                            <thead className="bg-gray-50">
-                                                <tr>
-                                                    <th className="px-4 py-3 text-left font-medium text-gray-500">Produk</th>
-                                                    <th className="px-4 py-3 text-center font-medium text-gray-500 w-24">Qty</th>
-                                                    <th className="px-4 py-3 text-right font-medium text-gray-500 w-16"></th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y">
-                                                {selectedItems.map((item, idx) => (
-                                                    <tr key={idx}>
-                                                        <td className="px-4 py-3">{item.productName}</td>
-                                                        <td className="px-4 py-3 text-center font-medium">{item.quantity}</td>
-                                                        <td className="px-4 py-3 text-right">
-                                                            <button
-                                                                onClick={() => handleRemoveItem(idx)}
-                                                                className="text-gray-400 hover:text-red-500 transition-colors"
-                                                            >
-                                                                <Trash2 className="w-4 h-4" />
-                                                            </button>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                        <DialogFooter>
-                            <Button variant="outline" onClick={() => setDialogOpen(false)} className="rounded-xl">Batal</Button>
-                            <Button onClick={handleSubmit} disabled={selectedItems.length === 0 || !selectedCustomerId} className="rounded-xl">
-                                Buat Surat Jalan
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-            }
-        >
+        <MainLayout title="Review Surat Jalan" subtitle="Review dan approve surat jalan dari Kasir">
             <div className="space-y-6">
                 <StatsGrid columns={4}>
                     <StatsCard
-                        title="Draft"
-                        value={stats.total}
-                        icon={<FileText className="w-5 h-5" />}
-                    />
-                    <StatsCard
-                        title="Proses Gudang"
-                        value={stats.pending}
-                        icon={<Package className="w-5 h-5" />}
+                        title="Perlu Review"
+                        value={stats.pendingReview}
+                        icon={<Clock className="w-5 h-5" />}
+                        subtitle={stats.pendingReview > 0 ? "butuh perhatian" : undefined}
                         subtitleType="warning"
                     />
                     <StatsCard
-                        title="Dikirim"
+                        title="Disetujui"
+                        value={stats.approved}
+                        icon={<CheckCircle className="w-5 h-5" />}
+                        subtitleType="info"
+                    />
+                    <StatsCard
+                        title="Dalam Pengiriman"
                         value={stats.processing}
                         icon={<TruckIcon className="w-5 h-5" />}
                         subtitleType="info"
@@ -407,149 +126,306 @@ export default function SuratJalanMainOffice() {
                     <StatsCard
                         title="Selesai"
                         value={stats.completed}
-                        icon={<CheckCircle className="w-5 h-5" />}
+                        icon={<Package className="w-5 h-5" />}
                         subtitleType="success"
                     />
                 </StatsGrid>
 
-                {/* Alert Dialog for Invoice Reminder */}
-                <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
-                    <AlertDialogContent className="rounded-2xl">
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>Surat Jalan Berhasil Dibuat!</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                Apakah Anda ingin langsung membuat <strong>Invoice/Tagihan</strong> untuk surat jalan ini?
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogAction onClick={() => {
-                                setIsAlertOpen(false);
-                                navigate('/invoices'); // Navigate to Invoices
-                            }} className="rounded-xl">
-                                Ya, Buat Invoice
-                            </AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
+                {/* Pending Review - Priority Section */}
+                {pendingReview.length > 0 && (
+                    <div>
+                        <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                            <Clock className="h-5 w-5 text-yellow-500" />
+                            Perlu Review ({pendingReview.length})
+                        </h3>
+                        <div className="grid gap-4">
+                            {pendingReview.map((sj: any) => (
+                                <div key={sj.id} className="bg-card border-2 border-yellow-300 rounded-xl p-6 shadow-md hover:shadow-lg transition-shadow">
+                                    <div className="flex flex-col lg:flex-row justify-between gap-4">
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                                <span className="font-bold text-xl">{sj.number}</span>
+                                                {getStatusBadge(sj.status)}
+                                                {sj.source_location === 'toko' ? (
+                                                    <span className="bg-green-50 text-green-700 text-xs px-2 py-1 rounded-full flex items-center gap-1">
+                                                        <Store className="h-3 w-3" /> Dari Toko
+                                                    </span>
+                                                ) : (
+                                                    <span className="bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded-full flex items-center gap-1">
+                                                        <Warehouse className="h-3 w-3" /> Dari Gudang
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                                                <div>
+                                                    <p className="text-sm text-muted-foreground">Penerima</p>
+                                                    <p className="font-semibold">{sj.recipient_name}</p>
+                                                    <p className="text-sm text-muted-foreground">{sj.recipient_address}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm text-muted-foreground">Dibuat</p>
+                                                    <p className="font-semibold">{format(new Date(sj.created_at), 'dd MMM yyyy, HH:mm', { locale: idLocale })}</p>
+                                                </div>
+                                            </div>
 
-                {/* Content Section */}
-                <div className="flex items-center justify-between">
-                    <h2 className="text-lg font-bold text-gray-900">Daftar Surat Jalan</h2>
-                    <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <Users className="h-4 w-4" />
-                        <span>{customers.length} Pelanggan Terdaftar</span>
+                                            {/* Items Preview */}
+                                            <div className="mt-4 bg-muted/50 p-3 rounded-md">
+                                                <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">Daftar Barang ({sj.items?.length || 0} item)</p>
+                                                <ul className="text-sm space-y-1">
+                                                    {sj.items?.slice(0, 3).map((item: any) => (
+                                                        <li key={item.id} className="flex gap-2">
+                                                            <span className="font-mono text-primary font-bold">{item.quantity}x</span>
+                                                            <span>{item.product_name}</span>
+                                                        </li>
+                                                    ))}
+                                                    {sj.items?.length > 3 && (
+                                                        <li className="text-xs text-muted-foreground">+{sj.items.length - 3} item lainnya</li>
+                                                    )}
+                                                </ul>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex flex-col gap-2 justify-center">
+                                            <Button
+                                                onClick={() => handleOpenReview(sj, true)}
+                                                className="bg-green-600 hover:bg-green-700"
+                                            >
+                                                <ThumbsUp className="mr-2 h-4 w-4" />
+                                                Setujui
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                onClick={() => handleOpenReview(sj, false)}
+                                                className="border-red-300 text-red-600 hover:bg-red-50"
+                                            >
+                                                <ThumbsDown className="mr-2 h-4 w-4" />
+                                                Tolak
+                                            </Button>
+                                            <Button variant="ghost" onClick={() => handleViewDetail(sj)} size="sm">
+                                                <Eye className="mr-2 h-4 w-4" />
+                                                Detail
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                </div>
+                )}
 
-                <div className="grid gap-4">
-                    {suratJalans.map((sj: any) => (
-                        <div key={sj.id} className="group bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-6 shadow-sm hover:shadow-xl hover:shadow-indigo-100/50 dark:hover:shadow-indigo-900/20 transition-all duration-300 hover:-translate-y-1">
-                            <div className="flex justify-between items-start mb-4">
-                                <div>
-                                    <div className="flex items-center gap-3 mb-2">
-                                        <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center shadow-lg shadow-indigo-200 dark:shadow-indigo-900/30">
+                {/* Empty State for Pending */}
+                {pendingReview.length === 0 && (
+                    <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-6 text-center">
+                        <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-3" />
+                        <h3 className="font-bold text-green-800 dark:text-green-200">Tidak Ada Yang Perlu Direview</h3>
+                        <p className="text-sm text-green-600 dark:text-green-400">Semua surat jalan sudah ditinjau</p>
+                    </div>
+                )}
+
+                {/* All Orders Overview */}
+                <div>
+                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-primary" />
+                        Semua Surat Jalan
+                    </h3>
+                    <div className="grid gap-3">
+                        {suratJalans.map((sj: any) => (
+                            <div
+                                key={sj.id}
+                                className="bg-card border rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer"
+                                onClick={() => handleViewDetail(sj)}
+                            >
+                                <div className="flex justify-between items-center">
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center">
                                             <FileText className="h-5 w-5 text-white" />
                                         </div>
                                         <div>
-                                            <span className="font-bold text-lg text-gray-900 dark:text-white">{sj.number}</span>
-                                            <div className="mt-0.5">
-                                                <StatusBadge status={sj.status} />
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-bold">{sj.number}</span>
+                                                {getStatusBadge(sj.status)}
                                             </div>
+                                            <p className="text-sm text-muted-foreground">{sj.recipient_name}</p>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2 mt-3 ml-13">
-                                        <span className="text-gray-900 dark:text-white font-semibold">{sj.recipient_name}</span>
-                                        <ArrowRight className="h-4 w-4 text-gray-300" />
-                                        <span className="text-gray-500 text-sm">{sj.recipient_address || 'Alamat tidak tersedia'}</span>
+                                    <div className="text-right text-sm text-muted-foreground">
+                                        {format(new Date(sj.created_at), 'dd MMM yyyy', { locale: idLocale })}
                                     </div>
-                                    <p className="text-xs text-gray-400 mt-2 ml-13">
-                                        Dibuat: {format(new Date(sj.created_at), 'dd MMM yyyy, HH:mm', { locale: idLocale })}
-                                    </p>
                                 </div>
-                                {sj.status === 'pending_warehouse' && (
-                                    <Button
-                                        variant="destructive"
-                                        size="sm"
-                                        onClick={() => cancelSuratJalan.mutate(sj.id)}
-                                        className="rounded-xl opacity-0 group-hover:opacity-100 transition-opacity"
-                                    >
-                                        Batalkan
-                                    </Button>
+                            </div>
+                        ))}
+
+                        {suratJalans.length === 0 && (
+                            <div className="text-center py-8 bg-muted/20 rounded-lg border border-dashed">
+                                <p className="text-muted-foreground">Belum ada surat jalan</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Review Dialog */}
+            <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
+                <DialogContent className="rounded-2xl">
+                    <DialogHeader>
+                        <DialogTitle className={isApproving ? 'text-green-700' : 'text-red-700'}>
+                            {isApproving ? '✅ Setujui Surat Jalan' : '❌ Tolak Surat Jalan'}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {isApproving
+                                ? 'Surat jalan akan diteruskan ke Kasir untuk diproses.'
+                                : 'Surat jalan akan ditolak dan dikembalikan ke Kasir.'}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {selectedSj && (
+                        <div className="bg-muted p-4 rounded-md my-2 text-sm space-y-1">
+                            <p><b>No. Surat Jalan:</b> {selectedSj.number}</p>
+                            <p><b>Penerima:</b> {selectedSj.recipient_name}</p>
+                            <p><b>Total Item:</b> {selectedSj.items?.length} jenis barang</p>
+                        </div>
+                    )}
+
+                    <div className="space-y-2">
+                        <Label>{isApproving ? 'Catatan (opsional)' : 'Alasan Penolakan'}</Label>
+                        <Textarea
+                            value={reviewNotes}
+                            onChange={(e) => setReviewNotes(e.target.value)}
+                            placeholder={isApproving ? 'Tambahkan catatan jika diperlukan...' : 'Jelaskan alasan penolakan...'}
+                            className="rounded-xl"
+                            rows={3}
+                        />
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setReviewDialogOpen(false)}>Batal</Button>
+                        <Button
+                            onClick={handleSubmitReview}
+                            disabled={reviewSuratJalan.isPending || (!isApproving && !reviewNotes.trim())}
+                            className={isApproving ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}
+                        >
+                            {reviewSuratJalan.isPending ? 'Memproses...' : (isApproving ? 'Setujui' : 'Tolak')}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Detail Dialog */}
+            <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
+                <DialogContent className="max-w-2xl rounded-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Detail Surat Jalan</DialogTitle>
+                    </DialogHeader>
+
+                    {selectedSj && (
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-3">
+                                <span className="text-2xl font-bold">{selectedSj.number}</span>
+                                {getStatusBadge(selectedSj.status)}
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4 bg-muted p-4 rounded-lg">
+                                <div>
+                                    <p className="text-sm text-muted-foreground">Penerima</p>
+                                    <p className="font-semibold">{selectedSj.recipient_name}</p>
+                                </div>
+                                <div>
+                                    <p className="text-sm text-muted-foreground">Alamat</p>
+                                    <p className="font-semibold">{selectedSj.recipient_address || '-'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-sm text-muted-foreground">Telepon</p>
+                                    <p className="font-semibold">{selectedSj.recipient_phone || '-'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-sm text-muted-foreground">Lokasi Barang</p>
+                                    <p className="font-semibold">{selectedSj.source_location === 'toko' ? '🏪 Toko' : '📦 Gudang'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-sm text-muted-foreground">Dibuat</p>
+                                    <p className="font-semibold">{format(new Date(selectedSj.created_at), 'dd MMM yyyy, HH:mm', { locale: idLocale })}</p>
+                                </div>
+                                {selectedSj.reviewed_at && (
+                                    <div>
+                                        <p className="text-sm text-muted-foreground">Direview</p>
+                                        <p className="font-semibold">{format(new Date(selectedSj.reviewed_at), 'dd MMM yyyy, HH:mm', { locale: idLocale })}</p>
+                                    </div>
                                 )}
                             </div>
 
-                            <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 dark:from-gray-800 dark:to-gray-800/50 rounded-xl p-4 border border-gray-100 dark:border-gray-700">
-                                <h4 className="text-xs font-bold uppercase text-gray-400 mb-3 tracking-wider flex items-center gap-2">
-                                    <Package className="h-3.5 w-3.5" />
-                                    Item Pengiriman
-                                </h4>
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                                    {sj.items?.map((item: any) => (
-                                        <div key={item.id} className="bg-white dark:bg-gray-900 p-3 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm flex justify-between items-center">
-                                            <span className="font-medium text-gray-700 dark:text-gray-300 text-sm truncate">{item.product_name}</span>
-                                            <span className="font-mono bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 px-2 py-1 rounded text-xs font-bold ml-2 shrink-0">{item.quantity}</span>
+                            {selectedSj.review_notes && (
+                                <div className="bg-blue-50 p-3 rounded-lg">
+                                    <p className="text-sm font-medium text-blue-700">Catatan Review:</p>
+                                    <p className="text-sm text-blue-600">{selectedSj.review_notes}</p>
+                                </div>
+                            )}
+
+                            <div>
+                                <h4 className="font-semibold mb-2">Daftar Barang</h4>
+                                <div className="border rounded-lg overflow-hidden">
+                                    <table className="w-full text-sm">
+                                        <thead className="bg-muted">
+                                            <tr>
+                                                <th className="px-4 py-2 text-left">Produk</th>
+                                                <th className="px-4 py-2 text-center">Qty</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y">
+                                            {selectedSj.items?.map((item: any) => (
+                                                <tr key={item.id}>
+                                                    <td className="px-4 py-2">{item.product_name}</td>
+                                                    <td className="px-4 py-2 text-center font-mono font-bold">{item.quantity}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            {/* Delivery Proof (if completed) */}
+                            {selectedSj.status === 'completed' && (
+                                <div className="bg-green-50 p-4 rounded-lg space-y-3">
+                                    <h4 className="font-semibold text-green-800">Bukti Pengiriman</h4>
+                                    <div className="grid grid-cols-2 gap-4 text-sm">
+                                        <div>
+                                            <p className="text-green-700">Nama Pengirim:</p>
+                                            <p className="font-semibold">{selectedSj.sender_name || '-'}</p>
                                         </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Progress Tracking */}
-                            <div className="mt-6 flex items-center justify-between text-sm px-2">
-                                <div className={`flex flex-col items-center gap-1 ${sj.status !== 'cancelled' ? 'text-green-600' : 'text-gray-400'}`}>
-                                    <div className={`h-8 w-8 rounded-full flex items-center justify-center ${sj.status !== 'cancelled' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-gray-100'}`}>
-                                        <CheckCircle className="h-4 w-4" />
+                                        <div>
+                                            <p className="text-green-700">Nama Penerima:</p>
+                                            <p className="font-semibold">{selectedSj.receiver_name || '-'}</p>
+                                        </div>
                                     </div>
-                                    <span className="font-medium text-xs">Main Office</span>
-                                </div>
-
-                                <div className={`h-0.5 flex-1 mx-2 rounded-full ${['processing', 'completed'].includes(sj.status) ? 'bg-green-400' : 'bg-gray-200 dark:bg-gray-700'}`} />
-
-                                <div className={`flex flex-col items-center gap-1 ${['processing', 'completed'].includes(sj.status) ? 'text-green-600' : 'text-gray-400'}`}>
-                                    <div className={`h-8 w-8 rounded-full flex items-center justify-center ${['processing', 'completed'].includes(sj.status) ? 'bg-green-100 dark:bg-green-900/30' : 'bg-gray-100 dark:bg-gray-800'}`}>
-                                        {['processing', 'completed'].includes(sj.status) ? <CheckCircle className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
+                                    {selectedSj.delivery_photo_url && (
+                                        <div>
+                                            <p className="text-green-700 text-sm mb-1">Foto Bukti:</p>
+                                            <img src={selectedSj.delivery_photo_url} alt="Bukti pengiriman" className="rounded-lg max-h-40 object-cover" />
+                                        </div>
+                                    )}
+                                    <div className="grid grid-cols-2 gap-4">
+                                        {selectedSj.sender_signature_url && (
+                                            <div>
+                                                <p className="text-green-700 text-sm mb-1">Tanda Tangan Pengirim:</p>
+                                                <img src={selectedSj.sender_signature_url} alt="TTD Pengirim" className="rounded-lg border bg-white max-h-24" />
+                                            </div>
+                                        )}
+                                        {selectedSj.receiver_signature_url && (
+                                            <div>
+                                                <p className="text-green-700 text-sm mb-1">Tanda Tangan Penerima:</p>
+                                                <img src={selectedSj.receiver_signature_url} alt="TTD Penerima" className="rounded-lg border bg-white max-h-24" />
+                                            </div>
+                                        )}
                                     </div>
-                                    <span className="font-medium text-xs">Gudang</span>
                                 </div>
-
-                                <div className={`h-0.5 flex-1 mx-2 rounded-full ${sj.status === 'completed' ? 'bg-green-400' : 'bg-gray-200 dark:bg-gray-700'}`} />
-
-                                <div className={`flex flex-col items-center gap-1 ${sj.status === 'completed' ? 'text-green-600' : 'text-gray-400'}`}>
-                                    <div className={`h-8 w-8 rounded-full flex items-center justify-center ${sj.status === 'completed' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-gray-100 dark:bg-gray-800'}`}>
-                                        {sj.status === 'completed' ? <CheckCircle className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
-                                    </div>
-                                    <span className="font-medium text-xs">Auditor</span>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-
-                    {suratJalans.length === 0 && (
-                        <div className="relative text-center py-16 bg-gradient-to-br from-gray-50 to-white dark:from-gray-900 dark:to-gray-800 rounded-3xl border-2 border-dashed border-gray-200 dark:border-gray-700 overflow-hidden">
-                            {/* Decorative elements */}
-                            <div className="absolute top-4 left-4 h-20 w-20 bg-indigo-100 dark:bg-indigo-900/30 rounded-full blur-2xl" />
-                            <div className="absolute bottom-4 right-4 h-32 w-32 bg-purple-100 dark:bg-purple-900/30 rounded-full blur-3xl" />
-
-                            <div className="relative z-10">
-                                <div className="mx-auto w-20 h-20 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center shadow-xl shadow-indigo-200 dark:shadow-indigo-900/30 mb-6">
-                                    <TruckIcon className="h-10 w-10 text-white" />
-                                </div>
-                                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Belum Ada Surat Jalan</h3>
-                                <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-sm mx-auto">
-                                    Mulai kelola pengiriman B2B Anda dengan membuat surat jalan pertama.
-                                </p>
-                                <Button
-                                    onClick={() => setDialogOpen(true)}
-                                    className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 rounded-xl shadow-lg shadow-indigo-200 dark:shadow-indigo-900/30"
-                                >
-                                    <Sparkles className="mr-2 h-4 w-4" />
-                                    Buat Surat Jalan Pertama
-                                </Button>
-                            </div>
+                            )}
                         </div>
                     )}
-                </div>
-            </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDetailDialogOpen(false)}>Tutup</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </MainLayout>
     );
 }
-

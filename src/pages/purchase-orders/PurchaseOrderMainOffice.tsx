@@ -41,6 +41,8 @@ import {
     usePurchaseOrder,
     useCreatePurchaseOrder,
 } from '@/hooks/usePurchaseOrders';
+import { useStoreSettings } from '@/hooks/useStoreSettings';
+import PrintPurchaseOrder from '@/components/print/PrintPurchaseOrder';
 import { PurchaseOrder, PODestination, Product } from '@/types';
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
@@ -70,6 +72,7 @@ export default function PurchaseOrderMainOffice() {
     const { products, loading: productsLoading } = useData();
     const { data: suppliers = [], isLoading: suppliersLoading } = useSuppliers();
     const { data: purchaseOrders = [], isLoading: posLoading } = usePurchaseOrders();
+    const { data: storeSettings } = useStoreSettings();
     const createPO = useCreatePurchaseOrder();
 
     const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -692,86 +695,14 @@ export default function PurchaseOrderMainOffice() {
                     ) : selectedPO ? (
                         <>
                             {/* Printable Content */}
-                            <div
+                            <PrintPurchaseOrder
                                 ref={printRef}
-                                className="bg-white text-black p-6 print:p-0"
-                                style={{ fontFamily: 'Arial, sans-serif' }}
-                            >
-                                {/* Header */}
-                                <div className="text-center border-b-2 border-black pb-4 mb-4">
-                                    <h1 className="text-xl font-bold">PURCHASE ORDER</h1>
-                                    <p className="text-sm text-gray-600 mt-1">No: {selectedPO.po_number}</p>
-                                </div>
-
-                                {/* Info Grid */}
-                                <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
-                                    <div>
-                                        <p className="text-gray-500">Supplier</p>
-                                        <p className="font-semibold">{selectedPO.supplier?.name || '-'}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-gray-500">Tujuan</p>
-                                        <p className="font-semibold capitalize">{selectedPO.destination}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-gray-500">Tanggal</p>
-                                        <p className="font-semibold">{format(new Date(selectedPO.created_at), 'dd MMMM yyyy', { locale: localeId })}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-gray-500">Dibuat Oleh</p>
-                                        <p className="font-semibold">{selectedPO.created_by_name || '-'}</p>
-                                    </div>
-                                </div>
-
-                                {/* Items Table */}
-                                <table className="w-full text-sm border-collapse border border-gray-300 mb-4">
-                                    <thead>
-                                        <tr className="bg-gray-100">
-                                            <th className="border border-gray-300 p-2 text-left">No</th>
-                                            <th className="border border-gray-300 p-2 text-left">Produk</th>
-                                            <th className="border border-gray-300 p-2 text-right">Qty</th>
-                                            <th className="border border-gray-300 p-2 text-right">Harga</th>
-                                            <th className="border border-gray-300 p-2 text-right">Subtotal</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {selectedPO.items?.map((item, idx) => (
-                                            <tr key={item.id}>
-                                                <td className="border border-gray-300 p-2">{idx + 1}</td>
-                                                <td className="border border-gray-300 p-2">{item.product_name}</td>
-                                                <td className="border border-gray-300 p-2 text-right">{item.quantity}</td>
-                                                <td className="border border-gray-300 p-2 text-right">Rp {item.unit_price.toLocaleString('id-ID')}</td>
-                                                <td className="border border-gray-300 p-2 text-right">Rp {item.total_price.toLocaleString('id-ID')}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                    <tfoot>
-                                        <tr className="bg-gray-50 font-bold">
-                                            <td colSpan={4} className="border border-gray-300 p-2 text-right">TOTAL</td>
-                                            <td className="border border-gray-300 p-2 text-right">Rp {selectedPO.total_amount.toLocaleString('id-ID')}</td>
-                                        </tr>
-                                    </tfoot>
-                                </table>
-
-                                {selectedPO.notes && (
-                                    <div className="text-sm mb-4">
-                                        <p className="text-gray-500">Catatan:</p>
-                                        <p>{selectedPO.notes}</p>
-                                    </div>
-                                )}
-
-                                {/* Signature Area */}
-                                <div className="grid grid-cols-2 gap-8 mt-8 text-sm text-center">
-                                    <div>
-                                        <p className="mb-16">Dibuat Oleh,</p>
-                                        <p className="border-t border-black pt-1">{selectedPO.created_by_name || '(________________)'}</p>
-                                    </div>
-                                    <div>
-                                        <p className="mb-16">Disetujui Oleh,</p>
-                                        <p className="border-t border-black pt-1">(________________)</p>
-                                    </div>
-                                </div>
-                            </div>
+                                purchaseOrder={selectedPO}
+                                companyName={storeSettings?.store_name}
+                                companyAddress={storeSettings?.store_address}
+                                companyPhone={storeSettings?.store_phone}
+                                companyEmail={storeSettings?.store_email}
+                            />
 
                             {/* Actions */}
                             <div className="flex justify-end gap-3 pt-4 border-t">

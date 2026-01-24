@@ -41,6 +41,7 @@ const PurchaseOrderMainOffice = React.lazy(() => import('@/pages/purchase-orders
 const PurchaseOrderAuditor = React.lazy(() => import('@/pages/purchase-orders/PurchaseOrderAuditor'));
 const PurchaseOrderReceipt = React.lazy(() => import('@/pages/purchase-orders/PurchaseOrderReceipt'));
 const GeneralTransactions = React.lazy(() => import('@/pages/finance/GeneralTransactions'));
+const Backorders = React.lazy(() => import('@/pages/finance/Backorders'));
 const SalesHistory = React.lazy(() => import('@/pages/finance/SalesHistory'));
 const DailyStockReport = React.lazy(() => import('@/pages/reports/DailyStockReport'));
 const POS = React.lazy(() => import('./pages/POS'));
@@ -258,6 +259,12 @@ function AppRoutes() {
         <Route path="/finance/transactions" element={
           <ProtectedRoute>
             <GeneralTransactions />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/finance/backorders" element={
+          <ProtectedRoute>
+            <Backorders />
           </ProtectedRoute>
         } />
 

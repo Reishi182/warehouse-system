@@ -544,3 +544,39 @@ export interface StockReturn {
   updated_at: string;
   items?: StockReturnItem[];
 }
+
+// ==================================================
+// BACKORDER SYSTEM TYPES
+// ==================================================
+
+export type BackorderStatus = 'pending' | 'partial' | 'fulfilled' | 'cancelled';
+
+export interface Backorder {
+  id: string;
+  backorder_number: string;
+  customer_name: string;
+  customer_phone?: string | null;
+  product_id?: string | null;
+  product?: Product; // joined
+  product_name: string;
+  barcode?: string | null;
+  quantity_ordered: number;
+  quantity_fulfilled: number;
+  unit_price: number;
+  status: BackorderStatus;
+  stock_location: Location;
+  original_sale_id?: string | null;
+  fulfilled_sale_id?: string | null;
+  notes?: string | null;
+  created_by?: string | null;
+  created_by_name?: string | null;
+  fulfilled_by?: string | null;
+  fulfilled_by_name?: string | null;
+  fulfilled_at?: string | null;
+  cancelled_by?: string | null;
+  cancelled_by_name?: string | null;
+  cancelled_at?: string | null;
+  cancelled_reason?: string | null;
+  created_at: string;
+  updated_at: string;
+}

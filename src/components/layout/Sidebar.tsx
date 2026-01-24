@@ -26,6 +26,7 @@ import {
   FileStack, RotateCcw,
   Banknote,
   BookOpen,
+  ClipboardList,
 } from 'lucide-react';
 import { useAuth, useRole } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -130,6 +131,7 @@ const navGroups: NavItem[] = [
       { label: 'Riwayat Setoran', icon: Receipt, href: '/cash-history', roles: ['main_office', 'admin'] },
       { label: 'Transaksi Umum', icon: Banknote, href: '/finance/transactions', roles: ['main_office', 'admin'] },
       { label: 'Riwayat Penjualan', icon: Receipt, href: '/finance/sales-history', roles: ['cashier', 'main_office', 'admin'] },
+      { label: 'Backorder', icon: ClipboardList, href: '/finance/backorders', roles: ['cashier', 'main_office', 'admin'] },
     ],
   },
 
@@ -174,12 +176,12 @@ export default function Sidebar() {
 
   const filteredNavGroups = filterItems(navGroups);
 
-  // Flatten for mobile
+  // Flatten for mobile - limit to 3 items to make room for "More" with logout
   const flattenedItems = filteredNavGroups.flatMap(item =>
     item.children ? item.children : [item]
   );
-  const mobilePrimaryItems = flattenedItems.slice(0, 4);
-  const mobileMoreItems = flattenedItems.slice(4);
+  const mobilePrimaryItems = flattenedItems.slice(0, 3);
+  const mobileMoreItems = flattenedItems.slice(3);
   const isMoreActive = mobileMoreItems.some((item) => item.href === location.pathname);
 
   const toggleGroup = (label: string) => {
@@ -372,10 +374,10 @@ export default function Sidebar() {
             {!isCollapsed && (
               <div className="overflow-hidden">
                 <h1 className="text-lg font-bold text-foreground leading-tight whitespace-nowrap tracking-tight">
-                  Vertical<span className="text-primary">Inv</span>
+                  VMB
                 </h1>
                 <span className="text-xs text-muted-foreground font-medium tracking-wide uppercase">
-                  Enterprise
+                  System
                 </span>
               </div>
             )}

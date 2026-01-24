@@ -182,7 +182,9 @@ export default function POS() {
     }, [items]);
 
     const addToCart = useCallback((product: Product) => {
-        if (product.stock[stockLocation] <= 0) {
+        const availableStock = product.stock[stockLocation];
+
+        if (availableStock <= 0) {
             toast({
                 title: 'Stok habis',
                 description: `${product.name} tidak tersedia di ${stockLocation}`,
@@ -196,10 +198,10 @@ export default function POS() {
             if (idx >= 0) {
                 const next = [...prev];
                 const newQty = next[idx].quantity + 1;
-                if (newQty > product.stock[stockLocation]) {
+                if (newQty > availableStock) {
                     toast({
                         title: 'Stok tidak cukup',
-                        description: `Maksimal ${product.stock[stockLocation]} unit`,
+                        description: `Maksimal ${availableStock} unit tersedia`,
                         variant: 'destructive'
                     });
                     return prev;
