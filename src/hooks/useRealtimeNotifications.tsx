@@ -30,10 +30,11 @@ export function useRealtimeNotifications(userId?: string) {
                 (payload) => {
                     const notification = payload.new as Notification;
 
-                    // Show toast notification
+                    // Show toast notification with clickable link
                     toast({
                         title: notification.title,
-                        description: notification.message + (notification.link ? ' (Klik notification untuk melihat)' : ''),
+                        description: notification.message,
+                        link: notification.link,
                     });
 
                     // Play notification sound (optional)

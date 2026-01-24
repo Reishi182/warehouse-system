@@ -13,8 +13,12 @@ const locationConfig: Record<Location, { label: string; icon: React.ElementType;
   toko: { label: 'Toko', icon: Store, className: 'bg-accent/10 text-accent' },
 };
 
+// Default fallback config for unknown locations
+const defaultConfig = { label: 'Unknown', icon: MapPin, className: 'bg-muted/10 text-muted-foreground' };
+
 export default function LocationBadge({ location, className, showIcon = true }: LocationBadgeProps) {
-  const config = locationConfig[location];
+  // Use fallback config if location is undefined or not recognized
+  const config = location && locationConfig[location] ? locationConfig[location] : defaultConfig;
   const Icon = config.icon;
 
   return (
@@ -24,3 +28,4 @@ export default function LocationBadge({ location, className, showIcon = true }: 
     </span>
   );
 }
+
