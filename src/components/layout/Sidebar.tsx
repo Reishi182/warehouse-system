@@ -27,6 +27,7 @@ import {
   Banknote,
   BookOpen,
   ClipboardList,
+  AlertTriangle,
 } from 'lucide-react';
 import { useAuth, useRole } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
