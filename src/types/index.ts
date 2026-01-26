@@ -580,3 +580,62 @@ export interface Backorder {
   created_at: string;
   updated_at: string;
 }
+
+// ==================================================
+// PO CLAIMS SYSTEM TYPES
+// ==================================================
+
+export type POClaimStatus = 'pending' | 'in_progress' | 'resolved' | 'rejected';
+export type POClaimType = 'shortage' | 'damaged' | 'mixed';
+export type POResolutionType = 'refund' | 'replacement' | 'credit' | 'rejected';
+
+export interface ClaimedItem {
+  product_name: string;
+  qty_ordered: number;
+  qty_received: number;
+  qty_damaged: number;
+  unit_price: number;
+}
+
+export interface POClaim {
+  id: string;
+  claim_number: string;
+  po_receipt_id?: string | null;
+  purchase_order_id: string;
+  purchase_order?: PurchaseOrder; // joined
+  supplier_id?: string | null;
+  supplier?: Supplier; // joined
+  claim_type: POClaimType;
+  status: POClaimStatus;
+  total_claimed_amount: number;
+  claimed_items?: ClaimedItem[];
+  evidence_urls?: string[];
+  resolution_notes?: string | null;
+  resolution_type?: POResolutionType | null;
+  created_by?: string | null;
+  created_by_name?: string | null;
+  resolved_by?: string | null;
+  resolved_by_name?: string | null;
+  resolved_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// PO Receipt with discrepancy details
+export interface POReceiptWithDetails {
+  id: string;
+  purchase_order_id: string;
+  received_by?: string | null;
+  received_by_name?: string | null;
+  photo_url?: string | null;
+  signature_url?: string | null;
+  notes?: string | null;
+  has_discrepancy: boolean;
+  total_ordered: number;
+  total_received: number;
+  total_damaged: number;
+  discrepancy_details?: ClaimedItem[];
+  received_at: string;
+  created_at: string;
+  purchase_order?: PurchaseOrder;
+}

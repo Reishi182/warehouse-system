@@ -40,6 +40,7 @@ const Suppliers = React.lazy(() => import('@/pages/suppliers/Suppliers'));
 const PurchaseOrderMainOffice = React.lazy(() => import('@/pages/purchase-orders/PurchaseOrderMainOffice'));
 const PurchaseOrderAuditor = React.lazy(() => import('@/pages/purchase-orders/PurchaseOrderAuditor'));
 const PurchaseOrderReceipt = React.lazy(() => import('@/pages/purchase-orders/PurchaseOrderReceipt'));
+const PODiscrepancyReport = React.lazy(() => import('@/pages/purchase-orders/PODiscrepancyReport'));
 const GeneralTransactions = React.lazy(() => import('@/pages/finance/GeneralTransactions'));
 const Backorders = React.lazy(() => import('@/pages/finance/Backorders'));
 const SalesHistory = React.lazy(() => import('@/pages/finance/SalesHistory'));
@@ -246,6 +247,7 @@ function AppRoutes() {
         <Route path="/purchase-orders" element={<ProtectedRoute><PurchaseOrderMainOffice /></ProtectedRoute>} />
         <Route path="/purchase-orders/approval" element={<ProtectedRoute><PurchaseOrderAuditor /></ProtectedRoute>} />
         <Route path="/purchase-orders/receipt" element={<ProtectedRoute><PurchaseOrderReceipt /></ProtectedRoute>} />
+        <Route path="/purchase-orders/discrepancy" element={<ProtectedRoute><PODiscrepancyReport /></ProtectedRoute>} />
 
         {/* Direct Order Routes (Supplier -> Customer) */}
         <Route path="/direct-orders" element={<ProtectedRoute><DirectOrders /></ProtectedRoute>} />

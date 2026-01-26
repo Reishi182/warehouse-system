@@ -5,6 +5,7 @@ import {
   LowStockAlert,
   DashboardActivityHub,
   RoleCharts,
+  PODiscrepancyWidget,
 } from '@/components/dashboard';
 import { useAuth, useRole } from '@/contexts/AuthContext';
 import { useData } from '@/contexts/DataContext';
@@ -61,6 +62,11 @@ export default function Dashboard() {
           suratJalans={suratJalans}
           cashTransfers={cashTransfers}
         />
+
+        {/* PO Discrepancy Widget - for main_office, auditor, admin */}
+        {(role === 'main_office' || role === 'auditor' || role === 'admin') && (
+          <PODiscrepancyWidget />
+        )}
 
         {/* Low Stock Alert - for warehouse and admin */}
         {(role === 'warehouse' || role === 'admin') && lowStockProducts.length > 0 && (

@@ -21,3 +21,6 @@ export { default as RevenueSummaryCards } from './RevenueSummaryCards';
 export { default as RevenueComparisonChart } from './RevenueComparisonChart';
 export { default as RevenueByPaymentChart } from './RevenueByPaymentChart';
 export { default as TopRevenueProducts } from './TopRevenueProducts';
+
+// PO Discrepancy Widget
+export { default as PODiscrepancyWidget } from './PODiscrepancyWidget';
