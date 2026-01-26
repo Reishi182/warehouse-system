@@ -31,6 +31,7 @@ import {
   ArrowLeftRight,
 } from 'lucide-react';
 import { useAuth, useRole } from '@/contexts/AuthContext';
+import { usePendingCounts } from '@/hooks/usePendingCounts';
 import { cn } from '@/lib/utils';
 import { UserRole } from '@/types';
 import {
@@ -57,6 +58,7 @@ interface NavItem {
   href?: string;
   roles: UserRole[];
   children?: NavItem[];
+  badgeKey?: 'suratJalan' | 'stockRequests' | 'stockReturns'; // Key for pending count
 }
 
 // Grouped navigation with submenus
@@ -78,9 +80,10 @@ const navGroups: NavItem[] = [
       { label: 'Permintaan Stok', icon: ArrowUpFromLine, href: '/requests', roles: ['cashier', 'admin'] },
       { label: 'Retur ke Gudang', icon: RotateCcw, href: '/stock-return', roles: ['cashier', 'admin'] },
       { label: 'Proses Permintaan', icon: Package, href: '/requests/shipments', roles: ['warehouse', 'admin'] },
-      { label: 'Persetujuan Stok', icon: ClipboardCheck, href: '/requests/approval', roles: ['main_office', 'admin'] },
-      { label: 'Approval Retur', icon: ClipboardCheck, href: '/stock-return/approval', roles: ['main_office', 'admin'] },
+      { label: 'Persetujuan Stok', icon: ClipboardCheck, href: '/requests/approval', roles: ['main_office', 'admin'], badgeKey: 'stockRequests' },
+      { label: 'Approval Retur', icon: ClipboardCheck, href: '/stock-return/approval', roles: ['main_office', 'admin'], badgeKey: 'stockReturns' },
       { label: 'Penerimaan Barang', icon: ArrowDownToLine, href: '/requests/receipt', roles: ['cashier', 'admin'] },
+      { label: 'History Stok', icon: BarChart3, href: '/stock/history', roles: ['warehouse', 'cashier', 'auditor', 'admin', 'main_office'] },
     ],
   },
 
@@ -92,7 +95,7 @@ const navGroups: NavItem[] = [
     children: [
       { label: 'Supplier', icon: Building2, href: '/suppliers', roles: ['main_office', 'admin'] },
       { label: 'Buat PO', icon: FileText, href: '/purchase-orders', roles: ['main_office', 'admin'] },
-      { label: 'Approval PO', icon: ClipboardCheck, href: '/purchase-orders/approval', roles: ['auditor', 'admin'] },
+      { label: 'Approval PO', icon: ClipboardCheck, href: '/purchase-orders/approval', roles: ['main_office', 'admin'] }, // Changed from auditor to main_office
       { label: 'Penerimaan PO', icon: ArrowDownToLine, href: '/purchase-orders/receipt', roles: ['warehouse', 'cashier', 'admin'] },
       { label: 'Selisih & Klaim', icon: AlertTriangle, href: '/purchase-orders/discrepancy', roles: ['main_office', 'auditor', 'admin'] },
       { label: 'Direct Order', icon: Truck, href: '/direct-orders', roles: ['main_office', 'admin'] },
@@ -139,7 +142,7 @@ const navGroups: NavItem[] = [
     ],
   },
 
-  { label: 'Persetujuan', icon: ClipboardCheck, href: '/approval', roles: ['auditor', 'admin'] },
+  { label: 'Persetujuan', icon: ClipboardCheck, href: '/approval', roles: ['main_office', 'admin'], badgeKey: 'suratJalan' }, // Surat Jalan approval
 
   // Laporan submenu
   {
@@ -162,6 +165,7 @@ export default function Sidebar() {
   const role = useRole();
   const [isHovered, setIsHovered] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
+  const { counts: pendingCounts } = usePendingCounts();
 
   // Filter nav items based on role
   const filterItems = (items: NavItem[]): NavItem[] => {
@@ -188,7 +192,11 @@ export default function Sidebar() {
   const mobileMoreItems = flattenedItems.slice(3);
   const isMoreActive = mobileMoreItems.some((item) => item.href === location.pathname);
 
-  const toggleGroup = (label: string) => {
+  const toggleGroup = (label: string, event?: React.MouseEvent) => {
+    // Prevent default button behavior that might cause scroll
+    if (event) {
+      event.preventDefault();
+    }
     setExpandedGroups(prev =>
       prev.includes(label)
         ? prev.filter(g => g !== label)
@@ -229,12 +237,13 @@ export default function Sidebar() {
   const NavLink = ({ item, isSubItem = false }: { item: NavItem; isSubItem?: boolean }) => {
     if (!item.href) return null;
     const isActive = location.pathname === item.href;
+    const badgeCount = item.badgeKey ? pendingCounts[item.badgeKey] : 0;
 
     const linkContent = (
       <Link
         to={item.href}
         className={cn(
-          'flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 group',
+          'flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 group relative',
           isCollapsed && 'justify-center px-2',
           isSubItem && !isCollapsed && 'ml-4 pl-6 border-l-2 border-muted',
           isActive
@@ -249,10 +258,22 @@ export default function Sidebar() {
         )} />
         {!isCollapsed && (
           <span className={cn(
-            'text-sm font-medium transition-opacity duration-200 whitespace-nowrap',
+            'text-sm font-medium transition-opacity duration-200 whitespace-nowrap flex-1',
             isActive && 'font-semibold'
           )}>
             {item.label}
+          </span>
+        )}
+        {/* Pending count badge */}
+        {badgeCount > 0 && (
+          <span className={cn(
+            'min-w-5 h-5 flex items-center justify-center rounded-full text-xs font-bold',
+            isActive
+              ? 'bg-primary-foreground text-primary'
+              : 'bg-destructive text-destructive-foreground',
+            isCollapsed && 'absolute -top-1 -right-1 min-w-4 h-4 text-[10px]'
+          )}>
+            {badgeCount > 99 ? '99+' : badgeCount}
           </span>
         )}
       </Link>
@@ -324,23 +345,30 @@ export default function Sidebar() {
 
     return (
       <Collapsible open={isExpanded} onOpenChange={() => toggleGroup(item.label)}>
-        <CollapsibleTrigger className={cn(
-          'flex items-center justify-between w-full px-3 py-2.5 rounded-xl transition-all duration-200',
-          hasActiveChild
-            ? 'bg-primary/10 text-primary'
-            : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground'
-        )}>
-          <div className="flex items-center gap-3">
-            <item.icon className="w-4 h-4 flex-shrink-0" />
-            <span className="text-sm font-medium">{item.label}</span>
-          </div>
-          {isExpanded ? (
-            <ChevronDown className="w-4 h-4" />
-          ) : (
-            <ChevronRight className="w-4 h-4" />
-          )}
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className={cn(
+              'flex items-center justify-between w-full px-3 py-2.5 rounded-xl transition-all duration-200',
+              hasActiveChild
+                ? 'bg-primary/10 text-primary'
+                : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground'
+            )}
+          >
+            <div className="flex items-center gap-3">
+              <item.icon className="w-4 h-4 flex-shrink-0" />
+              <span className="text-sm font-medium">{item.label}</span>
+            </div>
+            {isExpanded ? (
+              <ChevronDown className="w-4 h-4" />
+            ) : (
+              <ChevronRight className="w-4 h-4" />
+            )}
+          </button>
         </CollapsibleTrigger>
-        <CollapsibleContent className="mt-1 space-y-1">
+        <CollapsibleContent
+          className="mt-1 space-y-1 overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down"
+        >
           {item.children.map(child => (
             <NavLink key={child.href} item={child} isSubItem />
           ))}

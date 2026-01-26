@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { ChevronRight } from 'lucide-react';
+import { NotificationBell } from './NotificationBell';
 
 interface HeaderProps {
   title: string;
@@ -25,12 +26,12 @@ export default function Header({ title, subtitle, actions }: HeaderProps) {
         </div>
       </div>
 
-      {/* Action Buttons - Responsive */}
-      {actions && (
-        <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-end sm:justify-start">
-          {actions}
-        </div>
-      )}
+      {/* Action Buttons & Notifications - Responsive */}
+      <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-end sm:justify-start">
+        <NotificationBell />
+        {actions}
+      </div>
     </header>
   );
 }
+

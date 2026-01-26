@@ -15,7 +15,7 @@ export function usePOsWithDiscrepancy() {
     return useQuery({
         queryKey: ['purchase_orders', 'with_discrepancy'],
         queryFn: async () => {
-            // Fetch POs with completed_with_discrepancy status
+            // Fetch POs with completed_with_discrepancy status (includes those with in-progress claims)
             const { data: pos, error: poError } = await supabase
                 .from('purchase_orders')
                 .select(`
@@ -27,7 +27,7 @@ export function usePOsWithDiscrepancy() {
 
             if (poError) throw poError;
 
-            // For each PO, fetch the receipt with discrepancy details
+            // For each PO, fetch the receipt with discrepancy details and active claim
             const posWithReceipts = await Promise.all(
                 (pos || []).map(async (po) => {
                     const { data: receipts } = await supabase
@@ -46,6 +46,16 @@ export function usePOsWithDiscrepancy() {
                         .select('*')
                         .eq('purchase_order_id', po.id);
 
+                    // Fetch active claim for this PO (pending or in_progress)
+                    const { data: activeClaims } = await supabase
+                        .from('po_claims')
+                        .select('id, claim_number, status')
+                        .eq('purchase_order_id', po.id)
+                        .in('status', ['pending', 'in_progress'])
+                        .limit(1);
+
+                    const activeClaim = activeClaims?.[0] || null;
+
                     return {
                         ...po,
                         items: items || [],
@@ -53,11 +63,12 @@ export function usePOsWithDiscrepancy() {
                             ...receipt,
                             discrepancy_details: receipt.discrepancy_details || [],
                         } : null,
+                        activeClaim,
                     };
                 })
             );
 
-            return posWithReceipts as (PurchaseOrder & { receipt: POReceiptWithDetails | null })[];
+            return posWithReceipts as (PurchaseOrder & { receipt: POReceiptWithDetails | null; activeClaim: { id: string; claim_number: string; status: string } | null })[];
         },
     });
 }
@@ -245,6 +256,7 @@ export function useCreatePOClaim() {
         onSuccess: (claim) => {
             queryClient.invalidateQueries({ queryKey: ['po_claims'] });
             queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
+            queryClient.invalidateQueries({ queryKey: ['purchase_orders', 'with_discrepancy'] });
             queryClient.invalidateQueries({ queryKey: ['po_discrepancy_stats'] });
 
             toast({
@@ -308,16 +320,30 @@ export function useUpdatePOClaimStatus() {
                 .from('po_claims')
                 .update(updateData)
                 .eq('id', input.claimId)
-                .select()
+                .select(`*, purchase_order_id`)
                 .single();
 
             if (error) throw error;
+
+            // When claim is resolved, update PO status to 'completed' so it disappears from discrepancy list
+            if (input.status === 'resolved' && data.purchase_order_id) {
+                await supabase
+                    .from('purchase_orders')
+                    .update({
+                        status: 'completed',
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', data.purchase_order_id);
+            }
+
             return data;
         },
         onSuccess: (claim) => {
             queryClient.invalidateQueries({ queryKey: ['po_claims'] });
             queryClient.invalidateQueries({ queryKey: ['po_claim', claim.id] });
             queryClient.invalidateQueries({ queryKey: ['po_discrepancy_stats'] });
+            queryClient.invalidateQueries({ queryKey: ['purchase_orders', 'with_discrepancy'] });
+            queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
 
             const statusLabels: Record<string, string> = {
                 pending: 'Pending',

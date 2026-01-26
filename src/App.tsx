@@ -1,6 +1,5 @@
 import React, { Suspense } from 'react';
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
+import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
@@ -53,7 +52,9 @@ const MarketplaceReceipt = React.lazy(() => import('./pages/marketplace/Marketpl
 const MarketplaceReturns = React.lazy(() => import('./pages/marketplace/MarketplaceReturns'));
 const StockReturnCreate = React.lazy(() => import('@/pages/stock-return/StockReturnCreate'));
 const StockReturnApproval = React.lazy(() => import('@/pages/stock-return/StockReturnApproval'));
+const StockHistory = React.lazy(() => import('@/pages/stock/StockHistory'));
 const CustomerExchange = React.lazy(() => import('@/pages/exchange/CustomerExchange'));
+const NotificationHistory = React.lazy(() => import('@/pages/NotificationHistory'));
 const NotFound = React.lazy(() => import("./pages/NotFound"));
 const Guide = React.lazy(() => import("./pages/Guide"));
 
@@ -275,8 +276,14 @@ function AppRoutes() {
         <Route path="/stock-return" element={<ProtectedRoute><StockReturnCreate /></ProtectedRoute>} />
         <Route path="/stock-return/approval" element={<ProtectedRoute><StockReturnApproval /></ProtectedRoute>} />
 
+        {/* Stock History */}
+        <Route path="/stock/history" element={<ProtectedRoute><StockHistory /></ProtectedRoute>} />
+
         {/* Customer Exchange (Tukar Barang) */}
         <Route path="/exchange" element={<ProtectedRoute><CustomerExchange /></ProtectedRoute>} />
+
+        {/* Notification History */}
+        <Route path="/notifications" element={<ProtectedRoute><NotificationHistory /></ProtectedRoute>} />
 
         <Route path="*" element={<NotFound />} />
       </Routes>
@@ -293,7 +300,6 @@ const App = () => (
             <SidebarProvider>
               <TooltipProvider>
                 <Toaster />
-                <Sonner />
                 <HashRouter>
                   <RealtimeNotificationProvider>
                     <AppRoutes />

@@ -62,7 +62,8 @@ export default function PODiscrepancyReport() {
     // Queries
     const { data: posWithDiscrepancy = [], isLoading: loadingPOs } = usePOsWithDiscrepancy();
     const { data: stats, isLoading: loadingStats } = usePODiscrepancyStats();
-    const { data: claims = [], isLoading: loadingClaims } = usePOClaims();
+    const { data: allClaims = [] } = usePOClaims(); // For lookup in update status
+    const { data: historyClaims = [], isLoading: loadingClaims } = usePOClaims(['resolved', 'rejected']); // History only
 
     // Mutations
     const createClaim = useCreatePOClaim();
@@ -301,28 +302,49 @@ export default function PODiscrepancyReport() {
             ),
         },
         {
-            header: 'Klaim',
-            accessorKey: 'has_claim',
-            cell: (po) => (
-                po.has_claim ? (
-                    <Badge variant="info">Ada Klaim</Badge>
-                ) : (
-                    <Badge variant="outline">Belum</Badge>
-                )
-            ),
+            header: 'Status Klaim',
+            accessorKey: 'activeClaim',
+            cell: (po: any) => {
+                if (po.activeClaim) {
+                    const statusConfig: Record<string, { label: string; variant: 'warning' | 'info' }> = {
+                        pending: { label: 'Pending', variant: 'warning' },
+                        in_progress: { label: 'Dalam Proses', variant: 'info' },
+                    };
+                    const config = statusConfig[po.activeClaim.status] || statusConfig.pending;
+                    return (
+                        <div className="flex flex-col gap-1">
+                            <Badge variant={config.variant}>{config.label}</Badge>
+                            <span className="text-xs text-muted-foreground font-mono">{po.activeClaim.claim_number}</span>
+                        </div>
+                    );
+                }
+                return <Badge variant="outline">Belum Diklaim</Badge>;
+            },
         },
         {
             header: 'Aksi',
             sortable: false,
-            cell: (po) => (
+            cell: (po: any) => (
                 <div className="flex items-center gap-2">
                     <Button size="sm" variant="outline" onClick={() => handleViewPO(po)}>
                         <Eye className="w-4 h-4" />
                     </Button>
-                    {!po.has_claim && (
+                    {!po.activeClaim ? (
                         <Button size="sm" onClick={() => handleOpenClaimDialog(po)} className="gap-1">
                             <Plus className="w-4 h-4" />
                             Klaim
+                        </Button>
+                    ) : (
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                                // Find the claim and open update status
+                                const claim = allClaims.find(c => c.id === po.activeClaim.id);
+                                if (claim) handleOpenUpdateStatus(claim);
+                            }}
+                        >
+                            Update
                         </Button>
                     )}
                 </div>
@@ -436,7 +458,7 @@ export default function PODiscrepancyReport() {
                         </TabsTrigger>
                         <TabsTrigger value="claims" className="gap-2">
                             <FileText className="w-4 h-4" />
-                            Daftar Klaim ({claims.length})
+                            Daftar Klaim ({historyClaims.length})
                         </TabsTrigger>
                     </TabsList>
 
@@ -456,7 +478,7 @@ export default function PODiscrepancyReport() {
 
                     <TabsContent value="claims" className="mt-4">
                         <BeautifulTable
-                            data={claims}
+                            data={historyClaims}
                             columns={claimsColumns}
                             title="Daftar Klaim Supplier"
                             hideSelection

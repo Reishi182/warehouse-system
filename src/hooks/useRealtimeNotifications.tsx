@@ -1,24 +1,46 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { Notification, UserRole } from '@/types';
+import {
+    connectionManager,
+    notificationQueue,
+    sendNotificationWithRetry,
+    sendNotificationToRoleWithRetry,
+    sendNotificationToUserWithRetry,
+    ConnectionStatus,
+    NotificationPayload,
+} from '@/lib/notificationManager';
 
 /**
  * Hook to subscribe to real-time notifications for the current user.
- * Shows a toast when a new notification arrives and invalidates queries.
+ * Features:
+ * - Automatic reconnection with exponential backoff
+ * - Heartbeat/ping for connection monitoring
+ * - Failed notification queue with retry
  */
 export function useRealtimeNotifications(userId?: string) {
     const { toast } = useToast();
     const queryClient = useQueryClient();
+    const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
     const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
+    // Subscribe to connection status changes
+    useEffect(() => {
+        const unsubscribe = connectionManager.onStatusChange(setConnectionStatus);
+        return unsubscribe;
+    }, []);
+
+    // Main subscription effect
     useEffect(() => {
         if (!userId) return;
 
+        const channelName = `notifications:${userId}`;
+
         // Create channel for notifications
         const channel = supabase
-            .channel(`notifications:${userId}`)
+            .channel(channelName)
             .on(
                 'postgres_changes',
                 {
@@ -50,16 +72,27 @@ export function useRealtimeNotifications(userId?: string) {
                     queryClient.invalidateQueries({ queryKey: ['notifications'] });
                 }
             )
-            .subscribe();
+            .subscribe((status) => {
+                console.log(`[useRealtimeNotifications] Channel ${channelName} status:`, status);
+                if (status === 'SUBSCRIBED') {
+                    connectionManager.startHeartbeat();
+                }
+            });
 
         channelRef.current = channel;
+        connectionManager.registerChannel(channelName, channel);
+
+        // Process any queued failed notifications
+        notificationQueue.processQueue();
 
         return () => {
             if (channelRef.current) {
-                supabase.removeChannel(channelRef.current);
+                connectionManager.unregisterChannel(channelName);
             }
         };
     }, [userId, toast, queryClient]);
+
+    return { connectionStatus };
 }
 
 /**
@@ -125,6 +158,7 @@ export async function sendNotificationToRole(
 
 /**
  * Send notification to a specific user by their ID.
+ * Uses retry mechanism - failed notifications are queued for later retry.
  */
 export async function sendNotificationToUser(
     userId: string,
@@ -135,22 +169,10 @@ export async function sendNotificationToUser(
         link?: string;
     }
 ) {
-    try {
-        const { error } = await supabase
-            .from('notifications')
-            .insert({
-                user_id: userId,
-                title: notification.title,
-                message: notification.message,
-                type: notification.type,
-                link: notification.link,
-                read: false,
-            });
-
-        if (error) {
-            console.error('Error sending notification to user:', error);
-        }
-    } catch (error) {
-        console.error('Error sending notification:', error);
-    }
+    // Use the retry-enabled version
+    return sendNotificationToUserWithRetry(userId, notification);
 }
+
+// Re-export for convenience
+export { sendNotificationToRoleWithRetry, sendNotificationToUserWithRetry };
+

@@ -179,7 +179,7 @@ export function useCreatePurchaseOrder() {
                     po_number: poNumber,
                     supplier_id: input.supplierId,
                     destination: input.destination,
-                    status: 'pending_auditor',
+                    status: 'pending_receipt', // Skip auditor approval - PO created by main_office goes directly to receipt
                     total_amount: totalAmount,
                     notes: input.notes || null,
                     created_by: input.createdBy,
@@ -215,12 +215,12 @@ export function useCreatePurchaseOrder() {
                 description: 'Purchase Order berhasil dibuat',
             });
 
-            // Notify auditors about new PO
-            sendNotificationToRole('auditor', {
-                title: 'PO Baru Menunggu Approval',
-                message: `Purchase Order ${po.po_number} membutuhkan persetujuan Anda`,
+            // Notify warehouse/cashier about new PO ready for receipt
+            sendNotificationToRole('warehouse', {
+                title: 'PO Baru Siap Diterima',
+                message: `Purchase Order ${po.po_number} siap untuk penerimaan barang`,
                 type: 'info',
-                link: '/purchase-orders/auditor',
+                link: '/purchase-orders/receipt',
             });
         },
         onError: (error: Error) => {

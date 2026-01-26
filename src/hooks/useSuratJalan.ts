@@ -127,12 +127,12 @@ export function useCreateSuratJalan() {
                 description: 'Surat jalan berhasil dibuat',
             });
 
-            // Notify auditor for approval
-            sendNotificationToRole('auditor', {
+            // Notify main_office for approval (changed from auditor)
+            sendNotificationToRole('main_office', {
                 title: '📦 Surat Jalan Baru',
                 message: `Surat Jalan ${sj.number} menunggu persetujuan`,
                 type: 'info',
-                link: '/surat-jalan/approval',
+                link: '/approval',
             });
         },
         onError: (error: Error) => {

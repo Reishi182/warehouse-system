@@ -1,61 +1,80 @@
-import toast, { Toaster } from 'react-hot-toast';
+import { toast as sonnerToast } from 'sonner';
+import { CheckCircle, XCircle, AlertTriangle, Info, ExternalLink } from 'lucide-react';
+import React from 'react';
 
 /**
- * Wrapper hook for react-hot-toast that maintains the same API
- * as the original shadcn/ui toast for backwards compatibility.
+ * Clean toast wrapper using Sonner
+ * Simple white/yellow design with icons
  */
-
-// Global map to store links for each toast
-export const toastLinks = new Map<string, string>();
 
 export interface ToastProps {
   title?: string;
   description?: string;
-  variant?: 'default' | 'destructive' | 'success';
+  variant?: 'default' | 'destructive' | 'success' | 'warning' | 'info';
   link?: string;
 }
 
 function showToast(props: ToastProps) {
-  const { title, description, variant, link } = props;
-  const message = title + (description ? `: ${description}` : '');
+  const { title, description, variant = 'default', link } = props;
 
-  // Create toast and store link if provided
-  let toastId: string;
+  // Build action button if link provided
+  const action = link ? {
+    label: 'Lihat Detail',
+    onClick: () => {
+      window.location.hash = link;
+    },
+  } : undefined;
 
-  if (variant === 'destructive') {
-    toastId = toast.error(message, {
-      duration: 5000,
-    });
-  } else if (variant === 'success') {
-    toastId = toast.success(message, {
-      duration: 4000,
-    });
-  } else {
-    // Default toast - use blank type for info style
-    toastId = toast(message, {
-      duration: 4000,
-    });
+  // Use Sonner's built-in toast types
+  switch (variant) {
+    case 'destructive':
+      return sonnerToast.error(title, {
+        description,
+        duration: 5000,
+        action,
+        icon: React.createElement(XCircle, { className: 'w-5 h-5 text-red-500' }),
+      });
+
+    case 'success':
+      return sonnerToast.success(title, {
+        description,
+        duration: 4000,
+        action,
+        icon: React.createElement(CheckCircle, { className: 'w-5 h-5 text-green-500' }),
+      });
+
+    case 'warning':
+      return sonnerToast.warning(title, {
+        description,
+        duration: 4000,
+        action,
+        icon: React.createElement(AlertTriangle, { className: 'w-5 h-5 text-amber-500' }),
+      });
+
+    case 'info':
+      return sonnerToast.info(title, {
+        description,
+        duration: 4000,
+        action,
+        icon: React.createElement(Info, { className: 'w-5 h-5 text-blue-500' }),
+      });
+
+    default:
+      return sonnerToast(title, {
+        description,
+        duration: 4000,
+        action,
+        icon: React.createElement(Info, { className: 'w-5 h-5 text-primary' }),
+      });
   }
-
-  // Store link in global map if provided
-  if (link && toastId) {
-    toastLinks.set(toastId, link);
-    // Clean up after toast disappears
-    setTimeout(() => {
-      toastLinks.delete(toastId);
-    }, 6000);
-  }
-
-  return toastId;
 }
 
 function useToast() {
   return {
     toast: showToast,
-    dismiss: toast.dismiss,
-    toasts: [], // For backwards compatibility - not used with react-hot-toast
+    dismiss: sonnerToast.dismiss,
+    toasts: [],
   };
 }
 
-export { useToast, showToast as toast, Toaster };
-
+export { useToast, showToast as toast };
