@@ -96,6 +96,9 @@ export interface SaleItem {
   price: number;
   subtotal: number;
   discount: number; // percentage discount per item
+  exchanged?: boolean; // true if item was exchanged
+  exchanged_qty?: number; // quantity that was exchanged
+  exchange_id?: string | null; // reference to exchange record
 }
 
 export interface Sale {
@@ -109,6 +112,7 @@ export interface Sale {
   order_discount: number; // percentage discount for entire order
   amount_paid: number; // amount customer paid
   change_amount: number; // change returned to customer
+  has_exchange?: boolean; // true if any item was exchanged
   created_at: string;
   items: SaleItem[];
 }
@@ -638,4 +642,59 @@ export interface POReceiptWithDetails {
   received_at: string;
   created_at: string;
   purchase_order?: PurchaseOrder;
+}
+
+// ==================================================
+// CUSTOMER EXCHANGE SYSTEM TYPES (Tukar Barang)
+// ==================================================
+
+export type ItemCondition = 'baik' | 'rusak';
+
+export interface ExchangeReturnedItem {
+  id: string;
+  exchange_id: string;
+  product_id?: string | null;
+  product_name: string;
+  barcode?: string | null;
+  quantity: number;
+  original_price: number;
+  subtotal: number;
+  condition: ItemCondition;
+  condition_note?: string | null;
+  created_at: string;
+  product?: Product;
+}
+
+export interface ExchangeNewItem {
+  id: string;
+  exchange_id: string;
+  product_id?: string | null;
+  product_name: string;
+  barcode?: string | null;
+  quantity: number;
+  price: number;
+  subtotal: number;
+  created_at: string;
+  product?: Product;
+}
+
+export interface CustomerExchange {
+  id: string;
+  exchange_number?: string | null;
+  original_sale_id?: string | null;
+  original_sale_number: string;
+  cashier_id?: string | null;
+  cashier_name: string;
+  stock_location: Location;
+  original_item_value: number;
+  new_item_value: number;
+  difference_amount: number;  // Positive = customer pays, Negative = customer gets refund
+  amount_paid: number;
+  change_given: number;
+  reason?: string | null;
+  note?: string | null;
+  created_at: string;
+  updated_at: string;
+  returned_items?: ExchangeReturnedItem[];
+  new_items?: ExchangeNewItem[];
 }

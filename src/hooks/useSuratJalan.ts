@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { SuratJalan, SuratJalanItem, RequestStatus, Location } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { sendNotificationToRole, sendNotificationToUser } from '@/hooks/useRealtimeNotifications';
 
 // Transform database rows to SuratJalan type
 function transformSuratJalan(row: any, items: any[]): SuratJalan {
@@ -118,12 +119,20 @@ export function useCreateSuratJalan() {
 
             return sj;
         },
-        onSuccess: () => {
+        onSuccess: (sj) => {
             queryClient.invalidateQueries({ queryKey: ['surat-jalans'] });
             queryClient.invalidateQueries({ queryKey: ['requests'] });
             toast({
                 title: 'Surat Jalan dibuat',
                 description: 'Surat jalan berhasil dibuat',
+            });
+
+            // Notify auditor for approval
+            sendNotificationToRole('auditor', {
+                title: '📦 Surat Jalan Baru',
+                message: `Surat Jalan ${sj.number} menunggu persetujuan`,
+                type: 'info',
+                link: '/surat-jalan/approval',
             });
         },
         onError: (error: Error) => {
@@ -232,6 +241,25 @@ export function useUpdateSuratJalanStatus() {
                 title: `Surat Jalan ${statusText}`,
                 description: `Status surat jalan berhasil ${statusText}`,
             });
+
+            // Notify the creator about approval/rejection
+            if (variables.suratJalan?.created_by) {
+                if (variables.status === 'approved') {
+                    sendNotificationToUser(variables.suratJalan.created_by, {
+                        title: '✅ Surat Jalan Disetujui',
+                        message: `Surat Jalan ${variables.suratJalan.number} telah disetujui`,
+                        type: 'success',
+                        link: '/surat-jalan',
+                    });
+                } else if (variables.status === 'rejected') {
+                    sendNotificationToUser(variables.suratJalan.created_by, {
+                        title: '❌ Surat Jalan Ditolak',
+                        message: `Surat Jalan ${variables.suratJalan.number} ditolak: ${variables.reason || 'Tidak ada alasan'}`,
+                        type: 'error',
+                        link: '/surat-jalan',
+                    });
+                }
+            }
         },
         onError: (error: Error) => {
             toast({

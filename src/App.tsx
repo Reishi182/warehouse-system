@@ -53,6 +53,7 @@ const MarketplaceReceipt = React.lazy(() => import('./pages/marketplace/Marketpl
 const MarketplaceReturns = React.lazy(() => import('./pages/marketplace/MarketplaceReturns'));
 const StockReturnCreate = React.lazy(() => import('@/pages/stock-return/StockReturnCreate'));
 const StockReturnApproval = React.lazy(() => import('@/pages/stock-return/StockReturnApproval'));
+const CustomerExchange = React.lazy(() => import('@/pages/exchange/CustomerExchange'));
 const NotFound = React.lazy(() => import("./pages/NotFound"));
 const Guide = React.lazy(() => import("./pages/Guide"));
 
@@ -273,6 +274,9 @@ function AppRoutes() {
         {/* Stock Return Routes (Toko -> Gudang) */}
         <Route path="/stock-return" element={<ProtectedRoute><StockReturnCreate /></ProtectedRoute>} />
         <Route path="/stock-return/approval" element={<ProtectedRoute><StockReturnApproval /></ProtectedRoute>} />
+
+        {/* Customer Exchange (Tukar Barang) */}
+        <Route path="/exchange" element={<ProtectedRoute><CustomerExchange /></ProtectedRoute>} />
 
         <Route path="*" element={<NotFound />} />
       </Routes>
