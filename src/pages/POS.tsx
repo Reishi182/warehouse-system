@@ -1,4 +1,5 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
     ShoppingCart,
     CheckCircle2,
@@ -14,8 +15,9 @@ import {
     List,
     X,
     Percent,
-    Keyboard,
-    Printer
+    Printer,
+    ChevronLeft,
+    ChevronRight
 } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import BarcodeScanner from '@/components/common/BarcodeScanner';
@@ -49,6 +51,7 @@ import {
     DialogDescription,
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useData } from '@/contexts/DataContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -97,7 +100,11 @@ export default function POS() {
     const [searchQuery, setSearchQuery] = useState('');
     const [viewMode, setViewMode] = useState<ViewMode>('grid');
     const [orderDiscount, setOrderDiscount] = useState(0);
-    const [mobileTab, setMobileTab] = useState<'products' | 'cart'>('products');
+    const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
+
+    // Pagination
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState<number | 'all'>(10);
 
     // Checkout confirmation dialog
     const [showCheckoutDialog, setShowCheckoutDialog] = useState(false);
@@ -132,6 +139,23 @@ export default function POS() {
             p.barcode.toLowerCase().includes(query)
         );
     }, [products, searchQuery]);
+
+    // Paginated products
+    const paginatedProducts = useMemo(() => {
+        if (pageSize === 'all') return filteredProducts;
+        const startIndex = (currentPage - 1) * pageSize;
+        return filteredProducts.slice(startIndex, startIndex + pageSize);
+    }, [filteredProducts, currentPage, pageSize]);
+
+    const totalPages = useMemo(() => {
+        if (pageSize === 'all') return 1;
+        return Math.ceil(filteredProducts.length / pageSize);
+    }, [filteredProducts.length, pageSize]);
+
+    // Reset to page 1 when search or pageSize changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, pageSize]);
 
     // Print hook - must be before any early returns
     const handlePrint = useReactToPrint({
@@ -349,37 +373,9 @@ export default function POS() {
 
     return (
         <MainLayout title="Point of Sale" subtitle="Sistem kasir untuk penjualan">
-            {/* Mobile Tab Bar */}
-            <div className="md:hidden flex gap-2 mb-4">
-                <Button
-                    variant={mobileTab === 'products' ? 'default' : 'outline'}
-                    onClick={() => setMobileTab('products')}
-                    className="flex-1 rounded-xl"
-                >
-                    <Package className="w-4 h-4 mr-2" />
-                    Produk
-                </Button>
-                <Button
-                    variant={mobileTab === 'cart' ? 'default' : 'outline'}
-                    onClick={() => setMobileTab('cart')}
-                    className="flex-1 rounded-xl relative"
-                >
-                    <ShoppingCart className="w-4 h-4 mr-2" />
-                    Keranjang
-                    {items.length > 0 && (
-                        <Badge className="absolute -top-2 -right-2 rounded-full px-2 py-0.5 text-xs">
-                            {items.reduce((acc, it) => acc + it.quantity, 0)}
-                        </Badge>
-                    )}
-                </Button>
-            </div>
-
-            <div className="flex flex-col md:flex-row gap-4 h-[calc(100vh-180px)] md:h-[calc(100vh-140px)]">
-                {/* Left Panel - Products (hidden on mobile when cart is active) */}
-                <div className={cn(
-                    "flex-1 flex flex-col min-w-0",
-                    mobileTab === 'cart' && "hidden md:flex"
-                )}>
+            <div className="flex gap-4 h-[calc(100vh-180px)] md:h-[calc(100vh-140px)] md:pr-[21rem] lg:pr-[25rem]">
+                {/* Left Panel - Products */}
+                <div className="flex-1 flex flex-col min-w-0">
                     {/* Search & Controls */}
                     <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-4">
                         <div className="relative flex-1 min-w-[200px]">
@@ -435,8 +431,8 @@ export default function POS() {
                     {/* Products Grid/List */}
                     <ScrollArea className="flex-1 pr-2 md:pr-4">
                         {viewMode === 'grid' ? (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-3">
-                                {filteredProducts.map((product) => (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2 md:gap-3">
+                                {paginatedProducts.map((product) => (
                                     <ProductCard
                                         key={product.id}
                                         product={product}
@@ -447,7 +443,7 @@ export default function POS() {
                             </div>
                         ) : (
                             <div className="space-y-2">
-                                {filteredProducts.map((product) => (
+                                {paginatedProducts.map((product) => (
                                     <ProductListItem
                                         key={product.id}
                                         product={product}
@@ -467,242 +463,268 @@ export default function POS() {
                                 <p className="text-sm mt-1">Coba kata kunci lain atau scan barcode</p>
                             </div>
                         )}
+
+                        {/* Pagination Controls */}
+                        {filteredProducts.length > 0 && (
+                            <div className="flex flex-wrap items-center justify-between gap-2 mt-4 pt-4 border-t">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs text-muted-foreground">Tampilkan:</span>
+                                    <Select
+                                        value={pageSize === 'all' ? 'all' : String(pageSize)}
+                                        onValueChange={(v) => setPageSize(v === 'all' ? 'all' : parseInt(v))}
+                                    >
+                                        <SelectTrigger className="w-20 h-8 text-xs rounded-lg">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent className="rounded-xl">
+                                            <SelectItem value="5" className="text-xs">5</SelectItem>
+                                            <SelectItem value="10" className="text-xs">10</SelectItem>
+                                            <SelectItem value="20" className="text-xs">20</SelectItem>
+                                            <SelectItem value="all" className="text-xs">Semua</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <span className="text-xs text-muted-foreground">
+                                        dari {filteredProducts.length} produk
+                                    </span>
+                                </div>
+
+                                {pageSize !== 'all' && totalPages > 1 && (
+                                    <div className="flex items-center gap-1">
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-8 w-8 rounded-lg"
+                                            disabled={currentPage === 1}
+                                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                        >
+                                            <ChevronLeft className="w-4 h-4" />
+                                        </Button>
+                                        <span className="text-xs font-medium px-2">
+                                            {currentPage} / {totalPages}
+                                        </span>
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-8 w-8 rounded-lg"
+                                            disabled={currentPage === totalPages}
+                                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                        >
+                                            <ChevronRight className="w-4 h-4" />
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </ScrollArea>
                 </div>
 
-                {/* Right Panel - Cart (hidden on mobile when products is active) */}
-                <Card className={cn(
-                    "w-full md:w-96 flex flex-col rounded-2xl border-2 shadow-2xl bg-gradient-to-b from-card via-card to-muted/30 backdrop-blur-sm",
-                    "relative overflow-hidden",
-                    mobileTab === 'products' && "hidden md:flex"
-                )}>
-                    {/* Subtle gradient overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/5 pointer-events-none" />
-                    <CardHeader className="pb-3 border-b bg-gradient-to-r from-primary/10 via-transparent to-transparent relative z-10">
-                        <div className="flex items-center justify-between">
-                            <CardTitle className="flex items-center gap-2">
-                                <div className="p-2 rounded-lg bg-primary/10 shadow-sm">
-                                    <ShoppingCart className="w-5 h-5 text-primary" />
+                {/* Right Panel - Cart (Desktop: Fixed Full Height - Rendered via Portal) */}
+                {createPortal(
+                    <div className="hidden md:flex fixed top-0 right-0 h-screen w-80 lg:w-96 flex-col border-l bg-card shadow-xl z-[60]">
+                        {/* Header */}
+                        <div className="px-4 py-3 border-b bg-muted/30">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 text-base font-semibold">
+                                    <ShoppingCart className="w-4 h-4 text-primary" />
+                                    Keranjang
+                                    {items.length > 0 && (
+                                        <Badge variant="secondary" className="rounded-full text-xs px-2">
+                                            {items.reduce((acc, it) => acc + it.quantity, 0)}
+                                        </Badge>
+                                    )}
                                 </div>
-                                <span className="bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text">Keranjang</span>
-                                {items.length > 0 && (
-                                    <Badge className="rounded-full bg-primary/10 text-primary border-primary/20 shadow-sm shadow-primary/10">
-                                        {items.reduce((acc, it) => acc + it.quantity, 0)}
-                                    </Badge>
-                                )}
-                            </CardTitle>
-                            {items.length > 0 && (
-                                <Button variant="ghost" size="sm" onClick={clearCart} className="text-destructive hover:text-destructive hover:bg-destructive/10 rounded-xl">
-                                    <Trash2 className="w-4 h-4 mr-1" />
-                                    Hapus
-                                </Button>
-                            )}
-                        </div>
-                        {/* Today's Stats */}
-                        <div className="flex gap-2 mt-3">
-                            <Badge variant="outline" className="rounded-full bg-background/50 backdrop-blur-sm shadow-sm">
-                                <Receipt className="w-3 h-3 mr-1" />
-                                {todayStats.count} transaksi
-                            </Badge>
-                            <Badge className="rounded-full bg-gradient-to-r from-emerald-500/20 to-green-500/20 text-emerald-600 border-emerald-500/30 shadow-sm shadow-emerald-500/10">
-                                Rp {todayStats.total.toLocaleString('id-ID')}
-                            </Badge>
-                        </div>
-                    </CardHeader>
-
-                    <CardContent className="flex-1 flex flex-col p-4 overflow-hidden relative z-10">
-                        {/* Cart Items */}
-                        {items.length === 0 ? (
-                            <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
-                                <div className="w-20 h-20 rounded-full bg-muted/30 flex items-center justify-center mb-4">
-                                    <ShoppingCart className="w-10 h-10 opacity-40" />
-                                </div>
-                                <p className="font-semibold text-foreground/70">Keranjang kosong</p>
-                                <p className="text-sm mt-1">Klik produk untuk menambahkan</p>
                             </div>
-                        ) : (
-                            <ScrollArea className="flex-1 -mx-4 px-4">
-                                <div className="space-y-3">
-                                    {items.map((it) => (
-                                        <div
-                                            key={it.product.id}
-                                            className="flex items-start gap-3 p-3 rounded-xl bg-background border"
-                                        >
-                                            {/* Product Image */}
-                                            <div className="w-12 h-12 rounded-lg bg-muted/50 flex items-center justify-center overflow-hidden flex-shrink-0">
-                                                {it.product.image_url ? (
-                                                    <img src={it.product.image_url} alt={it.product.name} className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <Package className="w-6 h-6 text-muted-foreground/30" />
-                                                )}
-                                            </div>
+                            <div className="flex items-center justify-between mt-2">
+                                <div className="flex gap-2">
+                                    <Badge variant="outline" className="rounded-full text-xs px-2 py-0.5">
+                                        <Receipt className="w-3 h-3 mr-1" />
+                                        {todayStats.count} transaksi
+                                    </Badge>
+                                    <Badge className="rounded-full bg-emerald-500/20 text-emerald-600 border-emerald-500/30 text-xs px-2 py-0.5">
+                                        Rp {todayStats.total.toLocaleString('id-ID')}
+                                    </Badge>
+                                </div>
+                                {items.length > 0 && (
+                                    <Button variant="outline" size="sm" onClick={clearCart} className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30 h-6 text-xs rounded-lg px-2">
+                                        <Trash2 className="w-3 h-3 mr-1" />
+                                        Hapus
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
 
-                                            {/* Product Info */}
-                                            <div className="flex-1 min-w-0">
-                                                <p className="font-medium text-sm truncate">{it.product.name}</p>
-                                                <p className="text-xs text-muted-foreground">
-                                                    Rp {it.product.price.toLocaleString('id-ID')}
-                                                    {it.discount > 0 && (
-                                                        <span className="ml-1 text-green-600">-{it.discount}%</span>
+                        {/* Cart Items */}
+                        <div className="flex-1 overflow-hidden">
+                            {items.length === 0 ? (
+                                <div className="flex-1 flex flex-col items-center justify-center h-full text-muted-foreground py-12">
+                                    <ShoppingCart className="w-12 h-12 opacity-30 mb-3" />
+                                    <p className="text-sm font-medium">Keranjang kosong</p>
+                                    <p className="text-xs mt-1">Klik produk untuk menambahkan</p>
+                                </div>
+                            ) : (
+                                <ScrollArea className="h-full px-3 py-2">
+                                    <div className="space-y-2">
+                                        {items.map((it) => (
+                                            <div key={it.product.id} className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 border">
+                                                <div className="w-10 h-10 rounded-md bg-muted/50 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                                    {it.product.image_url ? (
+                                                        <img src={it.product.image_url} alt={it.product.name} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <Package className="w-4 h-4 text-muted-foreground/30" />
                                                     )}
-                                                </p>
-
-                                                {/* Quantity Controls */}
-                                                <div className="flex items-center gap-1 mt-2">
-                                                    <Button
-                                                        size="icon"
-                                                        variant="outline"
-                                                        onClick={() => updateQty(it.product.id, it.quantity - 1)}
-                                                        className="rounded-full h-7 w-7"
-                                                    >
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="font-medium text-xs truncate">{it.product.name}</p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Rp {it.product.price.toLocaleString('id-ID')}
+                                                        {it.discount > 0 && <span className="ml-1 text-green-600">-{it.discount}%</span>}
+                                                    </p>
+                                                </div>
+                                                <div className="flex items-center gap-0.5">
+                                                    <Button size="icon" variant="ghost" onClick={() => updateQty(it.product.id, it.quantity - 1)} className="h-6 w-6 rounded-md">
                                                         <Minus className="w-3 h-3" />
                                                     </Button>
-                                                    <Input
-                                                        type="number"
-                                                        min={0}
-                                                        value={it.quantity}
-                                                        onChange={(e) => updateQty(it.product.id, parseInt(e.target.value) || 0)}
-                                                        className="w-14 text-center h-7 text-sm rounded-lg px-1"
-                                                    />
-                                                    <Button
-                                                        size="icon"
-                                                        variant="outline"
-                                                        onClick={() => updateQty(it.product.id, it.quantity + 1)}
-                                                        className="rounded-full h-7 w-7"
-                                                    >
+                                                    <span className="w-6 text-center text-xs font-medium">{it.quantity}</span>
+                                                    <Button size="icon" variant="ghost" onClick={() => updateQty(it.product.id, it.quantity + 1)} className="h-6 w-6 rounded-md">
                                                         <Plus className="w-3 h-3" />
                                                     </Button>
                                                 </div>
+                                                <div className="text-right flex-shrink-0 flex items-center gap-1">
+                                                    <p className="font-semibold text-xs">{((it.product.price * it.quantity) * (1 - it.discount / 100)).toLocaleString('id-ID')}</p>
+                                                    <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10 rounded-md" onClick={() => removeItem(it.product.id)}>
+                                                        <X className="w-3 h-3" />
+                                                    </Button>
+                                                </div>
                                             </div>
+                                        ))}
+                                    </div>
+                                </ScrollArea>
+                            )}
+                        </div>
 
-                                            {/* Subtotal & Delete */}
-                                            <div className="text-right flex-shrink-0">
-                                                <p className="font-bold text-sm">
-                                                    Rp {((it.product.price * it.quantity) * (1 - it.discount / 100)).toLocaleString('id-ID')}
-                                                </p>
-                                                <Button
-                                                    size="icon"
-                                                    variant="ghost"
-                                                    className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10 rounded-full mt-1"
-                                                    onClick={() => removeItem(it.product.id)}
-                                                >
-                                                    <Trash2 className="w-3 h-3" />
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </ScrollArea>
-                        )}
-
-                        {/* Order Summary */}
+                        {/* Order Summary Footer */}
                         {items.length > 0 && (
-                            <div className="pt-4 mt-4 border-t space-y-3">
-                                {/* Subtotal */}
-                                <div className="flex justify-between text-sm">
+                            <div className="border-t p-3 space-y-2 bg-background">
+                                <div className="flex justify-between text-xs">
                                     <span className="text-muted-foreground">Subtotal</span>
                                     <span>Rp {subtotal.toLocaleString('id-ID')}</span>
                                 </div>
-
-                                {/* Discount Input */}
                                 <div className="flex items-center gap-2">
-                                    <Label className="text-sm text-muted-foreground flex-shrink-0">Diskon</Label>
+                                    <Label className="text-xs text-muted-foreground">Diskon</Label>
                                     <div className="relative flex-1">
-                                        <Input
-                                            type="number"
-                                            min={0}
-                                            max={100}
-                                            value={orderDiscount}
-                                            onChange={(e) => setOrderDiscount(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
-                                            className="h-8 text-sm rounded-lg pr-8"
-                                        />
-                                        <Percent className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                        <Input type="number" min={0} max={100} value={orderDiscount} onChange={(e) => setOrderDiscount(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))} className="h-7 text-xs rounded-md pr-6" />
+                                        <Percent className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
                                     </div>
-                                    <span className="text-sm text-red-500 font-medium">
-                                        -Rp {(subtotal * orderDiscount / 100).toLocaleString('id-ID')}
-                                    </span>
+                                    <span className="text-xs text-red-500 font-medium">-Rp {(subtotal * orderDiscount / 100).toLocaleString('id-ID')}</span>
                                 </div>
-
-                                {/* Total */}
-                                <div className="flex justify-between items-center pt-2 border-t">
-                                    <span className="font-semibold">Total</span>
-                                    <span className="text-2xl font-bold text-primary">
-                                        Rp {totalAmount.toLocaleString('id-ID')}
-                                    </span>
+                                <div className="flex justify-between items-center pt-1 border-t">
+                                    <span className="font-semibold text-sm">Total</span>
+                                    <span className="text-lg font-bold text-primary">Rp {totalAmount.toLocaleString('id-ID')}</span>
                                 </div>
-
-                                {/* Payment Method */}
-                                <div className="grid grid-cols-2 gap-3">
-                                    <Button
-                                        variant={paymentMethod === 'cash' ? 'default' : 'outline'}
-                                        onClick={() => setPaymentMethod('cash')}
-                                        className={cn(
-                                            "rounded-xl h-12 transition-all duration-300",
-                                            paymentMethod === 'cash'
-                                                ? "bg-gradient-to-r from-emerald-500 to-green-500 shadow-lg shadow-emerald-500/30 border-0"
-                                                : "hover:border-emerald-500/50 hover:bg-emerald-500/5"
-                                        )}
-                                    >
-                                        <Banknote className="w-5 h-5 mr-2" />
-                                        Tunai (F2)
+                                <div className="grid grid-cols-2 gap-2">
+                                    <Button variant={paymentMethod === 'cash' ? 'default' : 'outline'} onClick={() => setPaymentMethod('cash')} className={cn("h-8 text-xs rounded-lg", paymentMethod === 'cash' ? "bg-green-600 hover:bg-green-700 text-white" : "")}>
+                                        <Banknote className="w-3 h-3 mr-1" />Tunai
                                     </Button>
-                                    <Button
-                                        variant={paymentMethod === 'transfer' ? 'default' : 'outline'}
-                                        onClick={() => setPaymentMethod('transfer')}
-                                        className={cn(
-                                            "rounded-xl h-12 transition-all duration-300",
-                                            paymentMethod === 'transfer'
-                                                ? "bg-gradient-to-r from-blue-500 to-indigo-500 shadow-lg shadow-blue-500/30 border-0"
-                                                : "hover:border-blue-500/50 hover:bg-blue-500/5"
-                                        )}
-                                    >
-                                        <CreditCard className="w-5 h-5 mr-2" />
-                                        Transfer
+                                    <Button variant={paymentMethod === 'transfer' ? 'default' : 'outline'} onClick={() => setPaymentMethod('transfer')} className={cn("h-8 text-xs rounded-lg", paymentMethod === 'transfer' ? "bg-blue-500 hover:bg-blue-600" : "")}>
+                                        <CreditCard className="w-3 h-3 mr-1" />Transfer
                                     </Button>
                                 </div>
-
-                                {/* Premium Checkout Button */}
-                                <Button
-                                    size="lg"
-                                    className={cn(
-                                        "w-full rounded-xl h-14 text-lg font-bold transition-all duration-300",
-                                        "bg-gradient-to-r from-primary via-primary to-primary/90",
-                                        "shadow-xl shadow-primary/40",
-                                        "hover:shadow-2xl hover:shadow-primary/50 hover:scale-[1.02]",
-                                        "active:scale-[0.98]",
-                                        "relative overflow-hidden"
-                                    )}
-                                    disabled={items.length === 0 || isProcessing}
-                                    onClick={openCheckoutDialog}
-                                >
-                                    {/* Shimmer effect */}
-                                    <div className="absolute inset-0 -translate-x-full hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12" />
-                                    {isProcessing ? (
-                                        <>
-                                            <span className="animate-spin mr-2">⏳</span>
-                                            Memproses...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Receipt className="w-6 h-6 mr-2" />
-                                            Bayar (F12)
-                                        </>
-                                    )}
+                                <Button className={cn("w-full h-10 text-sm font-semibold rounded-lg", "bg-primary hover:bg-primary/90")} disabled={items.length === 0 || isProcessing} onClick={openCheckoutDialog}>
+                                    {isProcessing ? (<><span className="animate-spin mr-2">⏳</span>Memproses...</>) : (<><Receipt className="w-4 h-4 mr-2" />Bayar</>)}
                                 </Button>
                             </div>
                         )}
-                    </CardContent>
-                </Card>
+                    </div>
+                    , document.body)}
 
-                {/* Keyboard Shortcuts Hint */}
-                <div className="fixed bottom-20 md:bottom-4 left-4 flex gap-2 text-xs text-muted-foreground">
-                    <Badge variant="outline" className="rounded-full">
-                        <Keyboard className="w-3 h-3 mr-1" />
-                        F1: Cari
-                    </Badge>
-                    <Badge variant="outline" className="rounded-full">F2: Bayar</Badge>
-                    <Badge variant="outline" className="rounded-full">F12: Checkout</Badge>
-                    <Badge variant="outline" className="rounded-full">ESC: Clear</Badge>
+                {/* Mobile Cart - Floating Button + Drawer */}
+                <div className="md:hidden">
+                    <Sheet open={cartDrawerOpen} onOpenChange={setCartDrawerOpen}>
+                        <SheetTrigger asChild>
+                            <Button className={cn("fixed bottom-24 right-4 z-50 h-14 w-14 rounded-full shadow-xl", "bg-primary hover:bg-primary/90", items.length > 0 && "animate-pulse")}>
+                                <ShoppingCart className="w-6 h-6" />
+                                {items.length > 0 && (
+                                    <Badge className="absolute -top-1 -right-1 h-6 w-6 rounded-full p-0 flex items-center justify-center text-xs bg-destructive">
+                                        {items.reduce((acc, it) => acc + it.quantity, 0)}
+                                    </Badge>
+                                )}
+                            </Button>
+                        </SheetTrigger>
+                        <SheetContent side="right" className="w-full sm:w-96 p-0 flex flex-col">
+                            <SheetHeader className="px-4 py-3 border-b bg-muted/30">
+                                <div className="flex items-center justify-between">
+                                    <SheetTitle className="flex items-center gap-2 text-base">
+                                        <ShoppingCart className="w-4 h-4 text-primary" />
+                                        Keranjang
+                                        {items.length > 0 && (
+                                            <Badge variant="secondary" className="rounded-full text-xs px-2">{items.reduce((acc, it) => acc + it.quantity, 0)}</Badge>
+                                        )}
+                                    </SheetTitle>
+                                </div>
+                                <div className="flex items-center justify-between mt-2">
+                                    <div className="flex gap-2">
+                                        <Badge variant="outline" className="rounded-full text-xs px-2 py-0.5"><Receipt className="w-3 h-3 mr-1" />{todayStats.count} transaksi</Badge>
+                                        <Badge className="rounded-full bg-emerald-500/20 text-emerald-600 border-emerald-500/30 text-xs px-2 py-0.5">Rp {todayStats.total.toLocaleString('id-ID')}</Badge>
+                                    </div>
+                                    {items.length > 0 && (
+                                        <Button variant="outline" size="sm" onClick={clearCart} className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30 h-6 text-xs rounded-lg px-2"><Trash2 className="w-3 h-3 mr-1" />Hapus</Button>
+                                    )}
+                                </div>
+                            </SheetHeader>
+                            <div className="flex-1 overflow-hidden">
+                                {items.length === 0 ? (
+                                    <div className="flex-1 flex flex-col items-center justify-center h-full text-muted-foreground py-12">
+                                        <ShoppingCart className="w-12 h-12 opacity-30 mb-3" />
+                                        <p className="text-sm font-medium">Keranjang kosong</p>
+                                        <p className="text-xs mt-1">Klik produk untuk menambahkan</p>
+                                    </div>
+                                ) : (
+                                    <ScrollArea className="h-full px-3 py-2">
+                                        <div className="space-y-2">
+                                            {items.map((it) => (
+                                                <div key={it.product.id} className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 border">
+                                                    <div className="w-10 h-10 rounded-md bg-muted/50 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                                        {it.product.image_url ? <img src={it.product.image_url} alt={it.product.name} className="w-full h-full object-cover" /> : <Package className="w-4 h-4 text-muted-foreground/30" />}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="font-medium text-xs truncate">{it.product.name}</p>
+                                                        <p className="text-xs text-muted-foreground">Rp {it.product.price.toLocaleString('id-ID')}{it.discount > 0 && <span className="ml-1 text-green-600">-{it.discount}%</span>}</p>
+                                                    </div>
+                                                    <div className="flex items-center gap-0.5">
+                                                        <Button size="icon" variant="ghost" onClick={() => updateQty(it.product.id, it.quantity - 1)} className="h-6 w-6 rounded-md"><Minus className="w-3 h-3" /></Button>
+                                                        <span className="w-6 text-center text-xs font-medium">{it.quantity}</span>
+                                                        <Button size="icon" variant="ghost" onClick={() => updateQty(it.product.id, it.quantity + 1)} className="h-6 w-6 rounded-md"><Plus className="w-3 h-3" /></Button>
+                                                    </div>
+                                                    <div className="text-right flex-shrink-0 flex items-center gap-1">
+                                                        <p className="font-semibold text-xs">{((it.product.price * it.quantity) * (1 - it.discount / 100)).toLocaleString('id-ID')}</p>
+                                                        <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10 rounded-md" onClick={() => removeItem(it.product.id)}><X className="w-3 h-3" /></Button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </ScrollArea>
+                                )}
+                            </div>
+                            {items.length > 0 && (
+                                <div className="border-t p-3 space-y-2 bg-background">
+                                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Subtotal</span><span>Rp {subtotal.toLocaleString('id-ID')}</span></div>
+                                    <div className="flex items-center gap-2">
+                                        <Label className="text-xs text-muted-foreground">Diskon</Label>
+                                        <div className="relative flex-1"><Input type="number" min={0} max={100} value={orderDiscount} onChange={(e) => setOrderDiscount(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))} className="h-7 text-xs rounded-md pr-6" /><Percent className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" /></div>
+                                        <span className="text-xs text-red-500 font-medium">-Rp {(subtotal * orderDiscount / 100).toLocaleString('id-ID')}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center pt-1 border-t"><span className="font-semibold text-sm">Total</span><span className="text-lg font-bold text-primary">Rp {totalAmount.toLocaleString('id-ID')}</span></div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <Button variant={paymentMethod === 'cash' ? 'default' : 'outline'} onClick={() => setPaymentMethod('cash')} className={cn("h-8 text-xs rounded-lg", paymentMethod === 'cash' ? "bg-green-600 hover:bg-green-700 text-white" : "")}><Banknote className="w-3 h-3 mr-1" />Tunai</Button>
+                                        <Button variant={paymentMethod === 'transfer' ? 'default' : 'outline'} onClick={() => setPaymentMethod('transfer')} className={cn("h-8 text-xs rounded-lg", paymentMethod === 'transfer' ? "bg-blue-500 hover:bg-blue-600" : "")}><CreditCard className="w-3 h-3 mr-1" />Transfer</Button>
+                                    </div>
+                                    <Button className={cn("w-full h-10 text-sm font-semibold rounded-lg", "bg-primary hover:bg-primary/90")} disabled={items.length === 0 || isProcessing} onClick={() => { setCartDrawerOpen(false); openCheckoutDialog(); }}>
+                                        {isProcessing ? (<><span className="animate-spin mr-2">⏳</span>Memproses...</>) : (<><Receipt className="w-4 h-4 mr-2" />Bayar</>)}
+                                    </Button>
+                                </div>
+                            )}
+                        </SheetContent>
+                    </Sheet>
                 </div>
             </div>
 
@@ -872,6 +894,6 @@ export default function POS() {
                     </div>
                 </DialogContent>
             </Dialog>
-        </MainLayout>
+        </MainLayout >
     );
 }

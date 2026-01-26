@@ -6,125 +6,169 @@
 
 @layer base {
   :root {
-    /* Luxury Fintech Light Mode - Champagne Gold Theme */
-    --background: 216 18% 96%;
-    /* #f4f6f8 - Soft off-white/pale grey */
-    --foreground: 215 28% 17%;
-    /* #1e293b - Deep charcoal/navy */
+    /* ═══════════════════════════════════════════════════
+       SUNSHINE YELLOW - Light Mode Theme
+       Modern, Energetic, Professional, WCAG Accessible
+    ═══════════════════════════════════════════════════ */
 
+    /* Core Backgrounds */
+    --background: 210 40% 98%;
+    /* #F8FAFC - Snow */
+    --foreground: 215 28% 17%;
+    /* #1E293B - Ink */
+
+    /* Card & Surface */
     --card: 0 0% 100%;
+    /* #FFFFFF - Pure White */
     --card-foreground: 215 28% 17%;
 
+    /* Popover */
     --popover: 0 0% 100%;
     --popover-foreground: 215 28% 17%;
 
-    /* Champagne Gold Primary */
-    --primary: 43 66% 54%;
-    /* #d6a63d - Champagne Gold */
-    --primary-foreground: 0 0% 100%;
+    /* Primary - Sunshine Yellow (use dark text for contrast) */
+    --primary: 45 90% 61%;
+    /* #F5C542 - Golden Honey */
+    --primary-foreground: 215 28% 17%;
+    /* Dark text for 8.1:1 contrast */
 
-    --secondary: 220 16% 96%;
-    --secondary-foreground: 215 28% 17%;
+    /* Secondary */
+    --secondary: 210 40% 96%;
+    /* #F1F5F9 - Pearl Gray */
+    --secondary-foreground: 215 28% 27%;
+    /* #334155 - Charcoal */
 
-    --muted: 220 14% 96%;
+    /* Muted */
+    --muted: 210 40% 96%;
     --muted-foreground: 215 16% 47%;
-    /* #64748b - Slate grey */
+    /* #64748B - Steel */
 
-    --accent: 43 66% 44%;
-    /* #b3882a - Primary dim */
-    --accent-foreground: 0 0% 100%;
+    /* Accent - Darker yellow for hover states */
+    --accent: 43 82% 50%;
+    /* #E5A91C - Amber Focus */
+    --accent-foreground: 215 28% 17%;
 
-    --destructive: 0 72% 51%;
+    /* Semantic States */
+    --destructive: 0 84% 60%;
+    /* #EF4444 - Coral Red */
     --destructive-foreground: 0 0% 100%;
 
     --success: 160 84% 39%;
+    /* #10B981 - Emerald */
     --success-foreground: 0 0% 100%;
 
     --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
+    /* #F59E0B - Amber Orange */
+    --warning-foreground: 215 28% 17%;
+    /* Dark text for contrast */
 
     --info: 199 89% 48%;
+    /* #0EA5E9 - Ocean Blue */
     --info-foreground: 0 0% 100%;
 
-    --border: 0 0% 0% / 0.06;
-    /* rgba(0,0,0,0.06) subtle border */
-    --input: 220 14% 90%;
-    --ring: 43 66% 54%;
+    /* UI Elements */
+    --border: 213 27% 84%;
+    /* #CBD5E1 - Silver */
+    --input: 213 27% 84%;
+    --ring: 45 90% 61%;
+    /* Primary focus ring */
 
     --radius: 0.5rem;
 
     /* Sidebar */
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 215 28% 17%;
-    --sidebar-primary: 43 66% 54%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 43 66% 54% / 0.1;
-    --sidebar-accent-foreground: 43 66% 44%;
-    --sidebar-border: 0 0% 0% / 0.06;
-    --sidebar-ring: 43 66% 54%;
+    --sidebar-primary: 45 90% 61%;
+    --sidebar-primary-foreground: 215 28% 17%;
+    --sidebar-accent: 45 90% 61% / 0.12;
+    --sidebar-accent-foreground: 43 82% 40%;
+    --sidebar-border: 213 27% 90%;
+    --sidebar-ring: 45 90% 61%;
 
     /* Charts */
-    --chart-1: 43 66% 54%;
+    --chart-1: 45 90% 61%;
+    /* Yellow */
     --chart-2: 160 84% 39%;
-    --chart-3: 38 92% 50%;
-    --chart-4: 215 28% 17%;
-    --chart-5: 215 16% 70%;
+    /* Emerald */
+    --chart-3: 199 89% 48%;
+    /* Blue */
+    --chart-4: 38 92% 50%;
+    /* Orange */
+    --chart-5: 215 28% 27%;
+    /* Charcoal */
   }
 
   .dark {
-    /* Dark Mode - Deep Navy with Champagne Gold Accents */
-    --background: 222 47% 7%;
-    --foreground: 210 40% 96%;
+    /* ═══════════════════════════════════════════════════
+       SUNSHINE YELLOW - Dark Mode Theme
+       Brighter yellows for dark backgrounds
+    ═══════════════════════════════════════════════════ */
 
-    --card: 222 47% 10%;
+    --background: 222 47% 11%;
+    /* #0F172A - Dark Background */
+    --foreground: 210 40% 96%;
+    /* #F1F5F9 */
+
+    --card: 215 28% 17%;
+    /* #1E293B */
     --card-foreground: 210 40% 96%;
 
-    --popover: 222 47% 10%;
+    --popover: 215 28% 17%;
     --popover-foreground: 210 40% 96%;
 
-    --primary: 43 70% 56%;
-    --primary-foreground: 222 47% 8%;
+    /* Primary - Brighter Sunshine for dark mode */
+    --primary: 45 99% 70%;
+    /* #FED766 - Sunshine Yellow */
+    --primary-foreground: 222 47% 11%;
+    /* Dark text */
 
-    --secondary: 220 40% 16%;
+    --secondary: 215 28% 22%;
     --secondary-foreground: 210 40% 96%;
 
-    --muted: 220 40% 14%;
-    --muted-foreground: 215 20% 60%;
+    --muted: 215 28% 22%;
+    --muted-foreground: 215 16% 65%;
+    /* #94A3B8 - Slate */
 
-    --accent: 43 66% 50%;
-    --accent-foreground: 222 47% 8%;
+    --accent: 45 90% 61%;
+    /* #F5C542 */
+    --accent-foreground: 222 47% 11%;
 
-    --destructive: 0 72% 45%;
+    --destructive: 0 72% 50%;
     --destructive-foreground: 210 40% 98%;
 
     --success: 160 84% 35%;
     --success-foreground: 0 0% 100%;
 
-    --warning: 38 92% 45%;
+    --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
 
-    --info: 199 89% 45%;
+    --info: 199 89% 50%;
     --info-foreground: 0 0% 100%;
 
-    --border: 220 40% 18%;
-    --input: 220 40% 18%;
-    --ring: 43 70% 56%;
+    --border: 215 28% 25%;
+    --input: 215 28% 25%;
+    --ring: 45 99% 70%;
 
-    --sidebar-background: 222 47% 5%;
+    --sidebar-background: 222 47% 8%;
     --sidebar-foreground: 210 40% 96%;
-    --sidebar-primary: 43 70% 56%;
-    --sidebar-primary-foreground: 222 47% 8%;
-    --sidebar-accent: 43 66% 54% / 0.15;
-    --sidebar-accent-foreground: 210 40% 96%;
-    --sidebar-border: 220 40% 14%;
-    --sidebar-ring: 43 70% 56%;
+    --sidebar-primary: 45 99% 70%;
+    --sidebar-primary-foreground: 222 47% 11%;
+    --sidebar-accent: 45 90% 61% / 0.15;
+    --sidebar-accent-foreground: 45 99% 75%;
+    --sidebar-border: 215 28% 20%;
+    --sidebar-ring: 45 99% 70%;
 
     /* Charts */
-    --chart-1: 43 70% 56%;
-    --chart-2: 160 84% 40%;
-    --chart-3: 38 92% 50%;
-    --chart-4: 210 40% 96%;
-    --chart-5: 215 20% 50%;
+    --chart-1: 45 99% 70%;
+    /* Yellow */
+    --chart-2: 160 84% 45%;
+    /* Emerald */
+    --chart-3: 199 89% 55%;
+    /* Blue */
+    --chart-4: 38 92% 55%;
+    /* Orange */
+    --chart-5: 210 40% 80%;
+    /* Light gray */
   }
 }
 

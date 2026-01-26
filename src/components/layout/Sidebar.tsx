@@ -291,12 +291,12 @@ export default function Sidebar() {
                   : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground'
               )}
             >
-              <item.icon className="w-5 h-5" />
+              <item.icon className="w-4 h-4" />
             </button>
           </TooltipTrigger>
           <TooltipContent side="right" className="p-0">
             <div className="py-2 min-w-[160px]">
-              <p className="px-3 py-1 text-xs font-semibold text-muted-foreground">{item.label}</p>
+              <p className="px-3 py-1 text-sm font-semibold text-muted-foreground">{item.label}</p>
               {item.children.map(child => (
                 <Link
                   key={child.href}
@@ -327,8 +327,8 @@ export default function Sidebar() {
             : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground'
         )}>
           <div className="flex items-center gap-3">
-            <item.icon className="w-5 h-5 flex-shrink-0" />
-            <span className="font-medium">{item.label}</span>
+            <item.icon className="w-4 h-4 flex-shrink-0" />
+            <span className="text-sm font-medium">{item.label}</span>
           </div>
           {isExpanded ? (
             <ChevronDown className="w-4 h-4" />
@@ -433,8 +433,8 @@ export default function Sidebar() {
               isCollapsed && 'justify-center px-2'
             )}
           >
-            <LogOut className="w-5 h-5 flex-shrink-0" />
-            {!isCollapsed && <span className="font-medium">Keluar</span>}
+            <LogOut className="w-4 h-4 flex-shrink-0" />
+            {!isCollapsed && <span className="text-sm font-medium">Keluar</span>}
           </button>
         </div>
       </aside>
@@ -476,13 +476,13 @@ export default function Sidebar() {
                 <span className="text-xs font-medium">Lainnya</span>
               </button>
             </SheetTrigger>
-            <SheetContent side="bottom" className="h-[75vh] rounded-t-3xl">
-              <SheetHeader className="text-left pb-4">
+            <SheetContent side="bottom" className="h-[75vh] rounded-t-3xl flex flex-col">
+              <SheetHeader className="text-left pb-4 flex-shrink-0">
                 <SheetTitle>Menu Lainnya</SheetTitle>
               </SheetHeader>
 
               {/* User Profile Section */}
-              <div className="flex items-center gap-3 p-4 mb-4 bg-muted/50 rounded-2xl border border-border">
+              <div className="flex items-center gap-3 p-4 mb-4 bg-muted/50 rounded-2xl border border-border flex-shrink-0">
                 <div className="w-12 h-12 rounded-full bg-muted border border-border flex items-center justify-center flex-shrink-0 overflow-hidden">
                   {profile?.avatar ? (
                     <img
@@ -508,29 +508,32 @@ export default function Sidebar() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3 overflow-y-auto max-h-[calc(75vh-200px)]">
-                {mobileMoreItems.map((item) => {
-                  const isActive = location.pathname === item.href;
-                  return (
-                    <Link
-                      key={item.href}
-                      to={item.href!}
-                      className={cn(
-                        'flex flex-col items-center gap-2 p-4 rounded-2xl transition-all duration-200',
-                        isActive
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-muted/50 text-foreground hover:bg-muted'
-                      )}
-                    >
-                      <item.icon className="w-6 h-6" />
-                      <span className="text-xs font-medium text-center leading-tight">{item.label}</span>
-                    </Link>
-                  );
-                })}
+              {/* Scrollable Menu Grid */}
+              <div className="flex-1 overflow-y-auto min-h-0">
+                <div className="grid grid-cols-3 gap-3 pb-4">
+                  {mobileMoreItems.map((item) => {
+                    const isActive = location.pathname === item.href;
+                    return (
+                      <Link
+                        key={item.href}
+                        to={item.href!}
+                        className={cn(
+                          'flex flex-col items-center gap-2 p-4 rounded-2xl transition-all duration-200',
+                          isActive
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted/50 text-foreground hover:bg-muted'
+                        )}
+                      >
+                        <item.icon className="w-6 h-6" />
+                        <span className="text-xs font-medium text-center leading-tight">{item.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
               </div>
 
-              {/* Logout Button */}
-              <div className="mt-4 pt-4 border-t border-border">
+              {/* Logout Button - Always visible at bottom */}
+              <div className="pt-4 border-t border-border flex-shrink-0">
                 <button
                   onClick={signOut}
                   className="flex items-center justify-center gap-3 w-full px-4 py-3 rounded-2xl text-destructive bg-destructive/10 hover:bg-destructive/20 transition-all duration-200"

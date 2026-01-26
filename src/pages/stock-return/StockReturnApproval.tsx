@@ -188,7 +188,7 @@ export default function StockReturnApproval() {
                                                             </div>
                                                         </TableCell>
                                                         <TableCell className="text-center">
-                                                            <Badge variant="secondary">{item.product?.stock.toko}</Badge>
+                                                            <Badge variant="secondary">{item.product?.stock?.toko ?? '-'}</Badge>
                                                         </TableCell>
                                                         <TableCell className="text-center">
                                                             <Badge className="bg-orange-100 text-orange-700">{item.quantity}</Badge>

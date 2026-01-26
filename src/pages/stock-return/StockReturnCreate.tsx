@@ -381,170 +381,177 @@ export default function StockReturnCreate() {
                     />
                 </StatsGrid>
 
-                {/* Form Section */}
-                <Card className="border-2 rounded-2xl overflow-hidden shadow-lg relative">
-                    <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/5 pointer-events-none" />
-                    <CardHeader className="relative border-b bg-gradient-to-r from-muted/30 to-transparent">
-                        <div className="flex items-center gap-3">
-                            <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 shadow-lg shadow-primary/10">
-                                <ArrowUpFromLine className="w-6 h-6 text-primary" />
-                            </div>
-                            <div>
-                                <CardTitle className="text-xl">Pengajuan Retur Baru</CardTitle>
-                                <CardDescription>Pilih barang yang ingin dikembalikan ke gudang</CardDescription>
-                            </div>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="p-6 space-y-6 relative">
-                        {/* Add Product Button */}
-                        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                            <DialogTrigger asChild>
-                                <Button variant="outline" className="w-full h-14 rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-all text-primary font-semibold">
-                                    <Plus className="w-5 h-5 mr-2" />
-                                    Tambah Barang untuk Retur
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-lg rounded-2xl">
-                                <DialogHeader>
-                                    <DialogTitle>Pilih Barang</DialogTitle>
-                                    <DialogDescription>Pilih barang dari stok toko untuk diretur</DialogDescription>
-                                </DialogHeader>
-                                <div className="space-y-4 py-4">
-                                    <div className="relative">
-                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                        <Input
-                                            placeholder="Cari nama atau barcode..."
-                                            value={searchTerm}
-                                            onChange={e => setSearchTerm(e.target.value)}
-                                            className="pl-10 rounded-xl"
-                                        />
-                                    </div>
-                                    <div className="max-h-64 overflow-y-auto space-y-2">
-                                        {filteredProducts.length === 0 ? (
-                                            <p className="text-center text-muted-foreground py-8">Tidak ada produk dengan stok toko</p>
-                                        ) : (
-                                            filteredProducts.map(product => (
-                                                <div
-                                                    key={product.id}
-                                                    onClick={() => handleAddItem(product)}
-                                                    className="p-3 rounded-xl border hover:border-primary/50 hover:bg-primary/5 cursor-pointer transition-all flex justify-between items-center"
-                                                >
-                                                    <div>
-                                                        <p className="font-medium">{product.name}</p>
-                                                        <p className="text-xs text-muted-foreground">{product.barcode}</p>
-                                                    </div>
-                                                    <Badge variant="secondary" className="bg-blue-100 text-blue-700">
-                                                        Stok: {product.stock.toko}
-                                                    </Badge>
-                                                </div>
-                                            ))
-                                        )}
-                                    </div>
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                    {/* Form Section - Left Side */}
+                    <Card className="xl:col-span-1 border-2 bg-gradient-to-br from-card via-card to-muted/20 shadow-xl">
+                        <CardHeader className="border-b bg-gradient-to-r from-primary/5 to-transparent">
+                            <CardTitle className="flex items-center gap-2">
+                                <div className="p-2 rounded-lg bg-primary/10">
+                                    <ArrowUpFromLine className="w-5 h-5 text-primary" />
                                 </div>
-                            </DialogContent>
-                        </Dialog>
+                                Buat Retur Baru
+                            </CardTitle>
+                            <CardDescription>Pilih barang dari toko untuk dikembalikan ke gudang</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4 pt-6">
+                            <div className="space-y-2">
+                                <Label className="text-sm font-semibold">Alasan Retur</Label>
+                                <Textarea
+                                    placeholder="Contoh: Stok toko terlalu banyak, produk tidak laku..."
+                                    value={reason}
+                                    onChange={e => setReason(e.target.value)}
+                                    className="min-h-[80px] resize-none rounded-xl border-2 focus:border-primary/50"
+                                />
+                            </div>
 
-                        {/* Selected Items */}
-                        {returnItems.length > 0 && (
                             <div className="space-y-3">
-                                <Label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                                    Daftar Barang Retur ({returnItems.length} item)
-                                </Label>
-                                <div className="space-y-2">
-                                    {returnItems.map(item => (
-                                        <div key={item.productId} className="p-4 rounded-xl border-2 bg-muted/20 hover:bg-muted/30 transition-all">
-                                            <div className="flex items-start justify-between gap-4">
-                                                <div className="flex-1">
-                                                    <p className="font-semibold">{item.product?.name}</p>
-                                                    <p className="text-xs text-muted-foreground">{item.product?.barcode}</p>
-                                                </div>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => handleRemoveItem(item.productId)}
-                                                    className="text-destructive hover:bg-destructive/10"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </Button>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-3 mt-3">
-                                                <div>
-                                                    <Label className="text-xs">Jumlah (Max: {item.maxStock})</Label>
+                                <div className="flex justify-between items-center">
+                                    <Label className="text-sm font-semibold">Daftar Barang</Label>
+                                    <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                                        <DialogTrigger asChild>
+                                            <Button size="sm" variant="outline" className="rounded-xl gap-2 hover:bg-primary/10 hover:border-primary/50">
+                                                <Plus className="w-4 h-4" /> Tambah
+                                            </Button>
+                                        </DialogTrigger>
+                                        <DialogContent className="max-w-md max-h-[80vh] flex flex-col rounded-2xl">
+                                            <DialogHeader>
+                                                <DialogTitle className="flex items-center gap-2">
+                                                    <Package className="w-5 h-5 text-primary" />
+                                                    Pilih Barang
+                                                </DialogTitle>
+                                                <DialogDescription>Pilih barang dari stok toko untuk diretur</DialogDescription>
+                                            </DialogHeader>
+                                            <div className="p-2">
+                                                <div className="relative">
+                                                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                                                     <Input
-                                                        type="number"
-                                                        min={1}
-                                                        max={item.maxStock}
-                                                        value={item.quantity}
-                                                        onChange={e => {
-                                                            const val = parseInt(e.target.value) || 0;
-                                                            const clampedVal = Math.min(Math.max(1, val), item.maxStock);
-                                                            handleUpdateItem(item.productId, 'quantity', clampedVal);
-                                                        }}
-                                                        className="h-8 text-sm"
+                                                        placeholder="Cari nama atau barcode..."
+                                                        value={searchTerm}
+                                                        onChange={e => setSearchTerm(e.target.value)}
+                                                        className="pl-9 rounded-xl"
                                                     />
                                                 </div>
-                                                <div>
-                                                    <Label className="text-xs">Satuan</Label>
-                                                    <Select
-                                                        value={item.unit}
-                                                        onValueChange={v => handleUpdateItem(item.productId, 'unit', v)}
-                                                    >
-                                                        <SelectTrigger className="h-8 text-sm">
-                                                            <SelectValue />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="pcs">pcs</SelectItem>
-                                                            <SelectItem value="box">box</SelectItem>
-                                                            <SelectItem value="pack">pack</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
+                                            </div>
+                                            <div className="flex-1 overflow-y-auto min-h-[300px] space-y-1">
+                                                {filteredProducts.length === 0 ? (
+                                                    <p className="text-center text-muted-foreground py-8">Tidak ada produk dengan stok toko</p>
+                                                ) : (
+                                                    filteredProducts.map(product => (
+                                                        <div key={product.id} className="flex justify-between items-center p-3 rounded-xl hover:bg-primary/5 transition-colors border border-transparent hover:border-primary/20">
+                                                            <div>
+                                                                <p className="font-medium">{product.name}</p>
+                                                                <p className="text-xs text-muted-foreground flex items-center gap-2">
+                                                                    <span className="font-mono">{product.barcode}</span>
+                                                                    <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-600 border-blue-500/30">
+                                                                        <Sparkles className="w-3 h-3 mr-1" />
+                                                                        {product.stock.toko} pcs
+                                                                    </Badge>
+                                                                </p>
+                                                            </div>
+                                                            <Button size="sm" onClick={() => handleAddItem(product)} className="rounded-xl">Pilih</Button>
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
+                                        </DialogContent>
+                                    </Dialog>
+                                </div>
+
+                                {returnItems.length === 0 ? (
+                                    <div className="text-center py-8 border-2 border-dashed rounded-xl text-muted-foreground bg-muted/10">
+                                        <Package className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                                        Belum ada barang dipilih
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {returnItems.map((item, idx) => (
+                                            <div key={item.productId} className="p-3 rounded-xl bg-gradient-to-r from-muted/30 to-muted/10 border-2 border-border/50 hover:border-primary/30 transition-colors">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <span className="font-medium text-sm">{idx + 1}. {item.product?.name}</span>
+                                                    <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive hover:bg-destructive/10 rounded-full" onClick={() => handleRemoveItem(item.productId)}>
+                                                        <Trash2 className="w-3 h-3" />
+                                                    </Button>
+                                                </div>
+                                                <div className="grid grid-cols-3 gap-2">
+                                                    <div>
+                                                        <Label className="text-xs text-muted-foreground">Jumlah (Max: {item.maxStock})</Label>
+                                                        <Input
+                                                            type="number"
+                                                            min={1}
+                                                            max={item.maxStock}
+                                                            value={item.quantity}
+                                                            onChange={e => {
+                                                                const val = parseInt(e.target.value) || 0;
+                                                                const clampedVal = Math.min(Math.max(1, val), item.maxStock);
+                                                                handleUpdateItem(item.productId, 'quantity', clampedVal);
+                                                            }}
+                                                            className="h-8 text-sm rounded-lg"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <Label className="text-xs text-muted-foreground">Satuan</Label>
+                                                        <Select
+                                                            value={item.unit}
+                                                            onValueChange={v => handleUpdateItem(item.productId, 'unit', v)}
+                                                        >
+                                                            <SelectTrigger className="h-8 text-sm rounded-lg">
+                                                                <SelectValue />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="pcs">pcs</SelectItem>
+                                                                <SelectItem value="box">box</SelectItem>
+                                                                <SelectItem value="pack">pack</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                    <div className="col-span-3">
+                                                        <Label className="text-xs text-muted-foreground">Catatan (opsional)</Label>
+                                                        <Input
+                                                            placeholder="Isi jika perlu..."
+                                                            value={item.note || ''}
+                                                            onChange={e => handleUpdateItem(item.productId, 'note', e.target.value)}
+                                                            className="h-8 text-sm rounded-lg"
+                                                        />
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    ))}
-                                </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
-                        )}
 
-                        {/* Reason */}
-                        <div className="space-y-2">
-                            <Label className="text-sm font-semibold">Alasan Retur</Label>
-                            <Textarea
-                                placeholder="Contoh: Stok toko terlalu banyak, produk tidak laku..."
-                                value={reason}
-                                onChange={e => setReason(e.target.value)}
-                                className="min-h-[100px] rounded-xl resize-none"
-                            />
-                        </div>
+                            <Button
+                                className="w-full rounded-xl h-12 text-base font-semibold shadow-lg shadow-primary/20 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary"
+                                size="lg"
+                                disabled={!reason || returnItems.length === 0 || createReturn.isPending}
+                                onClick={handleSubmit}
+                            >
+                                <Send className="w-5 h-5 mr-2" /> {createReturn.isPending ? 'Mengirim...' : 'Kirim Retur'}
+                            </Button>
+                        </CardContent>
+                    </Card>
 
-                        {/* Submit Button */}
-                        <Button
-                            onClick={handleSubmit}
-                            disabled={returnItems.length === 0 || !reason.trim() || createReturn.isPending}
-                            className="w-full h-12 rounded-xl bg-gradient-to-r from-primary to-primary/80 shadow-lg shadow-primary/20 hover:shadow-xl transition-all text-base font-semibold"
-                        >
-                            <Send className="w-5 h-5 mr-2" />
-                            {createReturn.isPending ? 'Mengirim...' : 'Kirim Pengajuan Retur'}
-                        </Button>
-                    </CardContent>
-                </Card>
-
-                {/* History Table */}
-                <BeautifulTable
-                    data={myReturns}
-                    columns={tableColumns}
-                    title="Riwayat Retur Saya"
-                    subtitle={`${myReturns.length} retur total`}
-                    isLoading={isLoading}
-                    hideSelection
-                    variant="premium"
-                    itemsPerPage={10}
-                    emptyState={{
-                        icon: <Package className="w-12 h-12 text-muted-foreground/50" />,
-                        title: 'Belum ada retur',
-                        description: 'Anda belum pernah mengajukan retur barang ke gudang.'
-                    }}
-                />
+                    {/* Table Section - Right Side using BeautifulTable */}
+                    <div className="xl:col-span-2">
+                        <BeautifulTable
+                            data={myReturns}
+                            columns={tableColumns}
+                            title="Riwayat Retur Saya"
+                            subtitle={`${myReturns.length} retur total`}
+                            isLoading={isLoading}
+                            hideSelection
+                            hideExport={false}
+                            exportFilename="riwayat_retur_stok"
+                            exportTitle="Riwayat Retur Stok"
+                            itemsPerPage={10}
+                            emptyState={{
+                                icon: <ArrowUpFromLine className="w-8 h-8" />,
+                                title: 'Belum ada riwayat retur',
+                                description: 'Buat retur baru menggunakan form di sebelah kiri'
+                            }}
+                        />
+                    </div>
+                </div>
             </div>
         </MainLayout>
     );
