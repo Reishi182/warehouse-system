@@ -3,7 +3,7 @@ import { Package, Check, Eye, Camera, Wallet, AlertTriangle } from 'lucide-react
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import MainLayout from '@/components/layout/MainLayout';
 import PageSkeleton from '@/components/common/PageSkeleton';
-import SignatureCanvas, { SignatureCanvasRef } from '@/components/common/SignatureCanvas';
+import SignaturePad, { SignaturePadRef } from '@/components/common/SignaturePad';
 import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -60,7 +60,7 @@ export default function PurchaseOrderReceipt() {
     const [signatureData, setSignatureData] = useState<string | null>(null);
     const [receivedItems, setReceivedItems] = useState<ReceivedItemState[]>([]);
 
-    const signatureRef = useRef<SignatureCanvasRef>(null);
+    const signatureRef = useRef<SignaturePadRef>(null);
 
     const { data: selectedPO, isLoading: selectedPOLoading } = usePurchaseOrder(selectedPOId || '');
 
@@ -459,7 +459,7 @@ export default function PurchaseOrderReceipt() {
                             {/* Digital Signature */}
                             <div className="space-y-2">
                                 <Label>Tanda Tangan Digital {hasDiscrepancy && <span className="text-red-500">*</span>}</Label>
-                                <SignatureCanvas
+                                <SignaturePad
                                     ref={signatureRef}
                                     onSignatureChange={setSignatureData}
                                     width={450}

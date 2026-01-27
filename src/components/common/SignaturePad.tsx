@@ -9,7 +9,8 @@ interface SignaturePadProps {
     strokeColor?: string;
     strokeWidth?: number;
     className?: string;
-    onSignatureChange?: (hasSignature: boolean) => void;
+    // Support both boolean (original) and string (SignatureCanvas) callbacks
+    onSignatureChange?: ((hasSignature: boolean) => void) | ((signatureData: string | null) => void);
 }
 
 export interface SignaturePadRef {
@@ -17,6 +18,7 @@ export interface SignaturePadRef {
     isEmpty: () => boolean;
     toDataURL: (type?: string) => string;
     toBlob: (callback: (blob: Blob | null) => void, type?: string, quality?: number) => void;
+    getSignatureData: () => string | null;
 }
 
 const SignaturePad = forwardRef<SignaturePadRef, SignaturePadProps>(({
@@ -100,7 +102,8 @@ const SignaturePad = forwardRef<SignaturePadRef, SignaturePadProps>(({
 
         if (!hasSignature) {
             setHasSignature(true);
-            onSignatureChange?.(true);
+            // Call with both boolean and string for compatibility
+            (onSignatureChange as (v: boolean | string | null) => void)?.(true);
         }
     };
 
@@ -117,7 +120,7 @@ const SignaturePad = forwardRef<SignaturePadRef, SignaturePadProps>(({
         ctx.fillStyle = backgroundColor;
         ctx.fillRect(0, 0, width, height);
         setHasSignature(false);
-        onSignatureChange?.(false);
+        (onSignatureChange as (v: boolean | string | null) => void)?.(null);
     };
 
     const isEmpty = () => !hasSignature;
@@ -137,6 +140,7 @@ const SignaturePad = forwardRef<SignaturePadRef, SignaturePadProps>(({
         isEmpty,
         toDataURL,
         toBlob,
+        getSignatureData: () => hasSignature ? toDataURL() : null,
     }));
 
     return (

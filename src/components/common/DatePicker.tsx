@@ -96,7 +96,7 @@ export function DatePicker({
                             {date ? format(date, dateFormat, { locale: id }) : placeholder}
                         </span>
                     </div>
-                    <ChevronDown className="h-4 w-4 opacity-50 group-hover:opacity-100 transition-opacity" />
+
                 </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0 rounded-2xl shadow-xl border-2" align="start">

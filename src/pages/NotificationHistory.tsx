@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotifications, useMarkNotificationRead, useMarkAllNotificationsRead, useUnreadCount } from '@/hooks/useNotifications';
+import MainLayout from '@/components/layout/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -107,141 +108,145 @@ export default function NotificationHistory() {
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center h-[60vh]">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            </div>
+            <MainLayout title="Riwayat Notifikasi">
+                <div className="flex items-center justify-center h-[60vh]">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+            </MainLayout>
         );
     }
 
     return (
-        <div className="container max-w-4xl mx-auto py-6 space-y-6">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <Bell className="w-8 h-8 text-primary" />
-                    <div>
-                        <h1 className="text-2xl font-bold">Riwayat Notifikasi</h1>
-                        <p className="text-muted-foreground text-sm">
-                            {unreadCount > 0 ? `${unreadCount} belum dibaca` : 'Semua sudah dibaca'}
-                        </p>
+        <MainLayout title="Riwayat Notifikasi">
+            <div className="container max-w-4xl mx-auto py-6 space-y-6">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <Bell className="w-8 h-8 text-primary" />
+                        <div>
+                            <h1 className="text-2xl font-bold">Riwayat Notifikasi</h1>
+                            <p className="text-muted-foreground text-sm">
+                                {unreadCount > 0 ? `${unreadCount} belum dibaca` : 'Semua sudah dibaca'}
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex gap-2">
+                        {unreadCount > 0 && (
+                            <Button variant="outline" size="sm" onClick={handleMarkAllRead}>
+                                <CheckCheck className="w-4 h-4 mr-2" />
+                                Tandai Semua Dibaca
+                            </Button>
+                        )}
+                        <Button variant="outline" size="sm" onClick={handleClearAll}>
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Hapus Dibaca
+                        </Button>
                     </div>
                 </div>
-                <div className="flex gap-2">
-                    {unreadCount > 0 && (
-                        <Button variant="outline" size="sm" onClick={handleMarkAllRead}>
-                            <CheckCheck className="w-4 h-4 mr-2" />
-                            Tandai Semua Dibaca
-                        </Button>
-                    )}
-                    <Button variant="outline" size="sm" onClick={handleClearAll}>
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Hapus Dibaca
-                    </Button>
-                </div>
-            </div>
 
-            <Tabs defaultValue="all" onValueChange={(v) => setFilter(v as any)}>
-                <TabsList>
-                    <TabsTrigger value="all" className="gap-2">
-                        <Bell className="w-4 h-4" />
-                        Semua
-                        <Badge variant="secondary">{notifications.length}</Badge>
-                    </TabsTrigger>
-                    <TabsTrigger value="unread" className="gap-2">
-                        <BellOff className="w-4 h-4" />
-                        Belum Dibaca
-                        {unreadCount > 0 && <Badge variant="destructive">{unreadCount}</Badge>}
-                    </TabsTrigger>
-                    <TabsTrigger value="read" className="gap-2">
-                        <Check className="w-4 h-4" />
-                        Sudah Dibaca
-                    </TabsTrigger>
-                </TabsList>
+                <Tabs defaultValue="all" onValueChange={(v) => setFilter(v as any)}>
+                    <TabsList>
+                        <TabsTrigger value="all" className="gap-2">
+                            <Bell className="w-4 h-4" />
+                            Semua
+                            <Badge variant="secondary">{notifications.length}</Badge>
+                        </TabsTrigger>
+                        <TabsTrigger value="unread" className="gap-2">
+                            <BellOff className="w-4 h-4" />
+                            Belum Dibaca
+                            {unreadCount > 0 && <Badge variant="destructive">{unreadCount}</Badge>}
+                        </TabsTrigger>
+                        <TabsTrigger value="read" className="gap-2">
+                            <Check className="w-4 h-4" />
+                            Sudah Dibaca
+                        </TabsTrigger>
+                    </TabsList>
 
-                <TabsContent value={filter} className="mt-4">
-                    {filteredNotifications.length === 0 ? (
-                        <Card>
-                            <CardContent className="flex flex-col items-center justify-center py-12">
-                                <BellOff className="w-12 h-12 text-muted-foreground mb-4" />
-                                <p className="text-muted-foreground">Tidak ada notifikasi</p>
-                            </CardContent>
-                        </Card>
-                    ) : (
-                        <ScrollArea className="h-[calc(100vh-280px)]">
-                            <div className="space-y-2">
-                                {filteredNotifications.map((notification) => (
-                                    <Card
-                                        key={notification.id}
-                                        className={`transition-all hover:shadow-md cursor-pointer ${!notification.read ? 'border-l-4 border-l-primary bg-primary/5' : ''
-                                            }`}
-                                    >
-                                        <CardContent className="p-4">
-                                            <div className="flex items-start gap-4">
-                                                <div className="flex-shrink-0 mt-1">
-                                                    {getIcon(notification.type)}
-                                                </div>
-                                                <div
-                                                    className="flex-1 min-w-0"
-                                                    onClick={() => navigateToLink(notification)}
-                                                >
-                                                    <div className="flex items-start justify-between gap-2">
-                                                        <h4 className={`font-medium ${!notification.read ? 'text-foreground' : 'text-muted-foreground'}`}>
-                                                            {notification.title}
-                                                        </h4>
-                                                        <div className="flex items-center gap-1 text-xs text-muted-foreground flex-shrink-0">
-                                                            <Clock className="w-3 h-3" />
-                                                            {formatDistanceToNow(new Date(notification.created_at), {
-                                                                addSuffix: true,
-                                                                locale: id
-                                                            })}
-                                                        </div>
+                    <TabsContent value={filter} className="mt-4">
+                        {filteredNotifications.length === 0 ? (
+                            <Card>
+                                <CardContent className="flex flex-col items-center justify-center py-12">
+                                    <BellOff className="w-12 h-12 text-muted-foreground mb-4" />
+                                    <p className="text-muted-foreground">Tidak ada notifikasi</p>
+                                </CardContent>
+                            </Card>
+                        ) : (
+                            <ScrollArea className="h-[calc(100vh-280px)]">
+                                <div className="space-y-2">
+                                    {filteredNotifications.map((notification) => (
+                                        <Card
+                                            key={notification.id}
+                                            className={`transition-all hover:shadow-md cursor-pointer ${!notification.read ? 'border-l-4 border-l-primary bg-primary/5' : ''
+                                                }`}
+                                        >
+                                            <CardContent className="p-4">
+                                                <div className="flex items-start gap-4">
+                                                    <div className="flex-shrink-0 mt-1">
+                                                        {getIcon(notification.type)}
                                                     </div>
-                                                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                                                        {notification.message}
-                                                    </p>
-                                                    {notification.link && (
-                                                        <div className="flex items-center gap-1 text-xs text-primary mt-2">
-                                                            <ExternalLink className="w-3 h-3" />
-                                                            Lihat Detail
+                                                    <div
+                                                        className="flex-1 min-w-0"
+                                                        onClick={() => navigateToLink(notification)}
+                                                    >
+                                                        <div className="flex items-start justify-between gap-2">
+                                                            <h4 className={`font-medium ${!notification.read ? 'text-foreground' : 'text-muted-foreground'}`}>
+                                                                {notification.title}
+                                                            </h4>
+                                                            <div className="flex items-center gap-1 text-xs text-muted-foreground flex-shrink-0">
+                                                                <Clock className="w-3 h-3" />
+                                                                {formatDistanceToNow(new Date(notification.created_at), {
+                                                                    addSuffix: true,
+                                                                    locale: id
+                                                                })}
+                                                            </div>
                                                         </div>
-                                                    )}
-                                                </div>
-                                                <div className="flex items-center gap-1 flex-shrink-0">
-                                                    {!notification.read && (
+                                                        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                                                            {notification.message}
+                                                        </p>
+                                                        {notification.link && (
+                                                            <div className="flex items-center gap-1 text-xs text-primary mt-2">
+                                                                <ExternalLink className="w-3 h-3" />
+                                                                Lihat Detail
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex items-center gap-1 flex-shrink-0">
+                                                        {!notification.read && (
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-8 w-8"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleMarkRead(notification.id);
+                                                                }}
+                                                                title="Tandai sudah dibaca"
+                                                            >
+                                                                <Check className="w-4 h-4" />
+                                                            </Button>
+                                                        )}
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
-                                                            className="h-8 w-8"
+                                                            className="h-8 w-8 text-destructive hover:text-destructive"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                handleMarkRead(notification.id);
+                                                                handleDelete(notification.id);
                                                             }}
-                                                            title="Tandai sudah dibaca"
+                                                            title="Hapus"
                                                         >
-                                                            <Check className="w-4 h-4" />
+                                                            <Trash2 className="w-4 h-4" />
                                                         </Button>
-                                                    )}
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-8 w-8 text-destructive hover:text-destructive"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleDelete(notification.id);
-                                                        }}
-                                                        title="Hapus"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </Button>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                ))}
-                            </div>
-                        </ScrollArea>
-                    )}
-                </TabsContent>
-            </Tabs>
-        </div>
+                                            </CardContent>
+                                        </Card>
+                                    ))}
+                                </div>
+                            </ScrollArea>
+                        )}
+                    </TabsContent>
+                </Tabs>
+            </div>
+        </MainLayout>
     );
 }

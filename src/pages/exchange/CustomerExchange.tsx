@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth, useRole } from '@/contexts/AuthContext';
 import { useData } from '@/contexts/DataContext';
 import { useCustomerExchange } from '@/hooks/useCustomerExchange';
 import { useStoreSettings } from '@/hooks/useStoreSettings';
@@ -94,10 +94,15 @@ interface ExchangeResult {
 
 export default function CustomerExchange() {
     const { user } = useAuth();
+    const role = useRole();
     const { products } = useData();
     const { toast } = useToast();
     const { searchSale, checkAlreadyExchanged, createExchange } = useCustomerExchange();
     const { settings } = useStoreSettings();
+
+    // Determine stock location based on role
+    const stockLocation = role === 'warehouse' ? 'gudang' : 'toko';
+    const locationLabel = role === 'warehouse' ? 'Gudang' : 'Toko';
 
     // State
     const [saleNumberSearch, setSaleNumberSearch] = useState('');
@@ -143,19 +148,20 @@ export default function CustomerExchange() {
         return -difference; // Refund amount
     }, [difference, amountPaid]);
 
-    // Filtered products for adding new items
+    // Filtered products for adding new items (based on role's stock location)
     const filteredProducts = useMemo(() => {
         if (!productSearch) return [];
         const search = productSearch.toLowerCase();
         return products
-            .filter(p =>
-                (p.name.toLowerCase().includes(search) ||
+            .filter(p => {
+                const availableStock = stockLocation === 'gudang' ? p.stock.gudang : p.stock.toko;
+                return (p.name.toLowerCase().includes(search) ||
                     p.barcode.toLowerCase().includes(search)) &&
-                p.stock.toko > 0 &&
-                !newItems.some(ni => ni.productId === p.id)
-            )
+                    availableStock > 0 &&
+                    !newItems.some(ni => ni.productId === p.id);
+            })
             .slice(0, 10);
-    }, [products, productSearch, newItems]);
+    }, [products, productSearch, newItems, stockLocation]);
 
     // Search for original sale
     const handleSearchSale = async () => {
@@ -246,13 +252,14 @@ export default function CustomerExchange() {
             return;
         }
 
+        const maxStock = stockLocation === 'gudang' ? product.stock.gudang : product.stock.toko;
         setNewItems(prev => [...prev, {
             id: crypto.randomUUID(),
             productId: product.id,
             productName: product.name,
             barcode: product.barcode,
             quantity: 1,
-            maxStock: product.stock.toko,
+            maxStock: maxStock,
             price: product.price
         }]);
         setShowAddNewItemDialog(false);
@@ -319,7 +326,7 @@ export default function CustomerExchange() {
                 originalSaleNumber: foundSale.sale_number,
                 cashierId: user.id,
                 cashierName: user.name,
-                stockLocation: foundSale.stock_location as Location,
+                stockLocation: stockLocation as Location,
                 returnedItems: returnedItems.map(item => ({
                     productId: item.productId,
                     productName: item.productName,

@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import SignatureCanvas from '@/components/common/SignatureCanvas';
+import SignaturePad from '@/components/common/SignaturePad';
 import { compressImageToFile } from '@/lib/imageCompression';
 
 interface ReceivedItemState {
@@ -283,7 +283,7 @@ export default function GoodsReceipt() {
                                     <Pen className="w-4 h-4" />
                                     Tanda Tangan Penerima <span className="text-red-500">*</span>
                                 </Label>
-                                <SignatureCanvas
+                                <SignaturePad
                                     onSignatureChange={handleSignatureSave}
                                     width={400}
                                     height={150}

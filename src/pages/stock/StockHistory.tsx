@@ -10,6 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useData } from '@/contexts/DataContext';
 import { useStockLogs } from '@/hooks/useStockLogs';
+import { DateInput } from '@/components/common/DatePicker';
 import { StockLog, Location } from '@/types';
 import {
     ArrowDownToLine,
@@ -194,17 +195,15 @@ export default function StockHistory() {
                                     <SelectItem value="lainnya">Lainnya</SelectItem>
                                 </SelectContent>
                             </Select>
-                            <Input
-                                type="date"
+                            <DateInput
                                 value={dateFrom}
-                                onChange={(e) => setDateFrom(e.target.value)}
+                                onChange={setDateFrom}
                                 placeholder="Dari tanggal"
                             />
                             <div className="flex gap-2">
-                                <Input
-                                    type="date"
+                                <DateInput
                                     value={dateTo}
-                                    onChange={(e) => setDateTo(e.target.value)}
+                                    onChange={setDateTo}
                                     placeholder="Sampai tanggal"
                                     className="flex-1"
                                 />
@@ -296,8 +295,8 @@ export default function StockHistory() {
                                                     </TableCell>
                                                     <TableCell className="text-right">
                                                         <span className={`font-bold ${log.type === 'in' ? 'text-green-600' :
-                                                                log.type === 'out' ? 'text-red-600' :
-                                                                    'text-blue-600'
+                                                            log.type === 'out' ? 'text-red-600' :
+                                                                'text-blue-600'
                                                             }`}>
                                                             {log.type === 'in' ? '+' : log.type === 'out' ? '-' : '±'}
                                                             {log.quantity}

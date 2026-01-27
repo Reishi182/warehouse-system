@@ -7,7 +7,6 @@ import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { CurrencyInput } from '@/components/ui/currency-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -361,9 +360,10 @@ export default function CashTransfer() {
                     <div className="grid grid-cols-1 gap-4">
                       <div className="space-y-2">
                         <Label>Nominal Setoran</Label>
-                        <CurrencyInput
-                          value={amount}
-                          onChange={setAmount}
+                        <Input
+                          type="number"
+                          value={amount || ''}
+                          onChange={(e) => setAmount(parseInt(e.target.value) || 0)}
                           placeholder="Masukkan nominal"
                         />
                         <div className="flex gap-2">

@@ -21,7 +21,7 @@ import { MarketplaceOrder, MarketplaceOrderItem } from '@/types';
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
-import SignatureCanvas from '@/components/common/SignatureCanvas';
+import SignaturePad from '@/components/common/SignaturePad';
 
 interface ReceiptItem {
     id: string;
@@ -337,8 +337,8 @@ export default function MarketplaceReceipt() {
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <SignatureCanvas
-                                    onSave={setSignature}
+                                <SignaturePad
+                                    onSignatureChange={setSignature}
                                     width={400}
                                     height={150}
                                 />

@@ -581,7 +581,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       title: 'Penjualan Berhasil',
       message: `Penjualan ${saleNumber} berhasil dibuat`,
       type: 'success',
-      link: '/sales',
+      link: '/finance/sales-history',
     });
 
     await refreshData();
