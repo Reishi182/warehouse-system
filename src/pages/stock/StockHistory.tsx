@@ -5,12 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useData } from '@/contexts/DataContext';
 import { useStockLogs } from '@/hooks/useStockLogs';
 import { DateInput } from '@/components/common/DatePicker';
+import { StockLogDetailDialog } from '@/components/stock/StockLogDetailDialog';
 import { StockLog, Location } from '@/types';
 import {
     ArrowDownToLine,
@@ -22,10 +22,14 @@ import {
     Filter,
     TrendingUp,
     TrendingDown,
-    Activity
+    Activity,
+    Eye,
+    User
 } from 'lucide-react';
 import { format, parseISO, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
 import { id } from 'date-fns/locale';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { cn } from '@/lib/utils';
 
 const locationLabels: Record<Location, string> = {
     gudang: 'Gudang',
@@ -49,6 +53,10 @@ export default function StockHistory() {
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
 
+    // Detail dialog state
+    const [selectedLog, setSelectedLog] = useState<StockLog | null>(null);
+    const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+
     // Stats
     const stats = useMemo(() => {
         const totalIn = stockLogs.filter(l => l.type === 'in').reduce((sum, l) => sum + l.quantity, 0);
@@ -66,7 +74,8 @@ export default function StockHistory() {
                 const productName = log.product?.name?.toLowerCase() || '';
                 const barcode = log.product?.barcode?.toLowerCase() || '';
                 const note = log.note?.toLowerCase() || '';
-                if (!productName.includes(query) && !barcode.includes(query) && !note.includes(query)) {
+                const userName = log.user?.name?.toLowerCase() || '';
+                if (!productName.includes(query) && !barcode.includes(query) && !note.includes(query) && !userName.includes(query)) {
                     return false;
                 }
             }
@@ -103,12 +112,17 @@ export default function StockHistory() {
         setDateTo('');
     };
 
+    const handleViewDetail = (log: StockLog) => {
+        setSelectedLog(log);
+        setDetailDialogOpen(true);
+    };
+
     return (
         <MainLayout title="History Stok" subtitle="Riwayat pergerakan stok">
             <div className="space-y-6">
                 {/* Stats Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <Card>
+                    <Card className="overflow-hidden">
                         <CardContent className="flex items-center gap-4 p-4">
                             <div className="p-3 rounded-xl bg-primary/10">
                                 <Activity className="w-6 h-6 text-primary" />
@@ -119,7 +133,7 @@ export default function StockHistory() {
                             </div>
                         </CardContent>
                     </Card>
-                    <Card>
+                    <Card className="overflow-hidden">
                         <CardContent className="flex items-center gap-4 p-4">
                             <div className="p-3 rounded-xl bg-green-100 dark:bg-green-900/30">
                                 <TrendingUp className="w-6 h-6 text-green-600" />
@@ -130,7 +144,7 @@ export default function StockHistory() {
                             </div>
                         </CardContent>
                     </Card>
-                    <Card>
+                    <Card className="overflow-hidden">
                         <CardContent className="flex items-center gap-4 p-4">
                             <div className="p-3 rounded-xl bg-red-100 dark:bg-red-900/30">
                                 <TrendingDown className="w-6 h-6 text-red-600" />
@@ -141,7 +155,7 @@ export default function StockHistory() {
                             </div>
                         </CardContent>
                     </Card>
-                    <Card>
+                    <Card className="overflow-hidden">
                         <CardContent className="flex items-center gap-4 p-4">
                             <div className="p-3 rounded-xl bg-blue-100 dark:bg-blue-900/30">
                                 <RefreshCw className="w-6 h-6 text-blue-600" />
@@ -167,7 +181,7 @@ export default function StockHistory() {
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                                 <Input
-                                    placeholder="Cari produk, barcode, catatan..."
+                                    placeholder="Cari produk, user, catatan..."
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     className="pl-10"
@@ -246,7 +260,9 @@ export default function StockHistory() {
                                             <TableHead>Tipe</TableHead>
                                             <TableHead className="text-right">Qty</TableHead>
                                             <TableHead>Lokasi</TableHead>
+                                            <TableHead>User</TableHead>
                                             <TableHead>Catatan</TableHead>
+                                            <TableHead className="w-[80px]"></TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -254,7 +270,11 @@ export default function StockHistory() {
                                             const typeInfo = typeLabels[log.type] || typeLabels.adjustment;
                                             const TypeIcon = typeInfo.icon;
                                             return (
-                                                <TableRow key={log.id}>
+                                                <TableRow
+                                                    key={log.id}
+                                                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                                                    onClick={() => handleViewDetail(log)}
+                                                >
                                                     <TableCell className="whitespace-nowrap">
                                                         <div className="flex items-center gap-2">
                                                             <Calendar className="w-4 h-4 text-muted-foreground" />
@@ -294,10 +314,12 @@ export default function StockHistory() {
                                                         </Badge>
                                                     </TableCell>
                                                     <TableCell className="text-right">
-                                                        <span className={`font-bold ${log.type === 'in' ? 'text-green-600' :
-                                                            log.type === 'out' ? 'text-red-600' :
-                                                                'text-blue-600'
-                                                            }`}>
+                                                        <span className={cn(
+                                                            "font-bold",
+                                                            log.type === 'in' ? 'text-green-600' :
+                                                                log.type === 'out' ? 'text-red-600' :
+                                                                    'text-blue-600'
+                                                        )}>
                                                             {log.type === 'in' ? '+' : log.type === 'out' ? '-' : '±'}
                                                             {log.quantity}
                                                         </span>
@@ -307,10 +329,40 @@ export default function StockHistory() {
                                                             {locationLabels[log.location] || log.location}
                                                         </Badge>
                                                     </TableCell>
+                                                    <TableCell>
+                                                        {log.user ? (
+                                                            <div className="flex items-center gap-2">
+                                                                <Avatar className="h-6 w-6">
+                                                                    <AvatarImage src={log.user.avatar || ''} />
+                                                                    <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                                                                        {log.user.name?.slice(0, 2).toUpperCase()}
+                                                                    </AvatarFallback>
+                                                                </Avatar>
+                                                                <span className="text-sm truncate max-w-[100px]">
+                                                                    {log.user.name}
+                                                                </span>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-muted-foreground text-sm">-</span>
+                                                        )}
+                                                    </TableCell>
                                                     <TableCell className="max-w-xs truncate">
-                                                        <span className="text-muted-foreground">
+                                                        <span className="text-muted-foreground text-sm">
                                                             {log.note || '-'}
                                                         </span>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleViewDetail(log);
+                                                            }}
+                                                        >
+                                                            <Eye className="w-4 h-4" />
+                                                        </Button>
                                                     </TableCell>
                                                 </TableRow>
                                             );
@@ -322,6 +374,13 @@ export default function StockHistory() {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Detail Dialog */}
+            <StockLogDetailDialog
+                log={selectedLog}
+                open={detailDialogOpen}
+                onOpenChange={setDetailDialogOpen}
+            />
         </MainLayout>
     );
 }

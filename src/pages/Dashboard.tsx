@@ -2,7 +2,7 @@ import MainLayout from '@/components/layout/MainLayout';
 import PageSkeleton from '@/components/common/PageSkeleton';
 import {
   StatsGrid,
-  LowStockAlert,
+  LowStockAlertWidget,
   DashboardActivityHub,
   RoleCharts,
   PODiscrepancyWidget,
@@ -14,11 +14,6 @@ export default function Dashboard() {
   const { profile } = useAuth();
   const role = useRole();
   const { products, requests, suratJalans, stockLogs, sales, cashTransfers, loading } = useData();
-
-  // Low stock products
-  const lowStockProducts = products.filter(p =>
-    p.stock.gudang < 20 || p.stock.toko < 10
-  );
 
   if (loading) {
     return (
@@ -68,9 +63,9 @@ export default function Dashboard() {
           <PODiscrepancyWidget />
         )}
 
-        {/* Low Stock Alert - for warehouse and admin */}
-        {(role === 'warehouse' || role === 'admin') && lowStockProducts.length > 0 && (
-          <LowStockAlert products={lowStockProducts} />
+        {/* Low Stock Alert Widget - for warehouse and admin */}
+        {(role === 'warehouse' || role === 'admin') && (
+          <LowStockAlertWidget maxVisible={5} />
         )}
 
         {/* Unified Activity Hub with Tabs */}

@@ -175,8 +175,19 @@ export interface StockLog {
   quantity: number;
   location: Location;
   user_id: string | null;
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+    avatar?: string;
+  } | null;
   timestamp: string;
   note?: string | null;
+  // Additional context fields
+  reference_type?: string | null; // 'stock_request', 'purchase_order', 'sale', etc.
+  reference_id?: string | null;
+  stock_before?: number | null;
+  stock_after?: number | null;
 }
 
 export interface Notification {

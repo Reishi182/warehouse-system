@@ -150,6 +150,7 @@ const navGroups: NavItem[] = [
     icon: BarChart3,
     roles: ['cashier', 'main_office', 'auditor', 'admin'],
     children: [
+      { label: 'Laporan Penjualan Harian', icon: Receipt, href: '/reports/daily-sales', roles: ['cashier', 'main_office', 'auditor', 'admin'] },
       { label: 'Laporan Stok Harian', icon: Package, href: '/reports/daily-stock', roles: ['cashier', 'admin'] },
       { label: 'Laporan Umum', icon: BarChart3, href: '/reports', roles: ['cashier', 'main_office', 'auditor', 'admin'] },
     ],

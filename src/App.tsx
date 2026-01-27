@@ -45,6 +45,7 @@ const GeneralTransactions = React.lazy(() => import('@/pages/finance/GeneralTran
 const Backorders = React.lazy(() => import('@/pages/finance/Backorders'));
 const SalesHistory = React.lazy(() => import('@/pages/finance/SalesHistory'));
 const DailyStockReport = React.lazy(() => import('@/pages/reports/DailyStockReport'));
+const DailySalesReport = React.lazy(() => import('@/pages/reports/DailySalesReport'));
 const POS = React.lazy(() => import('./pages/POS'));
 const DirectOrders = React.lazy(() => import('./pages/direct-orders/DirectOrders'));
 const DirectOrderDetail = React.lazy(() => import('./pages/direct-orders/DirectOrderDetail'));
@@ -188,6 +189,12 @@ function AppRoutes() {
         <Route path="/reports/daily-stock" element={
           <ProtectedRoute>
             <DailyStockReport />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/reports/daily-sales" element={
+          <ProtectedRoute>
+            <DailySalesReport />
           </ProtectedRoute>
         } />
 

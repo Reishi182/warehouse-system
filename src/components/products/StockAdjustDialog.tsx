@@ -1,0 +1,174 @@
+import { useState } from 'react';
+import { Package, Plus, Minus } from 'lucide-react';
+import { Product } from '@/types';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from '@/components/ui/dialog';
+
+interface StockAdjustDialogProps {
+    product: Product | null;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    onSave: (productId: string, newStock: { gudang: number; toko: number }) => Promise<void>;
+}
+
+export function StockAdjustDialog({
+    product,
+    open,
+    onOpenChange,
+    onSave,
+}: StockAdjustDialogProps) {
+    const [adjustments, setAdjustments] = useState({ gudang: 0, toko: 0 });
+
+    // Reset adjustments when dialog opens with different product
+    const handleOpenChange = (newOpen: boolean) => {
+        if (newOpen) {
+            setAdjustments({ gudang: 0, toko: 0 });
+        }
+        onOpenChange(newOpen);
+    };
+
+    const handleSave = async () => {
+        if (!product) return;
+
+        const newStock = {
+            gudang: Math.max(0, product.stock.gudang + adjustments.gudang),
+            toko: Math.max(0, product.stock.toko + adjustments.toko),
+        };
+
+        await onSave(product.id, newStock);
+        onOpenChange(false);
+    };
+
+    if (!product) return null;
+
+    return (
+        <Dialog open={open} onOpenChange={handleOpenChange}>
+            <DialogContent className="max-w-sm">
+                <DialogHeader>
+                    <DialogTitle>Sesuaikan Stok</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                    {/* Product Info */}
+                    <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl">
+                        {product.image_url ? (
+                            <img src={product.image_url} alt="" className="w-12 h-12 rounded-lg object-cover" />
+                        ) : (
+                            <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                                <Package className="w-6 h-6 text-primary" />
+                            </div>
+                        )}
+                        <div>
+                            <p className="font-semibold">{product.name}</p>
+                            <p className="text-xs text-muted-foreground">{product.barcode}</p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-3">
+                        {/* Gudang Adjustment */}
+                        <div className="flex items-center justify-between gap-4">
+                            <div>
+                                <Label className="text-sm">Gudang</Label>
+                                <p className="text-xs text-muted-foreground">
+                                    Saat ini: {product.stock.gudang}
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    size="icon"
+                                    variant="outline"
+                                    className="h-8 w-8 rounded-full"
+                                    onClick={() => setAdjustments(prev => ({ ...prev, gudang: prev.gudang - 1 }))}
+                                >
+                                    <Minus className="w-4 h-4" />
+                                </Button>
+                                <Input
+                                    type="number"
+                                    value={adjustments.gudang}
+                                    onChange={(e) => setAdjustments(prev => ({ ...prev, gudang: parseInt(e.target.value) || 0 }))}
+                                    className="w-20 text-center h-8 rounded-lg"
+                                />
+                                <Button
+                                    size="icon"
+                                    variant="outline"
+                                    className="h-8 w-8 rounded-full"
+                                    onClick={() => setAdjustments(prev => ({ ...prev, gudang: prev.gudang + 1 }))}
+                                >
+                                    <Plus className="w-4 h-4" />
+                                </Button>
+                            </div>
+                        </div>
+
+                        {/* Toko Adjustment */}
+                        <div className="flex items-center justify-between gap-4">
+                            <div>
+                                <Label className="text-sm">Toko</Label>
+                                <p className="text-xs text-muted-foreground">
+                                    Saat ini: {product.stock.toko}
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    size="icon"
+                                    variant="outline"
+                                    className="h-8 w-8 rounded-full"
+                                    onClick={() => setAdjustments(prev => ({ ...prev, toko: prev.toko - 1 }))}
+                                >
+                                    <Minus className="w-4 h-4" />
+                                </Button>
+                                <Input
+                                    type="number"
+                                    value={adjustments.toko}
+                                    onChange={(e) => setAdjustments(prev => ({ ...prev, toko: parseInt(e.target.value) || 0 }))}
+                                    className="w-20 text-center h-8 rounded-lg"
+                                />
+                                <Button
+                                    size="icon"
+                                    variant="outline"
+                                    className="h-8 w-8 rounded-full"
+                                    onClick={() => setAdjustments(prev => ({ ...prev, toko: prev.toko + 1 }))}
+                                >
+                                    <Plus className="w-4 h-4" />
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Preview new stock values */}
+                    <div className="p-3 bg-primary/5 rounded-xl border border-primary/20">
+                        <p className="text-xs text-muted-foreground mb-2">Stok baru setelah penyesuaian:</p>
+                        <div className="grid grid-cols-2 gap-2 text-center">
+                            <div>
+                                <p className="text-xs text-muted-foreground">Gudang</p>
+                                <p className="font-bold text-primary">
+                                    {Math.max(0, product.stock.gudang + adjustments.gudang)}
+                                </p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-muted-foreground">Toko</p>
+                                <p className="font-bold text-primary">
+                                    {Math.max(0, product.stock.toko + adjustments.toko)}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl">
+                        Batal
+                    </Button>
+                    <Button onClick={handleSave} className="rounded-xl">
+                        Simpan
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}

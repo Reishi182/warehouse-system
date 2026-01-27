@@ -1,4 +1,3 @@
-
 import React from 'react';
 import {
     useReactTable,
@@ -20,23 +19,16 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
     Search,
-    ChevronLeft,
-    ChevronRight,
     Plus,
     ArrowUpDown,
     ArrowUp,
     ArrowDown,
-    Sparkles,
     Filter,
     X,
-    SlidersHorizontal,
-    ChevronDown
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ExportButton } from './ExportButton';
 import { ExportColumn } from '@/lib/export';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -48,53 +40,16 @@ import {
     DropdownMenuSeparator,
     DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { PAGINATION } from '@/constants';
 
-export interface Column<T> {
-    header: string;
-    accessorKey?: keyof T;
-    sortKey?: string;
-    sortable?: boolean;
-    filterable?: boolean;
-    filterOptions?: { label: string; value: string }[];
-    cell?: (item: T, index?: number) => React.ReactNode;
-    className?: string;
-    exportFormat?: (value: any, row?: T) => string;
-}
+// Import sub-components
+import { Column, EmptyStateConfig, BeautifulTableProps } from './BeautifulTable/types';
+import { TableHeaderSection } from './BeautifulTable/TableHeaderSection';
+import { TableFilters } from './BeautifulTable/TableFilters';
+import { TablePagination } from './BeautifulTable/TablePagination';
 
-interface EmptyStateConfig {
-    icon?: React.ReactNode;
-    title?: string;
-    description?: string;
-    actionLabel?: string;
-    onAction?: () => void;
-}
-
-interface BeautifulTableProps<T> {
-    data: T[];
-    columns: Column<T>[];
-    title?: string;
-    subtitle?: string;
-    onSearch?: (query: string) => void; // @deprecated - not implemented, use globalFilter instead
-    onAdd?: () => void;
-    addButtonLabel?: string;
-    itemsPerPage?: number;
-    isLoading?: boolean;
-    hideSelection?: boolean;
-    hideExport?: boolean;
-    hideSearch?: boolean;
-    hideFilters?: boolean;
-    exportFilename?: string;
-    exportTitle?: string;
-    emptyState?: EmptyStateConfig;
-    variant?: 'default' | 'premium';
-}
+// Re-export types for backward compatibility
+export type { Column, EmptyStateConfig, BeautifulTableProps };
 
 export function BeautifulTable<T extends { id: string }>({
     data,
@@ -103,7 +58,7 @@ export function BeautifulTable<T extends { id: string }>({
     subtitle,
     onAdd,
     addButtonLabel = "Add New",
-    itemsPerPage = 10,
+    itemsPerPage = PAGINATION.DEFAULT_PAGE_SIZE,
     isLoading = false,
     hideSelection = false,
     hideExport = false,
@@ -118,18 +73,11 @@ export function BeautifulTable<T extends { id: string }>({
     const [globalFilter, setGlobalFilter] = React.useState('');
     const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
     const [rowSelection, setRowSelection] = React.useState({});
-    const [showFilters, setShowFilters] = React.useState(false);
     const [pageSize, setPageSize] = React.useState(itemsPerPage);
-
-    // Page size options
-    const pageSizeOptions = [5, 10, 25, 50, -1]; // -1 means "All"
 
     const isPremium = variant === 'premium';
 
-    // Get filterable columns
-    const filterableColumns = columns.filter(col => col.filterable && col.accessorKey);
-
-    // Get unique values for each filterable column (for auto-generated filter options)
+    // Get unique values for each filterable column
     const getUniqueValues = React.useCallback((accessorKey: keyof T) => {
         const values = new Set<string>();
         data.forEach(item => {
@@ -182,14 +130,12 @@ export function BeautifulTable<T extends { id: string }>({
                     const currentFilter = columnFilters.find(f => f.id === columnId);
                     const hasFilter = !!currentFilter;
 
-                    // Get filter options - either from column config or auto-generate from unique values
                     const filterOptions = col.filterOptions || (
                         canFilter ? getUniqueValues(col.accessorKey!).map(v => ({ label: v, value: v })) : []
                     );
 
                     return (
                         <div className="flex items-center gap-1">
-                            {/* Column Name & Sort */}
                             <div
                                 className={cn(
                                     "flex items-center gap-1.5 group",
@@ -252,7 +198,6 @@ export function BeautifulTable<T extends { id: string }>({
                                         </DropdownMenuLabel>
                                         <DropdownMenuSeparator />
 
-                                        {/* Clear Filter Option */}
                                         <DropdownMenuItem
                                             onClick={() => {
                                                 setColumnFilters(prev => prev.filter(f => f.id !== columnId));
@@ -273,7 +218,6 @@ export function BeautifulTable<T extends { id: string }>({
 
                                         <DropdownMenuSeparator />
 
-                                        {/* Filter Options */}
                                         {filterOptions.map(opt => {
                                             const isSelected = currentFilter?.value === opt.value;
                                             return (
@@ -369,14 +313,7 @@ export function BeautifulTable<T extends { id: string }>({
             }));
     }, [columns]);
 
-    // Clear all filters
-    const clearFilters = () => {
-        setGlobalFilter('');
-        setColumnFilters([]);
-        setSorting([]);
-    };
-
-    const hasActiveFilters = globalFilter || columnFilters.length > 0 || sorting.length > 0;
+    const filteredRows = table.getFilteredRowModel().rows;
 
     return (
         <div className="space-y-4 animate-slide-up">
@@ -391,172 +328,33 @@ export function BeautifulTable<T extends { id: string }>({
                     <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent pointer-events-none" />
                 )}
 
-                {/* Header with Title and Actions */}
-                {(title || !hideExport || onAdd) && (
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center p-6 pb-4 gap-4 relative">
-                        <div>
-                            {title && (
-                                <div className="flex items-center gap-3">
-                                    {isPremium && (
-                                        <div className="p-2 rounded-xl bg-primary/10">
-                                            <Sparkles className="w-5 h-5 text-primary" />
-                                        </div>
-                                    )}
-                                    <div>
-                                        <h2 className={cn(
-                                            "font-bold text-foreground",
-                                            isPremium ? "text-xl" : "text-lg"
-                                        )}>
-                                            {title}
-                                        </h2>
-                                        {subtitle && (
-                                            <p className="text-muted-foreground text-sm mt-0.5">{subtitle}</p>
-                                        )}
-                                    </div>
-                                    <span className={cn(
-                                        "px-3 py-1 rounded-full text-xs font-bold",
-                                        isPremium
-                                            ? "bg-gradient-to-r from-primary/20 to-primary/10 text-primary"
-                                            : "bg-primary/10 text-primary"
-                                    )}>
-                                        {table.getFilteredRowModel().rows.length} Total
-                                    </span>
-                                </div>
-                            )}
-                        </div>
+                {/* Header Section */}
+                <TableHeaderSection
+                    title={title}
+                    subtitle={subtitle}
+                    totalFiltered={filteredRows.length}
+                    isPremium={isPremium}
+                    hideExport={hideExport}
+                    onAdd={onAdd}
+                    addButtonLabel={addButtonLabel}
+                    exportData={filteredRows.map(row => row.original)}
+                    exportColumns={exportColumns}
+                    exportFilename={exportFilename}
+                    exportTitle={exportTitle}
+                />
 
-                        <div className="flex items-center gap-2">
-                            {!hideExport && (
-                                <ExportButton
-                                    data={table.getFilteredRowModel().rows.map(row => row.original)}
-                                    columns={exportColumns}
-                                    filename={exportFilename || title?.toLowerCase().replace(/\s+/g, '_') || 'export'}
-                                    title={exportTitle || title}
-                                    subtitle={`Exported on ${new Date().toLocaleDateString('id-ID')}`}
-                                />
-                            )}
-                            {onAdd && (
-                                <Button
-                                    onClick={onAdd}
-                                    size="sm"
-                                    className={cn(
-                                        "h-9 px-4 font-semibold",
-                                        isPremium
-                                            ? "rounded-xl bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/25"
-                                            : "rounded-xl"
-                                    )}
-                                >
-                                    <Plus className="w-4 h-4 mr-1.5" />
-                                    {addButtonLabel}
-                                </Button>
-                            )}
-                        </div>
-                    </div>
-                )}
-
-                {/* Premium Search & Filter Bar */}
-                <div className="px-6 pb-4 space-y-3 relative">
-                    <div className="flex flex-col sm:flex-row gap-3">
-                        {/* Search Input */}
-                        {!hideSearch && (
-                            <div className="relative mt-4 flex-1 max-w-md">
-                                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    placeholder="Search all columns..."
-                                    className={cn(
-                                        "pl-10 pr-10 h-10 border-0 focus-visible:ring-1",
-                                        isPremium
-                                            ? "rounded-xl bg-muted/30 backdrop-blur-sm"
-                                            : "rounded-xl bg-muted/50"
-                                    )}
-                                    value={globalFilter}
-                                    onChange={(e) => setGlobalFilter(e.target.value)}
-                                />
-                                {globalFilter && (
-                                    <button
-                                        onClick={() => setGlobalFilter('')}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                                    >
-                                        <X className="w-4 h-4" />
-                                    </button>
-                                )}
-                            </div>
-                        )}
-
-                        {/* Filter & Sort Controls */}
-                        <div className="flex items-center gap-2">
-
-                            {/* Clear All Filters */}
-                            {hasActiveFilters && (
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={clearFilters}
-                                    className={cn(
-                                        "h-10 gap-2 text-muted-foreground hover:text-foreground",
-                                        isPremium && "rounded-xl"
-                                    )}
-                                >
-                                    <X className="w-4 h-4" />
-                                    <span className="hidden sm:inline">Clear Filters</span>
-                                </Button>
-                            )}
-                        </div>
-                    </div>
-
-
-                    {/* Active Filters Tags */}
-                    {(columnFilters.length > 0 || sorting.length > 0) && (
-                        <div className="flex flex-wrap items-center gap-2">
-                            {sorting.map((sort) => {
-                                const col = columns.find(c => String(c.accessorKey) === sort.id);
-                                return (
-                                    <Badge
-                                        key={`sort-${sort.id}`}
-                                        variant="secondary"
-                                        className={cn(
-                                            "gap-1.5 pr-1",
-                                            isPremium && "rounded-lg bg-primary/10 text-primary border-0"
-                                        )}
-                                    >
-                                        {sort.desc ? <ArrowDown className="w-3 h-3" /> : <ArrowUp className="w-3 h-3" />}
-                                        {col?.header || sort.id}
-                                        <button
-                                            onClick={() => setSorting([])}
-                                            className="ml-1 p-0.5 rounded hover:bg-primary/20"
-                                        >
-                                            <X className="w-3 h-3" />
-                                        </button>
-                                    </Badge>
-                                );
-                            })}
-                            {columnFilters.map((filter) => {
-                                const col = columns.find(c => String(c.accessorKey) === filter.id);
-                                // Get the label from filterOptions if available
-                                const filterLabel = col?.filterOptions?.find(opt => opt.value === filter.value)?.label || String(filter.value);
-                                return (
-                                    <Badge
-                                        key={`filter-${filter.id}`}
-                                        variant="secondary"
-                                        className={cn(
-                                            "gap-1.5 pr-1",
-                                            isPremium && "rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400 border-0"
-                                        )}
-                                    >
-                                        <Filter className="w-3 h-3" />
-                                        {col?.header}: {filterLabel}
-                                        <button
-                                            onClick={() => setColumnFilters(prev => prev.filter(f => f.id !== filter.id))}
-                                            className="ml-1 p-0.5 rounded hover:bg-violet-500/20"
-                                        >
-                                            <X className="w-3 h-3" />
-                                        </button>
-                                    </Badge>
-                                );
-                            })}
-                        </div>
-                    )}
-                </div>
+                {/* Filters Section */}
+                <TableFilters
+                    globalFilter={globalFilter}
+                    setGlobalFilter={setGlobalFilter}
+                    columnFilters={columnFilters}
+                    setColumnFilters={setColumnFilters}
+                    sorting={sorting}
+                    setSorting={setSorting}
+                    hideSearch={hideSearch}
+                    isPremium={isPremium}
+                    columns={columns.map(c => ({ header: c.header, accessorKey: c.accessorKey as string }))}
+                />
 
                 {/* Table */}
                 <div className="w-full overflow-x-auto">
@@ -592,7 +390,7 @@ export function BeautifulTable<T extends { id: string }>({
                                     </TableRow>
                                 ))
                             ) : table.getRowModel().rows.length > 0 ? (
-                                table.getRowModel().rows.map((row, rowIdx) => (
+                                table.getRowModel().rows.map((row) => (
                                     <TableRow
                                         key={row.id}
                                         className={cn(
@@ -667,123 +465,21 @@ export function BeautifulTable<T extends { id: string }>({
                     </Table>
                 </div>
 
-                {/* Premium Pagination */}
-                <div className="flex flex-col sm:flex-row items-center justify-between p-6 pt-4 gap-4 bg-gray-50/50 dark:bg-gray-800/30">
-                    <div className="flex items-center gap-4">
-                        {/* Page Size Selector */}
-                        <div className="flex items-center gap-2 text-sm">
-                            <span className="text-muted-foreground">Show</span>
-                            <Select
-                                value={String(pageSize)}
-                                onValueChange={(value) => {
-                                    const newSize = parseInt(value);
-                                    setPageSize(newSize);
-                                    table.setPageIndex(0); // Reset to first page
-                                }}
-                            >
-                                <SelectTrigger className={cn(
-                                    "w-[75px] h-8",
-                                    isPremium && "rounded-lg"
-                                )}>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent className={cn(isPremium && "rounded-xl")}>
-                                    {pageSizeOptions.map(size => (
-                                        <SelectItem key={size} value={String(size)}>
-                                            {size === -1 ? 'All' : size}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <span className="text-muted-foreground">entries</span>
-                        </div>
-
-                        {/* Showing info */}
-                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                            <span>Showing</span>
-                            <span className="font-semibold text-foreground">
-                                {table.getFilteredRowModel().rows.length === 0 ? 0 : table.getState().pagination.pageIndex * effectivePageSize + 1}
-                            </span>
-                            <span>to</span>
-                            <span className="font-semibold text-foreground">
-                                {Math.min((table.getState().pagination.pageIndex + 1) * effectivePageSize, table.getFilteredRowModel().rows.length)}
-                            </span>
-                            <span>of</span>
-                            <span className="font-semibold text-foreground">
-                                {table.getFilteredRowModel().rows.length}
-                            </span>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => table.previousPage()}
-                            disabled={!table.getCanPreviousPage()}
-                            className={cn(
-                                "h-9 px-3",
-                                isPremium && "rounded-xl hover:bg-muted/50"
-                            )}
-                        >
-                            <ChevronLeft className="w-4 h-4 mr-1" />
-                            <span className="hidden sm:inline">Previous</span>
-                        </Button>
-
-                        <div className="flex items-center gap-1">
-                            {Array.from({ length: Math.min(5, table.getPageCount()) }).map((_, i) => {
-                                const totalPages = table.getPageCount();
-                                const currentPage = table.getState().pagination.pageIndex;
-
-                                // Calculate which page numbers to show
-                                let pageNum: number;
-                                if (totalPages <= 5) {
-                                    pageNum = i + 1;
-                                } else if (currentPage < 3) {
-                                    pageNum = i + 1;
-                                } else if (currentPage >= totalPages - 3) {
-                                    pageNum = totalPages - 4 + i;
-                                } else {
-                                    pageNum = currentPage - 1 + i;
-                                }
-
-                                if (pageNum < 1 || pageNum > totalPages) return null;
-
-                                const isActive = currentPage + 1 === pageNum;
-                                return (
-                                    <button
-                                        key={pageNum}
-                                        onClick={() => table.setPageIndex(pageNum - 1)}
-                                        className={cn(
-                                            "w-9 h-9 rounded-xl text-sm font-semibold transition-all",
-                                            isActive
-                                                ? isPremium
-                                                    ? "bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/25"
-                                                    : "bg-primary text-primary-foreground"
-                                                : "text-muted-foreground hover:bg-muted/50"
-                                        )}
-                                    >
-                                        {pageNum}
-                                    </button>
-                                );
-                            })}
-                        </div>
-
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => table.nextPage()}
-                            disabled={!table.getCanNextPage()}
-                            className={cn(
-                                "h-9 px-3",
-                                isPremium && "rounded-xl hover:bg-muted/50"
-                            )}
-                        >
-                            <span className="hidden sm:inline">Next</span>
-                            <ChevronRight className="w-4 h-4 ml-1" />
-                        </Button>
-                    </div>
-                </div>
+                {/* Pagination Section */}
+                <TablePagination
+                    currentPage={table.getState().pagination.pageIndex}
+                    totalPages={table.getPageCount()}
+                    totalFiltered={filteredRows.length}
+                    pageSize={pageSize}
+                    effectivePageSize={effectivePageSize}
+                    setPageSize={setPageSize}
+                    canPreviousPage={table.getCanPreviousPage()}
+                    canNextPage={table.getCanNextPage()}
+                    previousPage={() => table.previousPage()}
+                    nextPage={() => table.nextPage()}
+                    setPageIndex={(index) => table.setPageIndex(index)}
+                    isPremium={isPremium}
+                />
             </div>
         </div>
     );

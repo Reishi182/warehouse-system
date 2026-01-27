@@ -24,3 +24,6 @@ export { default as TopRevenueProducts } from './TopRevenueProducts';
 
 // PO Discrepancy Widget
 export { default as PODiscrepancyWidget } from './PODiscrepancyWidget';
+
+// Low Stock Alert Widget
+export { LowStockAlertWidget } from './LowStockAlertWidget';
