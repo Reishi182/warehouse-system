@@ -146,10 +146,14 @@ export default defineConfig(({ mode }) => ({
           ],
           // Charts
           'vendor-charts': ['chart.js', 'react-chartjs-2'],
-          // PDF & Excel export
-          'vendor-export': ['jspdf', 'jspdf-autotable', 'xlsx'],
+          // PDF export (separated for better code splitting)
+          'vendor-pdf': ['jspdf', 'jspdf-autotable'],
+          // Excel export (large library, load separately)
+          'vendor-excel': ['xlsx'],
           // Date utilities
           'vendor-date': ['date-fns', 'react-day-picker'],
+          // Supabase client
+          'vendor-supabase': ['@supabase/supabase-js'],
         },
       },
     },
