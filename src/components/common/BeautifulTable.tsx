@@ -74,6 +74,7 @@ export function BeautifulTable<T extends { id: string }>({
     const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
     const [rowSelection, setRowSelection] = React.useState({});
     const [pageSize, setPageSize] = React.useState(itemsPerPage);
+    const [pageIndex, setPageIndex] = React.useState(0);
 
     const isPremium = variant === 'premium';
 
@@ -282,7 +283,7 @@ export function BeautifulTable<T extends { id: string }>({
             columnFilters,
             rowSelection,
             pagination: {
-                pageIndex: 0,
+                pageIndex,
                 pageSize: effectivePageSize,
             },
         },
@@ -290,6 +291,12 @@ export function BeautifulTable<T extends { id: string }>({
         onGlobalFilterChange: setGlobalFilter,
         onColumnFiltersChange: setColumnFilters,
         onRowSelectionChange: setRowSelection,
+        onPaginationChange: (updater) => {
+            const newState = typeof updater === 'function'
+                ? updater({ pageIndex, pageSize: effectivePageSize })
+                : updater;
+            setPageIndex(newState.pageIndex);
+        },
         getCoreRowModel: getCoreRowModel(),
         getSortedRowModel: getSortedRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
@@ -301,6 +308,11 @@ export function BeautifulTable<T extends { id: string }>({
     React.useEffect(() => {
         table.setPageSize(effectivePageSize);
     }, [effectivePageSize, table]);
+
+    // Reset page index when data or filters change
+    React.useEffect(() => {
+        setPageIndex(0);
+    }, [data.length, globalFilter, columnFilters]);
 
     // Generate export columns from our column definitions
     const exportColumns: ExportColumn[] = React.useMemo(() => {
