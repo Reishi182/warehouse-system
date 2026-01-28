@@ -120,7 +120,7 @@ const navGroups: NavItem[] = [
     icon: Truck,
     roles: ['warehouse', 'cashier', 'auditor', 'admin', 'main_office'],
     children: [
-      { label: 'Pelanggan', icon: Users, href: '/customers', roles: ['main_office', 'admin'] },
+      { label: 'Pelanggan', icon: Users, href: '/customers', roles: ['cashier', 'main_office', 'admin'] },
       { label: 'Surat Jalan', icon: FileText, href: '/surat-jalan', roles: ['main_office', 'admin'] },
       { label: 'Pengiriman B2B', icon: Truck, href: '/surat-jalan/warehouse', roles: ['warehouse', 'admin'] },
       { label: 'Pengiriman Toko', icon: Store, href: '/surat-jalan/cashier', roles: ['cashier', 'admin'] },

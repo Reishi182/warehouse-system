@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import PageSkeleton from '@/components/common/PageSkeleton';
+import ProductSearchSelect from '@/components/common/ProductSearchSelect';
 import { useSuratJalanB2B } from '@/hooks/useSuratJalanB2B';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -347,18 +348,15 @@ export default function SuratJalanCashier() {
                                 <div className="flex gap-4 items-end mb-4">
                                     <div className="flex-1 space-y-2">
                                         <Label>Produk dari {sourceLocation === 'gudang' ? 'Gudang' : 'Toko'}</Label>
-                                        <Select value={selectedProduct} onValueChange={setSelectedProduct}>
-                                            <SelectTrigger className="rounded-xl h-11 bg-white border-gray-200">
-                                                <SelectValue placeholder="Pilih Produk..." />
-                                            </SelectTrigger>
-                                            <SelectContent className="rounded-xl max-h-[200px]">
-                                                {products.map(p => (
-                                                    <SelectItem key={p.id} value={p.id} className="rounded-lg my-1 cursor-pointer">
-                                                        {p.name} (Stok: {sourceLocation === 'gudang' ? (p as any).stock_gudang : (p as any).stock_toko})
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                        <ProductSearchSelect
+                                            products={products}
+                                            value={selectedProduct}
+                                            onChange={setSelectedProduct}
+                                            placeholder="Cari produk..."
+                                            showStock={true}
+                                            stockLocation={sourceLocation}
+                                            excludeIds={selectedItems.map(i => i.productId)}
+                                        />
                                     </div>
                                     <div className="w-24 space-y-2">
                                         <Label>Jumlah</Label>

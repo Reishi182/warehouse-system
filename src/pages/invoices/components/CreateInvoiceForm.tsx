@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Product, Customer } from '@/types';
+import ProductSearchSelect from '@/components/common/ProductSearchSelect';
 import { Plus, Trash2, Check, User } from 'lucide-react';
 import {
     Table,
@@ -197,22 +198,13 @@ export default function CreateInvoiceForm({ onSubmit, onCancel }: CreateInvoiceF
                 <div className="flex flex-col md:flex-row gap-4 items-end bg-gray-50 p-4 rounded-xl border border-gray-100">
                     <div className="flex-1 space-y-2 w-full">
                         <Label className="text-xs font-semibold text-gray-500 uppercase">Produk</Label>
-                        <Select value={selectedProduct} onValueChange={handleProductSelect}>
-                            <SelectTrigger className="bg-white border-gray-200 rounded-lg h-10">
-                                <SelectValue placeholder="Pilih Produk..." />
-                            </SelectTrigger>
-                            <SelectContent className="rounded-xl border-gray-100 shadow-lg max-h-[200px]">
-                                {products.map(p => (
-                                    <SelectItem
-                                        key={p.id}
-                                        value={p.id}
-                                        className="focus:bg-indigo-50 focus:text-indigo-600 rounded-lg py-2 my-1 mx-1"
-                                    >
-                                        {p.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <ProductSearchSelect
+                            products={products}
+                            value={selectedProduct}
+                            onChange={handleProductSelect}
+                            placeholder="Cari produk..."
+                            excludeIds={items.map((i: any) => i.productId)}
+                        />
                     </div>
 
                     <div className="w-full md:w-24 space-y-2">

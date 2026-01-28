@@ -1026,7 +1026,16 @@ export default function CustomerExchange() {
                     </DialogHeader>
 
                     {/* Printable Receipt */}
-                    <div ref={receiptRef} className="p-4 bg-white text-black text-sm">
+                    <div
+                        ref={receiptRef}
+                        className="p-4 bg-white text-black text-sm font-mono exchange-receipt"
+                        style={{
+                            fontFamily: "'Courier New', Courier, monospace",
+                            WebkitFontSmoothing: 'antialiased',
+                            textRendering: 'geometricPrecision',
+                            letterSpacing: '0.02em'
+                        }}
+                    >
                         <div className="text-center mb-4">
                             <h2 className="font-bold text-lg">{settings?.store_name || 'TOKO'}</h2>
                             <p className="text-xs">{settings?.store_address}</p>

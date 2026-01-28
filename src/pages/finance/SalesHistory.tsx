@@ -402,6 +402,7 @@ export default function SalesHistory() {
                                 paymentMethod={selectedSaleForPrint.payment_method}
                                 amountPaid={selectedSaleForPrint.total_amount}
                                 change={0}
+                                isCopy={true}
                             />
                         )}
                     </div>

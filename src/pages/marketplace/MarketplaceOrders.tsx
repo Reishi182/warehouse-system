@@ -4,6 +4,7 @@ import MainLayout from '@/components/layout/MainLayout';
 import PageSkeleton from '@/components/common/PageSkeleton';
 import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
+import ProductSearchSelect from '@/components/common/ProductSearchSelect';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -403,16 +404,13 @@ export default function MarketplaceOrders() {
                                             />
                                         </div>
                                     ) : (
-                                        <Select value={selectedProductId} onValueChange={setSelectedProductId}>
-                                            <SelectTrigger><SelectValue placeholder="Pilih Produk" /></SelectTrigger>
-                                            <SelectContent className="max-h-[200px]">
-                                                {products.map(p => (
-                                                    <SelectItem key={p.id} value={p.id}>
-                                                        {p.name} ({p.barcode})
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                        <ProductSearchSelect
+                                            products={products}
+                                            value={selectedProductId}
+                                            onChange={setSelectedProductId}
+                                            placeholder="Cari produk..."
+                                            excludeIds={items.filter(i => i.productId).map(i => i.productId as string)}
+                                        />
                                     )}
 
                                     <div className="grid grid-cols-4 gap-4">

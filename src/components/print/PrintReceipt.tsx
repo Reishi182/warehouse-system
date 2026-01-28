@@ -8,14 +8,20 @@ interface PrintReceiptProps {
     companyName?: string;
     companyAddress?: string;
     companyPhone?: string;
+    isCopy?: boolean;
 }
 
 const PrintReceipt = forwardRef<HTMLDivElement, PrintReceiptProps>(
-    ({ sale, companyName = 'Vertical Building', companyAddress = '', companyPhone = '' }, ref) => {
+    ({ sale, companyName = 'Vertical Building', companyAddress = '', companyPhone = '', isCopy = false }, ref) => {
         return (
             <div ref={ref} className="print-receipt bg-white text-black p-4 max-w-xs mx-auto font-mono text-sm">
                 {/* Header */}
                 <div className="text-center border-b-2 border-dashed border-black pb-3 mb-3">
+                    {isCopy && (
+                        <div className="bg-black text-white text-xs font-black py-1 mb-2 tracking-widest">
+                            *** COPY RECEIPT ***
+                        </div>
+                    )}
                     <h1 className="text-lg font-black uppercase">{companyName}</h1>
                     {companyAddress && <p className="text-xs mt-1 font-semibold">{companyAddress}</p>}
                     {companyPhone && <p className="text-xs font-semibold">Telp: {companyPhone}</p>}
@@ -75,6 +81,14 @@ const PrintReceipt = forwardRef<HTMLDivElement, PrintReceiptProps>(
                 </div>
 
                 <style>{`
+          /* Receipt sharp text rendering */
+          .print-receipt {
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: geometricPrecision;
+            font-feature-settings: "kern" 1;
+            letter-spacing: 0.02em;
+          }
           @media print {
             .print-receipt {
               padding: 0;
@@ -89,12 +103,24 @@ const PrintReceipt = forwardRef<HTMLDivElement, PrintReceiptProps>(
               color: #000000 !important;
               -webkit-print-color-adjust: exact !important;
               print-color-adjust: exact !important;
+              text-rendering: geometricPrecision !important;
+              -webkit-font-smoothing: none !important;
             }
             .print-receipt {
               position: absolute;
               left: 0;
               top: 0;
-              font-weight: 600 !important;
+              font-weight: 700 !important;
+              font-family: 'Courier New', Courier, monospace !important;
+            }
+            .print-receipt .font-semibold {
+              font-weight: 700 !important;
+            }
+            .print-receipt .font-bold {
+              font-weight: 800 !important;
+            }
+            .print-receipt .font-black {
+              font-weight: 900 !important;
             }
           }
         `}</style>

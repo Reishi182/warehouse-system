@@ -4,6 +4,7 @@ import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import MainLayout from '@/components/layout/MainLayout';
 import PageSkeleton from '@/components/common/PageSkeleton';
 import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
+import ProductSearchSelect from '@/components/common/ProductSearchSelect';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -486,20 +487,17 @@ export default function PurchaseOrderMainOffice() {
                                             </p>
                                         </>
                                     ) : (
-                                        /* Existing Product Mode - Dropdown */
+                                        /* Existing Product Mode - Dropdown with Search */
                                         <div className="flex gap-3 items-end">
                                             <div className="flex-1 space-y-2">
                                                 <Label>Produk</Label>
-                                                <Select value={selectedProductId} onValueChange={setSelectedProductId}>
-                                                    <SelectTrigger>
-                                                        <SelectValue placeholder="Pilih produk" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {products.map(p => (
-                                                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
+                                                <ProductSearchSelect
+                                                    products={products}
+                                                    value={selectedProductId}
+                                                    onChange={setSelectedProductId}
+                                                    placeholder="Cari produk..."
+                                                    excludeIds={items.map(i => i.productId || '')}
+                                                />
                                             </div>
                                             <div className="w-24 space-y-2">
                                                 <Label>Qty</Label>

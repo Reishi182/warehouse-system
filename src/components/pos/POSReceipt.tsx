@@ -23,6 +23,7 @@ interface POSReceiptProps {
     change: number;
     storeName?: string;
     storeAddress?: string;
+    isCopy?: boolean;
 }
 
 const POSReceipt = forwardRef<HTMLDivElement, POSReceiptProps>(({
@@ -38,6 +39,7 @@ const POSReceipt = forwardRef<HTMLDivElement, POSReceiptProps>(({
     change,
     storeName = 'WAREHOUSE SYSTEM',
     storeAddress = 'Jl. Contoh No. 123',
+    isCopy = false,
 }, ref) => {
     const formatCurrency = (amount: number) => `Rp ${amount.toLocaleString('id-ID')}`;
     const formatDate = (d: Date) => d.toLocaleDateString('id-ID', {
@@ -75,6 +77,11 @@ const POSReceipt = forwardRef<HTMLDivElement, POSReceiptProps>(({
             <div className="px-4 py-3 space-y-3 bg-white print:bg-white">
                 {/* Header */}
                 <div className="text-center border-b-2 border-dashed border-black pb-3">
+                    {isCopy && (
+                        <div className="bg-black text-white text-xs font-black py-1 mb-2 tracking-widest">
+                            *** COPY RECEIPT ***
+                        </div>
+                    )}
                     <h2 className="text-base font-black tracking-wider">RECEIPT</h2>
                     <p className="text-xs text-black tracking-[0.2em] font-bold">
                         ================================
@@ -189,14 +196,36 @@ const POSReceipt = forwardRef<HTMLDivElement, POSReceiptProps>(({
 
             {/* Print-specific styles */}
             <style>{`
+                /* Receipt sharp text rendering */
+                .pos-receipt {
+                    -webkit-font-smoothing: antialiased;
+                    -moz-osx-font-smoothing: grayscale;
+                    text-rendering: geometricPrecision;
+                    font-feature-settings: "kern" 1;
+                }
+                .pos-receipt * {
+                    letter-spacing: 0.02em;
+                }
                 @media print {
                     .pos-receipt, .pos-receipt * {
                         color: #000000 !important;
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
+                        text-rendering: geometricPrecision !important;
+                        -webkit-font-smoothing: none !important;
                     }
                     .pos-receipt {
-                        font-weight: 600 !important;
+                        font-weight: 700 !important;
+                        font-family: 'Courier New', Courier, monospace !important;
+                    }
+                    .pos-receipt .font-semibold {
+                        font-weight: 700 !important;
+                    }
+                    .pos-receipt .font-bold {
+                        font-weight: 800 !important;
+                    }
+                    .pos-receipt .font-black {
+                        font-weight: 900 !important;
                     }
                 }
             `}</style>
