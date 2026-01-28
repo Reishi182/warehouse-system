@@ -390,7 +390,7 @@
   }
 }
 
-/* Print Styles - Using react-to-print handles isolation, these are fallback styles */
+/* Print Styles - Optimized for thermal receipt printers */
 @media print {
 
   /* Hide screen-only elements when printing directly from browser */
@@ -398,14 +398,38 @@
     display: none !important;
   }
 
+  /* Force all text to be solid black for thermal printers */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
   /* Ensure receipt prints with correct styling */
-  #pos-receipt {
+  #pos-receipt,
+  .pos-receipt {
     background: white !important;
-    color: black !important;
+    color: #000000 !important;
     width: 80mm !important;
     margin: 0 !important;
     padding: 0 !important;
     box-shadow: none !important;
+  }
+
+  /* Force black text on all receipt elements */
+  #pos-receipt *,
+  .pos-receipt *,
+  .print-receipt * {
+    color: #000000 !important;
+    border-color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Ensure font weight is preserved */
+  .font-bold,
+  .font-semibold,
+  .font-black {
+    font-weight: inherit !important;
   }
 
   @page {

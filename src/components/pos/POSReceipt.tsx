@@ -54,7 +54,7 @@ const POSReceipt = forwardRef<HTMLDivElement, POSReceiptProps>(({
         <div
             ref={ref}
             id="pos-receipt"
-            className="bg-white text-black font-mono text-xs w-[280px] mx-auto shadow-lg print:shadow-none"
+            className="pos-receipt bg-white text-black font-mono text-sm w-[280px] mx-auto shadow-lg print:shadow-none"
             style={{ fontFamily: "'Courier New', Courier, monospace" }}
         >
             {/* Wavy top edge */}
@@ -72,55 +72,55 @@ const POSReceipt = forwardRef<HTMLDivElement, POSReceiptProps>(({
             </div>
 
             {/* Receipt content */}
-            <div className="px-4 py-3 space-y-3 bg-gradient-to-b from-gray-50 to-white">
+            <div className="px-4 py-3 space-y-3 bg-white print:bg-white">
                 {/* Header */}
-                <div className="text-center border-b border-dashed border-gray-300 pb-3">
-                    <h2 className="text-sm font-bold tracking-wider">RECEIPT</h2>
-                    <p className="text-[8px] text-gray-400 tracking-[0.3em]">
-                        ********************************
+                <div className="text-center border-b-2 border-dashed border-black pb-3">
+                    <h2 className="text-base font-black tracking-wider">RECEIPT</h2>
+                    <p className="text-xs text-black tracking-[0.2em] font-bold">
+                        ================================
                     </p>
-                    <h3 className="font-bold text-sm mt-2">{storeName}</h3>
-                    <p className="text-[10px] text-gray-500">{storeAddress}</p>
+                    <h3 className="font-black text-base mt-2">{storeName}</h3>
+                    <p className="text-xs text-black font-semibold">{storeAddress}</p>
                 </div>
 
                 {/* Info */}
-                <div className="text-[10px] space-y-1 border-b border-dashed border-gray-300 pb-3">
+                <div className="text-xs space-y-1 border-b-2 border-dashed border-black pb-3">
                     <div className="flex justify-between">
-                        <span className="text-gray-500">No:</span>
-                        <span className="font-medium">{saleNumber}</span>
+                        <span className="text-black font-semibold">No:</span>
+                        <span className="font-bold">{saleNumber}</span>
                     </div>
                     <div className="flex justify-between">
-                        <span className="text-gray-500">Tanggal:</span>
-                        <span>{formatDate(date)}</span>
+                        <span className="text-black font-semibold">Tanggal:</span>
+                        <span className="font-semibold">{formatDate(date)}</span>
                     </div>
                     <div className="flex justify-between">
-                        <span className="text-gray-500">Waktu:</span>
-                        <span>{formatTime(date)}</span>
+                        <span className="text-black font-semibold">Waktu:</span>
+                        <span className="font-semibold">{formatTime(date)}</span>
                     </div>
                     <div className="flex justify-between">
-                        <span className="text-gray-500">Kasir:</span>
-                        <span>{cashierName}</span>
+                        <span className="text-black font-semibold">Kasir:</span>
+                        <span className="font-semibold">{cashierName}</span>
                     </div>
                 </div>
 
                 {/* Items header */}
-                <div className="flex justify-between text-[10px] font-bold border-b border-gray-200 pb-1">
-                    <span>Item</span>
-                    <span>Harga</span>
+                <div className="flex justify-between text-xs font-black border-b-2 border-black pb-1">
+                    <span>ITEM</span>
+                    <span>HARGA</span>
                 </div>
 
                 {/* Items */}
                 <div className="space-y-2">
                     {items.map((item, idx) => (
-                        <div key={idx} className="text-[10px]">
+                        <div key={idx} className="text-xs">
                             <div className="flex justify-between">
-                                <span className="flex-1 truncate pr-2">{item.name}</span>
-                                <span className="font-medium">{formatCurrency(item.subtotal)}</span>
+                                <span className="flex-1 truncate pr-2 font-semibold">{item.name}</span>
+                                <span className="font-bold">{formatCurrency(item.subtotal)}</span>
                             </div>
-                            <div className="text-gray-400 text-[9px] pl-2">
+                            <div className="text-black text-xs pl-2 font-medium">
                                 {item.quantity} x {formatCurrency(item.price)}
                                 {item.discount > 0 && (
-                                    <span className="text-green-600 ml-1">(-{item.discount}%)</span>
+                                    <span className="font-bold ml-1">(-{item.discount}%)</span>
                                 )}
                             </div>
                         </div>
@@ -128,38 +128,38 @@ const POSReceipt = forwardRef<HTMLDivElement, POSReceiptProps>(({
                 </div>
 
                 {/* Totals */}
-                <div className="border-t border-dashed border-gray-300 pt-3 space-y-1 text-[10px]">
-                    <div className="flex justify-between">
+                <div className="border-t-2 border-dashed border-black pt-3 space-y-1 text-xs">
+                    <div className="flex justify-between font-semibold">
                         <span>Subtotal</span>
                         <span>{formatCurrency(subtotal)}</span>
                     </div>
                     {orderDiscount > 0 && (
-                        <div className="flex justify-between text-green-600">
+                        <div className="flex justify-between font-bold">
                             <span>Diskon ({orderDiscount}%)</span>
                             <span>-{formatCurrency(Math.round(subtotal * orderDiscount / 100))}</span>
                         </div>
                     )}
-                    <div className="flex justify-between font-bold text-sm pt-1 border-t border-gray-200">
+                    <div className="flex justify-between font-black text-base pt-1 border-t-2 border-black">
                         <span>TOTAL</span>
                         <span>{formatCurrency(total)}</span>
                     </div>
                 </div>
 
                 {/* Payment info */}
-                <div className="border-t border-dashed border-gray-300 pt-3 space-y-1 text-[10px]">
-                    <div className="flex justify-between">
+                <div className="border-t-2 border-dashed border-black pt-3 space-y-1 text-xs">
+                    <div className="flex justify-between font-semibold">
                         <span>Metode</span>
-                        <span className="font-medium uppercase">
+                        <span className="font-bold uppercase">
                             {paymentMethod === 'cash' ? 'TUNAI' : 'TRANSFER'}
                         </span>
                     </div>
                     {paymentMethod === 'cash' && (
                         <>
-                            <div className="flex justify-between">
+                            <div className="flex justify-between font-semibold">
                                 <span>Bayar</span>
                                 <span>{formatCurrency(amountPaid)}</span>
                             </div>
-                            <div className="flex justify-between font-bold">
+                            <div className="flex justify-between font-black">
                                 <span>Kembalian</span>
                                 <span>{formatCurrency(change)}</span>
                             </div>
@@ -168,24 +168,38 @@ const POSReceipt = forwardRef<HTMLDivElement, POSReceiptProps>(({
                 </div>
 
                 {/* Footer */}
-                <div className="text-center pt-3 border-t border-dashed border-gray-300">
-                    <p className="font-bold text-sm tracking-wider">TERIMA KASIH</p>
-                    <p className="text-[9px] text-gray-400 mt-1">Barang yang sudah dibeli</p>
-                    <p className="text-[9px] text-gray-400">tidak dapat ditukar/dikembalikan</p>
+                <div className="text-center pt-3 border-t-2 border-dashed border-black">
+                    <p className="font-black text-base tracking-wider">TERIMA KASIH</p>
+                    <p className="text-xs text-black font-semibold mt-1">Barang yang sudah dibeli</p>
+                    <p className="text-xs text-black font-semibold">tidak dapat ditukar/dikembalikan</p>
                 </div>
 
                 {/* Barcode */}
                 <div className="flex justify-center pt-2 pb-1">
                     <Barcode
                         value={saleNumber.replace(/[^a-zA-Z0-9]/g, '')}
-                        width={1.2}
-                        height={40}
-                        fontSize={8}
+                        width={1.5}
+                        height={45}
+                        fontSize={10}
                         margin={0}
                         displayValue={true}
                     />
                 </div>
             </div>
+
+            {/* Print-specific styles */}
+            <style>{`
+                @media print {
+                    .pos-receipt, .pos-receipt * {
+                        color: #000000 !important;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                    .pos-receipt {
+                        font-weight: 600 !important;
+                    }
+                }
+            `}</style>
 
             {/* Wavy bottom edge */}
             <div className="h-3 bg-white relative overflow-hidden">
