@@ -3,6 +3,7 @@ import { useAuth, useRole } from '@/contexts/AuthContext';
 import { useData } from '@/contexts/DataContext';
 import { useCustomerExchange } from '@/hooks/useCustomerExchange';
 import { useStoreSettings } from '@/hooks/useStoreSettings';
+import { useSales } from '@/hooks/useSales';
 import MainLayout from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,10 +34,16 @@ import {
     TableHeader,
     TableRow
 } from '@/components/ui/table';
+import {
+    Tabs,
+    TabsContent,
+    TabsList,
+    TabsTrigger,
+} from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { useReactToPrint } from 'react-to-print';
-import { format } from 'date-fns';
+import { format, isWithinInterval, startOfDay, endOfDay, subDays } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import {
     Search,
@@ -49,7 +56,10 @@ import {
     Check,
     AlertCircle,
     ArrowRight,
-    Printer
+    Printer,
+    Calendar,
+    List,
+    Eye
 } from 'lucide-react';
 import { Sale, SaleItem, Product, ItemCondition, Location } from '@/types';
 import { cn } from '@/lib/utils';
@@ -99,6 +109,7 @@ export default function CustomerExchange() {
     const { toast } = useToast();
     const { searchSale, checkAlreadyExchanged, createExchange } = useCustomerExchange();
     const { settings } = useStoreSettings();
+    const { data: allSales = [], isLoading: isLoadingSales } = useSales();
 
     // Determine stock location based on role
     const stockLocation = role === 'warehouse' ? 'gudang' : 'toko';
@@ -114,6 +125,11 @@ export default function CustomerExchange() {
     const [note, setNote] = useState('');
     const [amountPaid, setAmountPaid] = useState(0);
     const [isProcessing, setIsProcessing] = useState(false);
+
+    // Date filter state for sales list
+    const [dateFrom, setDateFrom] = useState<string>(format(subDays(new Date(), 1), 'yyyy-MM-dd'));
+    const [dateTo, setDateTo] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+    const [salesListSearch, setSalesListSearch] = useState('');
 
     // Dialogs
     const [showAddNewItemDialog, setShowAddNewItemDialog] = useState(false);
@@ -162,6 +178,44 @@ export default function CustomerExchange() {
             })
             .slice(0, 10);
     }, [products, productSearch, newItems, stockLocation]);
+
+    // Filtered sales for the sales list with date filter
+    const filteredSales = useMemo(() => {
+        if (!dateFrom || !dateTo) return [];
+
+        const fromDate = startOfDay(new Date(dateFrom));
+        const toDate = endOfDay(new Date(dateTo));
+        const search = salesListSearch.toLowerCase();
+
+        return allSales
+            .filter(sale => {
+                const saleDate = new Date(sale.created_at);
+                const withinDateRange = isWithinInterval(saleDate, { start: fromDate, end: toDate });
+
+                if (!withinDateRange) return false;
+
+                // Optional search filter
+                if (search) {
+                    const matchesSaleNumber = sale.sale_number.toLowerCase().includes(search);
+                    const matchesProduct = sale.items?.some(item =>
+                        item.product_name.toLowerCase().includes(search) ||
+                        item.barcode.toLowerCase().includes(search)
+                    );
+                    return matchesSaleNumber || matchesProduct;
+                }
+
+                return true;
+            })
+            .slice(0, 50); // Limit to 50 results
+    }, [allSales, dateFrom, dateTo, salesListSearch]);
+
+    // Select a sale from the list to start exchange
+    const handleSelectSale = (sale: Sale) => {
+        setFoundSale(sale);
+        setReturnedItems([]);
+        setNewItems([]);
+        toast({ title: 'Berhasil', description: `Transaksi ${sale.sale_number} dipilih` });
+    };
 
     // Search for original sale
     const handleSearchSale = async () => {
@@ -411,37 +465,171 @@ export default function CustomerExchange() {
                     )}
                 </div>
 
-                {/* Search Sale */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-lg flex items-center gap-2">
-                            <Receipt className="h-5 w-5" />
-                            Cari Transaksi Asli
-                        </CardTitle>
-                        <CardDescription>
-                            Masukkan nomor struk pembelian untuk mencari transaksi
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex gap-2">
-                            <div className="relative flex-1">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    placeholder="Nomor struk (contoh: TRX-20260126-001)"
-                                    value={saleNumberSearch}
-                                    onChange={(e) => setSaleNumberSearch(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleSearchSale()}
-                                    className="pl-10"
-                                />
-                            </div>
-                            <Button onClick={handleSearchSale} disabled={isSearching}>
-                                {isSearching ? 'Mencari...' : 'Cari'}
-                            </Button>
-                        </div>
+                {/* Search Sale - Tabbed Interface */}
+                {!foundSale && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-lg flex items-center gap-2">
+                                <Receipt className="h-5 w-5" />
+                                Cari Transaksi
+                            </CardTitle>
+                            <CardDescription>
+                                Pilih transaksi dari daftar atau cari manual dengan nomor struk
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Tabs defaultValue="list" className="w-full">
+                                <TabsList className="grid w-full grid-cols-2 mb-4">
+                                    <TabsTrigger value="list" className="flex items-center gap-2">
+                                        <List className="h-4 w-4" />
+                                        Daftar Penjualan
+                                    </TabsTrigger>
+                                    <TabsTrigger value="manual" className="flex items-center gap-2">
+                                        <Search className="h-4 w-4" />
+                                        Cari Manual
+                                    </TabsTrigger>
+                                </TabsList>
 
-                        {/* Found Sale Info */}
-                        {foundSale && (
-                            <div className="mt-4 p-4 bg-muted/50 rounded-lg">
+                                {/* Sales List Tab */}
+                                <TabsContent value="list" className="space-y-4">
+                                    {/* Date Filter */}
+                                    <div className="flex flex-wrap gap-4 items-end">
+                                        <div className="flex-1 min-w-[150px]">
+                                            <Label className="mb-2 block text-sm">Dari Tanggal</Label>
+                                            <div className="relative">
+                                                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                                <Input
+                                                    type="date"
+                                                    value={dateFrom}
+                                                    onChange={(e) => setDateFrom(e.target.value)}
+                                                    className="pl-10"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="flex-1 min-w-[150px]">
+                                            <Label className="mb-2 block text-sm">Sampai Tanggal</Label>
+                                            <div className="relative">
+                                                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                                <Input
+                                                    type="date"
+                                                    value={dateTo}
+                                                    onChange={(e) => setDateTo(e.target.value)}
+                                                    className="pl-10"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="flex-1 min-w-[200px]">
+                                            <Label className="mb-2 block text-sm">Cari Produk/Struk</Label>
+                                            <div className="relative">
+                                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                                <Input
+                                                    placeholder="Nama produk atau nomor struk..."
+                                                    value={salesListSearch}
+                                                    onChange={(e) => setSalesListSearch(e.target.value)}
+                                                    className="pl-10"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Sales List */}
+                                    <ScrollArea className="h-[400px] border rounded-lg">
+                                        {isLoadingSales ? (
+                                            <div className="flex items-center justify-center h-full py-8">
+                                                <span className="text-muted-foreground">Memuat data penjualan...</span>
+                                            </div>
+                                        ) : filteredSales.length === 0 ? (
+                                            <div className="flex flex-col items-center justify-center h-full py-8 text-muted-foreground">
+                                                <Receipt className="h-8 w-8 mb-2" />
+                                                <span>Tidak ada transaksi pada rentang tanggal ini</span>
+                                            </div>
+                                        ) : (
+                                            <div className="divide-y">
+                                                {filteredSales.map((sale) => (
+                                                    <div
+                                                        key={sale.id}
+                                                        className="p-4 hover:bg-muted/50 transition-colors cursor-pointer"
+                                                        onClick={() => handleSelectSale(sale)}
+                                                    >
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="font-semibold">{sale.sale_number}</span>
+                                                                <Badge variant="outline" className="text-xs">
+                                                                    {format(new Date(sale.created_at), 'dd MMM yyyy HH:mm', { locale: idLocale })}
+                                                                </Badge>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="font-bold text-primary">
+                                                                    {formatCurrency(sale.total_amount)}
+                                                                </span>
+                                                                <Button size="sm" variant="ghost">
+                                                                    <Eye className="h-4 w-4 mr-1" />
+                                                                    Pilih
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-sm text-muted-foreground mb-2">
+                                                            Kasir: {sale.cashier_name}
+                                                        </div>
+                                                        <div className="flex flex-wrap gap-1">
+                                                            {sale.items?.slice(0, 3).map((item, idx) => (
+                                                                <Badge key={idx} variant="secondary" className="text-xs">
+                                                                    {item.product_name} x{item.quantity}
+                                                                </Badge>
+                                                            ))}
+                                                            {sale.items && sale.items.length > 3 && (
+                                                                <Badge variant="secondary" className="text-xs">
+                                                                    +{sale.items.length - 3} lainnya
+                                                                </Badge>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </ScrollArea>
+                                    <div className="text-sm text-muted-foreground text-center">
+                                        Menampilkan {filteredSales.length} transaksi
+                                    </div>
+                                </TabsContent>
+
+                                {/* Manual Search Tab */}
+                                <TabsContent value="manual">
+                                    <div className="flex gap-2">
+                                        <div className="relative flex-1">
+                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                            <Input
+                                                placeholder="Nomor struk (contoh: TRX-20260126-001)"
+                                                value={saleNumberSearch}
+                                                onChange={(e) => setSaleNumberSearch(e.target.value)}
+                                                onKeyDown={(e) => e.key === 'Enter' && handleSearchSale()}
+                                                className="pl-10"
+                                            />
+                                        </div>
+                                        <Button onClick={handleSearchSale} disabled={isSearching}>
+                                            {isSearching ? 'Mencari...' : 'Cari'}
+                                        </Button>
+                                    </div>
+                                    <p className="text-sm text-muted-foreground mt-2">
+                                        Gunakan pencarian manual jika transaksi tidak muncul di daftar
+                                    </p>
+                                </TabsContent>
+                            </Tabs>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* Selected Sale Info */}
+                {foundSale && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-lg flex items-center gap-2">
+                                <Receipt className="h-5 w-5" />
+                                Transaksi Terpilih
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="p-4 bg-muted/50 rounded-lg">
                                 <div className="flex items-center justify-between mb-2">
                                     <span className="font-semibold">{foundSale.sale_number}</span>
                                     <Badge variant="outline">
@@ -452,9 +640,9 @@ export default function CustomerExchange() {
                                     Kasir: {foundSale.cashier_name} | Total: {formatCurrency(foundSale.total_amount)}
                                 </div>
                             </div>
-                        )}
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
+                )}
 
                 {/* Main Exchange Area */}
                 {foundSale && (

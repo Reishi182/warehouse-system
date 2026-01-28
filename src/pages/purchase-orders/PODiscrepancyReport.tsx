@@ -101,10 +101,20 @@ export default function PODiscrepancyReport() {
 
         // Pre-fill claimed items from receipt or PO items
         if (po.receipt?.discrepancy_details && po.receipt.discrepancy_details.length > 0) {
-            setClaimedItems(po.receipt.discrepancy_details);
+            // Try to enrich discrepancy_details with product_id from PO items if missing
+            const enrichedItems = po.receipt.discrepancy_details.map(item => {
+                if (item.product_id) return item;
+                const matchingPoItem = po.items?.find(i => i.product_name === item.product_name);
+                return {
+                    ...item,
+                    product_id: matchingPoItem?.product_id || null,
+                };
+            });
+            setClaimedItems(enrichedItems);
         } else if (po.items) {
             // Build from PO items with receipt data
             const items: ClaimedItem[] = po.items.map(item => ({
+                product_id: item.product_id || null,
                 product_name: item.product_name,
                 qty_ordered: item.quantity,
                 qty_received: po.receipt?.total_received

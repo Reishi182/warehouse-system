@@ -65,6 +65,7 @@ const statusLabels: Record<string, { label: string; color: string }> = {
     rejected: { label: 'Ditolak', color: 'bg-red-100 text-red-700' },
     pending_receipt: { label: 'Menunggu Penerimaan', color: 'bg-purple-100 text-purple-700' },
     completed: { label: 'Selesai', color: 'bg-green-100 text-green-700' },
+    completed_with_discrepancy: { label: 'Selesai Ada Selisih', color: 'bg-orange-100 text-orange-700' },
 };
 
 export default function PurchaseOrderMainOffice() {

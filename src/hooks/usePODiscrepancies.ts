@@ -320,10 +320,75 @@ export function useUpdatePOClaimStatus() {
                 .from('po_claims')
                 .update(updateData)
                 .eq('id', input.claimId)
-                .select(`*, purchase_order_id`)
+                .select(`*, purchase_order_id, claimed_items`)
                 .single();
 
             if (error) throw error;
+
+            // When claim is resolved with "replacement", update stock for each claimed item
+            if (input.status === 'resolved' && input.resolutionType === 'replacement' && data.purchase_order_id) {
+                // Fetch PO to get destination
+                const { data: poData } = await supabase
+                    .from('purchase_orders')
+                    .select('destination, po_number, items:purchase_order_items(product_id, product_name)')
+                    .eq('id', data.purchase_order_id)
+                    .single();
+
+                if (poData) {
+                    const destination = poData.destination as 'gudang' | 'toko';
+                    const claimedItems = (data.claimed_items || []) as ClaimedItem[];
+
+                    for (const item of claimedItems) {
+                        // Calculate replacement quantity (shortage + damaged)
+                        const shortage = item.qty_ordered - item.qty_received;
+                        const replacementQty = shortage + item.qty_damaged;
+
+                        if (replacementQty <= 0) continue;
+
+                        // Try to find product_id from claimed item or PO items
+                        let productId = item.product_id;
+                        if (!productId && poData.items) {
+                            const matchingItem = poData.items.find((i: { product_name: string }) => i.product_name === item.product_name);
+                            productId = matchingItem?.product_id || null;
+                        }
+
+                        if (!productId) continue;
+
+                        // Get current stock
+                        const { data: product } = await supabase
+                            .from('products')
+                            .select('stock_gudang, stock_toko')
+                            .eq('id', productId)
+                            .single();
+
+                        if (!product) continue;
+
+                        // Update stock
+                        const stockField = destination === 'gudang' ? 'stock_gudang' : 'stock_toko';
+                        const currentStock = destination === 'gudang' ? (product.stock_gudang || 0) : (product.stock_toko || 0);
+                        const newStock = currentStock + replacementQty;
+
+                        await supabase
+                            .from('products')
+                            .update({ [stockField]: newStock })
+                            .eq('id', productId);
+
+                        // Log stock change
+                        await supabase.from('stock_logs').insert([{
+                            product_id: productId,
+                            type: 'in',
+                            quantity: replacementQty,
+                            location: destination,
+                            user_id: input.resolvedBy || null,
+                            note: `Penggantian dari Klaim PO: ${data.claim_number} (PO: ${poData.po_number})`,
+                            reference_type: 'po_claim',
+                            reference_id: data.id,
+                            stock_before: currentStock,
+                            stock_after: newStock,
+                        }]);
+                    }
+                }
+            }
 
             // When claim is resolved, update PO status to 'completed' so it disappears from discrepancy list
             if (input.status === 'resolved' && data.purchase_order_id) {
@@ -344,6 +409,7 @@ export function useUpdatePOClaimStatus() {
             queryClient.invalidateQueries({ queryKey: ['po_discrepancy_stats'] });
             queryClient.invalidateQueries({ queryKey: ['purchase_orders', 'with_discrepancy'] });
             queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
+            queryClient.invalidateQueries({ queryKey: ['products'] }); // Refresh product stock
 
             const statusLabels: Record<string, string> = {
                 pending: 'Pending',

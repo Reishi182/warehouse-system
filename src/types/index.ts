@@ -605,6 +605,7 @@ export type POClaimType = 'shortage' | 'damaged' | 'mixed';
 export type POResolutionType = 'refund' | 'replacement' | 'credit' | 'rejected';
 
 export interface ClaimedItem {
+  product_id?: string | null;
   product_name: string;
   qty_ordered: number;
   qty_received: number;
