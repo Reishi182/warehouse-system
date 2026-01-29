@@ -40,12 +40,27 @@ function transformStockLog(row: any, products: Product[], profiles: Map<string, 
 
 // Fetch all stock logs with user profiles
 async function fetchStockLogs(products: Product[]): Promise<StockLog[]> {
-    // Fetch stock logs without join first
-    const { data: logs, error: logsError } = await supabase
+    // Try fetching with timestamp first, then created_at as fallback
+    let { data: logs, error: logsError } = await supabase
         .from('stock_logs')
         .select('*')
-        .order('timestamp', { ascending: false })
+        .order('timestamp', { ascending: false, nullsFirst: false })
         .limit(500);
+
+    // If error or empty, try without order (in case timestamp column doesn't exist properly)
+    if (logsError || !logs || logs.length === 0) {
+        console.log('[StockLogs] First fetch attempt:', { logsError, count: logs?.length || 0 });
+
+        const fallbackResult = await supabase
+            .from('stock_logs')
+            .select('*')
+            .limit(500);
+
+        logsError = fallbackResult.error;
+        logs = fallbackResult.data;
+
+        console.log('[StockLogs] Fallback fetch:', { logsError, count: logs?.length || 0 });
+    }
 
     if (logsError) {
         console.error('Error fetching stock logs:', logsError);
@@ -53,8 +68,11 @@ async function fetchStockLogs(products: Product[]): Promise<StockLog[]> {
     }
 
     if (!logs || logs.length === 0) {
+        console.log('[StockLogs] No stock logs found in database');
         return [];
     }
+
+    console.log('[StockLogs] Found', logs.length, 'stock logs');
 
     // Get unique user IDs
     const userIds = [...new Set(logs.map(l => l.user_id).filter(Boolean))];
