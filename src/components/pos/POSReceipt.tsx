@@ -24,6 +24,7 @@ interface POSReceiptProps {
     storeName?: string;
     storeAddress?: string;
     isCopy?: boolean;
+    isOffline?: boolean; // Flag for offline transactions
 }
 
 const POSReceipt = forwardRef<HTMLDivElement, POSReceiptProps>(({
@@ -40,6 +41,7 @@ const POSReceipt = forwardRef<HTMLDivElement, POSReceiptProps>(({
     storeName = 'WAREHOUSE SYSTEM',
     storeAddress = 'Jl. Contoh No. 123',
     isCopy = false,
+    isOffline = false,
 }, ref) => {
     const formatCurrency = (amount: number) => `Rp ${amount.toLocaleString('id-ID')}`;
     const formatDate = (d: Date) => d.toLocaleDateString('id-ID', {
@@ -77,6 +79,11 @@ const POSReceipt = forwardRef<HTMLDivElement, POSReceiptProps>(({
             <div className="px-4 py-3 space-y-3 bg-white print:bg-white">
                 {/* Header */}
                 <div className="text-center border-b-2 border-dashed border-black pb-3">
+                    {isOffline && (
+                        <div className="bg-amber-500 text-white text-xs font-black py-1 mb-2 tracking-widest">
+                            📴 OFFLINE - PENDING SYNC
+                        </div>
+                    )}
                     {isCopy && (
                         <div className="bg-black text-white text-xs font-black py-1 mb-2 tracking-widest">
                             *** COPY RECEIPT ***

@@ -5,6 +5,7 @@ import { useData } from '@/contexts/DataContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { CartItem } from './usePOSCart';
+import { addOfflineSale, isOnline } from '@/lib/offlineQueue';
 
 export type LastSaleData = {
     saleNumber: string;
@@ -22,6 +23,7 @@ export type LastSaleData = {
     amountPaid: number;
     change: number;
     date: Date;
+    isOffline?: boolean; // Flag to show if sale was saved offline
 };
 
 export interface UsePOSCheckoutOptions {
@@ -52,8 +54,8 @@ export interface UsePOSCheckoutReturn {
 
 export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutReturn {
     const { items, subtotal, totalAmount, orderDiscount, stockLocation, onSuccess } = options;
-    const { createSale } = useData();
-    const { profile } = useAuth();
+    const { createSale, products } = useData();
+    const { profile, user } = useAuth();
     const { toast } = useToast();
 
     const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
@@ -84,6 +86,73 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
         setShowReceiptDialog(false);
     }, []);
 
+    // Process sale offline - save to local storage
+    const processOfflineSale = useCallback(() => {
+        if (!user || !profile) return false;
+
+        const now = new Date();
+        const yyyy = String(now.getFullYear());
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const dd = String(now.getDate()).padStart(2, '0');
+        const rand = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
+        const saleNumber = `INV/${yyyy}${mm}${dd}-${rand}-OFF`; // -OFF suffix for offline
+
+        const changeAmount = paymentMethod === 'cash' ? Math.max(0, amountPaid - totalAmount) : 0;
+        const finalAmountPaid = paymentMethod === 'cash' ? amountPaid : totalAmount;
+
+        // Prepare items with product details
+        const saleItems = items.map(it => {
+            const itemTotal = it.product.price * it.quantity;
+            const itemDiscountAmount = itemTotal * (it.discount / 100);
+            return {
+                productId: it.product.id,
+                productName: it.product.name,
+                barcode: it.product.barcode,
+                quantity: it.quantity,
+                price: it.product.price,
+                discount: it.discount,
+                subtotal: Math.round(itemTotal - itemDiscountAmount),
+            };
+        });
+
+        // Save to offline queue
+        addOfflineSale({
+            saleNumber,
+            cashierId: user.id,
+            cashierName: profile.name,
+            paymentMethod,
+            stockLocation,
+            items: saleItems,
+            totalAmount,
+            orderDiscount,
+            amountPaid: finalAmountPaid,
+            changeAmount,
+            createdAt: now.toISOString(),
+        });
+
+        // Set last sale for receipt
+        setLastSale({
+            saleNumber,
+            total: totalAmount,
+            subtotal,
+            orderDiscount,
+            items: saleItems.map(it => ({
+                name: it.productName,
+                quantity: it.quantity,
+                price: it.price,
+                discount: it.discount,
+                subtotal: it.subtotal,
+            })),
+            method: paymentMethod,
+            amountPaid: finalAmountPaid,
+            change: changeAmount,
+            date: now,
+            isOffline: true,
+        });
+
+        return true;
+    }, [user, profile, items, paymentMethod, amountPaid, totalAmount, subtotal, orderDiscount, stockLocation]);
+
     const handleConfirmCheckout = useCallback(async () => {
         if (items.length === 0) return;
         if (paymentMethod === 'cash' && amountPaid < totalAmount) {
@@ -99,6 +168,31 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
         setShowCheckoutDialog(false);
 
         try {
+            // Check if we're offline
+            if (!isOnline()) {
+                console.log('[POS] Offline mode - saving to local queue');
+
+                const offlineSuccess = processOfflineSale();
+
+                if (offlineSuccess) {
+                    setShowReceiptDialog(true);
+                    toast({
+                        title: '📴 Transaksi Disimpan (Offline)',
+                        description: `Total Rp ${totalAmount.toLocaleString('id-ID')} - Akan sync saat online`,
+                    });
+                    onSuccess();
+                    setAmountPaid(0);
+                } else {
+                    toast({
+                        title: 'Gagal menyimpan',
+                        description: 'User tidak terautentikasi',
+                        variant: 'destructive',
+                    });
+                }
+                return;
+            }
+
+            // Online mode - use normal createSale
             const now = new Date();
             const yyyy = String(now.getFullYear());
             const mm = String(now.getMonth() + 1).padStart(2, '0');
@@ -144,6 +238,7 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
                     amountPaid: finalAmountPaid,
                     change: changeAmount,
                     date: now,
+                    isOffline: false,
                 });
 
                 setShowReceiptDialog(true);
@@ -158,7 +253,7 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
         } finally {
             setIsProcessing(false);
         }
-    }, [items, paymentMethod, amountPaid, totalAmount, subtotal, orderDiscount, stockLocation, createSale, toast, onSuccess]);
+    }, [items, paymentMethod, amountPaid, totalAmount, subtotal, orderDiscount, stockLocation, createSale, toast, onSuccess, processOfflineSale]);
 
     return {
         paymentMethod,

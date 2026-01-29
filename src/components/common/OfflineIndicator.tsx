@@ -1,10 +1,14 @@
-import { useState, useEffect } from 'react';
-import { WifiOff, RefreshCw } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { WifiOff, RefreshCw, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+
+// Key to track if user has dismissed the update prompt in this session
+const UPDATE_DISMISSED_KEY = 'sw-update-dismissed';
 
 export default function OfflineIndicator() {
     const [isOffline, setIsOffline] = useState(!navigator.onLine);
     const [showUpdatePrompt, setShowUpdatePrompt] = useState(false);
+    const hasCheckedRef = useRef(false);
 
     useEffect(() => {
         const handleOnline = () => setIsOffline(false);
@@ -13,10 +17,50 @@ export default function OfflineIndicator() {
         window.addEventListener('online', handleOnline);
         window.addEventListener('offline', handleOffline);
 
-        // Listen for service worker updates
-        if ('serviceWorker' in navigator) {
+        // Only check for service worker updates in production
+        if ('serviceWorker' in navigator && import.meta.env.PROD) {
+            // Check if user already dismissed in this session
+            const dismissed = sessionStorage.getItem(UPDATE_DISMISSED_KEY);
+            if (dismissed) {
+                hasCheckedRef.current = true;
+                return;
+            }
+
+            // Listen for new service worker waiting
+            const checkForWaiting = async () => {
+                const registration = await navigator.serviceWorker.getRegistration();
+                if (registration?.waiting) {
+                    setShowUpdatePrompt(true);
+                }
+            };
+
+            // Check immediately
+            checkForWaiting();
+
+            // Listen for updates
             navigator.serviceWorker.addEventListener('controllerchange', () => {
-                setShowUpdatePrompt(true);
+                // Only show once per page load
+                if (!hasCheckedRef.current) {
+                    hasCheckedRef.current = true;
+                    // Page will reload anyway on controllerchange, so no need to show prompt
+                }
+            });
+
+            // Listen for new service worker installation
+            navigator.serviceWorker.getRegistration().then((registration) => {
+                if (registration) {
+                    registration.addEventListener('updatefound', () => {
+                        const newWorker = registration.installing;
+                        if (newWorker) {
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    // New service worker is waiting to activate
+                                    setShowUpdatePrompt(true);
+                                }
+                            });
+                        }
+                    });
+                }
             });
         }
 
@@ -27,7 +71,20 @@ export default function OfflineIndicator() {
     }, []);
 
     const handleUpdate = () => {
+        // Skip waiting and reload
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistration().then((registration) => {
+                if (registration?.waiting) {
+                    registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+                }
+            });
+        }
         window.location.reload();
+    };
+
+    const handleDismiss = () => {
+        sessionStorage.setItem(UPDATE_DISMISSED_KEY, 'true');
+        setShowUpdatePrompt(false);
     };
 
     if (!isOffline && !showUpdatePrompt) return null;
@@ -55,6 +112,15 @@ export default function OfflineIndicator() {
                         className="bg-white text-blue-600 hover:bg-blue-50"
                     >
                         Refresh Sekarang
+                    </Button>
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={handleDismiss}
+                        className="text-white hover:bg-blue-600 p-1 h-auto"
+                        aria-label="Tutup"
+                    >
+                        <X className="w-4 h-4" />
                     </Button>
                 </div>
             )}

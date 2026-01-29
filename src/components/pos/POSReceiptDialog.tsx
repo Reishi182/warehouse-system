@@ -1,5 +1,5 @@
 import { forwardRef } from 'react';
-import { CheckCircle2, Printer } from 'lucide-react';
+import { CheckCircle2, Printer, CloudOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -37,9 +37,23 @@ export function POSReceiptDialog({
                 <div className="p-4 bg-white border-b">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
-                            <CheckCircle2 className="w-5 h-5 text-green-600" />
-                            Transaksi Berhasil!
+                            {lastSale?.isOffline ? (
+                                <>
+                                    <CloudOff className="w-5 h-5 text-amber-500" />
+                                    Transaksi Disimpan (Offline)
+                                </>
+                            ) : (
+                                <>
+                                    <CheckCircle2 className="w-5 h-5 text-green-600" />
+                                    Transaksi Berhasil!
+                                </>
+                            )}
                         </DialogTitle>
+                        {lastSale?.isOffline && (
+                            <p className="text-xs text-amber-600 mt-1">
+                                Transaksi akan otomatis sync saat kembali online
+                            </p>
+                        )}
                     </DialogHeader>
                 </div>
 
@@ -60,6 +74,7 @@ export function POSReceiptDialog({
                             change={lastSale.change}
                             storeName={storeName}
                             storeAddress={storeAddress}
+                            isOffline={lastSale.isOffline}
                         />
                     )}
                 </div>

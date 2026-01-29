@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { RotateCcw, Upload, Check, Image } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import PageSkeleton from '@/components/common/PageSkeleton';
+import { ClickableImage } from '@/components/common/ImageLightbox';
 import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -133,14 +134,18 @@ export default function MarketplaceReturns() {
             cell: (ret) => (
                 <div className="flex items-center gap-2">
                     {ret.pickup_proof_url && (
-                        <a href={ret.pickup_proof_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs">
-                            📷 Pickup
-                        </a>
+                        <ClickableImage
+                            src={ret.pickup_proof_url}
+                            alt="Bukti Pickup"
+                            imgClassName="w-10 h-10 rounded object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                        />
                     )}
                     {ret.return_proof_url && (
-                        <a href={ret.return_proof_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs">
-                            📷 Return
-                        </a>
+                        <ClickableImage
+                            src={ret.return_proof_url}
+                            alt="Bukti Return"
+                            imgClassName="w-10 h-10 rounded object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                        />
                     )}
                     {!ret.pickup_proof_url && !ret.return_proof_url && '-'}
                 </div>

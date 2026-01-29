@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import PageSkeleton from '@/components/common/PageSkeleton';
+import { ClickableImage } from '@/components/common/ImageLightbox';
 import { useSuratJalanB2B } from '@/hooks/useSuratJalanB2B';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -398,21 +399,33 @@ export default function SuratJalanMainOffice() {
                                     </div>
                                     {selectedSj.delivery_photo_url && (
                                         <div>
-                                            <p className="text-green-700 text-sm mb-1">Foto Bukti:</p>
-                                            <img src={selectedSj.delivery_photo_url} alt="Bukti pengiriman" className="rounded-lg max-h-40 object-cover" />
+                                            <p className="text-green-700 text-sm mb-1">Foto Bukti: <span className="text-xs text-muted-foreground">(klik untuk zoom)</span></p>
+                                            <ClickableImage
+                                                src={selectedSj.delivery_photo_url}
+                                                alt="Bukti pengiriman"
+                                                imgClassName="rounded-lg max-h-40 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                            />
                                         </div>
                                     )}
                                     <div className="grid grid-cols-2 gap-4">
                                         {selectedSj.sender_signature_url && (
                                             <div>
                                                 <p className="text-green-700 text-sm mb-1">Tanda Tangan Pengirim:</p>
-                                                <img src={selectedSj.sender_signature_url} alt="TTD Pengirim" className="rounded-lg border bg-white max-h-24" />
+                                                <ClickableImage
+                                                    src={selectedSj.sender_signature_url}
+                                                    alt="TTD Pengirim"
+                                                    imgClassName="rounded-lg border bg-white max-h-24 cursor-pointer hover:opacity-90 transition-opacity"
+                                                />
                                             </div>
                                         )}
                                         {selectedSj.receiver_signature_url && (
                                             <div>
                                                 <p className="text-green-700 text-sm mb-1">Tanda Tangan Penerima:</p>
-                                                <img src={selectedSj.receiver_signature_url} alt="TTD Penerima" className="rounded-lg border bg-white max-h-24" />
+                                                <ClickableImage
+                                                    src={selectedSj.receiver_signature_url}
+                                                    alt="TTD Penerima"
+                                                    imgClassName="rounded-lg border bg-white max-h-24 cursor-pointer hover:opacity-90 transition-opacity"
+                                                />
                                             </div>
                                         )}
                                     </div>
