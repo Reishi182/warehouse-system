@@ -340,6 +340,17 @@ export default function CustomerExchange() {
     const handleProcessExchange = async () => {
         if (!foundSale || !user) return;
 
+        // Validate cashier name is available
+        const cashierName = profile?.name || user.email;
+        if (!cashierName) {
+            toast({
+                title: 'Error',
+                description: 'Tidak dapat mengidentifikasi nama kasir. Silakan refresh halaman.',
+                variant: 'destructive'
+            });
+            return;
+        }
+
         if (returnedItems.length === 0) {
             toast({ title: 'Error', description: 'Pilih item yang akan ditukar', variant: 'destructive' });
             return;
@@ -379,7 +390,7 @@ export default function CustomerExchange() {
                 originalSaleId: foundSale.id,
                 originalSaleNumber: foundSale.sale_number,
                 cashierId: user.id,
-                cashierName: profile?.name || user.email || 'Kasir',
+                cashierName,
                 stockLocation: stockLocation as Location,
                 returnedItems: returnedItems.map(item => ({
                     productId: item.productId,
