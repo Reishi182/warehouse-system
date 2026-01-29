@@ -157,42 +157,44 @@ export default function SalesHistory() {
         >
             <div className="space-y-6">
                 {/* Filters */}
-                <div className="flex flex-wrap items-center gap-4 p-4 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm">
-                    <div className="flex items-center gap-2">
-                        <Calendar className="h-5 w-5 text-indigo-500" />
-                        <span className="font-medium text-gray-700 dark:text-gray-300 text-sm">Dari:</span>
+                <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm">
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-indigo-500 flex-shrink-0" />
+                        <span className="font-medium text-gray-700 dark:text-gray-300 text-xs sm:text-sm">Dari:</span>
                         <DateInput
                             value={startDate}
                             onChange={setStartDate}
-                            className="w-[180px]"
+                            className="flex-1 sm:w-[150px]"
                         />
                     </div>
-                    <div className="flex items-center gap-2">
-                        <span className="font-medium text-gray-700 dark:text-gray-300 text-sm">Sampai:</span>
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <span className="font-medium text-gray-700 dark:text-gray-300 text-xs sm:text-sm ml-6 sm:ml-0">Sampai:</span>
                         <DateInput
                             value={endDate}
                             onChange={setEndDate}
-                            className="w-[180px]"
+                            className="flex-1 sm:w-[150px]"
                         />
                     </div>
-                    <Select value={selectedCashier} onValueChange={setSelectedCashier}>
-                        <SelectTrigger className="w-[180px] rounded-xl">
-                            <User className="h-4 w-4 mr-2 text-muted-foreground" />
-                            <SelectValue placeholder="Semua Kasir" />
-                        </SelectTrigger>
-                        <SelectContent className="rounded-xl">
-                            <SelectItem value="all" className="rounded-lg">Semua Kasir</SelectItem>
-                            {cashiers.map(c => (
-                                <SelectItem key={c.id} value={c.id} className="rounded-lg">{c.name}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                    <Input
-                        placeholder="Cari invoice, kasir, produk..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-[250px] rounded-xl"
-                    />
+                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full sm:w-auto">
+                        <Select value={selectedCashier} onValueChange={setSelectedCashier}>
+                            <SelectTrigger className="w-full sm:w-[150px] rounded-xl text-xs sm:text-sm">
+                                <User className="h-4 w-4 mr-2 text-muted-foreground" />
+                                <SelectValue placeholder="Semua Kasir" />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl">
+                                <SelectItem value="all" className="rounded-lg">Semua Kasir</SelectItem>
+                                {cashiers.map(c => (
+                                    <SelectItem key={c.id} value={c.id} className="rounded-lg">{c.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <Input
+                            placeholder="Cari invoice, kasir..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full sm:w-[200px] rounded-xl text-xs sm:text-sm"
+                        />
+                    </div>
                 </div>
 
                 {/* Stats */}

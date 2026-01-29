@@ -374,13 +374,13 @@ export default function GeneralTransactions() {
                 </StatsGrid>
 
                 <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
-                    <TabsList className="grid w-full max-w-md grid-cols-2">
-                        <TabsTrigger value="daily" className="flex items-center gap-2">
-                            <History className="w-4 h-4" />
+                    <TabsList className="grid w-full max-w-xs sm:max-w-md grid-cols-2">
+                        <TabsTrigger value="daily" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                            <History className="w-3 h-3 sm:w-4 sm:h-4" />
                             Harian
                         </TabsTrigger>
-                        <TabsTrigger value="monthly" className="flex items-center gap-2">
-                            <CalendarIcon className="w-4 h-4" />
+                        <TabsTrigger value="monthly" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                            <CalendarIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                             Bulanan
                         </TabsTrigger>
                     </TabsList>

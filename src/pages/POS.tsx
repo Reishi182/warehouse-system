@@ -8,7 +8,9 @@ import { POSCartPanel } from '@/components/pos/POSCartPanel';
 import { POSMobileCart } from '@/components/pos/POSMobileCart';
 import { POSCheckoutDialog } from '@/components/pos/POSCheckoutDialog';
 import { POSReceiptDialog } from '@/components/pos/POSReceiptDialog';
+import { POSSalesHistoryDialog } from '@/components/pos/POSSalesHistoryDialog';
 import { OfflineSyncStatus } from '@/components/pos/OfflineSyncStatus';
+import { Button } from '@/components/ui/button';
 import {
     Select,
     SelectContent,
@@ -16,6 +18,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { History } from 'lucide-react';
 import { useData } from '@/contexts/DataContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -32,6 +35,7 @@ export default function POS() {
 
     const searchInputRef = useRef<HTMLInputElement>(null);
     const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
+    const [salesHistoryOpen, setSalesHistoryOpen] = useState(false);
 
     // Cart state
     const cart = usePOSCart('toko');
@@ -117,6 +121,17 @@ export default function POS() {
 
                         {/* Offline Sync Status */}
                         <OfflineSyncStatus />
+
+                        {/* Sales History Button */}
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => setSalesHistoryOpen(true)}
+                            className="h-11 w-11 rounded-xl"
+                            title="Riwayat Penjualan"
+                        >
+                            <History className="h-5 w-5" />
+                        </Button>
 
                         <Select
                             value={cart.stockLocation}
@@ -211,6 +226,12 @@ export default function POS() {
                 storeAddress={storeSettings?.store_address}
                 receiptRef={checkout.receiptRef}
                 onPrint={checkout.handlePrint}
+            />
+
+            {/* Sales History Dialog */}
+            <POSSalesHistoryDialog
+                open={salesHistoryOpen}
+                onOpenChange={setSalesHistoryOpen}
             />
         </MainLayout>
     );

@@ -319,7 +319,7 @@ export default function MarketplaceOrders() {
                             </DialogHeader>
                             <div className="space-y-6 mt-4">
                                 {/* Basic Info */}
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label>Marketplace *</Label>
                                         <Select value={marketplace} onValueChange={(v) => setMarketplace(v as MarketplaceType)}>
@@ -391,7 +391,7 @@ export default function MarketplaceOrders() {
                                     </div>
 
                                     {isNewProduct ? (
-                                        <div className="grid grid-cols-2 gap-4">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                             <Input
                                                 placeholder="Nama Produk *"
                                                 value={newProductName}
@@ -413,7 +413,7 @@ export default function MarketplaceOrders() {
                                         />
                                     )}
 
-                                    <div className="grid grid-cols-4 gap-4">
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
                                         <Input
                                             type="number"
                                             min={1}
@@ -524,12 +524,12 @@ export default function MarketplaceOrders() {
                 </StatsGrid>
 
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
-                    <TabsList>
-                        <TabsTrigger value="all">Semua</TabsTrigger>
-                        <TabsTrigger value="pending_arrival">Menunggu</TabsTrigger>
-                        <TabsTrigger value="completed">Selesai</TabsTrigger>
-                        <TabsTrigger value="received_with_issue">Bermasalah</TabsTrigger>
-                        <TabsTrigger value="return_pending">Return</TabsTrigger>
+                    <TabsList className="w-full sm:w-auto overflow-x-auto flex-nowrap">
+                        <TabsTrigger value="all" className="text-xs sm:text-sm px-2 sm:px-3">Semua</TabsTrigger>
+                        <TabsTrigger value="pending_arrival" className="text-xs sm:text-sm px-2 sm:px-3">Menunggu</TabsTrigger>
+                        <TabsTrigger value="completed" className="text-xs sm:text-sm px-2 sm:px-3">Selesai</TabsTrigger>
+                        <TabsTrigger value="received_with_issue" className="text-xs sm:text-sm px-2 sm:px-3">Masalah</TabsTrigger>
+                        <TabsTrigger value="return_pending" className="text-xs sm:text-sm px-2 sm:px-3">Return</TabsTrigger>
                     </TabsList>
                 </Tabs>
 

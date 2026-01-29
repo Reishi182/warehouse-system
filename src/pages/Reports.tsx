@@ -69,12 +69,12 @@ export default function Reports() {
     <MainLayout title="Laporan" subtitle="Analisis dan laporan inventaris">
       <div className="space-y-6">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
-            <TabsTrigger value="overview">Ringkasan</TabsTrigger>
-            <TabsTrigger value="finance">Keuangan</TabsTrigger>
-            <TabsTrigger value="stock">Pergerakan Stok</TabsTrigger>
-            <TabsTrigger value="requests">Permintaan</TabsTrigger>
-            <TabsTrigger value="surat-jalan">Surat Jalan</TabsTrigger>
+          <TabsList className="w-full sm:w-auto overflow-x-auto flex-nowrap">
+            <TabsTrigger value="overview" className="text-xs sm:text-sm px-2 sm:px-3">Ringkasan</TabsTrigger>
+            <TabsTrigger value="finance" className="text-xs sm:text-sm px-2 sm:px-3">Keuangan</TabsTrigger>
+            <TabsTrigger value="stock" className="text-xs sm:text-sm px-2 sm:px-3">Stok</TabsTrigger>
+            <TabsTrigger value="requests" className="text-xs sm:text-sm px-2 sm:px-3">Permintaan</TabsTrigger>
+            <TabsTrigger value="surat-jalan" className="text-xs sm:text-sm px-2 sm:px-3">SJ</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="mt-6">

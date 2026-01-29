@@ -462,9 +462,9 @@ export default function CashTransfer() {
         <div className="space-y-6">
           {/* Date Filter */}
           <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <Label>Tanggal:</Label>
+            <CardContent className="pt-4 sm:pt-6">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                <Label className="text-sm">Tanggal:</Label>
                 <DateInput
                   value={selectedDate}
                   onChange={setSelectedDate}

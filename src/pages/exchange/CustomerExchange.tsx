@@ -103,7 +103,7 @@ interface ExchangeResult {
 }
 
 export default function CustomerExchange() {
-    const { user } = useAuth();
+    const { user, profile } = useAuth();
     const role = useRole();
     const { products } = useData();
     const { toast } = useToast();
@@ -379,7 +379,7 @@ export default function CustomerExchange() {
                 originalSaleId: foundSale.id,
                 originalSaleNumber: foundSale.sale_number,
                 cashierId: user.id,
-                cashierName: user.name,
+                cashierName: profile?.name || user.email || 'Kasir',
                 stockLocation: stockLocation as Location,
                 returnedItems: returnedItems.map(item => ({
                     productId: item.productId,

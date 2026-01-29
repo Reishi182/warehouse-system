@@ -109,17 +109,24 @@ export default function Approval() {
         {/* Tabs */}
         <div className="flex items-center justify-between">
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
-            <TabsList>
-              <TabsTrigger value="pending" className="relative">
-                Menunggu
+            <TabsList className="w-full sm:w-auto overflow-x-auto flex-nowrap">
+              <TabsTrigger value="pending" className="relative text-xs sm:text-sm px-2 sm:px-3">
+                <span className="hidden sm:inline">Menunggu</span>
+                <span className="sm:hidden">Pending</span>
                 {pendingCount > 0 && (
-                  <span className="ml-2 w-5 h-5 rounded-full bg-warning text-warning-foreground text-xs flex items-center justify-center">
+                  <span className="ml-1 sm:ml-2 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-warning text-warning-foreground text-[10px] sm:text-xs flex items-center justify-center">
                     {pendingCount}
                   </span>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="approved">Disetujui</TabsTrigger>
-              <TabsTrigger value="rejected">Ditolak</TabsTrigger>
+              <TabsTrigger value="approved" className="text-xs sm:text-sm px-2 sm:px-3">
+                <span className="hidden sm:inline">Disetujui</span>
+                <span className="sm:hidden">Setuju</span>
+              </TabsTrigger>
+              <TabsTrigger value="rejected" className="text-xs sm:text-sm px-2 sm:px-3">
+                <span className="hidden sm:inline">Ditolak</span>
+                <span className="sm:hidden">Tolak</span>
+              </TabsTrigger>
             </TabsList>
           </Tabs>
         </div>

@@ -322,12 +322,12 @@ export default function StockRequests() {
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
-            <TabsList className="bg-gray-100 rounded-xl p-1">
-              <TabsTrigger value="all" className="rounded-lg">Semua</TabsTrigger>
-              <TabsTrigger value="pending" className="rounded-lg">Menunggu</TabsTrigger>
-              <TabsTrigger value="approved" className="rounded-lg">Disetujui</TabsTrigger>
-              <TabsTrigger value="completed" className="rounded-lg">Selesai</TabsTrigger>
-              <TabsTrigger value="rejected" className="rounded-lg">Ditolak</TabsTrigger>
+            <TabsList className="w-full sm:w-auto overflow-x-auto flex-nowrap bg-gray-100 rounded-xl p-1">
+              <TabsTrigger value="all" className="rounded-lg text-xs sm:text-sm px-2 sm:px-3">Semua</TabsTrigger>
+              <TabsTrigger value="pending" className="rounded-lg text-xs sm:text-sm px-2 sm:px-3">Pending</TabsTrigger>
+              <TabsTrigger value="approved" className="rounded-lg text-xs sm:text-sm px-2 sm:px-3">Setujui</TabsTrigger>
+              <TabsTrigger value="completed" className="rounded-lg text-xs sm:text-sm px-2 sm:px-3">Selesai</TabsTrigger>
+              <TabsTrigger value="rejected" className="rounded-lg text-xs sm:text-sm px-2 sm:px-3">Tolak</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
@@ -367,7 +367,7 @@ export default function StockRequests() {
                 </div>
 
                 {useSameLocation && (
-                  <div className="grid grid-cols-2 gap-4 p-4 bg-indigo-50/50 rounded-xl border border-indigo-100">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-indigo-50/50 rounded-xl border border-indigo-100">
                     <div className="space-y-2">
                       <Label>Dari Lokasi</Label>
                       <Select value={masterFromLocation} onValueChange={(v: Location) => handleMasterFromChange(v)}>

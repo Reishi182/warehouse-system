@@ -137,7 +137,7 @@ const navGroups: NavItem[] = [
       { label: 'Setoran Cash', icon: Wallet, href: '/cash-transfer', roles: ['cashier', 'main_office', 'admin'] },
       { label: 'Riwayat Setoran', icon: Receipt, href: '/cash-history', roles: ['main_office', 'admin'] },
       { label: 'Transaksi Umum', icon: Banknote, href: '/finance/transactions', roles: ['main_office', 'admin'] },
-      { label: 'Riwayat Penjualan', icon: Receipt, href: '/finance/sales-history', roles: ['cashier', 'main_office', 'admin'] },
+      { label: 'Riwayat Penjualan', icon: Receipt, href: '/finance/sales-history', roles: ['main_office', 'admin'] },
       { label: 'Backorder', icon: ClipboardList, href: '/finance/backorders', roles: ['cashier', 'main_office', 'admin'] },
     ],
   },
