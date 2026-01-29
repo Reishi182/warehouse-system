@@ -22,29 +22,36 @@ export function useStoreSettings() {
     return useQuery({
         queryKey: ['store_settings'],
         queryFn: async () => {
-            // Try to get from localStorage first (for non-DB approach)
+            // Try to get from Supabase first (primary source)
+            try {
+                const { data, error } = await (supabase as any)
+                    .from('store_settings')
+                    .select('*')
+                    .single();
+
+                if (!error && data) {
+                    // Cache to localStorage for offline access
+                    localStorage.setItem('store_settings', JSON.stringify(data));
+                    return data as StoreSettings;
+                }
+            } catch (e) {
+                console.log('Error fetching from Supabase:', e);
+            }
+
+            // Fallback to localStorage if database fails
             const cached = localStorage.getItem('store_settings');
             if (cached) {
+                console.log('Using cached store settings from localStorage');
                 return JSON.parse(cached) as StoreSettings;
             }
 
-            // Try to get from Supabase
-            const { data, error } = await supabase
-                .from('store_settings')
-                .select('*')
-                .single();
-
-            if (error) {
-                // If table doesn't exist or no data, return defaults
-                console.log('Store settings not found, using defaults');
-                return {
-                    id: 'default',
-                    ...DEFAULT_SETTINGS,
-                    updated_at: new Date().toISOString(),
-                } as StoreSettings;
-            }
-
-            return data as StoreSettings;
+            // If nothing found, return defaults
+            console.log('Store settings not found, using defaults');
+            return {
+                id: 'default',
+                ...DEFAULT_SETTINGS,
+                updated_at: new Date().toISOString(),
+            } as StoreSettings;
         },
         staleTime: 1000 * 60 * 5, // 5 minutes
     });
@@ -66,7 +73,7 @@ export function useUpdateStoreSettings() {
 
             // Try to save to Supabase (upsert)
             try {
-                const { error } = await supabase
+                const { error } = await (supabase as any)
                     .from('store_settings')
                     .upsert({
                         id: 'default',

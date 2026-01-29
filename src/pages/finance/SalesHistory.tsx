@@ -46,6 +46,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useReactToPrint } from 'react-to-print';
 import POSReceipt from '@/components/pos/POSReceipt';
+import { useStoreSettings } from '@/hooks/useStoreSettings';
 
 function toISODate(d: Date) {
     const yyyy = d.getFullYear();
@@ -56,6 +57,7 @@ function toISODate(d: Date) {
 
 export default function SalesHistory() {
     const { sales, loading } = useData();
+    const { data: storeSettings } = useStoreSettings();
     const [startDate, setStartDate] = useState<string>(toISODate(startOfMonth(new Date())));
     const [endDate, setEndDate] = useState<string>(toISODate(new Date()));
     const [selectedCashier, setSelectedCashier] = useState<string>('all');
@@ -402,6 +404,8 @@ export default function SalesHistory() {
                                 paymentMethod={selectedSaleForPrint.payment_method}
                                 amountPaid={selectedSaleForPrint.total_amount}
                                 change={0}
+                                storeName={storeSettings?.store_name}
+                                storeAddress={storeSettings?.store_address}
                                 isCopy={true}
                             />
                         )}

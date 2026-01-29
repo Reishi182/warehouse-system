@@ -83,11 +83,11 @@ const PrintReceipt = forwardRef<HTMLDivElement, PrintReceiptProps>(
                 <style>{`
           /* Receipt sharp text rendering */
           .print-receipt {
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-            text-rendering: geometricPrecision;
-            font-feature-settings: "kern" 1;
-            letter-spacing: 0.02em;
+            -webkit-font-smoothing: none;
+            -moz-osx-font-smoothing: unset;
+            text-rendering: optimizeLegibility;
+            font-feature-settings: "kern" 0;
+            letter-spacing: 0.03em;
           }
           @media print {
             .print-receipt {
@@ -103,24 +103,54 @@ const PrintReceipt = forwardRef<HTMLDivElement, PrintReceiptProps>(
               color: #000000 !important;
               -webkit-print-color-adjust: exact !important;
               print-color-adjust: exact !important;
-              text-rendering: geometricPrecision !important;
+              text-rendering: optimizeLegibility !important;
               -webkit-font-smoothing: none !important;
+              font-smooth: never !important;
+              /* Text shadow untuk efek ketebalan ganda */
+              text-shadow: 0 0 0 #000000, 0.02em 0 0 #000000, -0.02em 0 0 #000000 !important;
             }
             .print-receipt {
               position: absolute;
               left: 0;
               top: 0;
-              font-weight: 700 !important;
+              font-weight: 900 !important;
               font-family: 'Courier New', Courier, monospace !important;
+              letter-spacing: 0.04em !important;
+            }
+            .print-receipt .text-xs {
+              font-size: 11px !important;
+              line-height: 1.4 !important;
+            }
+            .print-receipt .text-sm {
+              font-size: 13px !important;
+              line-height: 1.4 !important;
+            }
+            .print-receipt .text-lg {
+              font-size: 17px !important;
+              line-height: 1.4 !important;
             }
             .print-receipt .font-semibold {
-              font-weight: 700 !important;
+              font-weight: 900 !important;
+              text-shadow: 0 0 0 #000000, 0.03em 0 0 #000000, -0.03em 0 0 #000000 !important;
             }
             .print-receipt .font-bold {
-              font-weight: 800 !important;
+              font-weight: 900 !important;
+              text-shadow: 0 0 0 #000000, 0.04em 0 0 #000000, -0.04em 0 0 #000000 !important;
             }
             .print-receipt .font-black {
               font-weight: 900 !important;
+              text-shadow: 0 0 0 #000000, 0.05em 0 0 #000000, -0.05em 0 0 #000000, 0 0.02em 0 #000000 !important;
+            }
+            /* Border yang lebih tebal untuk garis pemisah */
+            .print-receipt .border-dashed {
+              border-width: 2px !important;
+              border-color: #000000 !important;
+            }
+            .print-receipt .border-b-2 {
+              border-bottom-width: 3px !important;
+            }
+            .print-receipt .border-t-2 {
+              border-top-width: 3px !important;
             }
           }
         `}</style>

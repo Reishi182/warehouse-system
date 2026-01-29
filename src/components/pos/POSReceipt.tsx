@@ -198,34 +198,68 @@ const POSReceipt = forwardRef<HTMLDivElement, POSReceiptProps>(({
             <style>{`
                 /* Receipt sharp text rendering */
                 .pos-receipt {
-                    -webkit-font-smoothing: antialiased;
-                    -moz-osx-font-smoothing: grayscale;
-                    text-rendering: geometricPrecision;
-                    font-feature-settings: "kern" 1;
+                    -webkit-font-smoothing: none;
+                    -moz-osx-font-smoothing: unset;
+                    text-rendering: optimizeLegibility;
+                    font-feature-settings: "kern" 0;
                 }
                 .pos-receipt * {
-                    letter-spacing: 0.02em;
+                    letter-spacing: 0.03em;
                 }
                 @media print {
                     .pos-receipt, .pos-receipt * {
                         color: #000000 !important;
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
-                        text-rendering: geometricPrecision !important;
+                        text-rendering: optimizeLegibility !important;
                         -webkit-font-smoothing: none !important;
+                        font-smooth: never !important;
+                        /* Text shadow untuk efek ketebalan ganda */
+                        text-shadow: 0 0 0 #000000, 0.02em 0 0 #000000, -0.02em 0 0 #000000 !important;
                     }
                     .pos-receipt {
-                        font-weight: 700 !important;
+                        font-weight: 900 !important;
                         font-family: 'Courier New', Courier, monospace !important;
+                        letter-spacing: 0.04em !important;
+                    }
+                    .pos-receipt .text-xs {
+                        font-size: 11px !important;
+                        line-height: 1.4 !important;
+                    }
+                    .pos-receipt .text-sm {
+                        font-size: 13px !important;
+                        line-height: 1.4 !important;
+                    }
+                    .pos-receipt .text-base {
+                        font-size: 15px !important;
+                        line-height: 1.4 !important;
+                    }
+                    .pos-receipt .font-medium {
+                        font-weight: 800 !important;
+                        text-shadow: 0 0 0 #000000, 0.03em 0 0 #000000, -0.03em 0 0 #000000 !important;
                     }
                     .pos-receipt .font-semibold {
-                        font-weight: 700 !important;
+                        font-weight: 900 !important;
+                        text-shadow: 0 0 0 #000000, 0.03em 0 0 #000000, -0.03em 0 0 #000000 !important;
                     }
                     .pos-receipt .font-bold {
-                        font-weight: 800 !important;
+                        font-weight: 900 !important;
+                        text-shadow: 0 0 0 #000000, 0.04em 0 0 #000000, -0.04em 0 0 #000000 !important;
                     }
                     .pos-receipt .font-black {
                         font-weight: 900 !important;
+                        text-shadow: 0 0 0 #000000, 0.05em 0 0 #000000, -0.05em 0 0 #000000, 0 0.02em 0 #000000 !important;
+                    }
+                    /* Border yang lebih tebal untuk garis pemisah */
+                    .pos-receipt .border-dashed {
+                        border-width: 2px !important;
+                        border-color: #000000 !important;
+                    }
+                    .pos-receipt .border-b-2 {
+                        border-bottom-width: 3px !important;
+                    }
+                    .pos-receipt .border-t-2 {
+                        border-top-width: 3px !important;
                     }
                 }
             `}</style>
