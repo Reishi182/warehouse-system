@@ -146,21 +146,23 @@ export function POSSalesHistoryDialog({ open, onOpenChange }: POSSalesHistoryDia
                         {/* Filters */}
                         <div className="flex flex-col gap-3 py-4 border-b">
                             {/* Date Filter */}
-                            <div className="flex flex-wrap items-center gap-2">
-                                <Calendar className="h-4 w-4 text-primary flex-shrink-0" />
-                                <span className="text-sm font-medium text-muted-foreground">Tanggal:</span>
-                                <DateInput
-                                    value={selectedDate}
-                                    onChange={setSelectedDate}
-                                    className="flex-1 min-w-[140px] sm:w-[160px] sm:flex-none"
-                                    disableFuture
-                                />
-                                <div className="flex gap-1">
+                            <div className="flex flex-col gap-2">
+                                <div className="flex items-center gap-2">
+                                    <Calendar className="h-4 w-4 text-primary flex-shrink-0" />
+                                    <span className="text-sm font-medium text-muted-foreground">Tanggal:</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <DateInput
+                                        value={selectedDate}
+                                        onChange={setSelectedDate}
+                                        className="flex-1"
+                                        disableFuture
+                                    />
                                     <Button
                                         variant="outline"
                                         size="sm"
                                         onClick={setToday}
-                                        className="text-xs h-8 px-2 rounded-lg"
+                                        className="text-xs h-11 px-3 rounded-xl whitespace-nowrap"
                                     >
                                         Hari Ini
                                     </Button>
@@ -168,7 +170,7 @@ export function POSSalesHistoryDialog({ open, onOpenChange }: POSSalesHistoryDia
                                         variant="outline"
                                         size="sm"
                                         onClick={setYesterday}
-                                        className="text-xs h-8 px-2 rounded-lg"
+                                        className="text-xs h-11 px-3 rounded-xl whitespace-nowrap"
                                     >
                                         Kemarin
                                     </Button>

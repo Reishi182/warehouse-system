@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
+import PageSkeleton from '@/components/common/PageSkeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -44,8 +45,11 @@ const typeLabels: Record<string, { label: string; color: string; icon: React.Ele
 };
 
 export default function StockHistory() {
-    const { products } = useData();
-    const { data: stockLogs = [], isLoading } = useStockLogs(products);
+    const { products, loading: productsLoading } = useData();
+    const { data: stockLogs = [], isLoading: logsLoading } = useStockLogs(products);
+
+    // Combined loading state
+    const isLoading = productsLoading || logsLoading;
 
     const [searchQuery, setSearchQuery] = useState('');
     const [typeFilter, setTypeFilter] = useState<'all' | 'in' | 'out' | 'adjustment'>('all');
@@ -116,6 +120,15 @@ export default function StockHistory() {
         setSelectedLog(log);
         setDetailDialogOpen(true);
     };
+
+    // Show skeleton while loading products or logs
+    if (productsLoading) {
+        return (
+            <MainLayout title="History Stok" subtitle="Riwayat pergerakan stok">
+                <PageSkeleton variant="table" />
+            </MainLayout>
+        );
+    }
 
     return (
         <MainLayout title="History Stok" subtitle="Riwayat pergerakan stok">

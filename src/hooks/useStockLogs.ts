@@ -2,12 +2,18 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { StockLog, Product, Location } from '@/types';
 
-// Transform database row to StockLog type
-function transformStockLog(row: any, products: Product[]): StockLog {
-    const product = products.find(p => p.id === row.product_id);
+interface UserProfile {
+    id: string;
+    user_id: string;
+    name: string;
+    email: string;
+    avatar: string | null;
+}
 
-    // Extract user profile if joined
-    const userProfile = row.profiles;
+// Transform database row to StockLog type
+function transformStockLog(row: any, products: Product[], profiles: Map<string, UserProfile>): StockLog {
+    const product = products.find(p => p.id === row.product_id);
+    const userProfile = row.user_id ? profiles.get(row.user_id) : null;
 
     return {
         id: row.id,
@@ -18,12 +24,12 @@ function transformStockLog(row: any, products: Product[]): StockLog {
         location: row.location as Location,
         user_id: row.user_id,
         user: userProfile ? {
-            id: userProfile.user_id || row.user_id,
+            id: userProfile.user_id,
             name: userProfile.name || 'Unknown',
             email: userProfile.email || '',
             avatar: userProfile.avatar,
         } : null,
-        timestamp: row.timestamp,
+        timestamp: row.timestamp || row.created_at,
         note: row.note,
         reference_type: row.reference_type,
         reference_id: row.reference_id,
@@ -32,23 +38,43 @@ function transformStockLog(row: any, products: Product[]): StockLog {
     };
 }
 
-// Fetch all stock logs with user profile
+// Fetch all stock logs with user profiles
 async function fetchStockLogs(products: Product[]): Promise<StockLog[]> {
-    const { data, error } = await supabase
+    // Fetch stock logs without join first
+    const { data: logs, error: logsError } = await supabase
         .from('stock_logs')
-        .select(`
-            *,
-            profiles:user_id (
-                user_id,
-                name,
-                email,
-                avatar
-            )
-        `)
-        .order('timestamp', { ascending: false });
+        .select('*')
+        .order('timestamp', { ascending: false })
+        .limit(500);
 
-    if (error) throw error;
-    return (data || []).map(row => transformStockLog(row, products));
+    if (logsError) {
+        console.error('Error fetching stock logs:', logsError);
+        throw logsError;
+    }
+
+    if (!logs || logs.length === 0) {
+        return [];
+    }
+
+    // Get unique user IDs
+    const userIds = [...new Set(logs.map(l => l.user_id).filter(Boolean))];
+
+    // Fetch profiles separately
+    let profiles = new Map<string, UserProfile>();
+    if (userIds.length > 0) {
+        const { data: profilesData, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, user_id, name, email, avatar')
+            .in('user_id', userIds);
+
+        if (!profilesError && profilesData) {
+            profilesData.forEach(p => {
+                profiles.set(p.user_id, p as UserProfile);
+            });
+        }
+    }
+
+    return logs.map(row => transformStockLog(row, products, profiles));
 }
 
 // Hook to get all stock logs
