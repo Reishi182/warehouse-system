@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { CashTransfer } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { cashTransferValidation, validateNote } from '@/lib/validation';
+import { enforceRateLimit } from '@/lib/rateLimiter';
 
 // Transform database row to CashTransfer type
 function transformCashTransfer(row: any): CashTransfer {
@@ -54,6 +56,20 @@ export function useCreateCashTransfer() {
             cashierId?: string;
             cashierName: string;
         }) => {
+            // Security: Rate limiting
+            enforceRateLimit('cashTransfer', 'Terlalu banyak request, coba lagi nanti');
+
+            // Security: Validate inputs
+            if (!cashTransferValidation.validateAmount(amount)) {
+                throw new Error('Jumlah transfer tidak valid (harus > 0 dan <= 1 miliar)');
+            }
+            if (transferDate && !cashTransferValidation.validateDate(transferDate)) {
+                throw new Error('Format tanggal tidak valid');
+            }
+
+            // Sanitize note
+            const sanitizedNote = validateNote(note);
+
             const today = new Date().toISOString().slice(0, 10);
 
             const { data, error } = await supabase

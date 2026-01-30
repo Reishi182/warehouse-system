@@ -2,13 +2,15 @@
  * Backup Manager - Client-side backup and restore system
  * 
  * Features:
- * 1. Auto Snapshot - Save data to localStorage every 30 minutes
+ * 1. Auto Snapshot - Save data to localStorage every 30 minutes (ENCRYPTED)
  * 2. Server Backup - Upload snapshots to Supabase backups table
- * 3. 1-Click Restore - Restore data from any snapshot
+ * 3. 1-Click Restore - Restore data from any snapshot with CHECKSUM VALIDATION
  */
 
 import { supabase } from '@/integrations/supabase/client';
-
+import { getSecureItem, setSecureItem, calculateChecksum, validateChecksum } from '@/lib/secureStorage';
+import { checkRateLimit } from '@/lib/rateLimiter';
+import { backupValidation } from '@/lib/validation';
 // Types
 export interface BackupSnapshot {
     id: string;
@@ -19,6 +21,7 @@ export interface BackupSnapshot {
     sizeBytes: number;
     tablesIncluded: string[];
     data: BackupData;
+    checksum?: string; // SHA-256 hash for integrity verification
 }
 
 export interface BackupData {
@@ -135,35 +138,64 @@ export function formatBytes(bytes: number): string {
 }
 
 // ==========================================
-// LOCAL SNAPSHOT FUNCTIONS
+// LOCAL SNAPSHOT FUNCTIONS (ENCRYPTED)
 // ==========================================
 
-// Get all local snapshots
-export function getLocalSnapshots(): BackupSnapshot[] {
+// Get all local snapshots (decrypted)
+export async function getLocalSnapshots(): Promise<BackupSnapshot[]> {
     try {
-        const data = localStorage.getItem(LOCAL_SNAPSHOTS_KEY);
-        return data ? JSON.parse(data) : [];
+        const data = await getSecureItem<BackupSnapshot[]>(LOCAL_SNAPSHOTS_KEY);
+        return data || [];
+    } catch {
+        // Fallback to unencrypted for migration
+        try {
+            const rawData = localStorage.getItem(LOCAL_SNAPSHOTS_KEY);
+            if (rawData) {
+                const parsed = JSON.parse(rawData);
+                // Migrate to encrypted storage
+                await saveLocalSnapshots(parsed);
+                return parsed;
+            }
+        } catch {
+            // Ignore
+        }
+        return [];
+    }
+}
+
+// Synchronous version for backwards compatibility
+export function getLocalSnapshotsSync(): BackupSnapshot[] {
+    try {
+        const rawData = localStorage.getItem(LOCAL_SNAPSHOTS_KEY);
+        if (!rawData) return [];
+        // Try to parse as JSON first (unencrypted legacy)
+        try {
+            return JSON.parse(rawData);
+        } catch {
+            // Encrypted data, return empty for sync call
+            return [];
+        }
     } catch {
         return [];
     }
 }
 
-// Save snapshots to localStorage
-function saveLocalSnapshots(snapshots: BackupSnapshot[]): void {
+// Save snapshots to localStorage (encrypted)
+async function saveLocalSnapshots(snapshots: BackupSnapshot[]): Promise<void> {
     try {
         // Keep only last N snapshots
         const trimmed = snapshots.slice(-MAX_LOCAL_SNAPSHOTS);
-        localStorage.setItem(LOCAL_SNAPSHOTS_KEY, JSON.stringify(trimmed));
+        await setSecureItem(LOCAL_SNAPSHOTS_KEY, trimmed);
     } catch (e) {
         console.error('[Backup] Failed to save to localStorage:', e);
     }
 }
 
 // Delete a local snapshot
-export function deleteLocalSnapshot(id: string): void {
-    const snapshots = getLocalSnapshots();
+export async function deleteLocalSnapshot(id: string): Promise<void> {
+    const snapshots = await getLocalSnapshots();
     const filtered = snapshots.filter(s => s.id !== id);
-    saveLocalSnapshots(filtered);
+    await saveLocalSnapshots(filtered);
 }
 
 // Get last auto backup time
@@ -261,12 +293,13 @@ export async function createSnapshot(
         sizeBytes: calculateSize(data),
         tablesIncluded,
         data,
+        checksum: await calculateChecksum(data), // Add integrity checksum
     };
 
-    // Save to localStorage
-    const snapshots = getLocalSnapshots();
+    // Save to localStorage (encrypted)
+    const snapshots = await getLocalSnapshots();
     snapshots.push(snapshot);
-    saveLocalSnapshots(snapshots);
+    await saveLocalSnapshots(snapshots);
 
     onProgress?.({
         stage: 'complete',

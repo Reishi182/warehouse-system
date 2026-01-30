@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Sale, SaleItem, PaymentMethod, Location } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { saleValidation, validateUUID } from '@/lib/validation';
+import { enforceRateLimit } from '@/lib/rateLimiter';
 
 // Transform database rows to Sale type
 function transformSale(row: any, items: SaleItem[]): Sale {
@@ -76,6 +78,28 @@ export function useCreateSale() {
             cashierName: string;
             products: any[];
         }) => {
+            // Security: Rate limiting
+            enforceRateLimit('createSale', 'Terlalu banyak transaksi, coba lagi nanti');
+
+            // Security: Validate inputs
+            if (!saleValidation.validatePaymentMethod(paymentMethod)) {
+                throw new Error('Metode pembayaran tidak valid');
+            }
+            if (!saleValidation.validateStockLocation(stockLocation)) {
+                throw new Error('Lokasi stok tidak valid');
+            }
+            if (!saleValidation.validateItems(items)) {
+                throw new Error('Jumlah item tidak valid (min 1, max 100)');
+            }
+            for (const item of items) {
+                if (!validateUUID(item.productId)) {
+                    throw new Error('ID produk tidak valid');
+                }
+                if (!saleValidation.validateQuantity(item.quantity)) {
+                    throw new Error(`Kuantitas tidak valid: ${item.quantity}`);
+                }
+            }
+
             // Generate sale number
             const timestamp = Date.now();
             const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();

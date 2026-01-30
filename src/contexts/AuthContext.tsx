@@ -1,7 +1,9 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { UserRole } from '@/types';
+import { initializeSession, validateSession, clearSession } from '@/lib/sessionSecurity';
+import { clearKeyCache } from '@/lib/secureStorage';
 
 interface Profile {
   id: string;
@@ -31,6 +33,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const sessionCheckInterval = useRef<NodeJS.Timeout | null>(null);
 
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
@@ -77,6 +80,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Session security: periodic validation
+  useEffect(() => {
+    if (session && profile) {
+      // Initialize session on login
+      initializeSession(profile.user_id);
+
+      // Start periodic session validation
+      sessionCheckInterval.current = setInterval(() => {
+        if (!validateSession()) {
+          console.warn('[Security] Session tampering detected, forcing logout');
+          signOut();
+        }
+      }, 30000); // Check every 30 seconds
+    }
+
+    return () => {
+      if (sessionCheckInterval.current) {
+        clearInterval(sessionCheckInterval.current);
+      }
+    };
+  }, [session, profile]);
+
   const signUp = async (email: string, password: string, name: string, role: UserRole) => {
     const redirectUrl = `${window.location.origin}/`;
 
@@ -105,6 +130,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
+    // Clear security caches
+    clearSession();
+    clearKeyCache();
+
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
