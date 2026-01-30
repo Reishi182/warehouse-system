@@ -177,12 +177,12 @@ export function useCreatePurchaseOrder() {
                 .from('purchase_orders')
                 .insert([{
                     po_number: poNumber,
-                    supplier_id: input.supplierId,
+                    supplier_id: input.supplierId || null, // Handle empty supplier_id
                     destination: input.destination,
                     status: 'pending_receipt', // Skip auditor approval - PO created by main_office goes directly to receipt
                     total_amount: totalAmount,
                     notes: input.notes || null,
-                    created_by: input.createdBy,
+                    created_by: input.createdBy || null, // Handle empty created_by
                     created_by_name: input.createdByName,
                 }])
                 .select()
@@ -198,6 +198,9 @@ export function useCreatePurchaseOrder() {
                 quantity: item.quantity,
                 unit_price: item.unitPrice,
                 total_price: item.quantity * item.unitPrice,
+                barcode: item.barcode || null,
+                unit: item.unit || 'pcs',
+                is_new_product: item.isNewProduct || false,
             }));
 
             const { error: itemsError } = await supabase
@@ -215,13 +218,8 @@ export function useCreatePurchaseOrder() {
                 description: 'Purchase Order berhasil dibuat',
             });
 
-            // Notify warehouse/cashier about new PO ready for receipt
-            sendNotificationToRole('warehouse', {
-                title: 'PO Baru Siap Diterima',
-                message: `Purchase Order ${po.po_number} siap untuk penerimaan barang`,
-                type: 'info',
-                link: '/purchase-orders/receipt',
-            });
+            // Note: Warehouse will be notified after PO is approved, not on creation
+            // PO needs auditor approval first
         },
         onError: (error: Error) => {
             toast({
@@ -266,23 +264,23 @@ export function useApprovePurchaseOrder() {
             if (error) throw error;
             return po;
         },
-        onSuccess: (po) => {
+        onSuccess: (po, variables) => {
             queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
             toast({
                 title: 'Berhasil',
                 description: 'Purchase Order berhasil diapprove',
             });
 
-            // Notify main_office about approval
-            sendNotificationToRole('main_office', {
+            // Notify warehouse that PO is approved and ready for receipt
+            sendNotificationToRole('warehouse', {
                 title: 'PO Disetujui',
-                message: `Purchase Order ${po?.po_number} telah disetujui, menunggu penerimaan barang`,
+                message: `Purchase Order ${po?.po_number} telah disetujui, siap untuk penerimaan barang`,
                 type: 'success',
-                link: '/purchase-orders',
+                link: '/purchase-orders/receipt',
             });
 
-            // Also notify the creator if exists
-            if (po?.created_by) {
+            // Also notify the creator if they are NOT the approver (avoid double toast)
+            if (po?.created_by && po.created_by !== variables.auditorId) {
                 sendNotificationToUser(po.created_by, {
                     title: 'PO Disetujui',
                     message: `Purchase Order ${po?.po_number} telah disetujui`,
@@ -336,26 +334,19 @@ export function useRejectPurchaseOrder() {
             if (error) throw error;
             return po;
         },
-        onSuccess: (po) => {
+        onSuccess: (po, variables) => {
             queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
             toast({
                 title: 'Berhasil',
                 description: 'Purchase Order berhasil ditolak',
             });
 
-            // Notify main_office about rejection
-            sendNotificationToRole('main_office', {
-                title: 'PO Ditolak',
-                message: `Purchase Order ${po?.po_number} ditolak oleh Auditor`,
-                type: 'error',
-                link: '/purchase-orders',
-            });
-
-            // Also notify the creator if exists
-            if (po?.created_by) {
+            // Only notify the creator if they are NOT the rejector (avoid double toast)
+            // No need to broadcast to all main_office - only the relevant person needs to know
+            if (po?.created_by && po.created_by !== variables.auditorId) {
                 sendNotificationToUser(po.created_by, {
                     title: 'PO Ditolak',
-                    message: `Purchase Order ${po?.po_number} telah ditolak`,
+                    message: `Purchase Order ${po?.po_number} telah ditolak: ${variables.reason}`,
                     type: 'error',
                     link: '/purchase-orders',
                 });
@@ -382,6 +373,10 @@ interface ConfirmReceiptInput {
         orderedQty: number;
         receivedQty: number;
         damagedQty: number;
+        barcode?: string;
+        unit?: string;
+        unitPrice?: number;
+        isNewProduct?: boolean;
     }>;
     photoUrl?: string;
     signatureUrl?: string;
@@ -447,13 +442,50 @@ export function useConfirmPOReceipt() {
             // Update stock for each item (only received qty, not ordered)
             const destination = po.destination as 'gudang' | 'toko';
             for (const item of input.receivedItems) {
-                if (!item.productId || item.receivedQty <= 0) continue;
+                if (item.receivedQty <= 0) continue;
+
+                let productId = item.productId;
+
+                // If productId is empty, create a new product
+                if (!productId && item.productName) {
+                    // Generate barcode if not provided
+                    const barcode = item.barcode || `NEW-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
+
+                    const newProductData: Record<string, any> = {
+                        name: item.productName,
+                        barcode: barcode,
+                        price: item.unitPrice || 0,
+                        stock_gudang: 0,
+                        stock_toko: 0,
+                    };
+
+                    const { data: newProduct, error: createError } = await supabase
+                        .from('products')
+                        .insert([newProductData])
+                        .select()
+                        .single();
+
+                    if (createError) {
+                        console.error('Error creating new product:', createError);
+                        continue; // Skip this item if product creation fails
+                    }
+
+                    productId = newProduct.id;
+
+                    // Update PO item with the new product_id
+                    await supabase
+                        .from('purchase_order_items')
+                        .update({ product_id: productId })
+                        .eq('id', item.itemId);
+                }
+
+                if (!productId) continue;
 
                 // Get current stock
                 const { data: product, error: prodError } = await supabase
                     .from('products')
                     .select('stock_gudang, stock_toko')
-                    .eq('id', item.productId)
+                    .eq('id', productId)
                     .single();
 
                 if (prodError) continue;
@@ -466,7 +498,7 @@ export function useConfirmPOReceipt() {
                 await supabase
                     .from('products')
                     .update({ [stockField]: newStock })
-                    .eq('id', item.productId);
+                    .eq('id', productId);
 
                 // Log stock change
                 const noteDetails = item.receivedQty < item.orderedQty
@@ -474,7 +506,7 @@ export function useConfirmPOReceipt() {
                     : `Penerimaan PO: ${po.po_number}`;
 
                 await supabase.from('stock_logs').insert([{
-                    product_id: item.productId,
+                    product_id: productId,
                     type: 'in',
                     quantity: item.receivedQty,
                     location: destination,
@@ -581,15 +613,16 @@ export function useCancelPurchaseOrder() {
             if (error) throw error;
             return po;
         },
-        onSuccess: (po) => {
+        onSuccess: (po, variables) => {
             queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
             toast({
                 title: 'PO Dibatalkan',
                 description: `Purchase Order ${po?.po_number} berhasil dibatalkan`,
             });
 
-            // Notify relevant parties
-            if (po?.created_by) {
+            // Notify the creator only if they are NOT the one who cancelled
+            // (to avoid double toast for the same user)
+            if (po?.created_by && po.created_by !== variables.cancelledBy) {
                 sendNotificationToUser(po.created_by, {
                     title: 'PO Dibatalkan',
                     message: `Purchase Order ${po?.po_number} telah dibatalkan`,
@@ -598,12 +631,7 @@ export function useCancelPurchaseOrder() {
                 });
             }
 
-            sendNotificationToRole('warehouse', {
-                title: 'PO Dibatalkan',
-                message: `Purchase Order ${po?.po_number} telah dibatalkan`,
-                type: 'warning',
-                link: '/purchase-orders',
-            });
+            // Note: Removed warehouse broadcast - they don't need to be notified about cancellations
         },
         onError: (error: Error) => {
             toast({

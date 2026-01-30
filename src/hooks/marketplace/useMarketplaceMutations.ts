@@ -172,6 +172,16 @@ export function useReceiveMarketplaceOrder() {
                                 .from('products')
                                 .update({ [stockField]: (currentStock || 0) + actualReceived })
                                 .eq('id', item.product_id);
+
+                            // Log stock-in to stock_logs for stock history tracking
+                            await supabase.from('stock_logs').insert({
+                                product_id: item.product_id,
+                                type: 'in',
+                                quantity: actualReceived,
+                                location: order.destination,
+                                user_id: input.receivedBy,
+                                note: `Terima pesanan marketplace - ${order.order_number}`,
+                            });
                         }
                     }
                 }

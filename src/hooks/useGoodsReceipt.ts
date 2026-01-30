@@ -96,9 +96,21 @@ export function useGoodsReceipt() {
 
                 // Add only received qty (good condition) to stock
                 const goodQty = item.quantityReceived - item.quantityDamaged;
-                await supabase.from('products')
-                    .update({ stock_toko: (product.stock_toko || 0) + Math.max(0, goodQty) })
-                    .eq('id', item.productId);
+                if (goodQty > 0) {
+                    await supabase.from('products')
+                        .update({ stock_toko: (product.stock_toko || 0) + goodQty })
+                        .eq('id', item.productId);
+
+                    // Log stock-in to stock_logs for stock history tracking
+                    await supabase.from('stock_logs').insert({
+                        product_id: item.productId,
+                        type: 'in',
+                        quantity: goodQty,
+                        location: 'toko',
+                        user_id: data.receivedBy,
+                        note: `Terima barang dari gudang - ${item.productName}`,
+                    });
+                }
             }
 
             // 5. Get document number

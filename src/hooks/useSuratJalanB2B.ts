@@ -253,7 +253,7 @@ export function useSuratJalanB2B() {
                 sender_name: senderName
             }).eq('id', suratJalanId);
 
-            // 4. Commit Stock
+            // 4. Commit Stock and log to stock_logs
             const { data: items } = await supabase.from('surat_jalan_items').select('*').eq('surat_jalan_id', suratJalanId);
 
             for (const item of items || []) {
@@ -264,6 +264,16 @@ export function useSuratJalanB2B() {
                         p_quantity: item.quantity
                     });
                     if (commitError) throw commitError;
+
+                    // Log stock-out for gudang
+                    await supabase.from('stock_logs').insert({
+                        product_id: item.product_id,
+                        type: 'out',
+                        quantity: item.quantity,
+                        location: 'gudang',
+                        user_id: completedBy,
+                        note: `Surat Jalan B2B - ${item.product_name || 'Produk'}`,
+                    });
                 } else {
                     // Toko: directly deduct stock_toko
                     const { data: prod } = await supabase
@@ -277,6 +287,16 @@ export function useSuratJalanB2B() {
                         await supabase.from('products')
                             .update({ stock_toko: newStock })
                             .eq('id', item.product_id);
+
+                        // Log stock-out for toko
+                        await supabase.from('stock_logs').insert({
+                            product_id: item.product_id,
+                            type: 'out',
+                            quantity: item.quantity,
+                            location: 'toko',
+                            user_id: completedBy,
+                            note: `Surat Jalan B2B - ${item.product_name || 'Produk'}`,
+                        });
                     }
                 }
             }

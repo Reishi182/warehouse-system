@@ -7,18 +7,18 @@ import {
     Clock,
     XCircle,
     ChevronRight,
-    Search,
-    Filter,
     Building2,
-    User
+    User,
+    Eye
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import MainLayout from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import {
     Dialog,
     DialogContent,
@@ -34,11 +34,17 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
+import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
+import { SearchableSelect } from '@/components/common/SearchableSelect';
 import { useDirectOrders, useCreateDirectOrder } from '@/hooks/useDirectOrders';
 import { useSuppliers } from '@/hooks/useSuppliers';
-import { DirectOrderStatus } from '@/types';
+import { DirectOrder, DirectOrderStatus, Customer } from '@/types';
 import { cn } from '@/lib/utils';
 import PageSkeleton from '@/components/common/PageSkeleton';
+import { supabase } from '@/integrations/supabase/client';
+import { format } from 'date-fns';
+import { id as idLocale } from 'date-fns/locale';
 
 const statusConfig: Record<DirectOrderStatus, { label: string; color: string; icon: React.ComponentType<{ className?: string }> }> = {
     pending: { label: 'Pending', color: 'bg-amber-100 text-amber-700 border-amber-200', icon: Clock },
@@ -57,11 +63,23 @@ interface OrderItem {
 
 export default function DirectOrders() {
     const navigate = useNavigate();
-    const { data: orders, isLoading } = useDirectOrders();
-    const { data: suppliers } = useSuppliers();
+    const { data: orders = [], isLoading } = useDirectOrders();
+    const { data: suppliers = [] } = useSuppliers();
     const createOrder = useCreateDirectOrder();
 
-    const [searchQuery, setSearchQuery] = useState('');
+    // Fetch customers
+    const { data: customers = [] } = useQuery({
+        queryKey: ['customers'],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('customers')
+                .select('*')
+                .order('name', { ascending: true });
+            if (error) throw error;
+            return data as Customer[];
+        }
+    });
+
     const [statusFilter, setStatusFilter] = useState<DirectOrderStatus | 'all'>('all');
     const [isCreateOpen, setIsCreateOpen] = useState(false);
 
@@ -77,12 +95,7 @@ export default function DirectOrders() {
     const [items, setItems] = useState<OrderItem[]>([{ product_name: '', quantity: 1, unit: 'pcs', price: 0 }]);
 
     const filteredOrders = (orders || []).filter(order => {
-        const matchesSearch =
-            order.order_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            order.supplier_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            order.customer_name.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
-        return matchesSearch && matchesStatus;
+        return statusFilter === 'all' || order.status === statusFilter;
     });
 
     const handleSupplierChange = (id: string) => {
@@ -90,6 +103,16 @@ export default function DirectOrders() {
         const supplier = suppliers?.find(s => s.id === id);
         if (supplier) {
             setSupplierName(supplier.name);
+        }
+    };
+
+    const handleCustomerChange = (id: string) => {
+        setCustomerId(id);
+        const customer = customers?.find(c => c.id === id);
+        if (customer) {
+            setCustomerName(customer.name);
+            setDeliveryAddress(customer.address || '');
+            setDeliveryPhone(customer.phone || '');
         }
     };
 
@@ -145,6 +168,100 @@ export default function DirectOrders() {
         resetForm();
     };
 
+    // Table columns
+    const columns: Column<DirectOrder>[] = [
+        {
+            header: 'No. Order',
+            accessorKey: 'order_number',
+            cell: (order: DirectOrder) => (
+                <span className="font-mono font-semibold text-sm">{order.order_number}</span>
+            )
+        },
+        {
+            header: 'Supplier',
+            accessorKey: 'supplier_name',
+            cell: (order: DirectOrder) => (
+                <div className="flex items-center gap-2">
+                    <Building2 className="w-4 h-4 text-muted-foreground" />
+                    <span>{order.supplier_name}</span>
+                </div>
+            )
+        },
+        {
+            header: 'Customer',
+            accessorKey: 'customer_name',
+            cell: (order: DirectOrder) => (
+                <div className="flex items-center gap-2">
+                    <User className="w-4 h-4 text-muted-foreground" />
+                    <span>{order.customer_name}</span>
+                </div>
+            )
+        },
+        {
+            header: 'Total',
+            accessorKey: 'total_amount',
+            cell: (order: DirectOrder) => (
+                <span className="font-semibold">Rp {order.total_amount.toLocaleString('id-ID')}</span>
+            )
+        },
+        {
+            header: 'Status',
+            accessorKey: 'status',
+            cell: (order: DirectOrder) => {
+                const StatusIcon = statusConfig[order.status].icon;
+                return (
+                    <Badge className={cn('border', statusConfig[order.status].color)}>
+                        <StatusIcon className="w-3 h-3 mr-1" />
+                        {statusConfig[order.status].label}
+                    </Badge>
+                );
+            }
+        },
+        {
+            header: 'Tanggal',
+            accessorKey: 'created_at',
+            cell: (order: DirectOrder) => (
+                <span className="text-sm text-muted-foreground">
+                    {format(new Date(order.created_at), 'dd MMM yyyy', { locale: idLocale })}
+                </span>
+            )
+        },
+        {
+            header: 'Aksi',
+            sortable: false,
+            cell: (order: DirectOrder) => (
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => navigate(`/direct-orders/${order.id}`)}
+                    className="gap-1"
+                >
+                    <Eye className="w-4 h-4" />
+                    Detail
+                </Button>
+            )
+        }
+    ];
+
+    // Prepare supplier options for SearchableSelect
+    const supplierOptions = suppliers.map(s => ({
+        value: s.id,
+        label: s.name,
+        description: s.phone || s.email || undefined
+    }));
+
+    // Prepare customer options for SearchableSelect
+    const customerOptions = customers.map(c => ({
+        value: c.id,
+        label: c.name,
+        description: c.phone || c.address || undefined
+    }));
+
+    // Stats calculations
+    const pendingCount = orders.filter(o => o.status === 'pending').length;
+    const shippedCount = orders.filter(o => o.status === 'shipped').length;
+    const deliveredCount = orders.filter(o => o.status === 'delivered').length;
+
     if (isLoading) {
         return (
             <MainLayout title="Direct Order" subtitle="Supplier langsung ke Customer">
@@ -154,102 +271,75 @@ export default function DirectOrders() {
     }
 
     return (
-        <MainLayout title="Direct Order" subtitle="Order langsung dari Supplier ke Customer">
-            {/* Header Actions */}
-            <div className="flex flex-col sm:flex-row gap-4 mb-6">
-                <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                        placeholder="Cari order, supplier, atau customer..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10"
-                    />
-                </div>
-                <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as DirectOrderStatus | 'all')}>
-                    <SelectTrigger className="w-[180px]">
-                        <Filter className="w-4 h-4 mr-2" />
-                        <SelectValue placeholder="Filter Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">Semua Status</SelectItem>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="confirmed">Dikonfirmasi</SelectItem>
-                        <SelectItem value="shipped">Dikirim</SelectItem>
-                        <SelectItem value="delivered">Terkirim</SelectItem>
-                        <SelectItem value="cancelled">Dibatalkan</SelectItem>
-                    </SelectContent>
-                </Select>
-                <Button onClick={() => setIsCreateOpen(true)}>
+        <MainLayout
+            title="Direct Order"
+            subtitle="Order langsung dari Supplier ke Customer"
+            actions={
+                <Button onClick={() => setIsCreateOpen(true)} className="rounded-xl">
                     <Plus className="w-4 h-4 mr-2" />
                     Buat Order
                 </Button>
-            </div>
+            }
+        >
+            <div className="space-y-6">
+                {/* Stats */}
+                <StatsGrid columns={4}>
+                    <StatsCard
+                        title="Total Order"
+                        value={orders.length}
+                        icon={<Truck className="w-5 h-5" />}
+                    />
+                    <StatsCard
+                        title="Pending"
+                        value={pendingCount}
+                        icon={<Clock className="w-5 h-5" />}
+                        variant="warning"
+                    />
+                    <StatsCard
+                        title="Dikirim"
+                        value={shippedCount}
+                        icon={<Package className="w-5 h-5" />}
+                        variant="info"
+                    />
+                    <StatsCard
+                        title="Terkirim"
+                        value={deliveredCount}
+                        icon={<CheckCircle2 className="w-5 h-5" />}
+                        variant="success"
+                    />
+                </StatsGrid>
 
-            {/* Orders List */}
-            {filteredOrders.length === 0 ? (
-                <Card className="text-center py-12">
-                    <CardContent>
-                        <Truck className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                        <h3 className="font-semibold mb-2">Belum Ada Direct Order</h3>
-                        <p className="text-muted-foreground text-sm mb-4">
-                            Buat order pertama untuk mengirimkan langsung dari supplier ke customer
-                        </p>
-                        <Button onClick={() => setIsCreateOpen(true)}>
-                            <Plus className="w-4 h-4 mr-2" />
-                            Buat Order Pertama
-                        </Button>
-                    </CardContent>
-                </Card>
-            ) : (
-                <div className="space-y-3">
-                    {filteredOrders.map((order) => {
-                        const StatusIcon = statusConfig[order.status].icon;
-                        return (
-                            <Card
-                                key={order.id}
-                                className="cursor-pointer hover:shadow-md transition-shadow"
-                                onClick={() => navigate(`/direct-orders/${order.id}`)}
-                            >
-                                <CardContent className="p-4">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-3 mb-2">
-                                                <span className="font-mono font-semibold text-sm">
-                                                    {order.order_number}
-                                                </span>
-                                                <Badge className={cn('border', statusConfig[order.status].color)}>
-                                                    <StatusIcon className="w-3 h-3 mr-1" />
-                                                    {statusConfig[order.status].label}
-                                                </Badge>
-                                            </div>
-                                            <div className="flex items-center gap-6 text-sm text-muted-foreground">
-                                                <div className="flex items-center gap-1">
-                                                    <Building2 className="w-4 h-4" />
-                                                    <span>{order.supplier_name}</span>
-                                                </div>
-                                                <ChevronRight className="w-4 h-4" />
-                                                <div className="flex items-center gap-1">
-                                                    <User className="w-4 h-4" />
-                                                    <span>{order.customer_name}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="font-semibold">
-                                                Rp {order.total_amount.toLocaleString('id-ID')}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground">
-                                                {new Date(order.created_at).toLocaleDateString('id-ID')}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        );
-                    })}
-                </div>
-            )}
+                {/* Table */}
+                <BeautifulTable
+                    data={filteredOrders}
+                    columns={columns}
+                    title="Daftar Direct Order"
+                    isLoading={isLoading}
+                    hideSelection
+                    filters={
+                        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as DirectOrderStatus | 'all')}>
+                            <SelectTrigger className="w-[180px]">
+                                <SelectValue placeholder="Filter Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Semua Status</SelectItem>
+                                <SelectItem value="pending">Pending</SelectItem>
+                                <SelectItem value="confirmed">Dikonfirmasi</SelectItem>
+                                <SelectItem value="shipped">Dikirim</SelectItem>
+                                <SelectItem value="delivered">Terkirim</SelectItem>
+                                <SelectItem value="cancelled">Dibatalkan</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    }
+                    emptyState={{
+                        icon: <Truck className="w-10 h-10" />,
+                        title: "Belum Ada Direct Order",
+                        description: "Buat order pertama untuk mengirimkan langsung dari supplier ke customer",
+                        actionLabel: "Buat Order Pertama",
+                        onAction: () => setIsCreateOpen(true)
+                    }}
+                />
+            </div>
 
             {/* Create Order Dialog */}
             <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
@@ -262,22 +352,32 @@ export default function DirectOrders() {
                         {/* Supplier */}
                         <div className="space-y-2">
                             <Label>Supplier *</Label>
-                            <Select value={supplierId} onValueChange={handleSupplierChange}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Pilih supplier..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {suppliers?.map((s) => (
-                                        <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <SearchableSelect
+                                options={supplierOptions}
+                                value={supplierId}
+                                onValueChange={handleSupplierChange}
+                                placeholder="Pilih supplier..."
+                                searchPlaceholder="Cari supplier..."
+                                emptyMessage="Supplier tidak ditemukan."
+                            />
                         </div>
 
                         {/* Customer */}
+                        <div className="space-y-2">
+                            <Label>Customer *</Label>
+                            <SearchableSelect
+                                options={customerOptions}
+                                value={customerId}
+                                onValueChange={handleCustomerChange}
+                                placeholder="Pilih customer..."
+                                searchPlaceholder="Cari customer..."
+                                emptyMessage="Customer tidak ditemukan."
+                            />
+                        </div>
+
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label>Nama Customer *</Label>
+                                <Label>Nama Customer</Label>
                                 <Input
                                     value={customerName}
                                     onChange={(e) => setCustomerName(e.target.value)}

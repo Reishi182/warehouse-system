@@ -4,6 +4,7 @@ import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import MainLayout from '@/components/layout/MainLayout';
 import PageSkeleton from '@/components/common/PageSkeleton';
 import SignaturePad, { SignaturePadRef } from '@/components/common/SignaturePad';
+import BarcodeScanner from '@/components/common/BarcodeScanner';
 import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,6 +38,10 @@ interface ReceivedItemState {
     orderedQty: number;
     receivedQty: number;
     damagedQty: number;
+    barcode?: string;
+    unit?: string;
+    unitPrice?: number;
+    isNewProduct?: boolean;
 }
 
 export default function PurchaseOrderReceipt() {
@@ -85,6 +90,10 @@ export default function PurchaseOrderReceipt() {
                 orderedQty: item.quantity,
                 receivedQty: item.quantity, // Pre-fill with ordered qty
                 damagedQty: 0,
+                barcode: (item as any).barcode || undefined,
+                unit: (item as any).unit || 'pcs',
+                unitPrice: item.unit_price,
+                isNewProduct: (item as any).is_new_product || !item.product_id,
             })));
         }
         setIsConfirmOpen(true);
@@ -99,6 +108,12 @@ export default function PurchaseOrderReceipt() {
     const updateDamagedQty = (itemId: string, qty: number) => {
         setReceivedItems(prev => prev.map(item =>
             item.itemId === itemId ? { ...item, damagedQty: Math.max(0, qty) } : item
+        ));
+    };
+
+    const updateBarcode = (itemId: string, barcode: string) => {
+        setReceivedItems(prev => prev.map(item =>
+            item.itemId === itemId ? { ...item, barcode } : item
         ));
     };
 
@@ -395,6 +410,19 @@ export default function PurchaseOrderReceipt() {
                                                         <p className="font-medium">{item.productName}</p>
                                                         <Badge variant="outline">Dipesan: {item.orderedQty}</Badge>
                                                     </div>
+
+                                                    {item.isNewProduct && (
+                                                        <div className="mb-3">
+                                                            <Label className="text-xs text-blue-600 dark:text-blue-400 mb-1 block">Barcode Produk Baru (Wajib)</Label>
+                                                            <BarcodeScanner
+                                                                onScan={(barcode) => updateBarcode(item.itemId, barcode)}
+                                                                placeholder="Scan atau ketik barcode..."
+                                                            />
+                                                            {item.barcode && (
+                                                                <p className="text-xs text-green-600 mt-1 font-mono">✓ {item.barcode}</p>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                     <div className="grid grid-cols-2 gap-3">
                                                         <div>
                                                             <Label className="text-xs">Diterima</Label>

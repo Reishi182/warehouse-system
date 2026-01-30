@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
-import { Plus, ShoppingBag, Package, Upload, ExternalLink } from 'lucide-react';
+import { Plus, ShoppingBag, Package, Upload, ExternalLink, Eye } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import MainLayout from '@/components/layout/MainLayout';
 import PageSkeleton from '@/components/common/PageSkeleton';
 import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
@@ -45,6 +46,7 @@ interface OrderItem {
 }
 
 export default function MarketplaceOrders() {
+    const navigate = useNavigate();
     const role = useRole();
     const { user, profile } = useAuth();
     const { products } = useData();
@@ -284,6 +286,21 @@ export default function MarketplaceOrders() {
                     <ExternalLink className="w-3 h-3" /> Lihat
                 </a>
             ) : '-',
+        },
+        {
+            header: 'Aksi',
+            sortable: false,
+            cell: (order) => (
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => navigate(`/marketplace/${order.id}`)}
+                    className="gap-1"
+                >
+                    <Eye className="w-4 h-4" />
+                    Detail
+                </Button>
+            ),
         },
     ];
 

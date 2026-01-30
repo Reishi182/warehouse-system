@@ -47,7 +47,7 @@ export function TableFilters({
                         <Input
                             placeholder="Search all columns..."
                             className={cn(
-                                "pl-10 pr-10 h-10 border-0 focus-visible:ring-1",
+                                "pl-10 pr-10 h-10 focus-visible:ring-1",
                                 isPremium
                                     ? "rounded-xl bg-muted/30 backdrop-blur-sm"
                                     : "rounded-xl bg-muted/50"

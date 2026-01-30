@@ -51,6 +51,7 @@ const POS = React.lazy(() => import('./pages/POS'));
 const DirectOrders = React.lazy(() => import('./pages/direct-orders/DirectOrders'));
 const DirectOrderDetail = React.lazy(() => import('./pages/direct-orders/DirectOrderDetail'));
 const MarketplaceOrders = React.lazy(() => import('./pages/marketplace/MarketplaceOrders'));
+const MarketplaceOrderDetail = React.lazy(() => import('./pages/marketplace/MarketplaceOrderDetail'));
 const MarketplaceReceipt = React.lazy(() => import('./pages/marketplace/MarketplaceReceipt'));
 const MarketplaceReturns = React.lazy(() => import('./pages/marketplace/MarketplaceReturns'));
 const StockReturnCreate = React.lazy(() => import('@/pages/stock-return/StockReturnCreate'));
@@ -60,6 +61,8 @@ const CustomerExchange = React.lazy(() => import('@/pages/exchange/CustomerExcha
 const NotificationHistory = React.lazy(() => import('@/pages/NotificationHistory'));
 const NotFound = React.lazy(() => import("./pages/NotFound"));
 const Guide = React.lazy(() => import("./pages/Guide"));
+
+import { UserRole } from '@/types';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -84,8 +87,15 @@ function PageLoader() {
   );
 }
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, loading } = useAuth();
+function ProtectedRoute({
+  children,
+  allowedRoles
+}: {
+  children: React.ReactNode;
+  allowedRoles?: UserRole[];
+}) {
+  const { isAuthenticated, loading, profile } = useAuth();
+  const userRole = profile?.role as UserRole | undefined;
 
   if (loading) {
     return <PageLoader />;
@@ -93,6 +103,12 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Check role authorization if allowedRoles is specified
+  if (allowedRoles && userRole && !allowedRoles.includes(userRole)) {
+    console.warn(`[Security] Blocked access to route. User role: ${userRole}, Allowed: ${allowedRoles.join(', ')}`);
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;
@@ -113,6 +129,9 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 }
 
 function AppRoutes() {
+  // Role shortcuts for cleaner route definitions
+  const ALL_ROLES: UserRole[] = ['warehouse', 'cashier', 'auditor', 'admin', 'main_office'];
+
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes>
@@ -122,177 +141,190 @@ function AppRoutes() {
           </PublicRoute>
         } />
 
+        {/* Dashboard - All roles */}
         <Route path="/" element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={ALL_ROLES}>
             <Dashboard />
           </ProtectedRoute>
         } />
 
+        {/* Guide - All roles */}
         <Route path="/guide" element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={ALL_ROLES}>
             <Guide />
           </ProtectedRoute>
         } />
 
+        {/* Products - All roles */}
         <Route path="/products" element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={ALL_ROLES}>
             <Products />
           </ProtectedRoute>
         } />
 
-        <Route path="/surat-jalan" element={<ProtectedRoute><SuratJalanMainOffice /></ProtectedRoute>} />
-        <Route path="/invoices" element={<ProtectedRoute><InvoiceMainOffice /></ProtectedRoute>} />
-        <Route path="/surat-jalan/warehouse" element={<ProtectedRoute><SuratJalanWarehouse /></ProtectedRoute>} />
-        <Route path="/surat-jalan/cashier" element={<ProtectedRoute><SuratJalanCashier /></ProtectedRoute>} />
-        <Route path="/surat-jalan/auditor" element={<ProtectedRoute><SuratJalanAuditor /></ProtectedRoute>} />
+        {/* B2B / Surat Jalan Routes */}
+        <Route path="/surat-jalan" element={<ProtectedRoute allowedRoles={['main_office', 'admin']}><SuratJalanMainOffice /></ProtectedRoute>} />
+        <Route path="/invoices" element={<ProtectedRoute allowedRoles={['main_office', 'admin']}><InvoiceMainOffice /></ProtectedRoute>} />
+        <Route path="/surat-jalan/warehouse" element={<ProtectedRoute allowedRoles={['warehouse', 'admin']}><SuratJalanWarehouse /></ProtectedRoute>} />
+        <Route path="/surat-jalan/cashier" element={<ProtectedRoute allowedRoles={['cashier', 'admin']}><SuratJalanCashier /></ProtectedRoute>} />
+        <Route path="/surat-jalan/auditor" element={<ProtectedRoute allowedRoles={['auditor', 'admin']}><SuratJalanAuditor /></ProtectedRoute>} />
+
+        {/* Stock Routes */}
         <Route path="/stock-in" element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={['warehouse', 'admin']}>
             <StockIn />
           </ProtectedRoute>
         } />
 
         <Route path="/requests" element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={['cashier', 'admin']}>
             <StockRequestsNew />
           </ProtectedRoute>
         } />
 
         <Route path="/requests/approval" element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={['main_office', 'admin']}>
             <StockApprovals />
           </ProtectedRoute>
         } />
 
         <Route path="/requests/shipments" element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={['warehouse', 'admin']}>
             <StockShipments />
           </ProtectedRoute>
         } />
 
         <Route path="/requests/receipt" element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={['cashier', 'admin']}>
             <GoodsReceipt />
           </ProtectedRoute>
         } />
 
         <Route path="/approval" element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={['main_office', 'admin']}>
             <Approval />
           </ProtectedRoute>
         } />
 
+        {/* Report Routes */}
         <Route path="/reports" element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={['cashier', 'main_office', 'auditor', 'admin']}>
             <Reports />
           </ProtectedRoute>
         } />
 
         <Route path="/reports/daily-stock" element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={['cashier', 'admin']}>
             <DailyStockReport />
           </ProtectedRoute>
         } />
 
         <Route path="/reports/daily-sales" element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={['cashier', 'main_office', 'auditor', 'admin']}>
             <DailySalesReport />
           </ProtectedRoute>
         } />
 
+        {/* POS - Cashier only */}
         <Route path="/pos" element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={['cashier', 'admin']}>
             <POS />
           </ProtectedRoute>
         } />
 
+        {/* Finance Routes */}
         <Route path="/finance/sales-history" element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={['main_office', 'admin']}>
             <SalesHistory />
           </ProtectedRoute>
         } />
 
         <Route path="/sales" element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={['cashier', 'main_office', 'admin']}>
             <Sales />
           </ProtectedRoute>
         } />
 
         <Route path="/cash-transfer" element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={['cashier', 'main_office', 'admin']}>
             <CashTransfer />
           </ProtectedRoute>
         } />
 
         <Route path="/cash-history" element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={['main_office', 'admin']}>
             <CashHistory />
           </ProtectedRoute>
         } />
 
         <Route path="/stock-opname" element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={['auditor', 'admin']}>
             <StockOpname />
           </ProtectedRoute>
         } />
 
+        {/* Users - Admin only */}
         <Route path="/users" element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={['admin']}>
             <Users />
           </ProtectedRoute>
         } />
 
+        {/* Settings - All roles */}
         <Route path="/settings" element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={ALL_ROLES}>
             <Settings />
           </ProtectedRoute>
         } />
 
+        {/* Customers */}
         <Route path="/customers" element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={['cashier', 'main_office', 'admin']}>
             <Customers />
           </ProtectedRoute>
         } />
 
         {/* Supplier & Purchase Order Routes */}
-        <Route path="/suppliers" element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
-        <Route path="/purchase-orders" element={<ProtectedRoute><PurchaseOrderMainOffice /></ProtectedRoute>} />
-        <Route path="/purchase-orders/approval" element={<ProtectedRoute><PurchaseOrderAuditor /></ProtectedRoute>} />
-        <Route path="/purchase-orders/receipt" element={<ProtectedRoute><PurchaseOrderReceipt /></ProtectedRoute>} />
-        <Route path="/purchase-orders/discrepancy" element={<ProtectedRoute><PODiscrepancyReport /></ProtectedRoute>} />
+        <Route path="/suppliers" element={<ProtectedRoute allowedRoles={['main_office', 'admin']}><Suppliers /></ProtectedRoute>} />
+        <Route path="/purchase-orders" element={<ProtectedRoute allowedRoles={['main_office', 'admin']}><PurchaseOrderMainOffice /></ProtectedRoute>} />
+        <Route path="/purchase-orders/approval" element={<ProtectedRoute allowedRoles={['main_office', 'admin']}><PurchaseOrderAuditor /></ProtectedRoute>} />
+        <Route path="/purchase-orders/receipt" element={<ProtectedRoute allowedRoles={['warehouse', 'cashier', 'admin']}><PurchaseOrderReceipt /></ProtectedRoute>} />
+        <Route path="/purchase-orders/discrepancy" element={<ProtectedRoute allowedRoles={['main_office', 'auditor', 'admin']}><PODiscrepancyReport /></ProtectedRoute>} />
 
         {/* Direct Order Routes (Supplier -> Customer) */}
-        <Route path="/direct-orders" element={<ProtectedRoute><DirectOrders /></ProtectedRoute>} />
-        <Route path="/direct-orders/:id" element={<ProtectedRoute><DirectOrderDetail /></ProtectedRoute>} />
+        <Route path="/direct-orders" element={<ProtectedRoute allowedRoles={['main_office', 'admin']}><DirectOrders /></ProtectedRoute>} />
+        <Route path="/direct-orders/:id" element={<ProtectedRoute allowedRoles={['main_office', 'admin']}><DirectOrderDetail /></ProtectedRoute>} />
 
         {/* Marketplace Order Routes */}
-        <Route path="/marketplace" element={<ProtectedRoute><MarketplaceOrders /></ProtectedRoute>} />
-        <Route path="/marketplace/receipt" element={<ProtectedRoute><MarketplaceReceipt /></ProtectedRoute>} />
-        <Route path="/marketplace/returns" element={<ProtectedRoute><MarketplaceReturns /></ProtectedRoute>} />
+        <Route path="/marketplace" element={<ProtectedRoute allowedRoles={['main_office', 'admin']}><MarketplaceOrders /></ProtectedRoute>} />
+        <Route path="/marketplace/:id" element={<ProtectedRoute allowedRoles={['main_office', 'warehouse', 'cashier', 'admin']}><MarketplaceOrderDetail /></ProtectedRoute>} />
+        <Route path="/marketplace/receipt" element={<ProtectedRoute allowedRoles={['warehouse', 'cashier', 'admin']}><MarketplaceReceipt /></ProtectedRoute>} />
+        <Route path="/marketplace/returns" element={<ProtectedRoute allowedRoles={['warehouse', 'cashier', 'main_office', 'admin']}><MarketplaceReturns /></ProtectedRoute>} />
 
         <Route path="/finance/transactions" element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={['main_office', 'admin']}>
             <GeneralTransactions />
           </ProtectedRoute>
         } />
 
         <Route path="/finance/backorders" element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={['cashier', 'main_office', 'admin']}>
             <Backorders />
           </ProtectedRoute>
         } />
 
         {/* Stock Return Routes (Toko -> Gudang) */}
-        <Route path="/stock-return" element={<ProtectedRoute><StockReturnCreate /></ProtectedRoute>} />
-        <Route path="/stock-return/approval" element={<ProtectedRoute><StockReturnApproval /></ProtectedRoute>} />
+        <Route path="/stock-return" element={<ProtectedRoute allowedRoles={['cashier', 'admin']}><StockReturnCreate /></ProtectedRoute>} />
+        <Route path="/stock-return/approval" element={<ProtectedRoute allowedRoles={['main_office', 'admin']}><StockReturnApproval /></ProtectedRoute>} />
 
-        {/* Stock History */}
-        <Route path="/stock/history" element={<ProtectedRoute><StockHistory /></ProtectedRoute>} />
+        {/* Stock History - All roles */}
+        <Route path="/stock/history" element={<ProtectedRoute allowedRoles={ALL_ROLES}><StockHistory /></ProtectedRoute>} />
 
         {/* Customer Exchange (Tukar Barang) */}
-        <Route path="/exchange" element={<ProtectedRoute><CustomerExchange /></ProtectedRoute>} />
+        <Route path="/exchange" element={<ProtectedRoute allowedRoles={['cashier', 'warehouse', 'admin']}><CustomerExchange /></ProtectedRoute>} />
 
-        {/* Notification History */}
-        <Route path="/notifications" element={<ProtectedRoute><NotificationHistory /></ProtectedRoute>} />
+        {/* Notification History - All roles */}
+        <Route path="/notifications" element={<ProtectedRoute allowedRoles={ALL_ROLES}><NotificationHistory /></ProtectedRoute>} />
 
         <Route path="*" element={<NotFound />} />
       </Routes>
