@@ -20,6 +20,7 @@ import { useAuth, useRole } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useStoreSettings, useUpdateStoreSettings } from '@/hooks/useStoreSettings';
 import { compressImageToFile, formatFileSize } from '@/lib/imageCompression';
+import { BackupRestoreDialog } from '@/components/settings/BackupRestoreDialog';
 
 export default function Settings() {
   const { profile, updateProfile, loading: authLoading } = useAuth();
@@ -472,17 +473,20 @@ export default function Settings() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium">Backup Otomatis</p>
+                  <p className="font-medium">Auto Snapshot</p>
                   <p className="text-sm text-muted-foreground">
-                    Backup data setiap hari
+                    Snapshot otomatis setiap 30 menit ke localStorage
                   </p>
                 </div>
                 <Switch defaultChecked />
               </div>
               <Separator />
-              <div className="flex gap-3">
-                <Button variant="outline">Export Data</Button>
-                <Button variant="outline">Import Data</Button>
+              <div className="bg-muted/50 rounded-xl p-4">
+                <p className="text-sm font-medium mb-2">Backup & Restore</p>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Buat snapshot manual, restore data, atau export/import file backup JSON.
+                </p>
+                <BackupRestoreDialog />
               </div>
             </div>
           </div>
