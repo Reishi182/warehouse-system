@@ -193,7 +193,7 @@ export function useCreatePurchaseOrder() {
             // Create items
             const itemsToInsert = input.items.map(item => ({
                 purchase_order_id: po.id,
-                product_id: item.productId,
+                product_id: item.productId || null, // Send null for new products (empty string is invalid UUID)
                 product_name: item.productName,
                 quantity: item.quantity,
                 unit_price: item.unitPrice,
@@ -538,3 +538,79 @@ export function useConfirmPOReceipt() {
     });
 }
 
+// Cancel Purchase Order
+interface CancelPOInput {
+    poId: string;
+    cancelledBy: string;
+    cancelledByName: string;
+    reason?: string;
+}
+
+export function useCancelPurchaseOrder() {
+    const queryClient = useQueryClient();
+    const { toast } = useToast();
+
+    return useMutation({
+        mutationFn: async (input: CancelPOInput) => {
+            // Get PO details first
+            const { data: po, error: fetchError } = await supabase
+                .from('purchase_orders')
+                .select('po_number, status, created_by')
+                .eq('id', input.poId)
+                .single();
+
+            if (fetchError) throw fetchError;
+
+            // Only allow cancellation for pending_receipt or pending_auditor status
+            if (!['pending_receipt', 'pending_auditor', 'approved'].includes(po.status)) {
+                throw new Error('PO yang sudah selesai atau dibatalkan tidak dapat dibatalkan lagi');
+            }
+
+            const { error } = await supabase
+                .from('purchase_orders')
+                .update({
+                    status: 'cancelled',
+                    cancelled_by: input.cancelledBy,
+                    cancelled_by_name: input.cancelledByName,
+                    cancelled_at: new Date().toISOString(),
+                    cancelled_reason: input.reason || null,
+                    updated_at: new Date().toISOString(),
+                })
+                .eq('id', input.poId);
+
+            if (error) throw error;
+            return po;
+        },
+        onSuccess: (po) => {
+            queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
+            toast({
+                title: 'PO Dibatalkan',
+                description: `Purchase Order ${po?.po_number} berhasil dibatalkan`,
+            });
+
+            // Notify relevant parties
+            if (po?.created_by) {
+                sendNotificationToUser(po.created_by, {
+                    title: 'PO Dibatalkan',
+                    message: `Purchase Order ${po?.po_number} telah dibatalkan`,
+                    type: 'warning',
+                    link: '/purchase-orders',
+                });
+            }
+
+            sendNotificationToRole('warehouse', {
+                title: 'PO Dibatalkan',
+                message: `Purchase Order ${po?.po_number} telah dibatalkan`,
+                type: 'warning',
+                link: '/purchase-orders',
+            });
+        },
+        onError: (error: Error) => {
+            toast({
+                title: 'Gagal',
+                description: error.message,
+                variant: 'destructive',
+            });
+        },
+    });
+}

@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef } from 'react';
-import { Plus, FileText, Printer, Eye, Trash2, Package, Check, X } from 'lucide-react';
+import { Plus, FileText, Printer, Eye, Trash2, Package, Check, X, Ban } from 'lucide-react';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import MainLayout from '@/components/layout/MainLayout';
 import PageSkeleton from '@/components/common/PageSkeleton';
@@ -41,6 +41,7 @@ import {
     usePurchaseOrders,
     usePurchaseOrder,
     useCreatePurchaseOrder,
+    useCancelPurchaseOrder,
 } from '@/hooks/usePurchaseOrders';
 import { useStoreSettings } from '@/hooks/useStoreSettings';
 import PrintPurchaseOrder from '@/components/print/PrintPurchaseOrder';
@@ -67,6 +68,7 @@ const statusLabels: Record<string, { label: string; color: string }> = {
     pending_receipt: { label: 'Menunggu Penerimaan', color: 'bg-purple-100 text-purple-700' },
     completed: { label: 'Selesai', color: 'bg-green-100 text-green-700' },
     completed_with_discrepancy: { label: 'Selesai Ada Selisih', color: 'bg-orange-100 text-orange-700' },
+    cancelled: { label: 'Dibatalkan', color: 'bg-gray-100 text-gray-700' },
 };
 
 export default function PurchaseOrderMainOffice() {
@@ -76,12 +78,16 @@ export default function PurchaseOrderMainOffice() {
     const { data: purchaseOrders = [], isLoading: posLoading } = usePurchaseOrders();
     const { data: storeSettings } = useStoreSettings();
     const createPO = useCreatePurchaseOrder();
+    const cancelPO = useCancelPurchaseOrder();
 
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isViewOpen, setIsViewOpen] = useState(false);
     const [selectedPOId, setSelectedPOId] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState('all');
     const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false);
+    const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+    const [cancelReason, setCancelReason] = useState('');
+    const [poToCancel, setPOToCancel] = useState<PurchaseOrder | null>(null);
     const printRef = useRef<HTMLDivElement>(null);
 
     // Print handler using react-to-print
@@ -213,6 +219,25 @@ export default function PurchaseOrderMainOffice() {
         setIsPrintDialogOpen(true);
     };
 
+    const handleCancelPO = (po: PurchaseOrder) => {
+        setPOToCancel(po);
+        setCancelReason('');
+        setIsCancelDialogOpen(true);
+    };
+
+    const confirmCancelPO = async () => {
+        if (!poToCancel) return;
+        await cancelPO.mutateAsync({
+            poId: poToCancel.id,
+            cancelledBy: user?.id || '',
+            cancelledByName: profile?.name || '',
+            reason: cancelReason || undefined,
+        });
+        setIsCancelDialogOpen(false);
+        setPOToCancel(null);
+        setCancelReason('');
+    };
+
     const columns: Column<PurchaseOrder>[] = [
         {
             header: 'No. PO',
@@ -270,6 +295,17 @@ export default function PurchaseOrderMainOffice() {
                     {(item.status === 'pending_receipt' || item.status === 'completed') && (
                         <Button size="sm" variant="outline" onClick={() => handlePrint(item)}>
                             <Printer className="w-4 h-4" />
+                        </Button>
+                    )}
+                    {['pending_receipt', 'pending_auditor', 'approved'].includes(item.status) && (
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleCancelPO(item)}
+                            className="text-destructive hover:text-destructive"
+                            title="Batalkan PO"
+                        >
+                            <Ban className="w-4 h-4" />
                         </Button>
                     )}
                 </div>
@@ -715,6 +751,44 @@ export default function PurchaseOrderMainOffice() {
                             </div>
                         </>
                     ) : null}
+                </DialogContent>
+            </Dialog>
+
+            {/* Cancel PO Confirmation Dialog */}
+            <Dialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-destructive">
+                            <Ban className="w-5 h-5" />
+                            Batalkan Purchase Order
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 mt-4">
+                        <p className="text-muted-foreground">
+                            Anda yakin ingin membatalkan PO <span className="font-semibold text-foreground">{poToCancel?.po_number}</span>?
+                        </p>
+                        <div className="space-y-2">
+                            <Label>Alasan Pembatalan (opsional)</Label>
+                            <Textarea
+                                value={cancelReason}
+                                onChange={(e) => setCancelReason(e.target.value)}
+                                placeholder="Masukkan alasan pembatalan..."
+                                rows={3}
+                            />
+                        </div>
+                        <div className="flex gap-3 justify-end pt-2">
+                            <Button variant="outline" onClick={() => setIsCancelDialogOpen(false)}>
+                                Kembali
+                            </Button>
+                            <Button
+                                variant="destructive"
+                                onClick={confirmCancelPO}
+                                disabled={cancelPO.isPending}
+                            >
+                                {cancelPO.isPending ? 'Membatalkan...' : 'Ya, Batalkan PO'}
+                            </Button>
+                        </div>
+                    </div>
                 </DialogContent>
             </Dialog>
         </MainLayout>

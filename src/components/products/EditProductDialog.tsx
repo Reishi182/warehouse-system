@@ -13,6 +13,11 @@ import { Product, UserRole } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { compressImageToFile, formatFileSize } from '@/lib/imageCompression';
 
+// Helper function to sanitize barcode for file naming (remove invalid characters)
+const sanitizeForFileName = (str: string): string => {
+    return str.replace(/[^a-zA-Z0-9-_]/g, '_');
+};
+
 interface EditProductDialogProps {
     product: Product | null;
     open: boolean;
@@ -129,7 +134,7 @@ export default function EditProductDialog({
             const uniqueId = typeof crypto !== 'undefined' && 'randomUUID' in crypto
                 ? crypto.randomUUID()
                 : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-            const fileName = `${editForm.barcode.trim()}-${uniqueId}.${ext}`;
+            const fileName = `${sanitizeForFileName(editForm.barcode.trim())}-${uniqueId}.${ext}`;
             const filePath = `products/${fileName}`;
 
             const { error: uploadError } = await supabase.storage

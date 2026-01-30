@@ -18,7 +18,7 @@ import {
     DialogDescription,
     DialogFooter,
 } from '@/components/ui/dialog';
-import { FileText, CheckCircle, Clock, Package, TruckIcon, XCircle, Store, Warehouse, Eye, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { FileText, CheckCircle, Clock, Package, TruckIcon, XCircle, Store, Warehouse, Eye, ThumbsUp, ThumbsDown, Ban } from 'lucide-react';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 
@@ -28,8 +28,11 @@ export default function SuratJalanMainOffice() {
     const [selectedSj, setSelectedSj] = useState<any | null>(null);
     const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
     const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+    const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
     const [reviewNotes, setReviewNotes] = useState('');
+    const [cancelReason, setCancelReason] = useState('');
     const [isApproving, setIsApproving] = useState(true);
+    const [sjToCancel, setSjToCancel] = useState<any | null>(null);
 
     if (isLoading) {
         return (
@@ -80,6 +83,23 @@ export default function SuratJalanMainOffice() {
     const handleViewDetail = (sj: any) => {
         setSelectedSj(sj);
         setDetailDialogOpen(true);
+    };
+
+    const handleCancelSJ = (sj: any) => {
+        setSjToCancel(sj);
+        setCancelReason('');
+        setCancelDialogOpen(true);
+    };
+
+    const confirmCancelSJ = () => {
+        if (!sjToCancel) return;
+        cancelSuratJalan.mutate(sjToCancel.id, {
+            onSuccess: () => {
+                setCancelDialogOpen(false);
+                setSjToCancel(null);
+                setCancelReason('');
+            }
+        });
     };
 
     const getStatusBadge = (status: string) => {
@@ -434,9 +454,64 @@ export default function SuratJalanMainOffice() {
                         </div>
                     )}
 
-                    <DialogFooter>
+                    <DialogFooter className="gap-2">
+                        {selectedSj && ['pending_review', 'approved', 'processing'].includes(selectedSj.status) && (
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setDetailDialogOpen(false);
+                                    handleCancelSJ(selectedSj);
+                                }}
+                                className="text-destructive hover:text-destructive"
+                            >
+                                <Ban className="mr-2 h-4 w-4" />
+                                Batalkan SJ
+                            </Button>
+                        )}
                         <Button variant="outline" onClick={() => setDetailDialogOpen(false)}>Tutup</Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Cancel SJ Confirmation Dialog */}
+            <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+                <DialogContent className="max-w-md rounded-2xl">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-destructive">
+                            <Ban className="w-5 h-5" />
+                            Batalkan Surat Jalan
+                        </DialogTitle>
+                        <DialogDescription>
+                            Tindakan ini akan membatalkan surat jalan dan mengembalikan stok yang sudah direservasi (jika ada).
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 mt-2">
+                        <p className="text-muted-foreground">
+                            Anda yakin ingin membatalkan SJ <span className="font-semibold text-foreground">{sjToCancel?.number}</span>?
+                        </p>
+                        <div className="space-y-2">
+                            <Label>Alasan Pembatalan (opsional)</Label>
+                            <Textarea
+                                value={cancelReason}
+                                onChange={(e) => setCancelReason(e.target.value)}
+                                placeholder="Masukkan alasan pembatalan..."
+                                className="rounded-xl"
+                                rows={3}
+                            />
+                        </div>
+                        <div className="flex gap-3 justify-end pt-2">
+                            <Button variant="outline" onClick={() => setCancelDialogOpen(false)}>
+                                Kembali
+                            </Button>
+                            <Button
+                                variant="destructive"
+                                onClick={confirmCancelSJ}
+                                disabled={cancelSuratJalan.isPending}
+                            >
+                                {cancelSuratJalan.isPending ? 'Membatalkan...' : 'Ya, Batalkan SJ'}
+                            </Button>
+                        </div>
+                    </div>
                 </DialogContent>
             </Dialog>
         </MainLayout>

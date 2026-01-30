@@ -10,6 +10,7 @@ export {
     useApprovePurchaseOrder,
     useRejectPurchaseOrder,
     useConfirmPOReceipt,
+    useCancelPurchaseOrder,
 } from './usePurchaseOrdersMutations';
 
 export { usePurchaseOrdersRealtime } from './usePurchaseOrdersRealtime';
