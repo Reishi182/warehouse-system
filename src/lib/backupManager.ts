@@ -59,25 +59,56 @@ const MAX_LOCAL_SNAPSHOTS = 5;
 
 // Tables to backup (in order of importance)
 const BACKUP_TABLES = [
+    // Core data
     'products',
     'product_stocks',
     'customers',
     'suppliers',
+    'profiles',
+    'store_settings',
+    // Sales & Transactions
     'sales',
     'sale_items',
+    'cash_transfers',
+    'cash_transfer_requests',
+    'other_transactions',
+    // Purchase Orders
     'purchase_orders',
     'purchase_order_items',
+    'po_receipts',
+    'po_claims',
+    // Stock Management
     'stock_logs',
-    'surat_jalans',
-    'surat_jalan_items',
     'stock_requests',
     'stock_request_items',
+    'stock_out_requests',
+    'stock_returns',
+    'stock_return_items',
+    'stock_shipments',
+    // Surat Jalan
+    'surat_jalan',
+    'surat_jalan_items',
+    'goods_receipts',
+    'goods_issue_notes',
+    // Marketplace
     'marketplace_orders',
     'marketplace_order_items',
+    'marketplace_returns',
+    // Invoices
     'invoices',
     'invoice_items',
+    // Direct Orders
+    'direct_orders',
+    'direct_order_items',
+    // Customer Exchanges
+    'customer_exchanges',
+    'exchange_returned_items',
+    'exchange_new_items',
+    // Backorders
     'backorders',
-    'other_transactions',
+    // Notifications & Activity
+    'notifications',
+    'activity_logs',
 ] as const;
 
 // Generate UUID
