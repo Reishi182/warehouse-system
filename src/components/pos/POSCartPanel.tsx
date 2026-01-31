@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
     ShoppingCart,
     Trash2,
@@ -9,13 +10,16 @@ import {
     Package,
     X,
     Percent,
+    RotateCcw,
+    ClipboardList,
+    Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { PaymentMethod } from '@/types';
+import { PaymentMethod, Location } from '@/types';
 import { CartItem } from '@/hooks/usePOSCart';
 import { cn } from '@/lib/utils';
 
@@ -31,8 +35,12 @@ interface POSCartPanelProps {
     onRemoveItem: (productId: string) => void;
     onClearCart: () => void;
     onCheckout: () => void;
+    onSaveToTab?: () => void;
     isProcessing: boolean;
     todayStats: { count: number; total: number };
+    returnRef?: string | null;
+    onSetReturnRef?: (ref: string | null) => void;
+    stockLocation: Location;
 }
 
 export function POSCartPanel({
@@ -47,84 +55,213 @@ export function POSCartPanel({
     onRemoveItem,
     onClearCart,
     onCheckout,
+    onSaveToTab,
     isProcessing,
     todayStats,
+    returnRef,
+    onSetReturnRef,
+    stockLocation,
 }: POSCartPanelProps) {
     const itemCount = items.reduce((acc, it) => acc + it.quantity, 0);
+    const [showReturnInput, setShowReturnInput] = useState(false);
+    const [returnInputValue, setReturnInputValue] = useState('');
 
     return (
-        <div className="hidden md:flex fixed top-0 right-0 h-screen w-80 lg:w-96 flex-col border-l bg-card shadow-xl z-[60]">
-            {/* Header */}
-            <div className="px-4 py-3 border-b bg-muted/30">
+        <div className="hidden md:flex fixed top-0 right-0 h-screen w-80 lg:w-[430px] flex-col border-l bg-gradient-to-b from-background via-background to-muted/20 shadow-2xl z-[60]">
+            {/* Header with Glassmorphism */}
+            <div className="px-4 py-3 border-b bg-gradient-to-r from-primary/5 to-transparent backdrop-blur-sm">
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-base font-semibold">
-                        <ShoppingCart className="w-4 h-4 text-primary" />
-                        Keranjang
+                    <div className="flex items-center gap-2">
+                        <div className="p-1.5 rounded-lg bg-primary/10">
+                            <ShoppingCart className="w-4 h-4 text-primary" />
+                        </div>
+                        <span className="font-semibold text-sm">Keranjang</span>
                         {items.length > 0 && (
-                            <Badge variant="secondary" className="rounded-full text-xs px-2">
-                                {itemCount}
+                            <Badge className="rounded-full text-[10px] px-1.5 h-5 bg-primary/20 text-primary border-0">
+                                {itemCount} item
                             </Badge>
                         )}
                     </div>
-                </div>
-                <div className="flex items-center justify-between mt-2">
-                    <div className="flex gap-2">
-                        <Badge variant="outline" className="rounded-full text-xs px-2 py-0.5">
-                            <Receipt className="w-3 h-3 mr-1" />
-                            {todayStats.count} transaksi
-                        </Badge>
-                        <Badge className="rounded-full bg-emerald-500/20 text-emerald-600 border-emerald-500/30 text-xs px-2 py-0.5">
-                            Rp {todayStats.total.toLocaleString('id-ID')}
-                        </Badge>
-                    </div>
                     {items.length > 0 && (
-                        <Button variant="outline" size="sm" onClick={onClearCart} className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30 h-6 text-xs rounded-lg px-2">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={onClearCart}
+                            className="h-7 px-2 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                        >
                             <Trash2 className="w-3 h-3 mr-1" />
                             Hapus
                         </Button>
                     )}
                 </div>
+
+                {/* Today's Stats */}
+                <div className="flex items-center gap-2 mt-2">
+                    <div className="flex-1 px-2.5 py-1.5 rounded-lg bg-muted/50">
+                        <p className="text-[10px] text-muted-foreground">Hari Ini</p>
+                        <p className="text-xs font-semibold">{todayStats.count} transaksi</p>
+                    </div>
+                    <div className="flex-1 px-2.5 py-1.5 rounded-lg bg-emerald-500/10">
+                        <p className="text-[10px] text-emerald-600">Total</p>
+                        <p className="text-xs font-semibold text-emerald-600">
+                            Rp {todayStats.total.toLocaleString('id-ID')}
+                        </p>
+                    </div>
+                </div>
+
+                {/* Return/Exchange Button */}
+                {onSetReturnRef && !returnRef && !showReturnInput && (
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowReturnInput(true)}
+                        className="w-full mt-2 h-8 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                    >
+                        <RotateCcw className="w-3 h-3 mr-1" />
+                        Tukar Barang (Ref. INV)
+                    </Button>
+                )}
+
+                {/* Return Input */}
+                {showReturnInput && (
+                    <div className="flex items-center gap-2 mt-2">
+                        <Input
+                            value={returnInputValue}
+                            onChange={(e) => setReturnInputValue(e.target.value)}
+                            placeholder="No. Invoice (INV-xxx)"
+                            className="h-8 text-xs flex-1"
+                            autoFocus
+                        />
+                        <Button
+                            size="sm"
+                            className="h-8 text-xs"
+                            onClick={() => {
+                                if (returnInputValue.trim() && onSetReturnRef) {
+                                    onSetReturnRef(returnInputValue.trim());
+                                    setShowReturnInput(false);
+                                    setReturnInputValue('');
+                                }
+                            }}
+                        >
+                            OK
+                        </Button>
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 text-xs"
+                            onClick={() => {
+                                setShowReturnInput(false);
+                                setReturnInputValue('');
+                            }}
+                        >
+                            Batal
+                        </Button>
+                    </div>
+                )}
             </div>
+
+            {/* Return Reference Badge */}
+            {returnRef && (
+                <div className="px-3 py-2 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800 flex items-center justify-between">
+                    <Badge className="bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400 border-0 rounded-full gap-1 text-xs">
+                        <RotateCcw className="w-3 h-3" />
+                        Ganti dari: {returnRef}
+                    </Badge>
+                    {onSetReturnRef && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 text-xs text-amber-600 hover:text-amber-700"
+                            onClick={() => onSetReturnRef(null)}
+                        >
+                            <X className="w-3 h-3" />
+                        </Button>
+                    )}
+                </div>
+            )}
 
             {/* Cart Items */}
             <div className="flex-1 overflow-hidden">
                 {items.length === 0 ? (
-                    <div className="flex-1 flex flex-col items-center justify-center h-full text-muted-foreground py-12">
-                        <ShoppingCart className="w-12 h-12 opacity-30 mb-3" />
+                    <div className="flex flex-col items-center justify-center h-full text-muted-foreground py-12">
+                        <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mb-3">
+                            <ShoppingCart className="w-8 h-8 opacity-30" />
+                        </div>
                         <p className="text-sm font-medium">Keranjang kosong</p>
-                        <p className="text-xs mt-1">Klik produk untuk menambahkan</p>
+                        <p className="text-xs mt-1 text-muted-foreground/70">Klik produk untuk menambahkan</p>
                     </div>
                 ) : (
-                    <ScrollArea className="h-full px-3 py-2">
-                        <div className="space-y-2">
-                            {items.map((it) => (
-                                <div key={it.product.id} className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 border">
-                                    <div className="w-10 h-10 rounded-md bg-muted/50 flex items-center justify-center overflow-hidden flex-shrink-0">
+                    <ScrollArea className="h-full">
+                        <div className="p-3 space-y-2">
+                            {items.map((it, index) => (
+                                <div
+                                    key={it.product.id}
+                                    className={cn(
+                                        "flex items-center gap-2 p-2 rounded-xl bg-card border transition-all",
+                                        "hover:border-primary/30 hover:shadow-sm"
+                                    )}
+                                    style={{ animationDelay: `${index * 50}ms` }}
+                                >
+                                    {/* Product Image */}
+                                    <div className="w-10 h-10 rounded-lg bg-muted/50 flex items-center justify-center overflow-hidden flex-shrink-0">
                                         {it.product.image_url ? (
-                                            <img src={it.product.image_url} alt={it.product.name} className="w-full h-full object-cover" />
+                                            <img
+                                                src={it.product.image_url}
+                                                alt={it.product.name}
+                                                className="w-full h-full object-cover"
+                                            />
                                         ) : (
                                             <Package className="w-4 h-4 text-muted-foreground/30" />
                                         )}
                                     </div>
+
+                                    {/* Product Info */}
                                     <div className="flex-1 min-w-0">
                                         <p className="font-medium text-xs truncate">{it.product.name}</p>
-                                        <p className="text-xs text-muted-foreground">
+                                        <p className="text-[10px] text-muted-foreground">
                                             Rp {it.product.price.toLocaleString('id-ID')}
-                                            {it.discount > 0 && <span className="ml-1 text-green-600">-{it.discount}%</span>}
+                                            {it.discount > 0 && (
+                                                <span className="ml-1 text-emerald-600 font-medium">-{it.discount}%</span>
+                                            )}
                                         </p>
                                     </div>
-                                    <div className="flex items-center gap-0.5">
-                                        <Button size="icon" variant="ghost" onClick={() => onUpdateQuantity(it.product.id, it.quantity - 1)} className="h-6 w-6 rounded-md">
+
+                                    {/* Quantity Controls */}
+                                    <div className="flex items-center gap-0.5 bg-muted/50 rounded-lg p-0.5">
+                                        <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            onClick={() => onUpdateQuantity(it.product.id, it.quantity - 1)}
+                                            className="h-6 w-6 rounded-md hover:bg-background"
+                                        >
                                             <Minus className="w-3 h-3" />
                                         </Button>
-                                        <span className="w-6 text-center text-xs font-medium">{it.quantity}</span>
-                                        <Button size="icon" variant="ghost" onClick={() => onUpdateQuantity(it.product.id, it.quantity + 1)} className="h-6 w-6 rounded-md">
+                                        <span className="w-6 text-center text-xs font-semibold">{it.quantity}</span>
+                                        <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            onClick={() => {
+                                                const availableStock = it.product.stock[stockLocation];
+                                                if (it.quantity < availableStock) {
+                                                    onUpdateQuantity(it.product.id, it.quantity + 1);
+                                                }
+                                            }}
+                                            disabled={it.quantity >= it.product.stock[stockLocation]}
+                                            className="h-6 w-6 rounded-md hover:bg-background disabled:opacity-50"
+                                        >
                                             <Plus className="w-3 h-3" />
                                         </Button>
                                     </div>
-                                    <div className="text-right flex-shrink-0 flex items-center gap-1">
-                                        <p className="font-semibold text-xs">{((it.product.price * it.quantity) * (1 - it.discount / 100)).toLocaleString('id-ID')}</p>
-                                        <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10 rounded-md" onClick={() => onRemoveItem(it.product.id)}>
+
+                                    {/* Subtotal & Remove */}
+                                    <div className="text-right flex items-center gap-1">
+
+                                        <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md"
+                                            onClick={() => onRemoveItem(it.product.id)}
+                                        >
                                             <X className="w-3 h-3" />
                                         </Button>
                                     </div>
@@ -137,57 +274,109 @@ export function POSCartPanel({
 
             {/* Order Summary Footer */}
             {items.length > 0 && (
-                <div className="border-t p-3 space-y-2 bg-background">
-                    <div className="flex justify-between text-xs">
-                        <span className="text-muted-foreground">Subtotal</span>
-                        <span>Rp {subtotal.toLocaleString('id-ID')}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Label className="text-xs text-muted-foreground">Diskon</Label>
-                        <div className="relative flex-1">
-                            <Input
-                                type="number"
-                                min={0}
-                                max={100}
-                                value={orderDiscount}
-                                onChange={(e) => onOrderDiscountChange(parseInt(e.target.value) || 0)}
-                                className="h-7 text-xs rounded-md pr-6"
-                            />
-                            <Percent className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+                <div className="border-t bg-gradient-to-t from-muted/30 to-transparent p-3 space-y-3">
+                    {/* Subtotal & Discount */}
+                    <div className="space-y-1.5">
+                        <div className="flex justify-between text-xs">
+                            <span className="text-muted-foreground">Subtotal</span>
+                            <span>Rp {subtotal.toLocaleString('id-ID')}</span>
                         </div>
-                        <span className="text-xs text-red-500 font-medium">-Rp {(subtotal * orderDiscount / 100).toLocaleString('id-ID')}</span>
+                        <div className="flex items-center gap-2">
+                            <Label className="text-xs text-muted-foreground shrink-0">Diskon</Label>
+                            <div className="relative flex-1">
+                                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">Rp</span>
+                                <Input
+                                    type="text"
+                                    value={orderDiscount > 0 ? orderDiscount.toLocaleString('id-ID') : ''}
+                                    onChange={(e) => {
+                                        // Remove non-digits and parse
+                                        const numericValue = e.target.value.replace(/[^\d]/g, '');
+                                        onOrderDiscountChange(parseInt(numericValue) || 0);
+                                    }}
+                                    className="h-7 text-xs rounded-lg pl-7 bg-muted/50 border-0"
+                                    placeholder="0"
+                                />
+                            </div>
+                            {orderDiscount > 0 && (
+                                <span className="text-xs text-emerald-600 font-medium shrink-0">
+                                    -{orderDiscount.toLocaleString('id-ID')}
+                                </span>
+                            )}
+                        </div>
                     </div>
-                    <div className="flex justify-between items-center pt-1 border-t">
+
+                    {/* Total */}
+                    <div className="flex justify-between items-center py-2 border-t border-dashed">
                         <span className="font-semibold text-sm">Total</span>
-                        <span className="text-lg font-bold text-primary">Rp {totalAmount.toLocaleString('id-ID')}</span>
+                        <span className="text-xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                            Rp {totalAmount.toLocaleString('id-ID')}
+                        </span>
                     </div>
+
+                    {/* Payment Method Toggle */}
                     <div className="grid grid-cols-2 gap-2">
-                        <Button
-                            variant={paymentMethod === 'cash' ? 'default' : 'outline'}
+                        <button
                             onClick={() => onPaymentMethodChange('cash')}
-                            className={cn("h-8 text-xs rounded-lg", paymentMethod === 'cash' ? "bg-green-600 hover:bg-green-700 text-white" : "")}
+                            className={cn(
+                                "flex items-center justify-center gap-1.5 h-9 rounded-xl text-xs font-medium transition-all",
+                                paymentMethod === 'cash'
+                                    ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30"
+                                    : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                            )}
                         >
-                            <Banknote className="w-3 h-3 mr-1" />Tunai
-                        </Button>
-                        <Button
-                            variant={paymentMethod === 'transfer' ? 'default' : 'outline'}
+                            <Banknote className="w-4 h-4" />
+                            Tunai
+                        </button>
+                        <button
                             onClick={() => onPaymentMethodChange('transfer')}
-                            className={cn("h-8 text-xs rounded-lg", paymentMethod === 'transfer' ? "bg-blue-500 hover:bg-blue-600" : "")}
+                            className={cn(
+                                "flex items-center justify-center gap-1.5 h-9 rounded-xl text-xs font-medium transition-all",
+                                paymentMethod === 'transfer'
+                                    ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30"
+                                    : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                            )}
                         >
-                            <CreditCard className="w-3 h-3 mr-1" />Transfer
-                        </Button>
+                            <CreditCard className="w-4 h-4" />
+                            Transfer
+                        </button>
                     </div>
+
+                    {/* Checkout Button */}
                     <Button
-                        className={cn("w-full h-10 text-sm font-semibold rounded-lg", "bg-primary hover:bg-primary/90")}
+                        className={cn(
+                            "w-full h-11 text-sm font-bold rounded-xl transition-all",
+                            "bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70",
+                            "shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30",
+                            items.length > 0 && !isProcessing && "animate-pulse-subtle"
+                        )}
                         disabled={items.length === 0 || isProcessing}
                         onClick={onCheckout}
                     >
                         {isProcessing ? (
-                            <><span className="animate-spin mr-2">⏳</span>Memproses...</>
+                            <>
+                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                                Memproses...
+                            </>
                         ) : (
-                            <><Receipt className="w-4 h-4 mr-2" />Bayar</>
+                            <>
+                                <Sparkles className="w-4 h-4 mr-2" />
+                                Bayar Sekarang
+                            </>
                         )}
                     </Button>
+
+                    {/* Save to Tab Button */}
+                    {onSaveToTab && (
+                        <Button
+                            variant="outline"
+                            className="w-full h-9 text-xs rounded-xl border-amber-300 dark:border-amber-700 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/50"
+                            disabled={items.length === 0}
+                            onClick={onSaveToTab}
+                        >
+                            <ClipboardList className="w-4 h-4 mr-2" />
+                            Simpan ke Tab (Nota Gantung)
+                        </Button>
+                    )}
                 </div>
             )}
         </div>

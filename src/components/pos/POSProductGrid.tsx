@@ -3,10 +3,11 @@ import {
     Search,
     Package,
     Grid3X3,
+    LayoutGrid,
     List,
     X,
     ChevronLeft,
-    ChevronRight
+    ChevronRight,
 } from 'lucide-react';
 import { ProductCard } from '@/components/pos/ProductCard';
 import { ProductListItem } from '@/components/pos/ProductListItem';
@@ -20,10 +21,10 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Product, Location } from '@/types';
+import { cn } from '@/lib/utils';
 
-type ViewMode = 'grid' | 'list';
+type ViewMode = 'grid' | 'compact' | 'list';
 
 interface POSProductGridProps {
     products: Product[];
@@ -39,19 +40,31 @@ export function POSProductGrid({
     searchInputRef,
 }: POSProductGridProps) {
     const [searchQuery, setSearchQuery] = useState('');
-    const [viewMode, setViewMode] = useState<ViewMode>('grid');
+    const [viewMode, setViewMode] = useState<ViewMode>('compact');
     const [currentPage, setCurrentPage] = useState(1);
-    const [pageSize, setPageSize] = useState<number | 'all'>(10);
+    const [pageSize, setPageSize] = useState<number | 'all'>(24);
+    const [stockFilter, setStockFilter] = useState<'all' | 'instock' | 'low'>('all');
 
-    // Filter products based on search
+    // Filter products
     const filteredProducts = useMemo(() => {
-        if (!searchQuery.trim()) return products;
-        const query = searchQuery.toLowerCase();
-        return products.filter(p =>
-            p.name.toLowerCase().includes(query) ||
-            p.barcode.toLowerCase().includes(query)
-        );
-    }, [products, searchQuery]);
+        let filtered = products;
+
+        if (searchQuery.trim()) {
+            const query = searchQuery.toLowerCase();
+            filtered = filtered.filter(p =>
+                p.name.toLowerCase().includes(query) ||
+                p.barcode.toLowerCase().includes(query)
+            );
+        }
+
+        if (stockFilter === 'instock') {
+            filtered = filtered.filter(p => p.stock[stockLocation] > 0);
+        } else if (stockFilter === 'low') {
+            filtered = filtered.filter(p => p.stock[stockLocation] > 0 && p.stock[stockLocation] < 10);
+        }
+
+        return filtered;
+    }, [products, searchQuery, stockFilter, stockLocation]);
 
     // Paginated products
     const paginatedProducts = useMemo(() => {
@@ -65,50 +78,138 @@ export function POSProductGrid({
         return Math.ceil(filteredProducts.length / pageSize);
     }, [filteredProducts.length, pageSize]);
 
-    // Reset to page 1 when search or pageSize changes
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchQuery, pageSize]);
+    }, [searchQuery, pageSize, stockFilter]);
+
+    const getGridClass = () => {
+        switch (viewMode) {
+            case 'grid':
+                return 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4';
+            case 'compact':
+                return 'grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3';
+            default:
+                return 'space-y-2';
+        }
+    };
+
+    const inStockCount = useMemo(() =>
+        products.filter(p => p.stock[stockLocation] > 0).length,
+        [products, stockLocation]
+    );
+    const lowStockCount = useMemo(() =>
+        products.filter(p => p.stock[stockLocation] > 0 && p.stock[stockLocation] < 10).length,
+        [products, stockLocation]
+    );
 
     return (
         <div className="flex flex-col h-full">
-            {/* Search & Controls */}
-            <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-4">
-                <div className="relative flex-1 min-w-[200px]">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                        ref={searchInputRef}
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Cari produk..."
-                        className="pl-9 pr-9 rounded-xl h-11"
-                    />
-                    {searchQuery && (
+            {/* Search Bar */}
+            <div className="relative mb-4">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <Input
+                    ref={searchInputRef}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Cari produk atau scan barcode..."
+                    className="pl-12 pr-12 h-12 rounded-xl bg-muted/30 border-2 focus-visible:border-primary focus-visible:ring-0 text-base"
+                />
+                {searchQuery && (
+                    <button
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 rounded-full hover:bg-muted transition-colors"
+                    >
+                        <X className="w-4 h-4 text-muted-foreground" />
+                    </button>
+                )}
+            </div>
+
+            {/* Filter Bar */}
+            <div className="flex flex-wrap items-center gap-2 mb-4">
+                {/* Stock Filter Pills */}
+                <div className="flex items-center gap-2 flex-1">
+                    <button
+                        onClick={() => setStockFilter('all')}
+                        className={cn(
+                            "px-4 py-2 rounded-full text-sm font-medium transition-all",
+                            stockFilter === 'all'
+                                ? "bg-primary text-primary-foreground shadow-md"
+                                : "bg-muted hover:bg-muted/80"
+                        )}
+                    >
+                        Semua ({products.length})
+                    </button>
+                    <button
+                        onClick={() => setStockFilter('instock')}
+                        className={cn(
+                            "px-4 py-2 rounded-full text-sm font-medium transition-all",
+                            stockFilter === 'instock'
+                                ? "bg-emerald-600 text-white shadow-md"
+                                : "bg-muted hover:bg-muted/80"
+                        )}
+                    >
+                        Ada ({inStockCount})
+                    </button>
+                    {lowStockCount > 0 && (
                         <button
-                            onClick={() => setSearchQuery('')}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            onClick={() => setStockFilter('low')}
+                            className={cn(
+                                "px-4 py-2 rounded-full text-sm font-medium transition-all",
+                                stockFilter === 'low'
+                                    ? "bg-amber-500 text-white shadow-md"
+                                    : "bg-muted hover:bg-muted/80"
+                            )}
                         >
-                            <X className="w-4 h-4" />
+                            Hampir Habis ({lowStockCount})
                         </button>
                     )}
                 </div>
 
-                <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)} className="hidden sm:block">
-                    <TabsList className="rounded-xl">
-                        <TabsTrigger value="grid" className="rounded-lg px-3">
-                            <Grid3X3 className="w-4 h-4" />
-                        </TabsTrigger>
-                        <TabsTrigger value="list" className="rounded-lg px-3">
-                            <List className="w-4 h-4" />
-                        </TabsTrigger>
-                    </TabsList>
-                </Tabs>
+                {/* View Mode Toggle */}
+                <div className="hidden sm:flex items-center gap-1 p-1 bg-muted rounded-xl">
+                    <button
+                        onClick={() => setViewMode('compact')}
+                        className={cn(
+                            "p-2 rounded-lg transition-all",
+                            viewMode === 'compact'
+                                ? "bg-background shadow-sm"
+                                : "hover:bg-background/50"
+                        )}
+                        title="Compact Grid"
+                    >
+                        <LayoutGrid className="w-4 h-4" />
+                    </button>
+                    <button
+                        onClick={() => setViewMode('grid')}
+                        className={cn(
+                            "p-2 rounded-lg transition-all",
+                            viewMode === 'grid'
+                                ? "bg-background shadow-sm"
+                                : "hover:bg-background/50"
+                        )}
+                        title="Standard Grid"
+                    >
+                        <Grid3X3 className="w-4 h-4" />
+                    </button>
+                    <button
+                        onClick={() => setViewMode('list')}
+                        className={cn(
+                            "p-2 rounded-lg transition-all",
+                            viewMode === 'list'
+                                ? "bg-background shadow-sm"
+                                : "hover:bg-background/50"
+                        )}
+                        title="List View"
+                    >
+                        <List className="w-4 h-4" />
+                    </button>
+                </div>
             </div>
 
-            {/* Products Grid/List */}
-            <ScrollArea className="flex-1 pr-2 md:pr-4">
-                {viewMode === 'grid' ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2 md:gap-3">
+            {/* Products */}
+            <ScrollArea className="flex-1 -mx-1 px-1">
+                {viewMode !== 'list' ? (
+                    <div className={getGridClass()}>
                         {paginatedProducts.map((product) => (
                             <ProductCard
                                 key={product.id}
@@ -132,67 +233,66 @@ export function POSProductGrid({
                 )}
 
                 {filteredProducts.length === 0 && (
-                    <div className="flex flex-col items-center justify-center py-24 text-muted-foreground">
-                        <div className="w-20 h-20 rounded-full bg-muted/50 flex items-center justify-center mb-4">
-                            <Package className="w-10 h-10 opacity-40" />
+                    <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+                        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                            <Package className="w-8 h-8 opacity-30" />
                         </div>
-                        <p className="text-lg font-semibold text-foreground/70">Tidak ada produk ditemukan</p>
-                        <p className="text-sm mt-1">Coba kata kunci lain atau scan barcode</p>
-                    </div>
-                )}
-
-                {/* Pagination Controls */}
-                {filteredProducts.length > 0 && (
-                    <div className="flex flex-wrap items-center justify-between gap-2 mt-4 pt-4 border-t">
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">Tampilkan:</span>
-                            <Select
-                                value={pageSize === 'all' ? 'all' : String(pageSize)}
-                                onValueChange={(v) => setPageSize(v === 'all' ? 'all' : parseInt(v))}
-                            >
-                                <SelectTrigger className="w-20 h-8 text-xs rounded-lg">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent className="rounded-xl">
-                                    <SelectItem value="5" className="text-xs">5</SelectItem>
-                                    <SelectItem value="10" className="text-xs">10</SelectItem>
-                                    <SelectItem value="20" className="text-xs">20</SelectItem>
-                                    <SelectItem value="all" className="text-xs">Semua</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <span className="text-xs text-muted-foreground">
-                                dari {filteredProducts.length} produk
-                            </span>
-                        </div>
-
-                        {pageSize !== 'all' && totalPages > 1 && (
-                            <div className="flex items-center gap-1">
-                                <Button
-                                    variant="outline"
-                                    size="icon"
-                                    className="h-8 w-8 rounded-lg"
-                                    disabled={currentPage === 1}
-                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                >
-                                    <ChevronLeft className="w-4 h-4" />
-                                </Button>
-                                <span className="text-xs font-medium px-2">
-                                    {currentPage} / {totalPages}
-                                </span>
-                                <Button
-                                    variant="outline"
-                                    size="icon"
-                                    className="h-8 w-8 rounded-lg"
-                                    disabled={currentPage === totalPages}
-                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                >
-                                    <ChevronRight className="w-4 h-4" />
-                                </Button>
-                            </div>
-                        )}
+                        <p className="font-medium">Produk tidak ditemukan</p>
+                        <p className="text-sm mt-1">Coba kata kunci lain</p>
                     </div>
                 )}
             </ScrollArea>
+
+            {/* Pagination */}
+            {filteredProducts.length > 0 && (
+                <div className="flex items-center justify-between gap-2 mt-4 pt-4 border-t">
+                    <div className="flex items-center gap-2">
+                        <Select
+                            value={pageSize === 'all' ? 'all' : String(pageSize)}
+                            onValueChange={(v) => setPageSize(v === 'all' ? 'all' : parseInt(v))}
+                        >
+                            <SelectTrigger className="w-[80px] h-9 rounded-lg">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-lg">
+                                <SelectItem value="12">12</SelectItem>
+                                <SelectItem value="24">24</SelectItem>
+                                <SelectItem value="48">48</SelectItem>
+                                <SelectItem value="all">All</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <span className="text-sm text-muted-foreground">
+                            dari {filteredProducts.length} produk
+                        </span>
+                    </div>
+
+                    {pageSize !== 'all' && totalPages > 1 && (
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-9 w-9 rounded-lg"
+                                disabled={currentPage === 1}
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            >
+                                <ChevronLeft className="w-4 h-4" />
+                            </Button>
+                            <span className="text-sm font-medium px-3 py-1.5 bg-muted rounded-lg">
+                                {currentPage} / {totalPages}
+                            </span>
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-9 w-9 rounded-lg"
+                                disabled={currentPage === totalPages}
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            >
+                                <ChevronRight className="w-4 h-4" />
+                            </Button>
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 }

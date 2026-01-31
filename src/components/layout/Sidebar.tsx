@@ -66,7 +66,6 @@ const navGroups: NavItem[] = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/', roles: ['warehouse', 'cashier', 'auditor', 'admin', 'main_office'] },
   { label: 'Panduan', icon: BookOpen, href: '/guide', roles: ['warehouse', 'cashier', 'auditor', 'admin', 'main_office'] },
   { label: 'Kasir (POS)', icon: ShoppingCart, href: '/pos', roles: ['cashier', 'admin'] },
-  { label: 'Tukar Barang', icon: ArrowLeftRight, href: '/exchange', roles: ['cashier', 'warehouse', 'admin'] },
   { label: 'Produk', icon: Package, href: '/products', roles: ['warehouse', 'cashier', 'auditor', 'admin', 'main_office'] },
 
   // Stok submenu

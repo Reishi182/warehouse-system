@@ -75,6 +75,7 @@ export function POSReceiptDialog({
                             storeName={storeName}
                             storeAddress={storeAddress}
                             isOffline={lastSale.isOffline}
+                            returnRef={lastSale.returnRef}
                         />
                     )}
                 </div>

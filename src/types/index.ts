@@ -710,3 +710,58 @@ export interface CustomerExchange {
   returned_items?: ExchangeReturnedItem[];
   new_items?: ExchangeNewItem[];
 }
+
+// ==================================================
+// TAB (NOTA GANTUNG) SYSTEM TYPES
+// ==================================================
+
+export type TabStatus = 'open' | 'settled' | 'cancelled';
+
+export interface TabTransactionItem {
+  id: string;
+  transaction_id: string;
+  product_id: string;
+  product_name: string;
+  barcode: string;
+  quantity: number;
+  price: number;
+  subtotal: number;
+  created_at: string;
+  product?: Product;
+}
+
+export interface TabTransaction {
+  id: string;
+  tab_id: string;
+  transaction_number: string;
+  subtotal: number;
+  cashier_id: string;
+  cashier_name: string;
+  created_at: string;
+  items?: TabTransactionItem[];
+}
+
+export interface CustomerTab {
+  id: string;
+  tab_number: string;
+  customer_name: string;
+  customer_phone?: string | null;
+  stock_location: Location;
+  status: TabStatus;
+  total_amount: number;
+  payment_method?: PaymentMethod | null;
+  amount_paid?: number | null;
+  change_amount?: number | null;
+  cashier_id: string;
+  cashier_name: string;
+  settled_by?: string | null;
+  settled_by_name?: string | null;
+  settled_at?: string | null;
+  cancelled_by?: string | null;
+  cancelled_reason?: string | null;
+  cancelled_at?: string | null;
+  sale_id?: string | null; // Reference to created sale when tab is settled
+  created_at: string;
+  updated_at: string;
+  transactions?: TabTransaction[];
+}

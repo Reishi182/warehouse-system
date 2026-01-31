@@ -24,6 +24,7 @@ export type LastSaleData = {
     change: number;
     date: Date;
     isOffline?: boolean; // Flag to show if sale was saved offline
+    returnRef?: string | null; // Reference to original sale for returns
 };
 
 export interface UsePOSCheckoutOptions {
@@ -33,6 +34,7 @@ export interface UsePOSCheckoutOptions {
     orderDiscount: number;
     stockLocation: Location;
     onSuccess: () => void;
+    returnRef?: string | null;
 }
 
 export interface UsePOSCheckoutReturn {
@@ -53,7 +55,7 @@ export interface UsePOSCheckoutReturn {
 }
 
 export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutReturn {
-    const { items, subtotal, totalAmount, orderDiscount, stockLocation, onSuccess } = options;
+    const { items, subtotal, totalAmount, orderDiscount, stockLocation, onSuccess, returnRef } = options;
     const { createSale, products } = useData();
     const { profile, user } = useAuth();
     const { toast } = useToast();
@@ -148,10 +150,11 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
             change: changeAmount,
             date: now,
             isOffline: true,
+            returnRef,
         });
 
         return true;
-    }, [user, profile, items, paymentMethod, amountPaid, totalAmount, subtotal, orderDiscount, stockLocation]);
+    }, [user, profile, items, paymentMethod, amountPaid, totalAmount, subtotal, orderDiscount, stockLocation, returnRef]);
 
     const handleConfirmCheckout = useCallback(async () => {
         if (items.length === 0) return;
@@ -239,6 +242,7 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
                     change: changeAmount,
                     date: now,
                     isOffline: false,
+                    returnRef,
                 });
 
                 setShowReceiptDialog(true);
@@ -253,7 +257,7 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
         } finally {
             setIsProcessing(false);
         }
-    }, [items, paymentMethod, amountPaid, totalAmount, subtotal, orderDiscount, stockLocation, createSale, toast, onSuccess, processOfflineSale]);
+    }, [items, paymentMethod, amountPaid, totalAmount, subtotal, orderDiscount, stockLocation, createSale, toast, onSuccess, processOfflineSale, returnRef]);
 
     return {
         paymentMethod,

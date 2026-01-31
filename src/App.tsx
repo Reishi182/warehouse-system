@@ -57,7 +57,6 @@ const MarketplaceReturns = React.lazy(() => import('./pages/marketplace/Marketpl
 const StockReturnCreate = React.lazy(() => import('@/pages/stock-return/StockReturnCreate'));
 const StockReturnApproval = React.lazy(() => import('@/pages/stock-return/StockReturnApproval'));
 const StockHistory = React.lazy(() => import('@/pages/stock/StockHistory'));
-const CustomerExchange = React.lazy(() => import('@/pages/exchange/CustomerExchange'));
 const NotificationHistory = React.lazy(() => import('@/pages/NotificationHistory'));
 const NotFound = React.lazy(() => import("./pages/NotFound"));
 const Guide = React.lazy(() => import("./pages/Guide"));
@@ -319,9 +318,6 @@ function AppRoutes() {
 
         {/* Stock History - All roles */}
         <Route path="/stock/history" element={<ProtectedRoute allowedRoles={ALL_ROLES}><StockHistory /></ProtectedRoute>} />
-
-        {/* Customer Exchange (Tukar Barang) */}
-        <Route path="/exchange" element={<ProtectedRoute allowedRoles={['cashier', 'warehouse', 'admin']}><CustomerExchange /></ProtectedRoute>} />
 
         {/* Notification History - All roles */}
         <Route path="/notifications" element={<ProtectedRoute allowedRoles={ALL_ROLES}><NotificationHistory /></ProtectedRoute>} />

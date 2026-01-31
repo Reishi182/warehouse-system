@@ -9,6 +9,7 @@ import { POSMobileCart } from '@/components/pos/POSMobileCart';
 import { POSCheckoutDialog } from '@/components/pos/POSCheckoutDialog';
 import { POSReceiptDialog } from '@/components/pos/POSReceiptDialog';
 import { POSSalesHistoryDialog } from '@/components/pos/POSSalesHistoryDialog';
+import { TabDialog } from '@/components/pos/TabDialog';
 import { OfflineSyncStatus } from '@/components/pos/OfflineSyncStatus';
 import { Button } from '@/components/ui/button';
 import {
@@ -18,14 +19,15 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { History } from 'lucide-react';
+import { History, ClipboardList, RotateCcw } from 'lucide-react';
 import { useData } from '@/contexts/DataContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useStoreSettings } from '@/hooks/useStoreSettings';
 import { usePOSCart } from '@/hooks/usePOSCart';
 import { usePOSCheckout } from '@/hooks/usePOSCheckout';
-import { Location } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
+import { Location, Sale } from '@/types';
 
 export default function POS() {
     const { products, getProductByBarcode, sales, loading } = useData();
@@ -36,19 +38,93 @@ export default function POS() {
     const searchInputRef = useRef<HTMLInputElement>(null);
     const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
     const [salesHistoryOpen, setSalesHistoryOpen] = useState(false);
+    const [tabDialogOpen, setTabDialogOpen] = useState(false);
+    const [returnRef, setReturnRef] = useState<string | null>(null);
+    const [isProcessingExchange, setIsProcessingExchange] = useState(false);
 
     // Cart state
     const cart = usePOSCart('toko');
 
-    // Checkout state
+    // Checkout state (simplified - no exchange handling here since it's done immediately)
     const checkout = usePOSCheckout({
         items: cart.items,
         subtotal: cart.subtotal,
         totalAmount: cart.totalAmount,
         orderDiscount: cart.orderDiscount,
         stockLocation: cart.stockLocation,
-        onSuccess: cart.clearCart,
+        onSuccess: () => {
+            cart.clearCart();
+            setReturnRef(null);
+        },
+        returnRef,
     });
+
+    // Handle exchange - immediately cancel original sale and return stock
+    const handleExchangeSale = async (sale: Sale) => {
+        if (!sale.items || sale.items.length === 0) {
+            toast({ title: 'Error', description: 'Transaksi tidak memiliki item', variant: 'destructive' });
+            return;
+        }
+
+        setIsProcessingExchange(true);
+        const stockLocation = sale.stock_location || 'toko';
+        const stockField = stockLocation === 'toko' ? 'stock_toko' : 'stock_gudang';
+
+        try {
+            // 1. Return stock for each item in original sale
+            for (const item of sale.items) {
+                // Get current stock
+                const { data: product, error: fetchError } = await supabase
+                    .from('products')
+                    .select(`id, ${stockField}`)
+                    .eq('id', item.product_id)
+                    .single();
+
+                if (fetchError) {
+                    console.error(`Failed to fetch product ${item.product_id}:`, fetchError);
+                    continue;
+                }
+
+                const currentStock = (product as any)?.[stockField] || 0;
+                const newStock = currentStock + item.quantity;
+
+                // Update stock
+                await supabase
+                    .from('products')
+                    .update({ [stockField]: newStock })
+                    .eq('id', item.product_id);
+
+                // Log stock return
+                await supabase.from('stock_logs').insert({
+                    product_id: item.product_id,
+                    type: 'in',
+                    quantity: item.quantity,
+                    location: stockLocation,
+                    user_id: profile?.id,
+                    note: `Ganti barang dari ${sale.sale_number}`,
+                });
+            }
+
+            // 2. Delete the original sale
+            await supabase.from('sales').delete().eq('id', sale.id);
+
+            // 3. Load items into cart (now stock is available)
+            cart.loadFromSale(sale);
+            setReturnRef(sale.sale_number);
+            setSalesHistoryOpen(false);
+
+            toast({
+                title: '✅ Siap ganti barang',
+                description: `Stok dari ${sale.sale_number} sudah dikembalikan. Silakan edit keranjang.`,
+            });
+
+        } catch (err) {
+            console.error('Exchange error:', err);
+            toast({ title: 'Error', description: 'Gagal memproses ganti barang', variant: 'destructive' });
+        } finally {
+            setIsProcessingExchange(false);
+        }
+    };
 
     // Today's stats
     const todayIso = new Date().toISOString().slice(0, 10);
@@ -110,7 +186,7 @@ export default function POS() {
 
     return (
         <MainLayout title="Point of Sale" subtitle="Sistem kasir untuk penjualan">
-            <div className="flex gap-4 h-[calc(100vh-180px)] md:h-[calc(100vh-140px)] md:pr-[21rem] lg:pr-[25rem]">
+            <div className="flex gap-4 h-[calc(100vh-180px)] md:h-[calc(100vh-140px)] md:pr-[22rem] lg:pr-[25rem]">
                 {/* Left Panel - Products */}
                 <div className="flex-1 flex flex-col min-w-0">
                     {/* Location Selector, Barcode Scanner & Offline Status */}
@@ -122,15 +198,24 @@ export default function POS() {
                         {/* Offline Sync Status */}
                         <OfflineSyncStatus />
 
+                        {/* Tab Button */}
+                        <Button
+                            variant="outline"
+                            onClick={() => setTabDialogOpen(true)}
+                            className="h-11 rounded-xl gap-2"
+                        >
+                            <ClipboardList className="h-4 w-4" />
+                            <span className="hidden sm:inline">Nota Gantung</span>
+                        </Button>
+
                         {/* Sales History Button */}
                         <Button
                             variant="outline"
-                            size="icon"
                             onClick={() => setSalesHistoryOpen(true)}
-                            className="h-11 w-11 rounded-xl"
-                            title="Riwayat Penjualan"
+                            className="h-11 rounded-xl gap-2"
                         >
-                            <History className="h-5 w-5" />
+                            <History className="h-4 w-4" />
+                            <span className="hidden sm:inline">Riwayat</span>
                         </Button>
 
                         <Select
@@ -173,10 +258,17 @@ export default function POS() {
                         onPaymentMethodChange={checkout.setPaymentMethod}
                         onUpdateQuantity={cart.updateQuantity}
                         onRemoveItem={cart.removeItem}
-                        onClearCart={cart.clearCart}
+                        onClearCart={() => {
+                            cart.clearCart();
+                            setReturnRef(null);
+                        }}
                         onCheckout={checkout.openCheckoutDialog}
+                        onSaveToTab={() => setTabDialogOpen(true)}
                         isProcessing={checkout.isProcessing}
                         todayStats={todayStats}
+                        stockLocation={cart.stockLocation}
+                        returnRef={returnRef}
+                        onSetReturnRef={setReturnRef}
                     />,
                     document.body
                 )}
@@ -194,6 +286,7 @@ export default function POS() {
                     onRemoveItem={cart.removeItem}
                     onClearCart={cart.clearCart}
                     onCheckout={checkout.openCheckoutDialog}
+                    onSaveToTab={() => setTabDialogOpen(true)}
                     isProcessing={checkout.isProcessing}
                     todayStats={todayStats}
                     open={cartDrawerOpen}
@@ -232,6 +325,14 @@ export default function POS() {
             <POSSalesHistoryDialog
                 open={salesHistoryOpen}
                 onOpenChange={setSalesHistoryOpen}
+                onCreateReturn={handleExchangeSale}
+            />
+
+            {/* Tab Dialog */}
+            <TabDialog
+                open={tabDialogOpen}
+                onOpenChange={setTabDialogOpen}
+                stockLocation={cart.stockLocation}
             />
         </MainLayout>
     );

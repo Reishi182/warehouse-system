@@ -18,6 +18,8 @@ import {
     Printer,
     History,
     X,
+    XCircle,
+    RotateCcw,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -38,6 +40,17 @@ import { cn } from '@/lib/utils';
 import { useReactToPrint } from 'react-to-print';
 import POSReceipt from '@/components/pos/POSReceipt';
 import { useStoreSettings } from '@/hooks/useStoreSettings';
+import { useCancelSale } from '@/hooks/useCancelSale';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 function toISODate(d: Date) {
     const yyyy = d.getFullYear();
@@ -49,12 +62,14 @@ function toISODate(d: Date) {
 interface POSSalesHistoryDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    onCreateReturn?: (originalSale: Sale) => void;
 }
 
-export function POSSalesHistoryDialog({ open, onOpenChange }: POSSalesHistoryDialogProps) {
+export function POSSalesHistoryDialog({ open, onOpenChange, onCreateReturn }: POSSalesHistoryDialogProps) {
     const { sales } = useData();
     const { user, profile } = useAuth();
     const { data: storeSettings } = useStoreSettings();
+    const cancelSale = useCancelSale();
 
     // Default to today's date
     const [selectedDate, setSelectedDate] = useState<string>(toISODate(new Date()));
@@ -63,6 +78,12 @@ export function POSSalesHistoryDialog({ open, onOpenChange }: POSSalesHistoryDia
     const [selectedSaleForPrint, setSelectedSaleForPrint] = useState<Sale | null>(null);
     const [printDialogOpen, setPrintDialogOpen] = useState(false);
     const receiptRef = useRef<HTMLDivElement>(null);
+
+    // Cancel dialog state
+    const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+    const [saleToCancel, setSaleToCancel] = useState<Sale | null>(null);
+    const [cancelReason, setCancelReason] = useState('');
+    const [showCancelled, setShowCancelled] = useState(false);
 
     // Print handler
     const handlePrint = useReactToPrint({
@@ -85,6 +106,16 @@ export function POSSalesHistoryDialog({ open, onOpenChange }: POSSalesHistoryDia
             // Only show current cashier's sales
             if (s.cashier_id !== user?.id) return false;
 
+            // Filter by cancelled status
+            const isCancelled = s.cashier_name?.startsWith('[CANCELLED]');
+            if (showCancelled) {
+                // When showing cancelled, only show cancelled sales
+                if (!isCancelled) return false;
+            } else {
+                // When not showing cancelled, hide them
+                if (isCancelled) return false;
+            }
+
             const saleDate = s.created_at.slice(0, 10);
 
             // Date filter
@@ -103,7 +134,7 @@ export function POSSalesHistoryDialog({ open, onOpenChange }: POSSalesHistoryDia
 
             return true;
         }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    }, [sales, selectedDate, searchQuery, user?.id]);
+    }, [sales, selectedDate, searchQuery, user?.id, showCancelled]);
 
     // Stats
     const stats = useMemo(() => {
@@ -130,6 +161,45 @@ export function POSSalesHistoryDialog({ open, onOpenChange }: POSSalesHistoryDia
     // Quick date buttons
     const setToday = () => setSelectedDate(toISODate(new Date()));
     const setYesterday = () => setSelectedDate(toISODate(subDays(new Date(), 1)));
+
+    // Cancel sale handler
+    const openCancelDialog = (sale: Sale) => {
+        setSaleToCancel(sale);
+        setCancelReason('');
+        setCancelDialogOpen(true);
+    };
+
+    const handleCancelSale = () => {
+        if (!saleToCancel || !cancelReason.trim() || !profile) return;
+
+        cancelSale.mutate({
+            saleId: saleToCancel.id,
+            saleNumber: saleToCancel.sale_number,
+            items: saleToCancel.items?.map(i => ({
+                product_id: i.product_id,
+                product_name: i.product_name,
+                quantity: i.quantity,
+            })) || [],
+            stockLocation: (saleToCancel.stock_location || 'toko') as any,
+            reason: cancelReason.trim(),
+            cancelledBy: profile.user_id,
+            cancelledByName: profile.name,
+        }, {
+            onSuccess: () => {
+                setCancelDialogOpen(false);
+                setSaleToCancel(null);
+                setCancelReason('');
+            },
+        });
+    };
+
+    // Create return sale (replacement)
+    const handleCreateReturn = (sale: Sale) => {
+        if (onCreateReturn) {
+            onCreateReturn(sale);
+            onOpenChange(false);
+        }
+    };
 
     return (
         <>
@@ -196,6 +266,31 @@ export function POSSalesHistoryDialog({ open, onOpenChange }: POSSalesHistoryDia
                                         <X className="h-4 w-4" />
                                     </Button>
                                 )}
+                            </div>
+
+                            {/* Toggle Cancelled */}
+                            <div className="flex gap-2">
+                                <Button
+                                    variant={!showCancelled ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={() => setShowCancelled(false)}
+                                    className="flex-1 text-xs h-9 rounded-xl"
+                                >
+                                    <Receipt className="h-3 w-3 mr-1" />
+                                    Aktif
+                                </Button>
+                                <Button
+                                    variant={showCancelled ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={() => setShowCancelled(true)}
+                                    className={cn(
+                                        "flex-1 text-xs h-9 rounded-xl",
+                                        showCancelled && "bg-red-500 hover:bg-red-600 text-white"
+                                    )}
+                                >
+                                    <XCircle className="h-3 w-3 mr-1" />
+                                    Dibatalkan
+                                </Button>
                             </div>
                         </div>
 
@@ -303,8 +398,41 @@ export function POSSalesHistoryDialog({ open, onOpenChange }: POSSalesHistoryDia
                                                             </div>
                                                         )}
 
-                                                        {/* Print Button */}
-                                                        <div className="flex justify-end mt-3 pt-2 border-t">
+                                                        {/* Action Buttons */}
+                                                        <div className="flex flex-wrap gap-2 mt-3 pt-2 border-t">
+                                                            {/* Cancel Button - only for today's sales that aren't cancelled */}
+                                                            {!sale.cashier_name?.startsWith('[CANCELLED]') && sale.created_at.slice(0, 10) === toISODate(new Date()) && (
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        openCancelDialog(sale);
+                                                                    }}
+                                                                    className="text-xs h-7 rounded-lg text-red-600 border-red-300 hover:bg-red-50"
+                                                                >
+                                                                    <XCircle className="h-3 w-3 mr-1" />
+                                                                    Cancel
+                                                                </Button>
+                                                            )}
+
+                                                            {/* Create Return Button */}
+                                                            {onCreateReturn && !sale.cashier_name?.startsWith('[CANCELLED]') && (
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleCreateReturn(sale);
+                                                                    }}
+                                                                    className="text-xs h-7 rounded-lg text-orange-600 border-orange-300 hover:bg-orange-50"
+                                                                >
+                                                                    <RotateCcw className="h-3 w-3 mr-1" />
+                                                                    Ganti Barang
+                                                                </Button>
+                                                            )}
+
+                                                            {/* Print Button */}
                                                             <Button
                                                                 variant="outline"
                                                                 size="sm"
@@ -312,10 +440,10 @@ export function POSSalesHistoryDialog({ open, onOpenChange }: POSSalesHistoryDia
                                                                     e.stopPropagation();
                                                                     openPrintDialog(sale);
                                                                 }}
-                                                                className="text-xs h-7 rounded-lg"
+                                                                className="text-xs h-7 rounded-lg ml-auto"
                                                             >
                                                                 <Printer className="h-3 w-3 mr-1" />
-                                                                Cetak Struk
+                                                                Cetak
                                                             </Button>
                                                         </div>
                                                     </div>
@@ -345,11 +473,25 @@ export function POSSalesHistoryDialog({ open, onOpenChange }: POSSalesHistoryDia
                                 <div className="border rounded-lg p-2 mb-4 max-h-[50vh] overflow-auto bg-white">
                                     <div ref={receiptRef}>
                                         <POSReceipt
-                                            sale={selectedSaleForPrint}
+                                            saleNumber={selectedSaleForPrint.sale_number}
+                                            cashierName={selectedSaleForPrint.cashier_name || profile?.name || 'Kasir'}
+                                            date={new Date(selectedSaleForPrint.created_at)}
+                                            items={(selectedSaleForPrint.items || []).map(item => ({
+                                                name: item.product_name,
+                                                quantity: item.quantity,
+                                                price: item.price,
+                                                discount: 0,
+                                                subtotal: item.subtotal,
+                                            }))}
+                                            subtotal={selectedSaleForPrint.total_amount + (selectedSaleForPrint.discount || 0)}
+                                            orderDiscount={selectedSaleForPrint.discount || 0}
+                                            total={selectedSaleForPrint.total_amount}
+                                            paymentMethod={selectedSaleForPrint.payment_method}
+                                            amountPaid={selectedSaleForPrint.amount_paid || selectedSaleForPrint.total_amount}
+                                            change={selectedSaleForPrint.change_amount || 0}
                                             storeName={storeSettings?.store_name}
                                             storeAddress={storeSettings?.store_address}
-                                            storePhone={storeSettings?.store_phone}
-                                            cashierName={profile?.name || 'Kasir'}
+                                            isCopy={true}
                                         />
                                     </div>
                                 </div>
@@ -362,6 +504,36 @@ export function POSSalesHistoryDialog({ open, onOpenChange }: POSSalesHistoryDia
                     </div>
                 </DialogContent>
             </Dialog>
+
+            {/* Cancel Confirmation Dialog */}
+            <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+                <AlertDialogContent className="rounded-2xl">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Batalkan Penjualan?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Stok akan dikembalikan. Transaksi: {saleToCancel?.sale_number}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <div className="py-2">
+                        <Input
+                            placeholder="Alasan pembatalan..."
+                            value={cancelReason}
+                            onChange={(e) => setCancelReason(e.target.value)}
+                            className="rounded-xl"
+                        />
+                    </div>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel className="rounded-xl">Batal</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleCancelSale}
+                            disabled={!cancelReason.trim() || cancelSale.isPending}
+                            className="rounded-xl bg-red-600 hover:bg-red-700"
+                        >
+                            {cancelSale.isPending ? 'Memproses...' : 'Ya, Batalkan'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </>
     );
 }

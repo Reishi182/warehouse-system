@@ -10,6 +10,14 @@ interface ReceiptItem {
     subtotal: number;
 }
 
+interface TabInfo {
+    tabNumber: string;
+    customerName: string;
+    transactionNumber: number;
+    runningTotal: number;
+    isPending: boolean; // Show "BELUM LUNAS" if true
+}
+
 interface POSReceiptProps {
     saleNumber: string;
     cashierName: string;
@@ -25,6 +33,8 @@ interface POSReceiptProps {
     storeAddress?: string;
     isCopy?: boolean;
     isOffline?: boolean; // Flag for offline transactions
+    tabInfo?: TabInfo; // Tab mode info
+    returnRef?: string | null; // Reference to original sale for returns
 }
 
 const POSReceipt = forwardRef<HTMLDivElement, POSReceiptProps>(({
@@ -42,6 +52,8 @@ const POSReceipt = forwardRef<HTMLDivElement, POSReceiptProps>(({
     storeAddress = 'Jl. Contoh No. 123',
     isCopy = false,
     isOffline = false,
+    tabInfo,
+    returnRef,
 }, ref) => {
     const formatCurrency = (amount: number) => `Rp ${amount.toLocaleString('id-ID')}`;
     const formatDate = (d: Date) => d.toLocaleDateString('id-ID', {
@@ -89,12 +101,25 @@ const POSReceipt = forwardRef<HTMLDivElement, POSReceiptProps>(({
                             *** COPY RECEIPT ***
                         </div>
                     )}
-                    <h2 className="text-base font-black tracking-wider">RECEIPT</h2>
+                    {tabInfo?.isPending && (
+                        <div className="bg-orange-500 text-white text-xs font-black py-1 mb-2 tracking-widest">
+                            📋 TAB - BELUM LUNAS
+                        </div>
+                    )}
+                    <h2 className="text-base font-black tracking-wider">
+                        {tabInfo ? 'STRUK TAB' : 'RECEIPT'}
+                    </h2>
                     <p className="text-xs text-black tracking-[0.2em] font-bold">
                         ================================
                     </p>
                     <h3 className="font-black text-base mt-2">{storeName}</h3>
                     <p className="text-xs text-black font-semibold">{storeAddress}</p>
+                    {tabInfo && (
+                        <div className="mt-2 pt-2 border-t border-dashed border-gray-400">
+                            <p className="text-xs font-bold">Pelanggan: {tabInfo.customerName}</p>
+                            <p className="text-xs font-semibold">Transaksi #{tabInfo.transactionNumber} dari Tab</p>
+                        </div>
+                    )}
                 </div>
 
                 {/* Info */}
@@ -115,6 +140,12 @@ const POSReceipt = forwardRef<HTMLDivElement, POSReceiptProps>(({
                         <span className="text-black font-semibold">Kasir:</span>
                         <span className="font-semibold">{cashierName}</span>
                     </div>
+                    {returnRef && (
+                        <div className="flex justify-between mt-1 pt-1 border-t border-dashed border-gray-400">
+                            <span className="text-black font-semibold">↩ Ganti dari:</span>
+                            <span className="font-bold text-xs">{returnRef}</span>
+                        </div>
+                    )}
                 </div>
 
                 {/* Items header */}
@@ -181,11 +212,33 @@ const POSReceipt = forwardRef<HTMLDivElement, POSReceiptProps>(({
                     )}
                 </div>
 
+                {/* Tab Running Total */}
+                {tabInfo && tabInfo.isPending && (
+                    <div className="border-t-2 border-dashed border-black pt-3 bg-orange-50 -mx-4 px-4 py-2">
+                        <div className="flex justify-between text-xs font-bold">
+                            <span>TOTAL TAB (Akumulasi):</span>
+                            <span className="text-orange-700">{formatCurrency(tabInfo.runningTotal)}</span>
+                        </div>
+                        <p className="text-[10px] text-orange-600 mt-1 text-center font-semibold">
+                            *Belum lunas - bayar saat tab ditutup
+                        </p>
+                    </div>
+                )}
+
                 {/* Footer */}
                 <div className="text-center pt-3 border-t-2 border-dashed border-black">
-                    <p className="font-black text-base tracking-wider">TERIMA KASIH</p>
-                    <p className="text-xs text-black font-semibold mt-1">Barang yang sudah dibeli</p>
-                    <p className="text-xs text-black font-semibold">tidak dapat ditukar/dikembalikan</p>
+                    {tabInfo?.isPending ? (
+                        <>
+                            <p className="font-black text-base tracking-wider text-orange-600">SIMPAN STRUK INI</p>
+                            <p className="text-xs text-black font-semibold mt-1">Tab #{tabInfo.tabNumber}</p>
+                        </>
+                    ) : (
+                        <>
+                            <p className="font-black text-base tracking-wider">TERIMA KASIH</p>
+                            <p className="text-xs text-black font-semibold mt-1">Barang yang sudah dibeli</p>
+                            <p className="text-xs text-black font-semibold">tidak dapat ditukar/dikembalikan</p>
+                        </>
+                    )}
                 </div>
 
                 {/* Barcode */}
