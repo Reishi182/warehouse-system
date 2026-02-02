@@ -113,6 +113,16 @@ export interface Sale {
   amount_paid: number; // amount customer paid
   change_amount: number; // change returned to customer
   has_exchange?: boolean; // true if any item was exchanged
+  // Exchange tracking
+  is_exchanged?: boolean; // true if this sale was exchanged to another
+  exchanged_to_sale_id?: string | null;
+  exchanged_to_sale_number?: string | null;
+  exchange_from_sale_id?: string | null;
+  exchange_from_sale_number?: string | null;
+  // Cancellation tracking
+  is_cancelled?: boolean;
+  cancelled_at?: string | null;
+  cancelled_reason?: string | null;
   created_at: string;
   items: SaleItem[];
 }

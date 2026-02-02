@@ -82,6 +82,8 @@ export default function CashTransfer() {
     return sales.filter(
       (s) =>
         s.payment_method === 'cash' &&
+        !s.is_cancelled &&
+        !s.is_exchanged &&
         sameISODate(s.created_at, selectedDate) &&
         (!!user?.id ? s.cashier_id === user.id : true),
     );
@@ -140,11 +142,16 @@ export default function CashTransfer() {
   // Kasir: Saldo Tersedia = Cash Sales - (Approved + Pending)
   const kasirSaldoTersedia = Math.max(0, totalCashSales - totalMyApproved - myPendingAmount);
 
-  // Total all cash sales (for reference in deposit dialog)
+  // Total all cash sales (for reference in deposit dialog) - exclude cancelled/exchanged
   const totalAllCashSales = useMemo(() => {
     if (!canCreateRequest) return 0;
     return sales
-      .filter(s => s.payment_method === 'cash' && (!!user?.id ? s.cashier_id === user.id : true))
+      .filter(s =>
+        s.payment_method === 'cash' &&
+        !s.is_cancelled &&
+        !s.is_exchanged &&
+        (!!user?.id ? s.cashier_id === user.id : true)
+      )
       .reduce((acc, s) => acc + s.total_amount, 0);
   }, [sales, user?.id, canCreateRequest]);
 

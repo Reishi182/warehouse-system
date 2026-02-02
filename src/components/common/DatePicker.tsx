@@ -232,3 +232,288 @@ export function DateInput({
         />
     );
 }
+
+// Month input version (for monthly period selection)
+export interface MonthInputProps {
+    value: string; // ISO date string (YYYY-MM-DD) with day set to 01
+    onChange: (value: string) => void;
+    placeholder?: string;
+    className?: string;
+}
+
+const MONTHS = [
+    'Januari', 'Februari', 'Maret', 'April',
+    'Mei', 'Juni', 'Juli', 'Agustus',
+    'September', 'Oktober', 'November', 'Desember'
+];
+
+export function MonthInput({
+    value,
+    onChange,
+    placeholder = "Pilih bulan",
+    className,
+}: MonthInputProps) {
+    const [open, setOpen] = React.useState(false);
+    const date = value ? new Date(value + "T00:00:00") : undefined;
+    const [viewYear, setViewYear] = React.useState(date?.getFullYear() || new Date().getFullYear());
+
+    const handleSelect = (month: number) => {
+        const yyyy = viewYear;
+        const mm = String(month + 1).padStart(2, "0");
+        onChange(`${yyyy}-${mm}-01`);
+        setOpen(false);
+    };
+
+    const currentMonth = date ? date.getMonth() : -1;
+    const currentYear = date?.getFullYear();
+
+    return (
+        <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+                <Button
+                    variant="outline"
+                    className={cn(
+                        "w-full justify-between text-left font-normal group",
+                        "bg-background hover:bg-accent/50",
+                        "border-input hover:border-primary/50",
+                        "transition-all duration-200",
+                        "rounded-xl h-11",
+                        !date && "text-muted-foreground",
+                        className
+                    )}
+                >
+                    <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                            <CalendarIcon className="h-4 w-4 text-primary" />
+                        </div>
+                        <span className="font-medium">
+                            {date ? format(date, "MMMM yyyy", { locale: id }) : placeholder}
+                        </span>
+                    </div>
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[280px] p-0 rounded-2xl shadow-xl border-2" align="start">
+                <div className="p-3 space-y-3">
+                    {/* Year Navigation */}
+                    <div className="flex items-center justify-between">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 rounded-lg"
+                            onClick={() => setViewYear(y => y - 1)}
+                        >
+                            <ChevronDown className="h-4 w-4 rotate-90" />
+                        </Button>
+                        <span className="font-semibold">{viewYear}</span>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 rounded-lg"
+                            onClick={() => setViewYear(y => y + 1)}
+                        >
+                            <ChevronDown className="h-4 w-4 -rotate-90" />
+                        </Button>
+                    </div>
+
+                    {/* Months Grid */}
+                    <div className="grid grid-cols-3 gap-2">
+                        {MONTHS.map((monthName, idx) => {
+                            const isSelected = currentMonth === idx && currentYear === viewYear;
+                            const isCurrentMonth = new Date().getMonth() === idx && new Date().getFullYear() === viewYear;
+
+                            return (
+                                <Button
+                                    key={monthName}
+                                    variant={isSelected ? "default" : "ghost"}
+                                    size="sm"
+                                    className={cn(
+                                        "h-9 rounded-lg text-xs font-medium transition-all",
+                                        isSelected && "shadow-md",
+                                        isCurrentMonth && !isSelected && "bg-accent font-semibold"
+                                    )}
+                                    onClick={() => handleSelect(idx)}
+                                >
+                                    {monthName.slice(0, 3)}
+                                </Button>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Quick actions footer */}
+                <div className="border-t p-2 flex gap-2">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="flex-1 text-xs rounded-lg"
+                        onClick={() => {
+                            const now = new Date();
+                            setViewYear(now.getFullYear());
+                            handleSelect(now.getMonth());
+                        }}
+                    >
+                        Bulan Ini
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs rounded-lg text-muted-foreground"
+                        onClick={() => {
+                            onChange("");
+                            setOpen(false);
+                        }}
+                    >
+                        Hapus
+                    </Button>
+                </div>
+            </PopoverContent>
+        </Popover>
+    );
+}
+
+// Year input version (for yearly period selection)
+export interface YearInputProps {
+    value: string; // ISO date string (YYYY-MM-DD) with month and day set to 01-01
+    onChange: (value: string) => void;
+    placeholder?: string;
+    className?: string;
+    startYear?: number;
+    endYear?: number;
+}
+
+export function YearInput({
+    value,
+    onChange,
+    placeholder = "Pilih tahun",
+    className,
+    startYear,
+    endYear,
+}: YearInputProps) {
+    const [open, setOpen] = React.useState(false);
+    const date = value ? new Date(value + "T00:00:00") : undefined;
+    const currentYear = new Date().getFullYear();
+
+    const start = startYear || currentYear - 9;
+    const end = endYear || currentYear;
+    const years = Array.from({ length: end - start + 1 }, (_, i) => end - i);
+
+    const [page, setPage] = React.useState(0);
+    const pageSize = 12;
+    const pagedYears = years.slice(page * pageSize, (page + 1) * pageSize);
+    const totalPages = Math.ceil(years.length / pageSize);
+
+    const handleSelect = (year: number) => {
+        onChange(`${year}-01-01`);
+        setOpen(false);
+    };
+
+    const selectedYear = date?.getFullYear();
+
+    return (
+        <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+                <Button
+                    variant="outline"
+                    className={cn(
+                        "w-full justify-between text-left font-normal group",
+                        "bg-background hover:bg-accent/50",
+                        "border-input hover:border-primary/50",
+                        "transition-all duration-200",
+                        "rounded-xl h-11",
+                        !date && "text-muted-foreground",
+                        className
+                    )}
+                >
+                    <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                            <CalendarIcon className="h-4 w-4 text-primary" />
+                        </div>
+                        <span className="font-medium">
+                            {date ? format(date, "yyyy") : placeholder}
+                        </span>
+                    </div>
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[280px] p-0 rounded-2xl shadow-xl border-2" align="start">
+                <div className="p-3 space-y-3">
+                    {/* Page Navigation */}
+                    {totalPages > 1 && (
+                        <div className="flex items-center justify-between">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 rounded-lg"
+                                onClick={() => setPage(p => Math.min(p + 1, totalPages - 1))}
+                                disabled={page >= totalPages - 1}
+                            >
+                                <ChevronDown className="h-4 w-4 rotate-90" />
+                            </Button>
+                            <span className="text-sm text-muted-foreground">
+                                {pagedYears[pagedYears.length - 1]} - {pagedYears[0]}
+                            </span>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 rounded-lg"
+                                onClick={() => setPage(p => Math.max(p - 1, 0))}
+                                disabled={page <= 0}
+                            >
+                                <ChevronDown className="h-4 w-4 -rotate-90" />
+                            </Button>
+                        </div>
+                    )}
+
+                    {/* Years Grid */}
+                    <div className="grid grid-cols-3 gap-2">
+                        {pagedYears.map((year) => {
+                            const isSelected = selectedYear === year;
+                            const isCurrentYear = currentYear === year;
+
+                            return (
+                                <Button
+                                    key={year}
+                                    variant={isSelected ? "default" : "ghost"}
+                                    size="sm"
+                                    className={cn(
+                                        "h-9 rounded-lg text-sm font-medium transition-all",
+                                        isSelected && "shadow-md",
+                                        isCurrentYear && !isSelected && "bg-accent font-semibold"
+                                    )}
+                                    onClick={() => handleSelect(year)}
+                                >
+                                    {year}
+                                </Button>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Quick actions footer */}
+                <div className="border-t p-2 flex gap-2">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="flex-1 text-xs rounded-lg"
+                        onClick={() => {
+                            setPage(0);
+                            handleSelect(currentYear);
+                        }}
+                    >
+                        Tahun Ini
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs rounded-lg text-muted-foreground"
+                        onClick={() => {
+                            onChange("");
+                            setOpen(false);
+                        }}
+                    >
+                        Hapus
+                    </Button>
+                </div>
+            </PopoverContent>
+        </Popover>
+    );
+}

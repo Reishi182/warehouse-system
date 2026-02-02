@@ -2,6 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { sendNotificationToRole, sendNotificationToUser } from '@/hooks/useRealtimeNotifications';
 
 // Status flow: pending_review -> approved/rejected -> processing -> completed
 export type SuratJalanB2BStatus = 'pending_review' | 'approved' | 'rejected' | 'processing' | 'completed' | 'cancelled';
@@ -123,9 +124,17 @@ export function useSuratJalanB2B() {
 
             return sj;
         },
-        onSuccess: () => {
+        onSuccess: async () => {
             queryClient.invalidateQueries({ queryKey: ['surat-jalan-b2b'] });
             toast({ title: 'Surat Jalan Dibuat', description: 'Menunggu review dari Main Office' });
+
+            // Notify main office
+            sendNotificationToRole('main_office', {
+                title: 'Surat Jalan B2B Baru',
+                message: 'Ada surat jalan B2B baru yang perlu direview',
+                type: 'info',
+                link: '/surat-jalan-b2b',
+            });
         }
     });
 
@@ -171,12 +180,46 @@ export function useSuratJalanB2B() {
                 }
             }
         },
-        onSuccess: (_, variables) => {
+        onSuccess: async (_, variables) => {
             queryClient.invalidateQueries({ queryKey: ['surat-jalan-b2b'] });
             toast({
                 title: variables.approved ? 'Surat Jalan Disetujui' : 'Surat Jalan Ditolak',
                 description: variables.approved ? 'Kasir dapat memproses pesanan' : 'Surat jalan telah ditolak'
             });
+
+            // Get SJ creator and notify them
+            const { data: sj } = await supabase
+                .from('surat_jalan')
+                .select('created_by, number')
+                .eq('id', variables.suratJalanId)
+                .single();
+
+            if (sj?.created_by) {
+                sendNotificationToUser(sj.created_by, {
+                    title: variables.approved ? 'SJ B2B Disetujui' : 'SJ B2B Ditolak',
+                    message: `Surat Jalan ${sj.number} ${variables.approved ? 'disetujui, silakan proses' : 'ditolak'}`,
+                    type: variables.approved ? 'success' : 'error',
+                    link: '/surat-jalan-b2b',
+                });
+            }
+
+            // If approved and from gudang, notify warehouse
+            if (variables.approved) {
+                const { data: sjData } = await supabase
+                    .from('surat_jalan')
+                    .select('source_location, number')
+                    .eq('id', variables.suratJalanId)
+                    .single();
+
+                if (sjData?.source_location === 'gudang') {
+                    sendNotificationToRole('warehouse', {
+                        title: 'SJ B2B Disetujui',
+                        message: `Surat Jalan ${sjData.number} siap untuk diproses`,
+                        type: 'info',
+                        link: '/surat-jalan-b2b',
+                    });
+                }
+            }
         }
     });
 
@@ -301,10 +344,18 @@ export function useSuratJalanB2B() {
                 }
             }
         },
-        onSuccess: () => {
+        onSuccess: async () => {
             queryClient.invalidateQueries({ queryKey: ['surat-jalan-b2b'] });
             queryClient.invalidateQueries({ queryKey: ['products'] });
             toast({ title: 'Pesanan Selesai', description: 'Pengiriman berhasil diselesaikan dengan bukti' });
+
+            // Notify about completed order
+            await supabase.from('notifications').insert({
+                title: 'Pengiriman B2B Selesai',
+                message: 'Pengiriman surat jalan B2B telah selesai dengan bukti',
+                type: 'success',
+                link: '/surat-jalan-b2b',
+            });
         }
     });
 

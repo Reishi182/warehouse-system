@@ -33,7 +33,7 @@ export interface UsePOSCheckoutOptions {
     totalAmount: number;
     orderDiscount: number;
     stockLocation: Location;
-    onSuccess: () => void;
+    onSuccess: (newSaleId?: string, newSaleNumber?: string) => void;
     returnRef?: string | null;
 }
 
@@ -105,7 +105,8 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
         // Prepare items with product details
         const saleItems = items.map(it => {
             const itemTotal = it.product.price * it.quantity;
-            const itemDiscountAmount = itemTotal * (it.discount / 100);
+            // discount is now a fixed amount in Rupiah per item
+            const itemDiscountAmount = it.discount * it.quantity;
             return {
                 productId: it.product.id,
                 productName: it.product.name,
@@ -206,7 +207,7 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
             const changeAmount = paymentMethod === 'cash' ? Math.max(0, amountPaid - totalAmount) : 0;
             const finalAmountPaid = paymentMethod === 'cash' ? amountPaid : totalAmount;
 
-            const ok = await createSale({
+            const result = await createSale({
                 paymentMethod,
                 stockLocation,
                 items: items.map((it) => ({
@@ -218,10 +219,11 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
                 amountPaid: finalAmountPaid,
             });
 
-            if (ok) {
+            if (result) {
                 const saleItems = items.map(it => {
                     const itemTotal = it.product.price * it.quantity;
-                    const itemDiscountAmount = itemTotal * (it.discount / 100);
+                    // discount is now a fixed amount in Rupiah per item
+                    const itemDiscountAmount = it.discount * it.quantity;
                     return {
                         name: it.product.name,
                         quantity: it.quantity,
@@ -232,7 +234,7 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
                 });
 
                 setLastSale({
-                    saleNumber,
+                    saleNumber: result.saleNumber,
                     total: totalAmount,
                     subtotal,
                     orderDiscount,
@@ -251,7 +253,7 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
                     description: `Total Rp ${totalAmount.toLocaleString('id-ID')}`,
                 });
 
-                onSuccess();
+                onSuccess(result.saleId, result.saleNumber);
                 setAmountPaid(0);
             }
         } finally {

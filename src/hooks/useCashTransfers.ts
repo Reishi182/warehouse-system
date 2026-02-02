@@ -87,7 +87,15 @@ export function useCreateCashTransfer() {
             if (error) throw error;
             return transformCashTransfer(data);
         },
-        onSuccess: () => {
+        onSuccess: async (data) => {
+            // Add notification
+            await supabase.from('notifications').insert({
+                title: 'Setoran Cash Baru',
+                message: `${data.cashier_name} menyetorkan Rp ${data.amount.toLocaleString('id-ID')}`,
+                type: 'info',
+                link: '/finance/cash-transfers',
+            });
+
             queryClient.invalidateQueries({ queryKey: ['cash-transfers'] });
             toast({
                 title: 'Setoran berhasil',

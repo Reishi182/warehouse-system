@@ -543,9 +543,17 @@ export function useConfirmPOReceipt() {
 
             return { po, hasDiscrepancy, discrepancyItems };
         },
-        onSuccess: (result) => {
+        onSuccess: async (result) => {
             queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
             queryClient.invalidateQueries({ queryKey: ['products'] });
+
+            // Always notify main_office about PO receipt completion
+            await supabase.from('notifications').insert({
+                title: result.hasDiscrepancy ? '⚠️ PO Diterima dengan Selisih' : '✅ PO Diterima Lengkap',
+                message: `PO ${result.po.po_number} telah diterima${result.hasDiscrepancy ? ' dengan selisih, perlu follow-up' : ' dengan lengkap'}`,
+                type: result.hasDiscrepancy ? 'warning' : 'success',
+                link: '/purchase-orders',
+            });
 
             if (result.hasDiscrepancy) {
                 toast({

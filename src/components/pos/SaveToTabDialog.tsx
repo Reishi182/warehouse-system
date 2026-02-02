@@ -136,7 +136,8 @@ export function SaveToTabDialog({
     // Calculate cart total for display
     const cartTotal = cartItems.reduce((acc, item) => {
         const itemTotal = item.product.price * item.quantity;
-        const itemDiscount = itemTotal * (item.discount / 100);
+        // discount is now a fixed amount in Rupiah per item
+        const itemDiscount = item.discount * item.quantity;
         return acc + (itemTotal - itemDiscount);
     }, 0);
 

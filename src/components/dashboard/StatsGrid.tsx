@@ -36,9 +36,13 @@ export default function StatsGrid({
     const lowStockCount = products.filter(p => p.stock.gudang < 20 || p.stock.toko < 10).length;
     const pendingRequests = requests.filter(r => r.status === 'pending').length;
 
-    // Today's stats
+    // Today's stats - exclude cancelled and exchanged sales
     const todayIso = new Date().toISOString().slice(0, 10);
-    const salesToday = sales.filter(s => s.created_at.slice(0, 10) === todayIso);
+    const salesToday = sales.filter(s =>
+        s.created_at.slice(0, 10) === todayIso &&
+        !s.is_cancelled &&
+        !s.is_exchanged
+    );
     const transfersToday = cashTransfers.filter(t => t.transfer_date === todayIso);
 
     const totalSalesToday = salesToday.length;
@@ -47,11 +51,15 @@ export default function StatsGrid({
     const totalCashTransfer = transfersToday.reduce((acc, t) => acc + t.amount, 0);
     const saldoBelumDisetor = Math.max(0, cashSalesAmount - totalCashTransfer);
 
-    // Yesterday's stats for comparison
+    // Yesterday's stats for comparison - also exclude cancelled/exchanged
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayIso = yesterday.toISOString().slice(0, 10);
-    const salesYesterday = sales.filter(s => s.created_at.slice(0, 10) === yesterdayIso);
+    const salesYesterday = sales.filter(s =>
+        s.created_at.slice(0, 10) === yesterdayIso &&
+        !s.is_cancelled &&
+        !s.is_exchanged
+    );
     const yesterdayAmount = salesYesterday.reduce((acc, s) => acc + s.total_amount, 0);
     const salesChange = yesterdayAmount > 0 ? ((totalSalesAmount - yesterdayAmount) / yesterdayAmount * 100) : 0;
 

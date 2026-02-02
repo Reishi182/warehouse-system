@@ -165,7 +165,7 @@ const POSReceipt = forwardRef<HTMLDivElement, POSReceiptProps>(({
                             <div className="text-black text-xs pl-2 font-medium">
                                 {item.quantity} x {formatCurrency(item.price)}
                                 {item.discount > 0 && (
-                                    <span className="font-bold ml-1">(-{item.discount}%)</span>
+                                    <span className="font-bold ml-1">(-{formatCurrency(item.discount)})</span>
                                 )}
                             </div>
                         </div>
@@ -180,8 +180,8 @@ const POSReceipt = forwardRef<HTMLDivElement, POSReceiptProps>(({
                     </div>
                     {orderDiscount > 0 && (
                         <div className="flex justify-between font-bold">
-                            <span>Diskon ({orderDiscount}%)</span>
-                            <span>-{formatCurrency(Math.round(subtotal * orderDiscount / 100))}</span>
+                            <span>Diskon</span>
+                            <span>-{formatCurrency(orderDiscount)}</span>
                         </div>
                     )}
                     <div className="flex justify-between font-black text-base pt-1 border-t-2 border-black">

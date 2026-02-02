@@ -81,7 +81,7 @@ export function usePOSCart(initialLocation: Location = 'toko'): UsePOSCartReturn
         setItems((prev) =>
             prev.map((it) =>
                 it.product.id === productId
-                    ? { ...it, discount: Math.min(100, Math.max(0, discount)) }
+                    ? { ...it, discount: Math.max(0, discount) } // discount is now nominal Rupiah
                     : it
             ),
         );
@@ -165,7 +165,8 @@ export function usePOSCart(initialLocation: Location = 'toko'): UsePOSCartReturn
     const subtotal = useMemo(() => {
         return items.reduce((acc, it) => {
             const itemTotal = it.product.price * it.quantity;
-            const itemDiscount = itemTotal * (it.discount / 100);
+            // discount is now a fixed amount in Rupiah per item
+            const itemDiscount = it.discount * it.quantity;
             return acc + (itemTotal - itemDiscount);
         }, 0);
     }, [items]);

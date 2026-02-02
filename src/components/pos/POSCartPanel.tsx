@@ -1,25 +1,23 @@
-import { useState } from 'react';
 import {
     ShoppingCart,
     Trash2,
     Plus,
     Minus,
-    Receipt,
     CreditCard,
     Banknote,
     Package,
     X,
-    Percent,
     RotateCcw,
     ClipboardList,
     Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { PaymentMethod, Location } from '@/types';
+import { Input } from '@/components/ui/input';
+import { SearchableSelect } from '@/components/common/SearchableSelect';
+import { PaymentMethod, Location, CustomerTab } from '@/types';
 import { CartItem } from '@/hooks/usePOSCart';
 import { cn } from '@/lib/utils';
 
@@ -35,12 +33,16 @@ interface POSCartPanelProps {
     onRemoveItem: (productId: string) => void;
     onClearCart: () => void;
     onCheckout: () => void;
-    onSaveToTab?: () => void;
+    onSaveToTab?: (tabId: string) => void;
     isProcessing: boolean;
     todayStats: { count: number; total: number };
     returnRef?: string | null;
     onSetReturnRef?: (ref: string | null) => void;
     stockLocation: Location;
+    // Tab customer selection
+    openTabs?: CustomerTab[];
+    selectedTabId?: string | null;
+    onSelectTab?: (tabId: string | null) => void;
 }
 
 export function POSCartPanel({
@@ -61,10 +63,14 @@ export function POSCartPanel({
     returnRef,
     onSetReturnRef,
     stockLocation,
+    openTabs = [],
+    selectedTabId,
+    onSelectTab,
 }: POSCartPanelProps) {
     const itemCount = items.reduce((acc, it) => acc + it.quantity, 0);
-    const [showReturnInput, setShowReturnInput] = useState(false);
-    const [returnInputValue, setReturnInputValue] = useState('');
+
+    const selectedTab = openTabs.find(t => t.id === selectedTabId);
+    const isTabMode = !!selectedTabId;
 
     return (
         <div className="hidden md:flex fixed top-0 right-0 h-screen w-80 lg:w-[430px] flex-col border-l bg-gradient-to-b from-background via-background to-muted/20 shadow-2xl z-[60]">
@@ -109,63 +115,35 @@ export function POSCartPanel({
                     </div>
                 </div>
 
-                {/* Return/Exchange Button */}
-                {onSetReturnRef && !returnRef && !showReturnInput && (
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setShowReturnInput(true)}
-                        className="w-full mt-2 h-8 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50"
-                    >
-                        <RotateCcw className="w-3 h-3 mr-1" />
-                        Tukar Barang (Ref. INV)
-                    </Button>
-                )}
-
-                {/* Return Input */}
-                {showReturnInput && (
-                    <div className="flex items-center gap-2 mt-2">
-                        <Input
-                            value={returnInputValue}
-                            onChange={(e) => setReturnInputValue(e.target.value)}
-                            placeholder="No. Invoice (INV-xxx)"
-                            className="h-8 text-xs flex-1"
-                            autoFocus
+                {/* Nota Gantung Dropdown - Show when no exchange is active */}
+                {!returnRef && onSelectTab && (
+                    <div className="mt-2">
+                        <SearchableSelect
+                            options={[
+                                { value: '__normal__', label: 'Bayar Langsung (Normal)', description: 'Transaksi langsung tanpa tab' },
+                                ...openTabs.map((tab) => ({
+                                    value: tab.id,
+                                    label: tab.customer_name,
+                                    description: `Saldo: Rp ${tab.total_amount.toLocaleString('id-ID')}`
+                                }))
+                            ]}
+                            value={selectedTabId || '__normal__'}
+                            onValueChange={(val) => onSelectTab(val === '__normal__' ? null : val)}
+                            placeholder="Pilih Nota Gantung..."
+                            searchPlaceholder="Cari pelanggan..."
+                            emptyMessage="Pelanggan tidak ditemukan."
+                            className="h-8 text-xs"
                         />
-                        <Button
-                            size="sm"
-                            className="h-8 text-xs"
-                            onClick={() => {
-                                if (returnInputValue.trim() && onSetReturnRef) {
-                                    onSetReturnRef(returnInputValue.trim());
-                                    setShowReturnInput(false);
-                                    setReturnInputValue('');
-                                }
-                            }}
-                        >
-                            OK
-                        </Button>
-                        <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-8 text-xs"
-                            onClick={() => {
-                                setShowReturnInput(false);
-                                setReturnInputValue('');
-                            }}
-                        >
-                            Batal
-                        </Button>
                     </div>
                 )}
             </div>
 
-            {/* Return Reference Badge */}
+            {/* Return Reference Badge - Show when exchange is active (replaces nota gantung) */}
             {returnRef && (
                 <div className="px-3 py-2 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800 flex items-center justify-between">
                     <Badge className="bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400 border-0 rounded-full gap-1 text-xs">
                         <RotateCcw className="w-3 h-3" />
-                        Ganti dari: {returnRef}
+                        Ref Tukar Barang: {returnRef}
                     </Badge>
                     {onSetReturnRef && (
                         <Button
@@ -221,7 +199,7 @@ export function POSCartPanel({
                                         <p className="text-[10px] text-muted-foreground">
                                             Rp {it.product.price.toLocaleString('id-ID')}
                                             {it.discount > 0 && (
-                                                <span className="ml-1 text-emerald-600 font-medium">-{it.discount}%</span>
+                                                <span className="ml-1 text-emerald-600 font-medium">-Rp {it.discount.toLocaleString('id-ID')}</span>
                                             )}
                                         </p>
                                     </div>
@@ -313,68 +291,85 @@ export function POSCartPanel({
                         </span>
                     </div>
 
-                    {/* Payment Method Toggle */}
-                    <div className="grid grid-cols-2 gap-2">
-                        <button
-                            onClick={() => onPaymentMethodChange('cash')}
-                            className={cn(
-                                "flex items-center justify-center gap-1.5 h-9 rounded-xl text-xs font-medium transition-all",
-                                paymentMethod === 'cash'
-                                    ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30"
-                                    : "bg-muted/50 text-muted-foreground hover:bg-muted"
-                            )}
-                        >
-                            <Banknote className="w-4 h-4" />
-                            Tunai
-                        </button>
-                        <button
-                            onClick={() => onPaymentMethodChange('transfer')}
-                            className={cn(
-                                "flex items-center justify-center gap-1.5 h-9 rounded-xl text-xs font-medium transition-all",
-                                paymentMethod === 'transfer'
-                                    ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30"
-                                    : "bg-muted/50 text-muted-foreground hover:bg-muted"
-                            )}
-                        >
-                            <CreditCard className="w-4 h-4" />
-                            Transfer
-                        </button>
-                    </div>
+                    {/* Payment Method Toggle - Only show if NOT in tab mode */}
+                    {!isTabMode && (
+                        <div className="grid grid-cols-2 gap-2">
+                            <button
+                                onClick={() => onPaymentMethodChange('cash')}
+                                className={cn(
+                                    "flex items-center justify-center gap-1.5 h-9 rounded-xl text-xs font-medium transition-all",
+                                    paymentMethod === 'cash'
+                                        ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30"
+                                        : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                                )}
+                            >
+                                <Banknote className="w-4 h-4" />
+                                Tunai
+                            </button>
+                            <button
+                                onClick={() => onPaymentMethodChange('transfer')}
+                                className={cn(
+                                    "flex items-center justify-center gap-1.5 h-9 rounded-xl text-xs font-medium transition-all",
+                                    paymentMethod === 'transfer'
+                                        ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30"
+                                        : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                                )}
+                            >
+                                <CreditCard className="w-4 h-4" />
+                                Transfer
+                            </button>
+                        </div>
+                    )}
 
-                    {/* Checkout Button */}
-                    <Button
-                        className={cn(
-                            "w-full h-11 text-sm font-bold rounded-xl transition-all",
-                            "bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70",
-                            "shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30",
-                            items.length > 0 && !isProcessing && "animate-pulse-subtle"
-                        )}
-                        disabled={items.length === 0 || isProcessing}
-                        onClick={onCheckout}
-                    >
-                        {isProcessing ? (
-                            <>
-                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-                                Memproses...
-                            </>
-                        ) : (
-                            <>
-                                <Sparkles className="w-4 h-4 mr-2" />
-                                Bayar Sekarang
-                            </>
-                        )}
-                    </Button>
-
-                    {/* Save to Tab Button */}
-                    {onSaveToTab && (
+                    {/* Checkout Button - Only if NOT in tab mode */}
+                    {!isTabMode && (
                         <Button
-                            variant="outline"
-                            className="w-full h-9 text-xs rounded-xl border-amber-300 dark:border-amber-700 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/50"
-                            disabled={items.length === 0}
-                            onClick={onSaveToTab}
+                            className={cn(
+                                "w-full h-11 text-sm font-bold rounded-xl transition-all",
+                                "bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70",
+                                "shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30",
+                                items.length > 0 && !isProcessing && "animate-pulse-subtle"
+                            )}
+                            disabled={items.length === 0 || isProcessing}
+                            onClick={onCheckout}
                         >
-                            <ClipboardList className="w-4 h-4 mr-2" />
-                            Simpan ke Tab (Nota Gantung)
+                            {isProcessing ? (
+                                <>
+                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                                    Memproses...
+                                </>
+                            ) : (
+                                <>
+                                    <Sparkles className="w-4 h-4 mr-2" />
+                                    Bayar Sekarang
+                                </>
+                            )}
+                        </Button>
+                    )}
+
+                    {/* Save to Tab Button - Show when tab is selected */}
+                    {isTabMode && onSaveToTab && selectedTabId && (
+                        <Button
+                            className={cn(
+                                "w-full h-11 text-sm font-bold rounded-xl transition-all",
+                                "bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300",
+                                "shadow-lg shadow-amber-500/25 hover:shadow-xl hover:shadow-amber-500/30 text-white",
+                                items.length > 0 && !isProcessing && "animate-pulse-subtle"
+                            )}
+                            disabled={items.length === 0 || isProcessing}
+                            onClick={() => onSaveToTab(selectedTabId)}
+                        >
+                            {isProcessing ? (
+                                <>
+                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                                    Menyimpan...
+                                </>
+                            ) : (
+                                <>
+                                    <ClipboardList className="w-4 h-4 mr-2" />
+                                    Simpan ke Tab: {selectedTab?.customer_name}
+                                </>
+                            )}
                         </Button>
                     )}
                 </div>

@@ -119,13 +119,14 @@ export default function SalesHistory() {
         });
     }, [sales, startDate, endDate, selectedCashier, searchQuery]);
 
-    // Stats
+    // Stats - exclude cancelled and exchanged sales
     const stats = useMemo(() => {
-        const totalSales = filteredSales.length;
-        const totalRevenue = filteredSales.reduce((sum, s) => sum + s.total_amount, 0);
-        const cashTotal = filteredSales.filter(s => s.payment_method === 'cash').reduce((sum, s) => sum + s.total_amount, 0);
-        const transferTotal = filteredSales.filter(s => s.payment_method === 'transfer').reduce((sum, s) => sum + s.total_amount, 0);
-        const totalItems = filteredSales.reduce((sum, s) => sum + (s.items?.length || 0), 0);
+        const validSales = filteredSales.filter(s => !s.is_cancelled && !s.is_exchanged);
+        const totalSales = validSales.length;
+        const totalRevenue = validSales.reduce((sum, s) => sum + s.total_amount, 0);
+        const cashTotal = validSales.filter(s => s.payment_method === 'cash').reduce((sum, s) => sum + s.total_amount, 0);
+        const transferTotal = validSales.filter(s => s.payment_method === 'transfer').reduce((sum, s) => sum + s.total_amount, 0);
+        const totalItems = validSales.reduce((sum, s) => sum + (s.items?.length || 0), 0);
 
         return { totalSales, totalRevenue, cashTotal, transferTotal, totalItems };
     }, [filteredSales]);

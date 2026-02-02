@@ -3,10 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useReactToPrint } from 'react-to-print';
 import MainLayout from '@/components/layout/MainLayout';
 import PageSkeleton from '@/components/common/PageSkeleton';
-import ProductSearchSelect from '@/components/common/ProductSearchSelect';
 import POSReceipt from '@/components/pos/POSReceipt';
+import TabSummaryReceipt from '@/components/pos/TabSummaryReceipt';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -33,20 +32,17 @@ import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import {
     ArrowLeft,
-    Plus,
     Printer,
     CreditCard,
     XCircle,
     Package,
     Clock,
     CheckCircle2,
-    Trash2,
     User,
     Phone,
     MapPin,
 } from 'lucide-react';
-import { useTab, useAddTabTransaction, useSettleTab, useCancelTab } from '@/hooks/useTabs';
-import { useProducts } from '@/hooks/useProducts';
+import { useTab, useSettleTab, useCancelTab } from '@/hooks/useTabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStoreSettings } from '@/hooks/useStoreSettings';
 import { TabTransaction, PaymentMethod } from '@/types';
@@ -57,15 +53,13 @@ export default function TabDetail() {
     const { user } = useAuth();
     const { data: storeSettings } = useStoreSettings();
     const receiptRef = useRef<HTMLDivElement>(null);
+    const summaryReceiptRef = useRef<HTMLDivElement>(null);
 
-    const [isAddTxOpen, setIsAddTxOpen] = useState(false);
     const [isSettleOpen, setIsSettleOpen] = useState(false);
     const [isCancelOpen, setIsCancelOpen] = useState(false);
     const [selectedTx, setSelectedTx] = useState<TabTransaction | null>(null);
     const [isPrintOpen, setIsPrintOpen] = useState(false);
-
-    // Add transaction form state
-    const [cartItems, setCartItems] = useState<Array<{ productId: string; quantity: number }>>([]);
+    const [isPrintSummaryOpen, setIsPrintSummaryOpen] = useState(false);
 
     // Settle form state
     const [settleForm, setSettleForm] = useState({
@@ -77,8 +71,6 @@ export default function TabDetail() {
     const [cancelReason, setCancelReason] = useState('');
 
     const { data: tab, isLoading } = useTab(id || '');
-    const { data: products = [] } = useProducts();
-    const addTransaction = useAddTabTransaction();
     const settleTab = useSettleTab();
     const cancelTab = useCancelTab();
 
@@ -86,64 +78,17 @@ export default function TabDetail() {
         contentRef: receiptRef,
     });
 
+    const handlePrintSummary = useReactToPrint({
+        contentRef: summaryReceiptRef,
+    });
+
     const formatCurrency = (amount: number) =>
         new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
-
-    const cartTotal = useMemo(() => {
-        return cartItems.reduce((acc, item) => {
-            const product = products.find(p => p.id === item.productId);
-            return acc + (product?.price || 0) * item.quantity;
-        }, 0);
-    }, [cartItems, products]);
 
     const changeAmount = useMemo(() => {
         if (!tab) return 0;
         return Math.max(0, settleForm.amountPaid - tab.total_amount);
     }, [settleForm.amountPaid, tab]);
-
-    const handleAddProduct = (productId: string) => {
-        const existing = cartItems.find(i => i.productId === productId);
-        if (existing) {
-            setCartItems(cartItems.map(i =>
-                i.productId === productId ? { ...i, quantity: i.quantity + 1 } : i
-            ));
-        } else {
-            setCartItems([...cartItems, { productId, quantity: 1 }]);
-        }
-    };
-
-    const handleRemoveProduct = (productId: string) => {
-        setCartItems(cartItems.filter(i => i.productId !== productId));
-    };
-
-    const handleQuantityChange = (productId: string, quantity: number) => {
-        if (quantity <= 0) {
-            handleRemoveProduct(productId);
-        } else {
-            setCartItems(cartItems.map(i =>
-                i.productId === productId ? { ...i, quantity } : i
-            ));
-        }
-    };
-
-    const handleAddTransaction = () => {
-        if (!tab || !user || cartItems.length === 0) return;
-
-        addTransaction.mutate({
-            tabId: tab.id,
-            tabNumber: tab.tab_number,
-            stockLocation: tab.stock_location,
-            items: cartItems,
-            cashierId: user.id,
-            cashierName: user.name,
-            products: products.map(p => ({ id: p.id, name: p.name, barcode: p.barcode, price: p.price })),
-        }, {
-            onSuccess: () => {
-                setIsAddTxOpen(false);
-                setCartItems([]);
-            },
-        });
-    };
 
     const handleSettle = () => {
         if (!tab || !user) return;
@@ -269,14 +214,26 @@ export default function TabDetail() {
                             </div>
                         </div>
 
+                        {/* Print Summary Button for Settled Tabs */}
+                        {tab.status === 'settled' && (
+                            <>
+                                <Separator className="my-4" />
+                                <div className="flex flex-wrap gap-2">
+                                    <Button
+                                        onClick={() => setIsPrintSummaryOpen(true)}
+                                        className="gap-2 rounded-xl"
+                                    >
+                                        <Printer className="w-4 h-4" />
+                                        Cetak Rekap Tab
+                                    </Button>
+                                </div>
+                            </>
+                        )}
+
                         {tab.status === 'open' && (
                             <>
                                 <Separator className="my-4" />
                                 <div className="flex flex-wrap gap-2">
-                                    <Button onClick={() => setIsAddTxOpen(true)} className="gap-2 rounded-xl">
-                                        <Plus className="w-4 h-4" />
-                                        Tambah Transaksi
-                                    </Button>
                                     <Button
                                         variant="outline"
                                         onClick={() => {
@@ -316,12 +273,7 @@ export default function TabDetail() {
                             <div className="text-center py-8 text-muted-foreground">
                                 <Package className="w-12 h-12 mx-auto mb-2 opacity-50" />
                                 <p>Belum ada transaksi</p>
-                                {tab.status === 'open' && (
-                                    <Button onClick={() => setIsAddTxOpen(true)} className="mt-4 gap-2">
-                                        <Plus className="w-4 h-4" />
-                                        Tambah Transaksi Pertama
-                                    </Button>
-                                )}
+                                <p className="text-sm mt-2">Tambahkan produk dari POS untuk tab ini</p>
                             </div>
                         ) : (
                             <div className="space-y-4">
@@ -361,78 +313,6 @@ export default function TabDetail() {
                     </CardContent>
                 </Card>
             </div>
-
-            {/* Add Transaction Dialog */}
-            <Dialog open={isAddTxOpen} onOpenChange={setIsAddTxOpen}>
-                <DialogContent className="rounded-2xl max-w-lg">
-                    <DialogHeader>
-                        <DialogTitle>Tambah Transaksi</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                        <ProductSearchSelect
-                            products={products}
-                            onSelect={handleAddProduct}
-                            stockLocation={tab.stock_location}
-                            showStock
-                        />
-
-                        {cartItems.length > 0 && (
-                            <div className="space-y-2 max-h-60 overflow-y-auto">
-                                {cartItems.map(item => {
-                                    const product = products.find(p => p.id === item.productId);
-                                    if (!product) return null;
-                                    return (
-                                        <div key={item.productId} className="flex items-center justify-between p-2 bg-muted rounded-lg">
-                                            <div className="flex-1">
-                                                <p className="font-medium text-sm">{product.name}</p>
-                                                <p className="text-xs text-muted-foreground">
-                                                    {formatCurrency(product.price)} x {item.quantity} = {formatCurrency(product.price * item.quantity)}
-                                                </p>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <Input
-                                                    type="number"
-                                                    min={1}
-                                                    value={item.quantity}
-                                                    onChange={(e) => handleQuantityChange(item.productId, parseInt(e.target.value) || 0)}
-                                                    className="w-16 h-8 text-center"
-                                                />
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => handleRemoveProduct(item.productId)}
-                                                    className="h-8 w-8 text-red-500"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        )}
-
-                        {cartItems.length > 0 && (
-                            <div className="flex justify-between items-center p-3 bg-primary/10 rounded-xl">
-                                <span className="font-semibold">Total Transaksi</span>
-                                <span className="text-xl font-bold">{formatCurrency(cartTotal)}</span>
-                            </div>
-                        )}
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsAddTxOpen(false)} className="rounded-xl">
-                            Batal
-                        </Button>
-                        <Button
-                            onClick={handleAddTransaction}
-                            disabled={cartItems.length === 0 || addTransaction.isPending}
-                            className="rounded-xl"
-                        >
-                            {addTransaction.isPending ? 'Menyimpan...' : 'Simpan Transaksi'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
 
             {/* Settle Tab Dialog */}
             <Dialog open={isSettleOpen} onOpenChange={setIsSettleOpen}>
@@ -571,6 +451,32 @@ export default function TabDetail() {
                             Tutup
                         </Button>
                         <Button onClick={() => handlePrint()} className="rounded-xl gap-2">
+                            <Printer className="w-4 h-4" />
+                            Cetak
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Print Summary Receipt Dialog */}
+            <Dialog open={isPrintSummaryOpen} onOpenChange={setIsPrintSummaryOpen}>
+                <DialogContent className="rounded-2xl max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle>Cetak Rekap Tab</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <TabSummaryReceipt
+                            ref={summaryReceiptRef}
+                            tab={tab}
+                            storeName={storeSettings?.store_name || 'WAREHOUSE SYSTEM'}
+                            storeAddress={storeSettings?.store_address || ''}
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsPrintSummaryOpen(false)} className="rounded-xl">
+                            Tutup
+                        </Button>
+                        <Button onClick={() => handlePrintSummary()} className="rounded-xl gap-2">
                             <Printer className="w-4 h-4" />
                             Cetak
                         </Button>

@@ -16,16 +16,31 @@ function transformNotification(row: any): Notification {
     };
 }
 
-// Fetch notifications for a user
+// Fetch notifications for a user (including global notifications without user_id)
 async function fetchNotifications(userId: string): Promise<Notification[]> {
-    const { data, error } = await supabase
+    // Fetch user-specific notifications
+    const { data: userNotifs, error: userError } = await supabase
         .from('notifications')
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
-    if (error) throw error;
-    return (data || []).map(transformNotification);
+    if (userError) throw userError;
+
+    // Fetch global notifications (no user_id = visible to all)
+    const { data: globalNotifs, error: globalError } = await supabase
+        .from('notifications')
+        .select('*')
+        .is('user_id', null)
+        .order('created_at', { ascending: false });
+
+    if (globalError) throw globalError;
+
+    // Combine and sort by created_at
+    const allNotifs = [...(userNotifs || []), ...(globalNotifs || [])];
+    allNotifs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    return allNotifs.map(transformNotification);
 }
 
 // Hook to get user notifications

@@ -236,7 +236,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     let query = supabase
       .from('sales')
-      .select('id, sale_number, cashier_id, cashier_name, payment_method, stock_location, total_amount, order_discount, amount_paid, change_amount, created_at, sale_items(id, sale_id, product_id, product_name, barcode, quantity, price, subtotal, discount)')
+      .select('id, sale_number, cashier_id, cashier_name, payment_method, stock_location, total_amount, order_discount, amount_paid, change_amount, created_at, is_exchanged, exchanged_to_sale_id, exchanged_to_sale_number, exchange_from_sale_id, exchange_from_sale_number, is_cancelled, cancelled_at, cancelled_reason, sale_items(id, sale_id, product_id, product_name, barcode, quantity, price, subtotal, discount)')
       .order('created_at', { ascending: false })
       .limit(100);
 
@@ -263,6 +263,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       order_discount: s.order_discount || 0,
       amount_paid: s.amount_paid || 0,
       change_amount: s.change_amount || 0,
+      // Exchange tracking
+      is_exchanged: s.is_exchanged || false,
+      exchanged_to_sale_id: s.exchanged_to_sale_id,
+      exchanged_to_sale_number: s.exchanged_to_sale_number,
+      exchange_from_sale_id: s.exchange_from_sale_id,
+      exchange_from_sale_number: s.exchange_from_sale_number,
+      // Cancellation tracking
+      is_cancelled: s.is_cancelled || false,
+      cancelled_at: s.cancelled_at,
+      cancelled_reason: s.cancelled_reason,
       created_at: s.created_at,
       items: (s.sale_items || []).map((it: any): SaleItem => ({
         id: it.id,
@@ -496,16 +506,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const rand = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
     const saleNumber = `INV/${yyyy}${mm}${dd}-${rand}`;
 
-    // Calculate subtotal with per-item discounts
+    // Calculate subtotal with per-item discounts (discount is now nominal Rupiah per item)
     const subtotal = items.reduce((acc, it) => {
       const itemTotal = it.product!.price * it.quantity;
-      const itemDiscountAmount = itemTotal * (it.discount / 100);
+      const itemDiscountAmount = it.discount * it.quantity;
       return acc + (itemTotal - itemDiscountAmount);
     }, 0);
 
-    // Apply order-level discount
-    const orderDiscountAmount = subtotal * (data.orderDiscount / 100);
-    const totalAmount = Math.round(subtotal - orderDiscountAmount);
+    // Apply order-level discount (now a fixed amount in Rupiah)
+    const totalAmount = Math.round(Math.max(0, subtotal - data.orderDiscount));
 
     // Calculate change
     const changeAmount = Math.max(0, data.amountPaid - totalAmount);
@@ -528,12 +537,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     if (saleError || !saleRow) {
       toast({ title: 'Gagal membuat penjualan', description: saleError?.message || 'Unknown error', variant: 'destructive' });
-      return false;
+      return null;
     }
 
     const saleItems = items.map(it => {
       const itemTotal = it.product!.price * it.quantity;
-      const itemDiscountAmount = itemTotal * (it.discount / 100);
+      // discount is now a fixed amount in Rupiah per item
+      const itemDiscountAmount = it.discount * it.quantity;
       return {
         sale_id: saleRow.id,
         product_id: it.productId,
@@ -549,7 +559,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const { error: itemsError } = await supabase.from('sale_items').insert(saleItems);
     if (itemsError) {
       toast({ title: 'Gagal simpan item penjualan', description: itemsError.message, variant: 'destructive' });
-      return false;
+      return null;
     }
 
     for (const it of items) {
@@ -564,7 +574,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       if (stockError) {
         toast({ title: 'Gagal update stok', description: stockError.message, variant: 'destructive' });
-        return false;
+        return null;
       }
 
       await supabase.from('stock_logs').insert({
@@ -585,7 +595,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     });
 
     await refreshData();
-    return true;
+    return { saleId: saleRow.id, saleNumber };
   };
 
 

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { StockOpname, StockOpnameStatus, Location } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { sendNotificationToRole } from '@/hooks/useRealtimeNotifications';
 
 // Transform database row to StockOpname type
 function transformOpname(row: any): StockOpname {
@@ -104,7 +105,21 @@ export function useCreateStockOpname() {
             if (error) throw error;
             return data;
         },
-        onSuccess: () => {
+        onSuccess: async () => {
+            // Notify auditor about new stock opname
+            await supabase.from('notifications').insert({
+                title: 'Stok Opname Baru',
+                message: 'Ada stok opname baru yang membutuhkan persetujuan',
+                type: 'info',
+                link: '/inventory/stock-opname',
+            });
+            sendNotificationToRole('auditor', {
+                title: 'Stok Opname Baru',
+                message: 'Ada stok opname baru yang membutuhkan persetujuan',
+                type: 'info',
+                link: '/inventory/stock-opname',
+            });
+
             queryClient.invalidateQueries({ queryKey: ['stock-opname'] });
             toast({
                 title: 'Stok opname dicatat',
@@ -184,7 +199,15 @@ export function useApproveStockOpname() {
 
             if (logError) console.error('Failed to log adjustment:', logError);
         },
-        onSuccess: () => {
+        onSuccess: async () => {
+            // Notify about approved stock opname
+            await supabase.from('notifications').insert({
+                title: 'Stok Opname Disetujui',
+                message: 'Stok produk telah disesuaikan berdasarkan hasil opname',
+                type: 'success',
+                link: '/inventory/stock-opname',
+            });
+
             queryClient.invalidateQueries({ queryKey: ['stock-opname'] });
             queryClient.invalidateQueries({ queryKey: ['products'] });
             queryClient.invalidateQueries({ queryKey: ['stock-logs'] });
@@ -233,7 +256,15 @@ export function useRejectStockOpname() {
 
             if (error) throw error;
         },
-        onSuccess: () => {
+        onSuccess: async () => {
+            // Notify about rejected stock opname
+            await supabase.from('notifications').insert({
+                title: 'Stok Opname Ditolak',
+                message: 'Pengajuan penyesuaian stok telah ditolak',
+                type: 'warning',
+                link: '/inventory/stock-opname',
+            });
+
             queryClient.invalidateQueries({ queryKey: ['stock-opname'] });
             toast({
                 title: 'Stok opname ditolak',

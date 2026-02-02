@@ -91,6 +91,7 @@ export function useTab(tabId: string) {
         queryKey: ['customer-tab', tabId],
         queryFn: () => fetchTabWithTransactions(tabId),
         enabled: !!tabId,
+        staleTime: 0, // Always refetch fresh data
     });
 }
 
@@ -141,7 +142,15 @@ export function useCreateTab() {
             if (error) throw error;
             return data as CustomerTab;
         },
-        onSuccess: () => {
+        onSuccess: async (data) => {
+            // Notify about new tab
+            await supabase.from('notifications').insert({
+                title: 'Tab Baru Dibuat',
+                message: `Tab ${data.tab_number} untuk ${data.customer_name} dibuat`,
+                type: 'info',
+                link: '/pos/tabs',
+            });
+
             queryClient.invalidateQueries({ queryKey: ['customer-tabs'] });
             toast({
                 title: 'Tab berhasil dibuat',
@@ -410,7 +419,15 @@ export function useSettleTab() {
             if (error) throw error;
             return data as CustomerTab;
         },
-        onSuccess: (_, variables) => {
+        onSuccess: async (data, variables) => {
+            // Notify about settled tab
+            await supabase.from('notifications').insert({
+                title: 'Tab Diselesaikan',
+                message: `Tab ${data.tab_number} untuk ${data.customer_name} telah dilunasi Rp ${data.total_amount.toLocaleString('id-ID')}`,
+                type: 'success',
+                link: '/pos/tabs',
+            });
+
             queryClient.invalidateQueries({ queryKey: ['customer-tabs'] });
             queryClient.invalidateQueries({ queryKey: ['customer-tab', variables.tabId] });
             queryClient.invalidateQueries({ queryKey: ['sales'] }); // Refresh sales list
@@ -498,7 +515,15 @@ export function useCancelTab() {
             if (error) throw error;
             return data as CustomerTab;
         },
-        onSuccess: (_, variables) => {
+        onSuccess: async (data, variables) => {
+            // Notify about cancelled tab
+            await supabase.from('notifications').insert({
+                title: 'Tab Dibatalkan',
+                message: `Tab ${data.tab_number} untuk ${data.customer_name} dibatalkan, stok dikembalikan`,
+                type: 'warning',
+                link: '/pos/tabs',
+            });
+
             queryClient.invalidateQueries({ queryKey: ['customer-tabs'] });
             queryClient.invalidateQueries({ queryKey: ['customer-tab', variables.tabId] });
             queryClient.invalidateQueries({ queryKey: ['products'] });
@@ -511,6 +536,114 @@ export function useCancelTab() {
         onError: (error: Error) => {
             toast({
                 title: 'Gagal membatalkan tab',
+                description: error.message,
+                variant: 'destructive',
+            });
+        },
+    });
+}
+
+// Delete a single transaction from a tab (return stock)
+export function useDeleteTabTransaction() {
+    const queryClient = useQueryClient();
+    const { toast } = useToast();
+
+    return useMutation({
+        mutationFn: async ({
+            tabId,
+            transactionId,
+            deletedBy,
+        }: {
+            tabId: string;
+            transactionId: string;
+            deletedBy: string;
+        }) => {
+            // Fetch the tab data to get stock location
+            const tabData = await fetchTabWithTransactions(tabId);
+            if (!tabData) throw new Error('Tab tidak ditemukan');
+            if (tabData.status !== 'open') throw new Error('Hanya bisa menghapus transaksi dari tab yang masih aktif');
+
+            // Find the transaction to delete
+            const transaction = tabData.transactions?.find(tx => tx.id === transactionId);
+            if (!transaction) throw new Error('Transaksi tidak ditemukan');
+
+            const stockLocation = tabData.stock_location;
+            const stockField = `stock_${stockLocation}`;
+
+            // Return stock for all items in this transaction
+            for (const item of transaction.items || []) {
+                const { data: product } = await supabase
+                    .from('products')
+                    .select('*')
+                    .eq('id', item.product_id)
+                    .single();
+
+                if (product) {
+                    const newStock = (product[stockField] || 0) + item.quantity;
+                    await supabase
+                        .from('products')
+                        .update({ [stockField]: newStock })
+                        .eq('id', item.product_id);
+
+                    await supabase.from('stock_logs').insert({
+                        product_id: item.product_id,
+                        type: 'in',
+                        quantity: item.quantity,
+                        location: stockLocation,
+                        user_id: deletedBy,
+                        note: `Transaksi dihapus dari Tab ${tabData.tab_number} - stok dikembalikan`,
+                    });
+                }
+            }
+
+            // Delete transaction items first
+            const { error: itemsDeleteError } = await supabase
+                .from('tab_transaction_items')
+                .delete()
+                .eq('transaction_id', transactionId);
+
+            if (itemsDeleteError) {
+                console.error('Failed to delete transaction items:', itemsDeleteError);
+                throw new Error('Gagal menghapus item transaksi: ' + itemsDeleteError.message);
+            }
+
+            // Delete the transaction
+            const { error: txError } = await supabase
+                .from('tab_transactions')
+                .delete()
+                .eq('id', transactionId);
+
+            if (txError) {
+                console.error('Failed to delete transaction:', txError);
+                throw new Error('Gagal menghapus transaksi: ' + txError.message);
+            }
+
+            // Update tab total_amount
+            const newTotal = tabData.total_amount - transaction.subtotal;
+            const { data, error } = await supabase
+                .from('customer_tabs')
+                .update({ total_amount: Math.max(0, newTotal) })
+                .eq('id', tabId)
+                .select()
+                .single();
+
+            if (error) throw error;
+            return data as CustomerTab;
+        },
+        onSuccess: async (data, variables) => {
+            // Force refetch to ensure UI updates immediately
+            await queryClient.refetchQueries({ queryKey: ['customer-tab', variables.tabId] });
+            await queryClient.refetchQueries({ queryKey: ['customer-tabs'] });
+            queryClient.invalidateQueries({ queryKey: ['products'] });
+            queryClient.invalidateQueries({ queryKey: ['stock-logs'] });
+            toast({
+                title: 'Transaksi dihapus',
+                description: 'Stok telah dikembalikan',
+            });
+        },
+        onError: (error: Error) => {
+            toast({
+                title: 'Gagal menghapus transaksi',
                 description: error.message,
                 variant: 'destructive',
             });

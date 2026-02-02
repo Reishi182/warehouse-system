@@ -25,12 +25,18 @@ export function RoleCharts({
     suratJalans,
     cashTransfers
 }: RoleChartsProps) {
+    // Filter out cancelled and exchanged sales for all calculations
+    const validSales = useMemo(() =>
+        sales.filter(s => !s.is_cancelled && !s.is_exchanged),
+        [sales]
+    );
+
     // Generate monthly sales data for performance chart
     const monthlySalesData = useMemo(() => {
         const months = Array(12).fill(0);
         const currentYear = new Date().getFullYear();
 
-        sales.forEach(sale => {
+        validSales.forEach(sale => {
             const date = new Date(sale.created_at);
             if (date.getFullYear() === currentYear) {
                 months[date.getMonth()] += sale.total_amount;
@@ -38,12 +44,12 @@ export function RoleCharts({
         });
 
         return months;
-    }, [sales]);
+    }, [validSales]);
 
     // Calculate total revenue
     const totalRevenue = useMemo(() => {
-        return sales.reduce((acc, s) => acc + s.total_amount, 0);
-    }, [sales]);
+        return validSales.reduce((acc, s) => acc + s.total_amount, 0);
+    }, [validSales]);
 
     // Calculate revenue change (this month vs last month)
     const revenueChange = useMemo(() => {
@@ -134,12 +140,12 @@ export function RoleCharts({
                 return (
                     <div className="space-y-6 mb-6">
                         {/* Revenue Summary Cards */}
-                        <RevenueSummaryCards sales={sales} />
+                        <RevenueSummaryCards sales={validSales} />
 
                         {/* Charts Row 1 */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            <RevenueComparisonChart sales={sales} />
-                            <RevenueByPaymentChart sales={sales} />
+                            <RevenueComparisonChart sales={validSales} />
+                            <RevenueByPaymentChart sales={validSales} />
                         </div>
 
                         {/* Charts Row 2 */}
@@ -152,7 +158,7 @@ export function RoleCharts({
                                     data={monthlySalesData}
                                 />
                             </div>
-                            <TopRevenueProducts sales={sales} products={products} />
+                            <TopRevenueProducts sales={validSales} products={products} />
                         </div>
 
                         {/* Stock Distribution */}
@@ -183,11 +189,11 @@ export function RoleCharts({
                 return (
                     <div className="space-y-6 mb-6">
                         {/* Revenue Summary - Daily focus for cashier */}
-                        <RevenueSummaryCards sales={sales} />
+                        <RevenueSummaryCards sales={validSales} />
 
                         {/* Charts */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            <RevenueByPaymentChart sales={sales} days={7} />
+                            <RevenueByPaymentChart sales={validSales} days={7} />
                             <DonutChart
                                 title="Status Permintaan Stok"
                                 totalLabel="Total"
@@ -242,12 +248,12 @@ export function RoleCharts({
                 return (
                     <div className="space-y-6 mb-6">
                         {/* Revenue Summary */}
-                        <RevenueSummaryCards sales={sales} />
+                        <RevenueSummaryCards sales={validSales} />
 
                         {/* Charts Row 1 */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            <RevenueComparisonChart sales={sales} />
-                            <RevenueByPaymentChart sales={sales} />
+                            <RevenueComparisonChart sales={validSales} />
+                            <RevenueByPaymentChart sales={validSales} />
                         </div>
 
                         {/* Charts Row 2 */}
@@ -260,7 +266,7 @@ export function RoleCharts({
                                     data={monthlySalesData}
                                 />
                             </div>
-                            <TopRevenueProducts sales={sales} products={products} />
+                            <TopRevenueProducts sales={validSales} products={products} />
                         </div>
 
                         {/* Status Charts */}

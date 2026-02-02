@@ -57,13 +57,25 @@ export function useCancelSale() {
                 });
             }
 
-            // 2. Delete the sale record (cascade will delete sale_items too)
+            // 2. Mark the sale as cancelled (instead of deleting)
             const { error: saleError } = await supabase
                 .from('sales')
-                .delete()
+                .update({
+                    is_cancelled: true,
+                    cancelled_at: new Date().toISOString(),
+                    cancelled_reason: input.reason,
+                } as any)
                 .eq('id', input.saleId);
 
             if (saleError) throw saleError;
+
+            // 3. Add notification
+            await supabase.from('notifications').insert({
+                title: 'Penjualan Dibatalkan',
+                message: `Penjualan ${input.saleNumber} dibatalkan oleh ${input.cancelledByName}. Alasan: ${input.reason}`,
+                type: 'warning',
+                link: '/pos',
+            });
 
             return { saleNumber: input.saleNumber };
         },
@@ -71,6 +83,7 @@ export function useCancelSale() {
             queryClient.invalidateQueries({ queryKey: ['sales'] });
             queryClient.invalidateQueries({ queryKey: ['products'] });
             queryClient.invalidateQueries({ queryKey: ['stock-logs'] });
+            queryClient.invalidateQueries({ queryKey: ['notifications'] });
             toast.success(`Penjualan ${data.saleNumber} berhasil dibatalkan`);
         },
         onError: (error) => {

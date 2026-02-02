@@ -1,6 +1,5 @@
 import { useState, useMemo, useRef } from 'react';
 import { useReactToPrint } from 'react-to-print';
-import ProductSearchSelect from '@/components/common/ProductSearchSelect';
 import POSReceipt from '@/components/pos/POSReceipt';
 import TabSummaryReceipt from '@/components/pos/TabSummaryReceipt';
 import { Button } from '@/components/ui/button';
@@ -36,15 +35,14 @@ import {
     XCircle,
     Clock,
     CheckCircle2,
-    Trash2,
     User,
     ChevronRight,
     ArrowLeft,
     Package,
     FileText,
+    Trash2,
 } from 'lucide-react';
-import { useTabs, useTab, useCreateTab, useAddTabTransaction, useSettleTab, useCancelTab } from '@/hooks/useTabs';
-import { useProducts } from '@/hooks/useProducts';
+import { useTabs, useTab, useCreateTab, useSettleTab, useCancelTab, useDeleteTabTransaction } from '@/hooks/useTabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStoreSettings } from '@/hooks/useStoreSettings';
 import { CustomerTab, TabTransaction, PaymentMethod, Location } from '@/types';
@@ -69,10 +67,6 @@ export function TabDialog({ open, onOpenChange, stockLocation }: TabDialogProps)
     // Create form state
     const [createForm, setCreateForm] = useState({ customerName: '', customerPhone: '' });
 
-    // Add transaction state
-    const [isAddingTx, setIsAddingTx] = useState(false);
-    const [cartItems, setCartItems] = useState<Array<{ productId: string; quantity: number }>>([]);
-
     // Settle state
     const [isSettling, setIsSettling] = useState(false);
     const [settleForm, setSettleForm] = useState({ paymentMethod: 'cash' as PaymentMethod, amountPaid: 0 });
@@ -86,14 +80,16 @@ export function TabDialog({ open, onOpenChange, stockLocation }: TabDialogProps)
     const [isPrintOpen, setIsPrintOpen] = useState(false);
     const [isPrintSummaryOpen, setIsPrintSummaryOpen] = useState(false);
 
+    // Delete transaction state
+    const [txToDelete, setTxToDelete] = useState<TabTransaction | null>(null);
+
     // Data hooks
     const { data: tabs = [], isLoading } = useTabs();
-    const { data: selectedTab } = useTab(selectedTabId || '');
-    const { data: products = [] } = useProducts();
+    const { data: selectedTab, refetch: refetchTab } = useTab(selectedTabId || '');
     const createTab = useCreateTab();
-    const addTransaction = useAddTabTransaction();
     const settleTab = useSettleTab();
     const cancelTab = useCancelTab();
+    const deleteTransaction = useDeleteTabTransaction();
 
     const handlePrint = useReactToPrint({ contentRef: receiptRef });
     const handlePrintSummary = useReactToPrint({ contentRef: summaryReceiptRef });
@@ -107,13 +103,6 @@ export function TabDialog({ open, onOpenChange, stockLocation }: TabDialogProps)
 
     const formatCurrency = (amount: number) =>
         new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
-
-    const cartTotal = useMemo(() => {
-        return cartItems.reduce((acc, item) => {
-            const product = products.find(p => p.id === item.productId);
-            return acc + (product?.price || 0) * item.quantity;
-        }, 0);
-    }, [cartItems, products]);
 
     const changeAmount = useMemo(() => {
         if (!selectedTab) return 0;
@@ -134,50 +123,6 @@ export function TabDialog({ open, onOpenChange, stockLocation }: TabDialogProps)
                 setCreateForm({ customerName: '', customerPhone: '' });
                 setSelectedTabId(newTab.id);
                 setView('detail');
-            },
-        });
-    };
-
-    const handleAddProduct = (productId: string) => {
-        const existing = cartItems.find(i => i.productId === productId);
-        if (existing) {
-            setCartItems(cartItems.map(i =>
-                i.productId === productId ? { ...i, quantity: i.quantity + 1 } : i
-            ));
-        } else {
-            setCartItems([...cartItems, { productId, quantity: 1 }]);
-        }
-    };
-
-    const handleRemoveProduct = (productId: string) => {
-        setCartItems(cartItems.filter(i => i.productId !== productId));
-    };
-
-    const handleQuantityChange = (productId: string, quantity: number) => {
-        if (quantity <= 0) {
-            handleRemoveProduct(productId);
-        } else {
-            setCartItems(cartItems.map(i =>
-                i.productId === productId ? { ...i, quantity } : i
-            ));
-        }
-    };
-
-    const handleAddTransaction = () => {
-        if (!selectedTab || !profile || cartItems.length === 0) return;
-
-        addTransaction.mutate({
-            tabId: selectedTab.id,
-            tabNumber: selectedTab.tab_number,
-            stockLocation: selectedTab.stock_location,
-            items: cartItems,
-            cashierId: profile.user_id,
-            cashierName: profile.name,
-            products: products.map(p => ({ id: p.id, name: p.name, barcode: p.barcode, price: p.price })),
-        }, {
-            onSuccess: () => {
-                setIsAddingTx(false);
-                setCartItems([]);
             },
         });
     };
@@ -227,7 +172,6 @@ export function TabDialog({ open, onOpenChange, stockLocation }: TabDialogProps)
     const goBackToList = () => {
         setView('list');
         setSelectedTabId(null);
-        setIsAddingTx(false);
     };
 
     const getRunningTotal = (txIndex: number) => {
@@ -241,7 +185,6 @@ export function TabDialog({ open, onOpenChange, stockLocation }: TabDialogProps)
         if (!open) {
             setView('list');
             setSelectedTabId(null);
-            setIsAddingTx(false);
         }
         onOpenChange(open);
     };
@@ -385,9 +328,6 @@ export function TabDialog({ open, onOpenChange, stockLocation }: TabDialogProps)
                                     {/* Actions */}
                                     {selectedTab.status === 'open' && (
                                         <div className="flex flex-wrap gap-2">
-                                            <Button onClick={() => setIsAddingTx(true)} className="flex-1 rounded-xl gap-1">
-                                                <Plus className="w-4 h-4" /> Tambah
-                                            </Button>
                                             <Button
                                                 variant="outline"
                                                 onClick={() => {
@@ -407,15 +347,18 @@ export function TabDialog({ open, onOpenChange, stockLocation }: TabDialogProps)
                                             >
                                                 <XCircle className="w-4 h-4" />
                                             </Button>
-                                            <Button
-                                                variant="outline"
-                                                onClick={() => setIsPrintSummaryOpen(true)}
-                                                className="rounded-xl gap-1"
-                                                disabled={(selectedTab.transactions?.length || 0) === 0}
-                                            >
-                                                <FileText className="w-4 h-4" /> Rekap
-                                            </Button>
                                         </div>
+                                    )}
+
+                                    {/* Rekap button - shows for all tab statuses */}
+                                    {(selectedTab.transactions?.length || 0) > 0 && (
+                                        <Button
+                                            variant="outline"
+                                            onClick={() => setIsPrintSummaryOpen(true)}
+                                            className="w-full rounded-xl gap-1"
+                                        >
+                                            <FileText className="w-4 h-4" /> Cetak Rekap Transaksi
+                                        </Button>
                                     )}
 
                                     <Separator />
@@ -452,6 +395,16 @@ export function TabDialog({ open, onOpenChange, stockLocation }: TabDialogProps)
                                                                 >
                                                                     <Printer className="w-3 h-3" />
                                                                 </Button>
+                                                                {selectedTab.status === 'open' && (
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        onClick={() => setTxToDelete(tx)}
+                                                                        className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                                                    >
+                                                                        <Trash2 className="w-3 h-3" />
+                                                                    </Button>
+                                                                )}
                                                             </div>
                                                         </div>
                                                         <div className="text-xs text-muted-foreground space-y-0.5">
@@ -470,76 +423,6 @@ export function TabDialog({ open, onOpenChange, stockLocation }: TabDialogProps)
                                 </div>
                             </ScrollArea>
                         )}
-                    </div>
-                </DialogContent>
-            </Dialog>
-
-            {/* Add Transaction Dialog */}
-            <Dialog open={isAddingTx} onOpenChange={setIsAddingTx}>
-                <DialogContent className="rounded-2xl max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>Tambah Transaksi</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                        <ProductSearchSelect
-                            products={products}
-                            onSelect={handleAddProduct}
-                            stockLocation={selectedTab?.stock_location || stockLocation}
-                            showStock
-                        />
-
-                        {cartItems.length > 0 && (
-                            <ScrollArea className="max-h-48">
-                                <div className="space-y-2 pr-2">
-                                    {cartItems.map(item => {
-                                        const product = products.find(p => p.id === item.productId);
-                                        if (!product) return null;
-                                        return (
-                                            <div key={item.productId} className="flex items-center justify-between p-2 bg-muted rounded-lg">
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="font-medium text-sm truncate">{product.name}</p>
-                                                    <p className="text-xs text-muted-foreground">
-                                                        {formatCurrency(product.price * item.quantity)}
-                                                    </p>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <Input
-                                                        type="number"
-                                                        min={1}
-                                                        value={item.quantity}
-                                                        onChange={(e) => handleQuantityChange(item.productId, parseInt(e.target.value) || 0)}
-                                                        className="w-14 h-8 text-center"
-                                                    />
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={() => handleRemoveProduct(item.productId)}
-                                                        className="h-8 w-8 text-red-500"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </ScrollArea>
-                        )}
-
-                        {cartItems.length > 0 && (
-                            <div className="flex justify-between items-center p-3 bg-primary/10 rounded-xl">
-                                <span className="font-semibold">Total</span>
-                                <span className="text-lg font-bold">{formatCurrency(cartTotal)}</span>
-                            </div>
-                        )}
-
-                        <Button
-                            onClick={handleAddTransaction}
-                            disabled={cartItems.length === 0 || addTransaction.isPending}
-                            className="w-full rounded-xl"
-                        >
-                            {addTransaction.isPending ? 'Menyimpan...' : 'Simpan Transaksi'}
-                        </Button>
                     </div>
                 </DialogContent>
             </Dialog>
@@ -712,6 +595,56 @@ export function TabDialog({ open, onOpenChange, stockLocation }: TabDialogProps)
                     </div>
                 </DialogContent>
             </Dialog>
+
+            {/* Delete Transaction Confirmation Dialog */}
+            <AlertDialog open={!!txToDelete} onOpenChange={(open) => !open && setTxToDelete(null)}>
+                <AlertDialogContent className="rounded-2xl">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Hapus Transaksi?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Transaksi ini akan dihapus dan stok produk akan dikembalikan.
+                            {txToDelete && (
+                                <div className="mt-3 p-3 bg-muted rounded-xl text-sm">
+                                    <p className="font-semibold text-foreground mb-2">
+                                        {formatCurrency(txToDelete.subtotal)}
+                                    </p>
+                                    <div className="space-y-1 text-muted-foreground">
+                                        {txToDelete.items?.map(item => (
+                                            <div key={item.id} className="flex justify-between">
+                                                <span>{item.product_name} x{item.quantity}</span>
+                                                <span>{formatCurrency(item.subtotal)}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel className="rounded-xl">Batal</AlertDialogCancel>
+                        <AlertDialogAction
+                            className="rounded-xl bg-red-600 hover:bg-red-700"
+                            disabled={deleteTransaction.isPending}
+                            onClick={() => {
+                                if (txToDelete && selectedTab && profile) {
+                                    deleteTransaction.mutate({
+                                        tabId: selectedTab.id,
+                                        transactionId: txToDelete.id,
+                                        deletedBy: profile.user_id,
+                                    }, {
+                                        onSuccess: async () => {
+                                            await refetchTab();
+                                            setTxToDelete(null);
+                                        },
+                                    });
+                                }
+                            }}
+                        >
+                            {deleteTransaction.isPending ? 'Menghapus...' : 'Hapus Transaksi'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </>
     );
 }

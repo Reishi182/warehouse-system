@@ -80,8 +80,10 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
     const lastScannedTimeRef = useRef<number>(0);
     const scannerContainerId = 'add-product-scanner-container';
 
-    // Only auditor and admin can set initial stock
-    const canSetStock = userRole === 'admin' || userRole === 'auditor';
+    // Admin and auditor can set stock to any location, cashier can only set stock to toko
+    const canSetStock = userRole === 'admin' || userRole === 'auditor' || userRole === 'cashier';
+    const canChooseLocation = userRole === 'admin' || userRole === 'auditor';
+    const isCashier = userRole === 'cashier';
 
     // Camera scanner functions
     const stopScanner = useCallback(async () => {
@@ -294,10 +296,15 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
             name: newProduct.name,
             barcode: newProduct.barcode,
             price: newProduct.price,
-            stock: canSetStock ? {
+            stock: canSetStock ? (isCashier ? {
+                // Cashier can only set stock to toko
+                gudang: 0,
+                toko: newProduct.quantity,
+            } : {
+                // Admin/auditor can choose location
                 gudang: newProduct.location === 'gudang' ? newProduct.quantity : 0,
                 toko: newProduct.location === 'toko' ? newProduct.quantity : 0,
-            } : { gudang: 0, toko: 0 },
+            }) : { gudang: 0, toko: 0 },
             image_url: imageUrl,
         });
 
@@ -406,9 +413,9 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
                             )}
                         </div>
                         {canSetStock && (
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className={canChooseLocation ? "grid grid-cols-2 gap-4" : ""}>
                                 <div className="space-y-2">
-                                    <Label>Jumlah Awal</Label>
+                                    <Label>{isCashier ? 'Stok Toko' : 'Jumlah Awal'}</Label>
                                     <Input
                                         type="number"
                                         value={newProduct.quantity}
@@ -416,22 +423,29 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
                                         min={0}
                                         className="rounded-xl"
                                     />
+                                    {isCashier && (
+                                        <p className="text-xs text-muted-foreground">
+                                            💡 Kasir hanya dapat menambah stok toko
+                                        </p>
+                                    )}
                                 </div>
-                                <div className="space-y-2">
-                                    <Label>Lokasi</Label>
-                                    <Select
-                                        value={newProduct.location}
-                                        onValueChange={(value: Location) => setNewProduct({ ...newProduct, location: value })}
-                                    >
-                                        <SelectTrigger className="rounded-xl h-10 border-gray-200">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent className="rounded-xl">
-                                            <SelectItem value="gudang" className="cursor-pointer rounded-lg my-1">Gudang</SelectItem>
-                                            <SelectItem value="toko" className="cursor-pointer rounded-lg my-1">Toko</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
+                                {canChooseLocation && (
+                                    <div className="space-y-2">
+                                        <Label>Lokasi</Label>
+                                        <Select
+                                            value={newProduct.location}
+                                            onValueChange={(value: Location) => setNewProduct({ ...newProduct, location: value })}
+                                        >
+                                            <SelectTrigger className="rounded-xl h-10 border-gray-200">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent className="rounded-xl">
+                                                <SelectItem value="gudang" className="cursor-pointer rounded-lg my-1">Gudang</SelectItem>
+                                                <SelectItem value="toko" className="cursor-pointer rounded-lg my-1">Toko</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                )}
                             </div>
                         )}
                         {!canSetStock && (

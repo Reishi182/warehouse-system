@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { DateInput } from '@/components/common/DatePicker';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DateInput, MonthInput, YearInput } from '@/components/common/DatePicker';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,21 +25,32 @@ import {
     RefreshCw,
     FileDown,
     ArrowUp,
-    ArrowDown
+    ArrowDown,
+    ChevronDown,
+    ChevronUp,
+    CalendarDays,
+    CalendarRange,
 } from 'lucide-react';
 import {
     format,
     parseISO,
     startOfDay,
     endOfDay,
-    isWithinInterval,
-    subDays
+    startOfMonth,
+    endOfMonth,
+    startOfYear,
+    endOfYear,
+    subDays,
+    subMonths,
+    subYears,
 } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { formatRupiah } from '@/lib/format';
 
-interface DailySalesData {
+type PeriodType = 'daily' | 'monthly' | 'yearly';
+
+interface SalesData {
     date: string;
     totalSales: number;
     totalTransactions: number;
@@ -51,10 +63,24 @@ interface DailySalesData {
     cashierPerformance: { name: string; transactions: number; amount: number }[];
 }
 
-// Fetch sales for a specific date
-async function fetchSalesForDate(date: Date): Promise<Sale[]> {
-    const startDate = startOfDay(date).toISOString();
-    const endDate = endOfDay(date).toISOString();
+// Fetch sales for a specific period
+async function fetchSalesForPeriod(date: Date, period: PeriodType): Promise<Sale[]> {
+    let startDate: string;
+    let endDate: string;
+
+    switch (period) {
+        case 'monthly':
+            startDate = startOfMonth(date).toISOString();
+            endDate = endOfMonth(date).toISOString();
+            break;
+        case 'yearly':
+            startDate = startOfYear(date).toISOString();
+            endDate = endOfYear(date).toISOString();
+            break;
+        default: // daily
+            startDate = startOfDay(date).toISOString();
+            endDate = endOfDay(date).toISOString();
+    }
 
     const { data: sales, error: salesError } = await supabase
         .from('sales')
@@ -102,22 +128,27 @@ async function fetchSalesForDate(date: Date): Promise<Sale[]> {
         amount_paid: row.total_amount,
         change_amount: 0,
         created_at: row.created_at,
+        is_cancelled: row.is_cancelled || false,
+        is_exchanged: row.is_exchanged || false,
         items: saleItems.filter(item => item.sale_id === row.id),
     }));
 }
 
-// Calculate daily stats
-function calculateDailyStats(sales: Sale[], date: Date): DailySalesData {
-    const totalSales = sales.reduce((sum, s) => sum + s.total_amount, 0);
-    const totalTransactions = sales.length;
-    const totalItems = sales.reduce((sum, s) => sum + s.items.reduce((iSum, i) => iSum + i.quantity, 0), 0);
-    const cashSales = sales.filter(s => s.payment_method === 'cash').reduce((sum, s) => sum + s.total_amount, 0);
-    const transferSales = sales.filter(s => s.payment_method === 'transfer').reduce((sum, s) => sum + s.total_amount, 0);
+// Calculate stats - exclude cancelled and exchanged sales
+function calculateStats(sales: Sale[], date: Date): SalesData {
+    // Filter out cancelled and exchanged sales for totals
+    const validSales = sales.filter(s => !s.is_cancelled && !s.is_exchanged);
+
+    const totalSales = validSales.reduce((sum, s) => sum + s.total_amount, 0);
+    const totalTransactions = validSales.length;
+    const totalItems = validSales.reduce((sum, s) => sum + s.items.reduce((iSum, i) => iSum + i.quantity, 0), 0);
+    const cashSales = validSales.filter(s => s.payment_method === 'cash').reduce((sum, s) => sum + s.total_amount, 0);
+    const transferSales = validSales.filter(s => s.payment_method === 'transfer').reduce((sum, s) => sum + s.total_amount, 0);
     const averageTransaction = totalTransactions > 0 ? totalSales / totalTransactions : 0;
 
-    // Top products
+    // Top products - only from valid sales
     const productMap = new Map<string, { name: string; quantity: number; revenue: number }>();
-    sales.forEach(sale => {
+    validSales.forEach(sale => {
         sale.items.forEach(item => {
             const key = item.product_name;
             const existing = productMap.get(key) || { name: item.product_name, quantity: 0, revenue: 0 };
@@ -130,12 +161,12 @@ function calculateDailyStats(sales: Sale[], date: Date): DailySalesData {
         .sort((a, b) => b.revenue - a.revenue)
         .slice(0, 10);
 
-    // Hourly distribution
+    // Hourly distribution - only valid sales
     const hourlyMap = new Map<number, { count: number; amount: number }>();
     for (let h = 0; h < 24; h++) {
         hourlyMap.set(h, { count: 0, amount: 0 });
     }
-    sales.forEach(sale => {
+    validSales.forEach(sale => {
         const hour = parseISO(sale.created_at).getHours();
         const existing = hourlyMap.get(hour)!;
         existing.count += 1;
@@ -144,9 +175,9 @@ function calculateDailyStats(sales: Sale[], date: Date): DailySalesData {
     const hourlyDistribution = Array.from(hourlyMap.entries())
         .map(([hour, data]) => ({ hour, ...data }));
 
-    // Cashier performance
+    // Cashier performance - only valid sales
     const cashierMap = new Map<string, { name: string; transactions: number; amount: number }>();
-    sales.forEach(sale => {
+    validSales.forEach(sale => {
         const key = sale.cashier_name || 'Unknown';
         const existing = cashierMap.get(key) || { name: key, transactions: 0, amount: 0 };
         existing.transactions += 1;
@@ -170,49 +201,86 @@ function calculateDailyStats(sales: Sale[], date: Date): DailySalesData {
     };
 }
 
-// Fetch comparison data (yesterday)
-async function fetchComparisonData(date: Date): Promise<DailySalesData | null> {
-    const yesterday = subDays(date, 1);
+// Fetch comparison data (previous period)
+async function fetchComparisonData(date: Date, period: PeriodType): Promise<SalesData | null> {
+    let compareDate: Date;
+    switch (period) {
+        case 'monthly':
+            compareDate = subMonths(date, 1);
+            break;
+        case 'yearly':
+            compareDate = subYears(date, 1);
+            break;
+        default:
+            compareDate = subDays(date, 1);
+    }
     try {
-        const sales = await fetchSalesForDate(yesterday);
-        return calculateDailyStats(sales, yesterday);
+        const sales = await fetchSalesForPeriod(compareDate, period);
+        return calculateStats(sales, compareDate);
     } catch {
         return null;
     }
 }
 
-export default function DailySalesReport() {
+export default function SalesReport() {
+    const [period, setPeriod] = useState<PeriodType>('daily');
     const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+    const [expandedSaleId, setExpandedSaleId] = useState<string | null>(null);
     const parsedDate = selectedDate ? parseISO(selectedDate) : new Date();
 
-    // Fetch sales for selected date
+    // Fetch sales for selected period
     const { data: sales = [], isLoading, refetch } = useQuery({
-        queryKey: ['daily-sales', selectedDate],
-        queryFn: () => fetchSalesForDate(parsedDate),
+        queryKey: ['sales-report', period, selectedDate],
+        queryFn: () => fetchSalesForPeriod(parsedDate, period),
     });
 
-    // Fetch yesterday's data for comparison
-    const { data: yesterdayData } = useQuery({
-        queryKey: ['daily-sales-comparison', selectedDate],
-        queryFn: () => fetchComparisonData(parsedDate),
+    // Fetch previous period data for comparison
+    const { data: previousPeriodData } = useQuery({
+        queryKey: ['sales-report-comparison', period, selectedDate],
+        queryFn: () => fetchComparisonData(parsedDate, period),
     });
 
-    const stats = useMemo(() => calculateDailyStats(sales, parsedDate), [sales, parsedDate]);
+    const stats = useMemo(() => calculateStats(sales, parsedDate), [sales, parsedDate]);
+
+    // Get period labels
+    const getPeriodLabel = () => {
+        switch (period) {
+            case 'monthly': return 'bulan lalu';
+            case 'yearly': return 'tahun lalu';
+            default: return 'kemarin';
+        }
+    };
+
+    const getDateDisplay = () => {
+        switch (period) {
+            case 'monthly': return format(parsedDate, 'MMMM yyyy', { locale: id });
+            case 'yearly': return format(parsedDate, 'yyyy');
+            default: return format(parsedDate, 'dd MMMM yyyy', { locale: id });
+        }
+    };
+
+    const getPageTitle = () => {
+        switch (period) {
+            case 'monthly': return 'Laporan Penjualan Bulanan';
+            case 'yearly': return 'Laporan Penjualan Tahunan';
+            default: return 'Laporan Penjualan Harian';
+        }
+    };
 
     // Calculate percentage changes
     const changes = useMemo(() => {
-        if (!yesterdayData) return { sales: null, transactions: null, average: null };
-        const salesChange = yesterdayData.totalSales > 0
-            ? ((stats.totalSales - yesterdayData.totalSales) / yesterdayData.totalSales) * 100
+        if (!previousPeriodData) return { sales: null, transactions: null, average: null };
+        const salesChange = previousPeriodData.totalSales > 0
+            ? ((stats.totalSales - previousPeriodData.totalSales) / previousPeriodData.totalSales) * 100
             : null;
-        const transactionsChange = yesterdayData.totalTransactions > 0
-            ? ((stats.totalTransactions - yesterdayData.totalTransactions) / yesterdayData.totalTransactions) * 100
+        const transactionsChange = previousPeriodData.totalTransactions > 0
+            ? ((stats.totalTransactions - previousPeriodData.totalTransactions) / previousPeriodData.totalTransactions) * 100
             : null;
-        const averageChange = yesterdayData.averageTransaction > 0
-            ? ((stats.averageTransaction - yesterdayData.averageTransaction) / yesterdayData.averageTransaction) * 100
+        const averageChange = previousPeriodData.averageTransaction > 0
+            ? ((stats.averageTransaction - previousPeriodData.averageTransaction) / previousPeriodData.averageTransaction) * 100
             : null;
         return { sales: salesChange, transactions: transactionsChange, average: averageChange };
-    }, [stats, yesterdayData]);
+    }, [stats, previousPeriodData]);
 
     // Product columns for BeautifulTable
     const productColumns: Column<(typeof stats.topProducts)[0] & { id: string }>[] = [
@@ -257,32 +325,67 @@ export default function DailySalesReport() {
     }, [stats.hourlyDistribution]);
 
     return (
-        <MainLayout title="Laporan Penjualan Harian" subtitle="Analisis penjualan per hari">
+        <MainLayout title={getPageTitle()} subtitle="Analisis penjualan per periode">
             <div className="space-y-6">
-                {/* Date Selector & Actions */}
+                {/* Period Selector & Date Selector */}
                 <Card>
-                    <CardContent className="flex flex-wrap items-center justify-between gap-4 py-4">
-                        <div className="flex items-center gap-3">
-                            <Calendar className="w-5 h-5 text-muted-foreground" />
-                            <DateInput
-                                value={selectedDate}
-                                onChange={(val) => setSelectedDate(val)}
-                                className="w-[200px]"
-                            />
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                onClick={() => setSelectedDate(format(new Date(), 'yyyy-MM-dd'))}
-                            >
-                                <Clock className="w-4 h-4" />
-                            </Button>
-                        </div>
+                    <CardContent className="py-4 space-y-4">
+                        {/* Period Tabs */}
+                        <Tabs value={period} onValueChange={(val) => setPeriod(val as PeriodType)}>
+                            <TabsList className="grid grid-cols-3 w-full max-w-md">
+                                <TabsTrigger value="daily" className="gap-2">
+                                    <Calendar className="w-4 h-4" />
+                                    Harian
+                                </TabsTrigger>
+                                <TabsTrigger value="monthly" className="gap-2">
+                                    <CalendarDays className="w-4 h-4" />
+                                    Bulanan
+                                </TabsTrigger>
+                                <TabsTrigger value="yearly" className="gap-2">
+                                    <CalendarRange className="w-4 h-4" />
+                                    Tahunan
+                                </TabsTrigger>
+                            </TabsList>
+                        </Tabs>
 
-                        <div className="flex gap-2">
-                            <Button variant="outline" onClick={() => refetch()}>
-                                <RefreshCw className="w-4 h-4 mr-2" />
-                                Refresh
-                            </Button>
+                        {/* Date Selector & Actions */}
+                        <div className="flex flex-wrap items-center justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                                {period === 'yearly' ? (
+                                    <YearInput
+                                        value={selectedDate}
+                                        onChange={(val) => setSelectedDate(val)}
+                                        className="w-[200px]"
+                                    />
+                                ) : period === 'monthly' ? (
+                                    <MonthInput
+                                        value={selectedDate}
+                                        onChange={(val) => setSelectedDate(val)}
+                                        className="w-[220px]"
+                                    />
+                                ) : (
+                                    <DateInput
+                                        value={selectedDate}
+                                        onChange={(val) => setSelectedDate(val)}
+                                        className="w-[200px]"
+                                    />
+                                )}
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => setSelectedDate(format(new Date(), 'yyyy-MM-dd'))}
+                                    title="Hari ini"
+                                >
+                                    <Clock className="w-4 h-4" />
+                                </Button>
+                            </div>
+
+                            <div className="flex gap-2">
+                                <Button variant="outline" onClick={() => refetch()}>
+                                    <RefreshCw className="w-4 h-4 mr-2" />
+                                    Refresh
+                                </Button>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
@@ -307,7 +410,7 @@ export default function DailySalesReport() {
                                             ) : (
                                                 <ArrowDown className="w-4 h-4" />
                                             )}
-                                            {Math.abs(changes.sales).toFixed(1)}% vs kemarin
+                                            {Math.abs(changes.sales).toFixed(1)}% vs {getPeriodLabel()}
                                         </div>
                                     )}
                                 </div>
@@ -335,7 +438,7 @@ export default function DailySalesReport() {
                                             ) : (
                                                 <ArrowDown className="w-4 h-4" />
                                             )}
-                                            {Math.abs(changes.transactions).toFixed(1)}% vs kemarin
+                                            {Math.abs(changes.transactions).toFixed(1)}% vs {getPeriodLabel()}
                                         </div>
                                     )}
                                 </div>
@@ -365,7 +468,7 @@ export default function DailySalesReport() {
                                             ) : (
                                                 <ArrowDown className="w-4 h-4" />
                                             )}
-                                            {Math.abs(changes.average).toFixed(1)}% vs kemarin
+                                            {Math.abs(changes.average).toFixed(1)}% vs {getPeriodLabel()}
                                         </div>
                                     )}
                                 </div>
@@ -448,49 +551,51 @@ export default function DailySalesReport() {
                         </CardContent>
                     </Card>
 
-                    {/* Hourly Distribution */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <BarChart3 className="w-5 h-5" />
-                                Distribusi Per Jam
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="flex items-end justify-between h-32 gap-1">
-                                {stats.hourlyDistribution.slice(7, 22).map((item) => {
-                                    const maxCount = Math.max(...stats.hourlyDistribution.map(h => h.count));
-                                    const height = maxCount > 0 ? (item.count / maxCount) * 100 : 0;
-                                    const isPeak = peakHour?.hour === item.hour;
+                    {/* Hourly Distribution - Only for Daily */}
+                    {period === 'daily' && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <BarChart3 className="w-5 h-5" />
+                                    Distribusi Per Jam
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="flex items-end justify-between h-32 gap-1">
+                                    {stats.hourlyDistribution.slice(7, 22).map((item) => {
+                                        const maxCount = Math.max(...stats.hourlyDistribution.map(h => h.count));
+                                        const height = maxCount > 0 ? (item.count / maxCount) * 100 : 0;
+                                        const isPeak = peakHour?.hour === item.hour;
 
-                                    return (
-                                        <div
-                                            key={item.hour}
-                                            className="flex-1 flex flex-col items-center group"
-                                        >
+                                        return (
                                             <div
-                                                className={cn(
-                                                    "w-full rounded-t transition-all",
-                                                    isPeak
-                                                        ? "bg-gradient-to-t from-primary to-primary/60"
-                                                        : "bg-primary/20 group-hover:bg-primary/40",
-                                                    height === 0 && "bg-muted"
-                                                )}
-                                                style={{ height: `${Math.max(height, 4)}%` }}
-                                                title={`${item.hour}:00 - ${item.count} transaksi (${formatRupiah(item.amount)})`}
-                                            />
-                                            <span className="text-[10px] text-muted-foreground mt-1">
-                                                {item.hour}
-                                            </span>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                            <p className="text-xs text-muted-foreground text-center mt-2">
-                                Jam operasional (07:00 - 21:00)
-                            </p>
-                        </CardContent>
-                    </Card>
+                                                key={item.hour}
+                                                className="flex-1 flex flex-col items-center group"
+                                            >
+                                                <div
+                                                    className={cn(
+                                                        "w-full rounded-t transition-all",
+                                                        isPeak
+                                                            ? "bg-gradient-to-t from-primary to-primary/60"
+                                                            : "bg-primary/20 group-hover:bg-primary/40",
+                                                        height === 0 && "bg-muted"
+                                                    )}
+                                                    style={{ height: `${Math.max(height, 4)}%` }}
+                                                    title={`${item.hour}:00 - ${item.count} transaksi (${formatRupiah(item.amount)})`}
+                                                />
+                                                <span className="text-[10px] text-muted-foreground mt-1">
+                                                    {item.hour}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                <p className="text-xs text-muted-foreground text-center mt-2">
+                                    Jam operasional (07:00 - 21:00)
+                                </p>
+                            </CardContent>
+                        </Card>
+                    )}
                 </div>
 
                 {/* Cashier Performance */}
@@ -546,7 +651,7 @@ export default function DailySalesReport() {
                     data={stats.topProducts.map((p, i) => ({ ...p, id: `${i}` }))}
                     columns={productColumns}
                     title="Produk Terlaris"
-                    subtitle={`Top ${stats.topProducts.length} produk terjual pada ${format(parsedDate, 'dd MMMM yyyy', { locale: id })}`}
+                    subtitle={`Top ${stats.topProducts.length} produk terjual pada ${getDateDisplay()}`}
                     isLoading={isLoading}
                     hideSelection
                     hideExport={false}
@@ -581,45 +686,132 @@ export default function DailySalesReport() {
                                 <p>Tidak ada transaksi pada tanggal ini</p>
                             </div>
                         ) : (
-                            <ScrollArea className="h-[400px]">
-                                <div className="space-y-3">
-                                    {sales.slice(0, 20).map((sale) => (
-                                        <div
-                                            key={sale.id}
-                                            className="flex items-center justify-between p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
-                                        >
-                                            <div className="flex items-center gap-4">
-                                                <div className={cn(
-                                                    "w-10 h-10 rounded-lg flex items-center justify-center",
-                                                    sale.payment_method === 'cash'
-                                                        ? "bg-green-100 dark:bg-green-900/30"
-                                                        : "bg-blue-100 dark:bg-blue-900/30"
-                                                )}>
-                                                    {sale.payment_method === 'cash' ? (
-                                                        <Banknote className="w-5 h-5 text-green-600" />
-                                                    ) : (
-                                                        <CreditCard className="w-5 h-5 text-blue-600" />
+                            <ScrollArea className="h-[500px]">
+                                <div className="space-y-2">
+                                    {sales.slice(0, 30).map((sale) => {
+                                        const isExpanded = expandedSaleId === sale.id;
+                                        return (
+                                            <div key={sale.id} className="rounded-xl border overflow-hidden">
+                                                {/* Transaction Header - Clickable */}
+                                                <div
+                                                    className={cn(
+                                                        "flex items-center justify-between p-4 cursor-pointer transition-colors",
+                                                        isExpanded ? "bg-muted" : "bg-muted/30 hover:bg-muted/50"
                                                     )}
-                                                </div>
-                                                <div>
-                                                    <p className="font-medium">{sale.sale_number}</p>
-                                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                                        <User className="w-3 h-3" />
-                                                        {sale.cashier_name}
-                                                        <span>•</span>
-                                                        <Clock className="w-3 h-3" />
-                                                        {format(parseISO(sale.created_at), 'HH:mm')}
+                                                    onClick={() => setExpandedSaleId(isExpanded ? null : sale.id)}
+                                                >
+                                                    <div className="flex items-center gap-4">
+                                                        <div className={cn(
+                                                            "w-10 h-10 rounded-lg flex items-center justify-center",
+                                                            sale.is_cancelled ? "bg-red-100 dark:bg-red-900/30" :
+                                                                sale.is_exchanged ? "bg-orange-100 dark:bg-orange-900/30" :
+                                                                    sale.payment_method === 'cash'
+                                                                        ? "bg-green-100 dark:bg-green-900/30"
+                                                                        : "bg-blue-100 dark:bg-blue-900/30"
+                                                        )}>
+                                                            {sale.payment_method === 'cash' ? (
+                                                                <Banknote className={cn(
+                                                                    "w-5 h-5",
+                                                                    sale.is_cancelled ? "text-red-600" :
+                                                                        sale.is_exchanged ? "text-orange-600" : "text-green-600"
+                                                                )} />
+                                                            ) : (
+                                                                <CreditCard className={cn(
+                                                                    "w-5 h-5",
+                                                                    sale.is_cancelled ? "text-red-600" :
+                                                                        sale.is_exchanged ? "text-orange-600" : "text-blue-600"
+                                                                )} />
+                                                            )}
+                                                        </div>
+                                                        <div>
+                                                            <div className="flex items-center gap-2">
+                                                                <p className="font-medium">{sale.sale_number}</p>
+                                                                {sale.is_cancelled && (
+                                                                    <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                                                                        Dibatalkan
+                                                                    </Badge>
+                                                                )}
+                                                                {sale.is_exchanged && (
+                                                                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+                                                                        Ditukar
+                                                                    </Badge>
+                                                                )}
+                                                            </div>
+                                                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                                <User className="w-3 h-3" />
+                                                                {sale.cashier_name}
+                                                                <span>•</span>
+                                                                <Clock className="w-3 h-3" />
+                                                                {format(parseISO(sale.created_at), 'HH:mm')}
+                                                                <span>•</span>
+                                                                <Package className="w-3 h-3" />
+                                                                {sale.items.length} item
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="text-right">
+                                                            <p className={cn(
+                                                                "font-bold",
+                                                                (sale.is_cancelled || sale.is_exchanged) && "text-muted-foreground line-through"
+                                                            )}>{formatRupiah(sale.total_amount)}</p>
+                                                            <p className="text-xs text-muted-foreground">
+                                                                {sale.payment_method === 'cash' ? 'Tunai' : 'Transfer'}
+                                                            </p>
+                                                        </div>
+                                                        {isExpanded ? (
+                                                            <ChevronUp className="w-5 h-5 text-muted-foreground" />
+                                                        ) : (
+                                                            <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                                                        )}
                                                     </div>
                                                 </div>
+
+                                                {/* Expanded Detail */}
+                                                {isExpanded && (
+                                                    <div className="border-t bg-background/50 p-4">
+                                                        <p className="text-xs font-semibold text-muted-foreground mb-3">DETAIL ITEM</p>
+                                                        <div className="space-y-2">
+                                                            {sale.items.map((item, idx) => (
+                                                                <div
+                                                                    key={idx}
+                                                                    className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/30"
+                                                                >
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                                                                            <Package className="w-4 h-4 text-primary" />
+                                                                        </div>
+                                                                        <div>
+                                                                            <p className="font-medium text-sm">{item.product_name}</p>
+                                                                            <p className="text-xs text-muted-foreground">
+                                                                                {item.barcode}
+                                                                            </p>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="text-right">
+                                                                        <p className="font-medium">{formatRupiah(item.subtotal)}</p>
+                                                                        <p className="text-xs text-muted-foreground">
+                                                                            {item.quantity} x {formatRupiah(item.price)}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                        {/* Summary */}
+                                                        <div className="mt-4 pt-3 border-t flex justify-between items-center">
+                                                            <span className="text-sm text-muted-foreground">Total</span>
+                                                            <span className={cn(
+                                                                "text-lg font-bold",
+                                                                (sale.is_cancelled || sale.is_exchanged) ? "text-muted-foreground line-through" : "text-primary"
+                                                            )}>
+                                                                {formatRupiah(sale.total_amount)}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
-                                            <div className="text-right">
-                                                <p className="font-bold">{formatRupiah(sale.total_amount)}</p>
-                                                <p className="text-xs text-muted-foreground">
-                                                    {sale.items.length} item
-                                                </p>
-                                            </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </ScrollArea>
                         )}

@@ -47,8 +47,12 @@ export default function Reports() {
     { name: 'Ditolak', count: requests.filter(r => r.status === 'rejected').length },
   ];
 
-  // Finance data
-  const salesOnDate = sales.filter(s => s.created_at.slice(0, 10) === financeDate);
+  // Finance data - exclude cancelled and exchanged sales
+  const salesOnDate = sales.filter(s =>
+    s.created_at.slice(0, 10) === financeDate &&
+    !s.is_cancelled &&
+    !s.is_exchanged
+  );
   const transfersOnDate = cashTransfers.filter(t => t.transfer_date === financeDate);
 
   const totalSalesAmount = salesOnDate.reduce((acc, s) => acc + s.total_amount, 0);

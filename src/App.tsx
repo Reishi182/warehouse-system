@@ -46,7 +46,7 @@ const GeneralTransactions = React.lazy(() => import('@/pages/finance/GeneralTran
 const Backorders = React.lazy(() => import('@/pages/finance/Backorders'));
 const SalesHistory = React.lazy(() => import('@/pages/finance/SalesHistory'));
 const DailyStockReport = React.lazy(() => import('@/pages/reports/DailyStockReport'));
-const DailySalesReport = React.lazy(() => import('@/pages/reports/DailySalesReport'));
+const SalesReport = React.lazy(() => import('@/pages/reports/SalesReport'));
 const POS = React.lazy(() => import('./pages/POS'));
 const DirectOrders = React.lazy(() => import('./pages/direct-orders/DirectOrders'));
 const DirectOrderDetail = React.lazy(() => import('./pages/direct-orders/DirectOrderDetail'));
@@ -218,9 +218,9 @@ function AppRoutes() {
           </ProtectedRoute>
         } />
 
-        <Route path="/reports/daily-sales" element={
+        <Route path="/reports/sales" element={
           <ProtectedRoute allowedRoles={['cashier', 'main_office', 'auditor', 'admin']}>
-            <DailySalesReport />
+            <SalesReport />
           </ProtectedRoute>
         } />
 

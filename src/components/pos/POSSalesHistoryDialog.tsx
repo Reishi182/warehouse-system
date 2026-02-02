@@ -83,7 +83,6 @@ export function POSSalesHistoryDialog({ open, onOpenChange, onCreateReturn }: PO
     const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
     const [saleToCancel, setSaleToCancel] = useState<Sale | null>(null);
     const [cancelReason, setCancelReason] = useState('');
-    const [showCancelled, setShowCancelled] = useState(false);
 
     // Print handler
     const handlePrint = useReactToPrint({
@@ -106,16 +105,6 @@ export function POSSalesHistoryDialog({ open, onOpenChange, onCreateReturn }: PO
             // Only show current cashier's sales
             if (s.cashier_id !== user?.id) return false;
 
-            // Filter by cancelled status
-            const isCancelled = s.cashier_name?.startsWith('[CANCELLED]');
-            if (showCancelled) {
-                // When showing cancelled, only show cancelled sales
-                if (!isCancelled) return false;
-            } else {
-                // When not showing cancelled, hide them
-                if (isCancelled) return false;
-            }
-
             const saleDate = s.created_at.slice(0, 10);
 
             // Date filter
@@ -134,14 +123,16 @@ export function POSSalesHistoryDialog({ open, onOpenChange, onCreateReturn }: PO
 
             return true;
         }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    }, [sales, selectedDate, searchQuery, user?.id, showCancelled]);
+    }, [sales, selectedDate, searchQuery, user?.id]);
 
-    // Stats
+    // Stats - exclude cancelled and exchanged sales from totals
     const stats = useMemo(() => {
-        const totalSales = filteredSales.length;
-        const totalRevenue = filteredSales.reduce((sum, s) => sum + s.total_amount, 0);
-        const cashTotal = filteredSales.filter(s => s.payment_method === 'cash').reduce((sum, s) => sum + s.total_amount, 0);
-        const transferTotal = filteredSales.filter(s => s.payment_method === 'transfer').reduce((sum, s) => sum + s.total_amount, 0);
+        // Only count active sales (not cancelled, not exchanged)
+        const activeSales = filteredSales.filter(s => !s.is_cancelled && !s.is_exchanged);
+        const totalSales = activeSales.length;
+        const totalRevenue = activeSales.reduce((sum, s) => sum + s.total_amount, 0);
+        const cashTotal = activeSales.filter(s => s.payment_method === 'cash').reduce((sum, s) => sum + s.total_amount, 0);
+        const transferTotal = activeSales.filter(s => s.payment_method === 'transfer').reduce((sum, s) => sum + s.total_amount, 0);
 
         return { totalSales, totalRevenue, cashTotal, transferTotal };
     }, [filteredSales]);
@@ -267,31 +258,6 @@ export function POSSalesHistoryDialog({ open, onOpenChange, onCreateReturn }: PO
                                     </Button>
                                 )}
                             </div>
-
-                            {/* Toggle Cancelled */}
-                            <div className="flex gap-2">
-                                <Button
-                                    variant={!showCancelled ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={() => setShowCancelled(false)}
-                                    className="flex-1 text-xs h-9 rounded-xl"
-                                >
-                                    <Receipt className="h-3 w-3 mr-1" />
-                                    Aktif
-                                </Button>
-                                <Button
-                                    variant={showCancelled ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={() => setShowCancelled(true)}
-                                    className={cn(
-                                        "flex-1 text-xs h-9 rounded-xl",
-                                        showCancelled && "bg-red-500 hover:bg-red-600 text-white"
-                                    )}
-                                >
-                                    <XCircle className="h-3 w-3 mr-1" />
-                                    Dibatalkan
-                                </Button>
-                            </div>
                         </div>
 
                         {/* Stats Summary */}
@@ -344,8 +310,11 @@ export function POSSalesHistoryDialog({ open, onOpenChange, onCreateReturn }: PO
 
                                                         {/* Sale Info */}
                                                         <div className="flex-1 min-w-0 text-left">
-                                                            <div className="flex items-center gap-2 flex-wrap">
-                                                                <span className="font-semibold text-sm truncate">{sale.sale_number}</span>
+                                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                                                <span className={cn(
+                                                                    "font-semibold text-sm truncate",
+                                                                    (sale.is_cancelled || sale.is_exchanged) && "line-through opacity-60"
+                                                                )}>{sale.sale_number}</span>
                                                                 <Badge
                                                                     variant="outline"
                                                                     className={cn(
@@ -357,6 +326,22 @@ export function POSSalesHistoryDialog({ open, onOpenChange, onCreateReturn }: PO
                                                                 >
                                                                     {sale.payment_method === 'cash' ? 'Tunai' : 'Transfer'}
                                                                 </Badge>
+                                                                {/* Status Badges */}
+                                                                {sale.is_cancelled && (
+                                                                    <Badge className="text-[10px] px-1.5 py-0 bg-red-100 text-red-600 border-0">
+                                                                        Batal
+                                                                    </Badge>
+                                                                )}
+                                                                {sale.is_exchanged && (
+                                                                    <Badge className="text-[10px] px-1.5 py-0 bg-orange-100 text-orange-600 border-0">
+                                                                        Ditukar → {sale.exchanged_to_sale_number || 'Proses'}
+                                                                    </Badge>
+                                                                )}
+                                                                {sale.exchange_from_sale_number && (
+                                                                    <Badge className="text-[10px] px-1.5 py-0 bg-blue-100 text-blue-600 border-0">
+                                                                        Dari → {sale.exchange_from_sale_number}
+                                                                    </Badge>
+                                                                )}
                                                             </div>
                                                             <div className="text-xs text-muted-foreground">
                                                                 {format(new Date(sale.created_at), 'HH:mm', { locale: idLocale })} • {sale.items?.length || 0} item
@@ -400,8 +385,8 @@ export function POSSalesHistoryDialog({ open, onOpenChange, onCreateReturn }: PO
 
                                                         {/* Action Buttons */}
                                                         <div className="flex flex-wrap gap-2 mt-3 pt-2 border-t">
-                                                            {/* Cancel Button - only for today's sales that aren't cancelled */}
-                                                            {!sale.cashier_name?.startsWith('[CANCELLED]') && sale.created_at.slice(0, 10) === toISODate(new Date()) && (
+                                                            {/* Cancel Button - only for today's active sales */}
+                                                            {!sale.is_cancelled && !sale.is_exchanged && sale.created_at.slice(0, 10) === toISODate(new Date()) && (
                                                                 <Button
                                                                     variant="outline"
                                                                     size="sm"
@@ -416,8 +401,8 @@ export function POSSalesHistoryDialog({ open, onOpenChange, onCreateReturn }: PO
                                                                 </Button>
                                                             )}
 
-                                                            {/* Create Return Button */}
-                                                            {onCreateReturn && !sale.cashier_name?.startsWith('[CANCELLED]') && (
+                                                            {/* Create Return Button - only for active sales */}
+                                                            {onCreateReturn && !sale.is_cancelled && !sale.is_exchanged && (
                                                                 <Button
                                                                     variant="outline"
                                                                     size="sm"

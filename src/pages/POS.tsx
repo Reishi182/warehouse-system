@@ -1,4 +1,5 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { createPortal } from 'react-dom';
 import MainLayout from '@/components/layout/MainLayout';
 import BarcodeScanner from '@/components/common/BarcodeScanner';
@@ -26,6 +27,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useStoreSettings } from '@/hooks/useStoreSettings';
 import { usePOSCart } from '@/hooks/usePOSCart';
 import { usePOSCheckout } from '@/hooks/usePOSCheckout';
+import { useOpenTabs, useAddTabTransaction } from '@/hooks/useTabs';
 import { supabase } from '@/integrations/supabase/client';
 import { Location, Sale } from '@/types';
 
@@ -34,6 +36,7 @@ export default function POS() {
     const { profile } = useAuth();
     const { toast } = useToast();
     const { data: storeSettings } = useStoreSettings();
+    const queryClient = useQueryClient();
 
     const searchInputRef = useRef<HTMLInputElement>(null);
     const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
@@ -41,25 +44,70 @@ export default function POS() {
     const [tabDialogOpen, setTabDialogOpen] = useState(false);
     const [returnRef, setReturnRef] = useState<string | null>(null);
     const [isProcessingExchange, setIsProcessingExchange] = useState(false);
+    const [selectedTabId, setSelectedTabId] = useState<string | null>(null);
+
+    // Open tabs for customer selection
+    const { data: openTabs = [] } = useOpenTabs();
+    const addTabTransaction = useAddTabTransaction();
 
     // Cart state
     const cart = usePOSCart('toko');
 
-    // Checkout state (simplified - no exchange handling here since it's done immediately)
+    // Checkout state
     const checkout = usePOSCheckout({
         items: cart.items,
         subtotal: cart.subtotal,
         totalAmount: cart.totalAmount,
         orderDiscount: cart.orderDiscount,
         stockLocation: cart.stockLocation,
-        onSuccess: () => {
+        onSuccess: async (newSaleId?: string, newSaleNumber?: string) => {
+            // Link exchange if we have an original sale
+            if (exchangeFromSaleId && newSaleId && newSaleNumber) {
+                try {
+                    // Update original sale with link to new sale
+                    await supabase
+                        .from('sales')
+                        .update({
+                            exchanged_to_sale_id: newSaleId,
+                            exchanged_to_sale_number: newSaleNumber,
+                        } as any)
+                        .eq('id', exchangeFromSaleId);
+
+                    // Update new sale with link to original sale
+                    await supabase
+                        .from('sales')
+                        .update({
+                            exchange_from_sale_id: exchangeFromSaleId,
+                            exchange_from_sale_number: exchangeFromSaleNumber,
+                        } as any)
+                        .eq('id', newSaleId);
+
+                    // Add notification for completed exchange
+                    await supabase.from('notifications').insert({
+                        title: 'Ganti Barang Selesai',
+                        message: `Transaksi ${exchangeFromSaleNumber} berhasil ditukar ke ${newSaleNumber}`,
+                        type: 'success',
+                        link: '/pos',
+                    });
+                    // Refresh notifications
+                    queryClient.invalidateQueries({ queryKey: ['notifications'] });
+                } catch (err) {
+                    console.error('Failed to link exchange sales:', err);
+                }
+            }
             cart.clearCart();
             setReturnRef(null);
+            setExchangeFromSaleId(null);
+            setExchangeFromSaleNumber(null);
         },
         returnRef,
     });
 
-    // Handle exchange - immediately cancel original sale and return stock
+    // State to hold exchange from sale info for linking after checkout
+    const [exchangeFromSaleId, setExchangeFromSaleId] = useState<string | null>(null);
+    const [exchangeFromSaleNumber, setExchangeFromSaleNumber] = useState<string | null>(null);
+
+    // Handle exchange - immediately mark original sale as exchanged and return stock
     const handleExchangeSale = async (sale: Sale) => {
         if (!sale.items || sale.items.length === 0) {
             toast({ title: 'Error', description: 'Transaksi tidak memiliki item', variant: 'destructive' });
@@ -105,10 +153,27 @@ export default function POS() {
                 });
             }
 
-            // 2. Delete the original sale
-            await supabase.from('sales').delete().eq('id', sale.id);
+            // 2. Mark the original sale as exchanged (instead of deleting)
+            await supabase
+                .from('sales')
+                .update({ is_exchanged: true } as any)
+                .eq('id', sale.id);
 
-            // 3. Load items into cart (now stock is available)
+            // 3. Add notification for exchange
+            await supabase.from('notifications').insert({
+                title: 'Ganti Barang Dimulai',
+                message: `Transaksi ${sale.sale_number} sedang ditukar oleh ${profile?.name || 'Kasir'}`,
+                type: 'info',
+                link: '/pos',
+            });
+            // Refresh notifications
+            queryClient.invalidateQueries({ queryKey: ['notifications'] });
+
+            // 4. Store exchange reference for linking after new sale is created
+            setExchangeFromSaleId(sale.id);
+            setExchangeFromSaleNumber(sale.sale_number);
+
+            // 5. Load items into cart (now stock is available)
             cart.loadFromSale(sale);
             setReturnRef(sale.sale_number);
             setSalesHistoryOpen(false);
@@ -126,10 +191,14 @@ export default function POS() {
         }
     };
 
-    // Today's stats
+    // Today's stats - exclude cancelled and exchanged sales
     const todayIso = new Date().toISOString().slice(0, 10);
     const salesToday = useMemo(() =>
-        sales.filter(s => s.created_at.slice(0, 10) === todayIso),
+        sales.filter(s =>
+            s.created_at.slice(0, 10) === todayIso &&
+            !s.is_cancelled &&
+            !s.is_exchanged
+        ),
         [sales, todayIso]
     );
 
@@ -261,14 +330,47 @@ export default function POS() {
                         onClearCart={() => {
                             cart.clearCart();
                             setReturnRef(null);
+                            setSelectedTabId(null);
                         }}
                         onCheckout={checkout.openCheckoutDialog}
-                        onSaveToTab={() => setTabDialogOpen(true)}
-                        isProcessing={checkout.isProcessing}
+                        onSaveToTab={(tabId) => {
+                            // Find the selected tab to get tabNumber
+                            const selectedTab = openTabs.find(t => t.id === tabId);
+                            if (!selectedTab) return;
+
+                            // Add items to selected tab
+                            addTabTransaction.mutate({
+                                tabId,
+                                tabNumber: selectedTab.tab_number,
+                                stockLocation: cart.stockLocation,
+                                cashierId: profile?.user_id || '',
+                                cashierName: profile?.name || 'Kasir',
+                                items: cart.items.map(item => ({
+                                    productId: item.product.id,
+                                    quantity: item.quantity,
+                                })),
+                                products: products.map(p => ({
+                                    id: p.id,
+                                    name: p.name,
+                                    barcode: p.barcode,
+                                    price: p.price,
+                                })),
+                            }, {
+                                onSuccess: () => {
+                                    cart.clearCart();
+                                    setSelectedTabId(null);
+                                    toast({ title: 'Berhasil ditambahkan ke tab' });
+                                }
+                            });
+                        }}
+                        isProcessing={checkout.isProcessing || addTabTransaction.isPending}
                         todayStats={todayStats}
                         stockLocation={cart.stockLocation}
                         returnRef={returnRef}
                         onSetReturnRef={setReturnRef}
+                        openTabs={openTabs}
+                        selectedTabId={selectedTabId}
+                        onSelectTab={setSelectedTabId}
                     />,
                     document.body
                 )}
