@@ -16,6 +16,8 @@ function transformProduct(row: any): Product {
             gudang: row.stock_gudang || 0,
             toko: row.stock_toko || 0,
         },
+        sell_by_quantity: row.sell_by_quantity || false,
+        sell_unit: row.sell_unit || 'pcs',
         created_at: row.created_at,
         updated_at: row.updated_at,
     };
@@ -102,6 +104,8 @@ export function useAddProduct() {
             price: number;
             stock: { gudang: number; toko: number };
             image_url?: string;
+            sell_by_quantity?: boolean;
+            sell_unit?: string;
         }) => {
             const { data, error } = await supabase
                 .from('products')
@@ -112,6 +116,8 @@ export function useAddProduct() {
                     stock_gudang: product.stock.gudang,
                     stock_toko: product.stock.toko,
                     image_url: product.image_url,
+                    sell_by_quantity: product.sell_by_quantity || false,
+                    sell_unit: product.sell_unit || 'pcs',
                 })
                 .select()
                 .single();
@@ -146,6 +152,8 @@ export function useUpdateProduct() {
             if (updates.barcode !== undefined) updateData.barcode = updates.barcode;
             if (updates.price !== undefined) updateData.price = updates.price;
             if (updates.image_url !== undefined) updateData.image_url = updates.image_url;
+            if (updates.sell_by_quantity !== undefined) updateData.sell_by_quantity = updates.sell_by_quantity;
+            if (updates.sell_unit !== undefined) updateData.sell_unit = updates.sell_unit;
             if (updates.stock) {
                 if (updates.stock.gudang !== undefined) updateData.stock_gudang = updates.stock.gudang;
                 if (updates.stock.toko !== undefined) updateData.stock_toko = updates.stock.toko;

@@ -49,6 +49,8 @@ interface AddProductDialogProps {
         price: number;
         stock: { gudang: number; toko: number };
         image_url?: string;
+        sell_by_quantity?: boolean;
+        sell_unit?: string;
     }) => Promise<boolean>;
     getProductByBarcode: (barcode: string) => Product | undefined;
     userRole?: UserRole;
@@ -65,6 +67,8 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
         price: 0,
         quantity: 0,
         location: 'gudang' as Location,
+        sell_by_quantity: false,
+        sell_unit: 'meter',
     });
 
     // Camera scanner state
@@ -306,6 +310,8 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
                 toko: newProduct.location === 'toko' ? newProduct.quantity : 0,
             }) : { gudang: 0, toko: 0 },
             image_url: imageUrl,
+            sell_by_quantity: newProduct.sell_by_quantity,
+            sell_unit: newProduct.sell_by_quantity ? newProduct.sell_unit : 'pcs',
         });
 
         if (!ok) return;
@@ -315,7 +321,7 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
             description: `${newProduct.name} berhasil ditambahkan`,
         });
 
-        setNewProduct({ name: '', barcode: '', price: 0, quantity: 0, location: 'gudang' });
+        setNewProduct({ name: '', barcode: '', price: 0, quantity: 0, location: 'gudang', sell_by_quantity: false, sell_unit: 'meter' });
         setProductImageFile(null);
         if (productImagePreviewUrl) {
             URL.revokeObjectURL(productImagePreviewUrl);
@@ -385,7 +391,7 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
                             </p>
                         </div>
                         <div className="space-y-2">
-                            <Label>Harga</Label>
+                            <Label>{newProduct.sell_by_quantity ? `Harga per ${newProduct.sell_unit}` : 'Harga'}</Label>
                             <Input
                                 type="number"
                                 value={newProduct.price}
@@ -393,6 +399,44 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
                                 min={0}
                                 className="rounded-xl"
                             />
+                        </div>
+                        {/* Variable unit toggle */}
+                        <div className="space-y-3 p-3 bg-amber-50 dark:bg-amber-950/30 rounded-xl border border-amber-200 dark:border-amber-800">
+                            <div className="flex items-center gap-3">
+                                <input
+                                    type="checkbox"
+                                    id="sell-by-quantity"
+                                    checked={newProduct.sell_by_quantity}
+                                    onChange={(e) => setNewProduct({ ...newProduct, sell_by_quantity: e.target.checked })}
+                                    className="w-4 h-4 rounded border-gray-300"
+                                />
+                                <Label htmlFor="sell-by-quantity" className="cursor-pointer text-amber-800 dark:text-amber-200">
+                                    📏 Jual per Satuan (meter/kg/gram)
+                                </Label>
+                            </div>
+                            {newProduct.sell_by_quantity && (
+                                <div className="space-y-2 pl-7">
+                                    <Label className="text-sm">Satuan</Label>
+                                    <Select
+                                        value={newProduct.sell_unit}
+                                        onValueChange={(value) => setNewProduct({ ...newProduct, sell_unit: value })}
+                                    >
+                                        <SelectTrigger className="rounded-xl h-10 border-amber-200">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent className="rounded-xl">
+                                            <SelectItem value="meter" className="cursor-pointer rounded-lg my-1">Meter</SelectItem>
+                                            <SelectItem value="cm" className="cursor-pointer rounded-lg my-1">Centimeter</SelectItem>
+                                            <SelectItem value="kg" className="cursor-pointer rounded-lg my-1">Kilogram</SelectItem>
+                                            <SelectItem value="gram" className="cursor-pointer rounded-lg my-1">Gram</SelectItem>
+                                            <SelectItem value="liter" className="cursor-pointer rounded-lg my-1">Liter</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <p className="text-xs text-amber-700 dark:text-amber-300">
+                                        💡 Stok dan penjualan dalam {newProduct.sell_unit}
+                                    </p>
+                                </div>
+                            )}
                         </div>
                         <div className="space-y-2">
                             <Label>Foto Produk</Label>

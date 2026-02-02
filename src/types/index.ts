@@ -23,6 +23,9 @@ export interface Product {
     toko: number;
     reserved?: number;
   };
+  // Variable unit products (sold by meter/kg/gram)
+  sell_by_quantity?: boolean;
+  sell_unit?: string; // 'pcs' | 'meter' | 'cm' | 'kg' | 'gram' | 'liter'
   created_at: string;
   updated_at: string;
 }

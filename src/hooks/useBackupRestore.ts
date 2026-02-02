@@ -69,7 +69,7 @@ export function useBackupRestore(): UseBackupRestoreReturn {
             setIsLoading(true);
 
             // Get local snapshots
-            const local = getLocalSnapshots();
+            const local = await getLocalSnapshots();
             setLocalSnapshots(local);
 
             // Get server snapshots

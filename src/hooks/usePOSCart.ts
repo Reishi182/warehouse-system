@@ -20,6 +20,7 @@ export interface UsePOSCartReturn {
     orderDiscount: number;
     setOrderDiscount: (discount: number) => void;
     addToCart: (product: Product) => void;
+    addToCartWithQuantity: (product: Product, quantity: number) => void; // For variable unit products
     updateQuantity: (productId: string, quantity: number) => void;
     updateItemDiscount: (productId: string, discount: number) => void;
     removeItem: (productId: string) => void;
@@ -39,7 +40,8 @@ export function usePOSCart(initialLocation: Location = 'toko'): UsePOSCartReturn
     const addToCart = useCallback((product: Product) => {
         const availableStock = product.stock[stockLocation];
 
-        if (availableStock <= 0) {
+        // Skip stock validation for variable unit products - will check in addToCartWithQuantity
+        if (!product.sell_by_quantity && availableStock <= 0) {
             toast({
                 title: 'Stok habis',
                 description: `${product.name} tidak tersedia di ${stockLocation}`,
@@ -53,7 +55,8 @@ export function usePOSCart(initialLocation: Location = 'toko'): UsePOSCartReturn
             if (idx >= 0) {
                 const next = [...prev];
                 const newQty = next[idx].quantity + 1;
-                if (newQty > availableStock) {
+                // Skip stock check for variable unit products
+                if (!product.sell_by_quantity && newQty > availableStock) {
                     toast({
                         title: 'Stok tidak cukup',
                         description: `Maksimal ${availableStock} unit tersedia`,
@@ -65,6 +68,41 @@ export function usePOSCart(initialLocation: Location = 'toko'): UsePOSCartReturn
                 return next;
             }
             return [...prev, { product, quantity: 1, discount: 0 }];
+        });
+    }, [stockLocation, toast]);
+
+    // Add to cart with specific quantity (for variable unit products like meters/kg)
+    const addToCartWithQuantity = useCallback((product: Product, quantity: number) => {
+        if (quantity <= 0) return;
+
+        const availableStock = product.stock[stockLocation];
+        if (quantity > availableStock) {
+            toast({
+                title: 'Stok tidak cukup',
+                description: `Stok tersedia: ${availableStock} ${product.sell_unit || 'pcs'}`,
+                variant: 'destructive'
+            });
+            return;
+        }
+
+        setItems((prev) => {
+            const idx = prev.findIndex((it) => it.product.id === product.id);
+            if (idx >= 0) {
+                // Replace existing quantity for variable unit products
+                const next = [...prev];
+                const newQty = next[idx].quantity + quantity;
+                if (newQty > availableStock) {
+                    toast({
+                        title: 'Stok tidak cukup',
+                        description: `Stok tersedia: ${availableStock} ${product.sell_unit || 'pcs'}`,
+                        variant: 'destructive'
+                    });
+                    return prev;
+                }
+                next[idx] = { ...next[idx], quantity: newQty };
+                return next;
+            }
+            return [...prev, { product, quantity, discount: 0 }];
         });
     }, [stockLocation, toast]);
 
@@ -187,6 +225,7 @@ export function usePOSCart(initialLocation: Location = 'toko'): UsePOSCartReturn
         orderDiscount,
         setOrderDiscount: (discount: number) => setOrderDiscount(Math.max(0, discount)),
         addToCart,
+        addToCartWithQuantity,
         updateQuantity,
         updateItemDiscount,
         removeItem,

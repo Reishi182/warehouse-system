@@ -11,6 +11,7 @@ import { POSCheckoutDialog } from '@/components/pos/POSCheckoutDialog';
 import { POSReceiptDialog } from '@/components/pos/POSReceiptDialog';
 import { POSSalesHistoryDialog } from '@/components/pos/POSSalesHistoryDialog';
 import { TabDialog } from '@/components/pos/TabDialog';
+import QuantityInputDialog from '@/components/pos/QuantityInputDialog';
 import { OfflineSyncStatus } from '@/components/pos/OfflineSyncStatus';
 import { Button } from '@/components/ui/button';
 import {
@@ -29,7 +30,7 @@ import { usePOSCart } from '@/hooks/usePOSCart';
 import { usePOSCheckout } from '@/hooks/usePOSCheckout';
 import { useOpenTabs, useAddTabTransaction } from '@/hooks/useTabs';
 import { supabase } from '@/integrations/supabase/client';
-import { Location, Sale } from '@/types';
+import { Location, Sale, Product } from '@/types';
 
 export default function POS() {
     const { products, getProductByBarcode, sales, loading } = useData();
@@ -49,6 +50,10 @@ export default function POS() {
     // Open tabs for customer selection
     const { data: openTabs = [] } = useOpenTabs();
     const addTabTransaction = useAddTabTransaction();
+
+    // Variable unit quantity dialog state
+    const [quantityDialogOpen, setQuantityDialogOpen] = useState(false);
+    const [quantityDialogProduct, setQuantityDialogProduct] = useState<Product | null>(null);
 
     // Cart state
     const cart = usePOSCart('toko');
@@ -242,7 +247,27 @@ export default function POS() {
             });
             return;
         }
-        cart.addToCart(product);
+        handleAddToCart(product);
+    };
+
+    // Handle adding product to cart - check for variable unit products
+    const handleAddToCart = (product: Product) => {
+        if (product.sell_by_quantity) {
+            // Open quantity input dialog for variable unit products
+            setQuantityDialogProduct(product);
+            setQuantityDialogOpen(true);
+        } else {
+            // Normal product - add directly
+            cart.addToCart(product);
+        }
+    };
+
+    // Handle variable quantity confirmation
+    const handleQuantityConfirm = (quantity: number) => {
+        if (quantityDialogProduct && quantity > 0) {
+            cart.addToCartWithQuantity(quantityDialogProduct, quantity);
+        }
+        setQuantityDialogProduct(null);
     };
 
     if (loading) {
@@ -310,7 +335,7 @@ export default function POS() {
                     <POSProductGrid
                         products={products}
                         stockLocation={cart.stockLocation}
-                        onAddToCart={cart.addToCart}
+                        onAddToCart={handleAddToCart}
                         searchInputRef={searchInputRef}
                     />
                 </div>
@@ -435,6 +460,14 @@ export default function POS() {
                 open={tabDialogOpen}
                 onOpenChange={setTabDialogOpen}
                 stockLocation={cart.stockLocation}
+            />
+
+            {/* Variable Quantity Input Dialog */}
+            <QuantityInputDialog
+                open={quantityDialogOpen}
+                onOpenChange={setQuantityDialogOpen}
+                product={quantityDialogProduct}
+                onConfirm={handleQuantityConfirm}
             />
         </MainLayout>
     );
