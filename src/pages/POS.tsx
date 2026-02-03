@@ -12,6 +12,7 @@ import { POSReceiptDialog } from '@/components/pos/POSReceiptDialog';
 import { POSSalesHistoryDialog } from '@/components/pos/POSSalesHistoryDialog';
 import { TabDialog } from '@/components/pos/TabDialog';
 import QuantityInputDialog from '@/components/pos/QuantityInputDialog';
+import { QuickSaleDialog } from '@/components/pos/QuickSaleDialog';
 import { OfflineSyncStatus } from '@/components/pos/OfflineSyncStatus';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,7 +22,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { History, ClipboardList, RotateCcw } from 'lucide-react';
+import { History, ClipboardList, RotateCcw, PackagePlus } from 'lucide-react';
 import { useData } from '@/contexts/DataContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -54,6 +55,9 @@ export default function POS() {
     // Variable unit quantity dialog state
     const [quantityDialogOpen, setQuantityDialogOpen] = useState(false);
     const [quantityDialogProduct, setQuantityDialogProduct] = useState<Product | null>(null);
+
+    // Quick Sale dialog state
+    const [quickSaleDialogOpen, setQuickSaleDialogOpen] = useState(false);
 
     // Cart state
     const cart = usePOSCart('toko');
@@ -292,6 +296,16 @@ export default function POS() {
                         {/* Offline Sync Status */}
                         <OfflineSyncStatus />
 
+                        {/* Quick Sale Button */}
+                        <Button
+                            variant="outline"
+                            onClick={() => setQuickSaleDialogOpen(true)}
+                            className="h-11 rounded-xl gap-2 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-900/20"
+                        >
+                            <PackagePlus className="h-4 w-4" />
+                            <span className="hidden sm:inline">Quick Sale</span>
+                        </Button>
+
                         {/* Tab Button */}
                         <Button
                             variant="outline"
@@ -468,6 +482,13 @@ export default function POS() {
                 onOpenChange={setQuantityDialogOpen}
                 product={quantityDialogProduct}
                 onConfirm={handleQuantityConfirm}
+            />
+
+            {/* Quick Sale Dialog */}
+            <QuickSaleDialog
+                open={quickSaleDialogOpen}
+                onOpenChange={setQuickSaleDialogOpen}
+                onAddItem={cart.addManualItem}
             />
         </MainLayout>
     );

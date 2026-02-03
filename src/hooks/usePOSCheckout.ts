@@ -108,13 +108,15 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
             // discount is now a fixed amount in Rupiah per item
             const itemDiscountAmount = it.discount * it.quantity;
             return {
-                productId: it.product.id,
+                // Use null for manual entry items (Quick Sale)
+                productId: it.isManualEntry ? null : it.product.id,
                 productName: it.product.name,
-                barcode: it.product.barcode,
+                barcode: it.product.barcode || '',
                 quantity: it.quantity,
                 price: it.product.price,
                 discount: it.discount,
                 subtotal: Math.round(itemTotal - itemDiscountAmount),
+                isManualEntry: it.isManualEntry || false,
             };
         });
 
@@ -211,9 +213,14 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
                 paymentMethod,
                 stockLocation,
                 items: items.map((it) => ({
-                    productId: it.product.id,
+                    // Use null for manual entry items (Quick Sale)
+                    productId: it.isManualEntry ? null : it.product.id,
+                    productName: it.product.name,
+                    price: it.product.price,
+                    barcode: it.product.barcode || '',
                     quantity: it.quantity,
-                    discount: it.discount
+                    discount: it.discount,
+                    isManualEntry: it.isManualEntry || false,
                 })),
                 orderDiscount,
                 amountPaid: finalAmountPaid,

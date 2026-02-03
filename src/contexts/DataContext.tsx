@@ -25,10 +25,18 @@ interface DataContextType {
   createSale: (data: {
     paymentMethod: PaymentMethod;
     stockLocation: Location;
-    items: Array<{ productId: string; quantity: number; discount: number }>;
+    items: Array<{
+      productId: string | null; // null for Quick Sale items
+      productName?: string;
+      price?: number;
+      barcode?: string;
+      quantity: number;
+      discount: number;
+      isManualEntry?: boolean;
+    }>;
     orderDiscount: number;
     amountPaid: number;
-  }) => Promise<boolean>;
+  }) => Promise<{ saleId: string; saleNumber: string } | null>;
 
 
   // Stock actions
@@ -466,36 +474,72 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const createSale = async (data: {
     paymentMethod: PaymentMethod;
     stockLocation: Location;
-    items: Array<{ productId: string; quantity: number; discount: number }>;
+    items: Array<{
+      productId: string | null;
+      productName?: string;
+      price?: number;
+      barcode?: string;
+      quantity: number;
+      discount: number;
+      isManualEntry?: boolean;
+    }>;
     orderDiscount: number;
     amountPaid: number;
   }) => {
-    if (!user || !profile) return false;
+    if (!user || !profile) return null;
 
-    const items = data.items
+    // Process items - separate manual entries from database products
+    const processedItems = data.items
       .filter(i => i.quantity > 0)
       .map(i => {
-        const product = products.find(p => p.id === i.productId);
-        return { product, productId: i.productId, quantity: i.quantity, discount: i.discount };
+        if (i.isManualEntry || !i.productId) {
+          // Manual entry (Quick Sale) - use provided data directly
+          return {
+            product: null,
+            productId: null,
+            productName: i.productName || 'Item Manual',
+            price: i.price || 0,
+            barcode: i.barcode || '',
+            quantity: i.quantity,
+            discount: i.discount,
+            isManualEntry: true,
+          };
+        } else {
+          // Database product
+          const product = products.find(p => p.id === i.productId);
+          return {
+            product,
+            productId: i.productId,
+            productName: product?.name || i.productName || '',
+            price: product?.price || i.price || 0,
+            barcode: product?.barcode || i.barcode || '',
+            quantity: i.quantity,
+            discount: i.discount,
+            isManualEntry: false,
+          };
+        }
       });
 
-    if (items.length === 0) {
+    if (processedItems.length === 0) {
       toast({ title: 'Data tidak valid', description: 'Item penjualan kosong', variant: 'destructive' });
-      return false;
+      return null;
     }
 
-    for (const it of items) {
-      if (!it.product) {
-        toast({ title: 'Produk tidak ditemukan', description: `Produk tidak ditemukan`, variant: 'destructive' });
-        return false;
-      }
-      if (it.quantity <= 0) {
-        toast({ title: 'Jumlah tidak valid', description: 'Jumlah harus lebih dari 0', variant: 'destructive' });
-        return false;
-      }
-      if (it.quantity > it.product.stock[data.stockLocation]) {
-        toast({ title: 'Stok tidak cukup', description: `${it.product.name} stok ${data.stockLocation} tidak cukup`, variant: 'destructive' });
-        return false;
+    // Validate only non-manual items
+    for (const it of processedItems) {
+      if (!it.isManualEntry) {
+        if (!it.product) {
+          toast({ title: 'Produk tidak ditemukan', description: `Produk tidak ditemukan`, variant: 'destructive' });
+          return null;
+        }
+        if (it.quantity <= 0) {
+          toast({ title: 'Jumlah tidak valid', description: 'Jumlah harus lebih dari 0', variant: 'destructive' });
+          return null;
+        }
+        if (it.quantity > it.product.stock[data.stockLocation]) {
+          toast({ title: 'Stok tidak cukup', description: `${it.product.name} stok ${data.stockLocation} tidak cukup`, variant: 'destructive' });
+          return null;
+        }
       }
     }
 
@@ -507,8 +551,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const saleNumber = `INV/${yyyy}${mm}${dd}-${rand}`;
 
     // Calculate subtotal with per-item discounts (discount is now nominal Rupiah per item)
-    const subtotal = items.reduce((acc, it) => {
-      const itemTotal = it.product!.price * it.quantity;
+    const subtotal = processedItems.reduce((acc, it) => {
+      const itemTotal = it.price * it.quantity;
       const itemDiscountAmount = it.discount * it.quantity;
       return acc + (itemTotal - itemDiscountAmount);
     }, 0);
@@ -540,17 +584,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       return null;
     }
 
-    const saleItems = items.map(it => {
-      const itemTotal = it.product!.price * it.quantity;
-      // discount is now a fixed amount in Rupiah per item
+    const saleItems = processedItems.map(it => {
+      const itemTotal = it.price * it.quantity;
       const itemDiscountAmount = it.discount * it.quantity;
       return {
         sale_id: saleRow.id,
-        product_id: it.productId,
-        product_name: it.product!.name,
-        barcode: it.product!.barcode,
+        product_id: it.isManualEntry ? null : it.productId, // null for manual entries
+        product_name: it.productName,
+        barcode: it.barcode,
         quantity: it.quantity,
-        price: it.product!.price,
+        price: it.price,
         subtotal: Math.round(itemTotal - itemDiscountAmount),
         discount: it.discount,
       };
@@ -562,29 +605,31 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       return null;
     }
 
-    for (const it of items) {
-      const product = it.product!;
-      const stockField = `stock_${data.stockLocation}`;
-      const newStock = product.stock[data.stockLocation] - it.quantity;
+    // Update stock ONLY for non-manual items
+    for (const it of processedItems) {
+      if (!it.isManualEntry && it.product) {
+        const stockField = `stock_${data.stockLocation}`;
+        const newStock = it.product.stock[data.stockLocation] - it.quantity;
 
-      const { error: stockError } = await supabase
-        .from('products')
-        .update({ [stockField]: newStock })
-        .eq('id', product.id);
+        const { error: stockError } = await supabase
+          .from('products')
+          .update({ [stockField]: newStock })
+          .eq('id', it.product.id);
 
-      if (stockError) {
-        toast({ title: 'Gagal update stok', description: stockError.message, variant: 'destructive' });
-        return null;
+        if (stockError) {
+          toast({ title: 'Gagal update stok', description: stockError.message, variant: 'destructive' });
+          return null;
+        }
+
+        await supabase.from('stock_logs').insert({
+          product_id: it.product.id,
+          type: 'out',
+          quantity: it.quantity,
+          location: data.stockLocation,
+          user_id: user.id,
+          note: `Penjualan ${saleNumber} (${data.paymentMethod})`,
+        });
       }
-
-      await supabase.from('stock_logs').insert({
-        product_id: product.id,
-        type: 'out',
-        quantity: it.quantity,
-        location: data.stockLocation,
-        user_id: user.id,
-        note: `Penjualan ${saleNumber} (${data.paymentMethod})`,
-      });
     }
 
     await addNotification({

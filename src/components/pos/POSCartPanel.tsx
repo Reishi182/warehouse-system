@@ -173,6 +173,7 @@ export function POSCartPanel({
                         <div className="p-3 space-y-2">
                             {items.map((it, index) => {
                                 const isVariableUnit = it.product.sell_by_quantity;
+                                const isManualEntry = it.isManualEntry;
                                 const unit = it.product.sell_unit || 'pcs';
                                 const qtyDisplay = isVariableUnit
                                     ? `${it.quantity} ${unit}`
@@ -184,12 +185,16 @@ export function POSCartPanel({
                                         className={cn(
                                             "flex items-center gap-2 p-2 rounded-xl bg-card border transition-all",
                                             "hover:border-primary/30 hover:shadow-sm",
-                                            isVariableUnit && "border-amber-200/50 dark:border-amber-800/50"
+                                            isManualEntry && "border-amber-300 dark:border-amber-700 bg-amber-50/50 dark:bg-amber-900/20",
+                                            isVariableUnit && !isManualEntry && "border-amber-200/50 dark:border-amber-800/50"
                                         )}
                                         style={{ animationDelay: `${index * 50}ms` }}
                                     >
                                         {/* Product Image */}
-                                        <div className="w-10 h-10 rounded-lg bg-muted/50 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                        <div className={cn(
+                                            "w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0",
+                                            isManualEntry ? "bg-amber-100 dark:bg-amber-900/50" : "bg-muted/50"
+                                        )}>
                                             {it.product.image_url ? (
                                                 <img
                                                     src={it.product.image_url}
@@ -197,13 +202,23 @@ export function POSCartPanel({
                                                     className="w-full h-full object-cover"
                                                 />
                                             ) : (
-                                                <Package className="w-4 h-4 text-muted-foreground/30" />
+                                                <Package className={cn(
+                                                    "w-4 h-4",
+                                                    isManualEntry ? "text-amber-500" : "text-muted-foreground/30"
+                                                )} />
                                             )}
                                         </div>
 
                                         {/* Product Info */}
                                         <div className="flex-1 min-w-0">
-                                            <p className="font-medium text-xs truncate">{it.product.name}</p>
+                                            <div className="flex items-center gap-1.5">
+                                                <p className="font-medium text-xs truncate">{it.product.name}</p>
+                                                {isManualEntry && (
+                                                    <Badge className="h-4 px-1.5 text-[9px] bg-amber-500 text-white border-0 rounded-full shrink-0">
+                                                        Manual
+                                                    </Badge>
+                                                )}
+                                            </div>
                                             <p className="text-[10px] text-muted-foreground">
                                                 Rp {it.product.price.toLocaleString('id-ID')}
                                                 {isVariableUnit && <span className="text-amber-600">/{unit}</span>}
@@ -214,7 +229,7 @@ export function POSCartPanel({
                                         </div>
 
                                         {/* Quantity Display */}
-                                        {isVariableUnit ? (
+                                        {isVariableUnit && !isManualEntry ? (
                                             // Variable unit: show quantity with unit
                                             <div className="px-2 py-1 bg-amber-100 dark:bg-amber-900/50 rounded-lg">
                                                 <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">
@@ -222,8 +237,11 @@ export function POSCartPanel({
                                                 </span>
                                             </div>
                                         ) : (
-                                            // Normal product: +/- buttons
-                                            <div className="flex items-center gap-0.5 bg-muted/50 rounded-lg p-0.5">
+                                            // Normal product or manual entry: +/- buttons
+                                            <div className={cn(
+                                                "flex items-center gap-0.5 rounded-lg p-0.5",
+                                                isManualEntry ? "bg-amber-100/50 dark:bg-amber-900/30" : "bg-muted/50"
+                                            )}>
                                                 <Button
                                                     size="icon"
                                                     variant="ghost"
@@ -237,12 +255,17 @@ export function POSCartPanel({
                                                     size="icon"
                                                     variant="ghost"
                                                     onClick={() => {
-                                                        const availableStock = it.product.stock[stockLocation];
-                                                        if (it.quantity < availableStock) {
+                                                        // Manual items have no stock limit
+                                                        if (isManualEntry) {
                                                             onUpdateQuantity(it.product.id, it.quantity + 1);
+                                                        } else {
+                                                            const availableStock = it.product.stock[stockLocation];
+                                                            if (it.quantity < availableStock) {
+                                                                onUpdateQuantity(it.product.id, it.quantity + 1);
+                                                            }
                                                         }
                                                     }}
-                                                    disabled={it.quantity >= it.product.stock[stockLocation]}
+                                                    disabled={!isManualEntry && it.quantity >= it.product.stock[stockLocation]}
                                                     className="h-6 w-6 rounded-md hover:bg-background disabled:opacity-50"
                                                 >
                                                     <Plus className="w-3 h-3" />

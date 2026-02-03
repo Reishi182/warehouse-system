@@ -7,6 +7,7 @@ export type CartItem = {
     product: Product;
     quantity: number;
     discount: number;
+    isManualEntry?: boolean; // true for quick sale items (no product_id)
 };
 
 export interface UsePOSCartOptions {
@@ -21,6 +22,7 @@ export interface UsePOSCartReturn {
     setOrderDiscount: (discount: number) => void;
     addToCart: (product: Product) => void;
     addToCartWithQuantity: (product: Product, quantity: number) => void; // For variable unit products
+    addManualItem: (name: string, price: number, quantity: number) => void; // For quick sale items
     updateQuantity: (productId: string, quantity: number) => void;
     updateItemDiscount: (productId: string, discount: number) => void;
     removeItem: (productId: string) => void;
@@ -105,6 +107,42 @@ export function usePOSCart(initialLocation: Location = 'toko'): UsePOSCartReturn
             return [...prev, { product, quantity, discount: 0 }];
         });
     }, [stockLocation, toast]);
+
+    // Add manual item (Quick Sale) - no product in database
+    const addManualItem = useCallback((name: string, price: number, quantity: number) => {
+        if (!name.trim() || price <= 0 || quantity <= 0) {
+            toast({
+                title: 'Data tidak valid',
+                description: 'Nama, harga, dan jumlah harus diisi dengan benar',
+                variant: 'destructive'
+            });
+            return;
+        }
+
+        // Create a pseudo-product for manual entry
+        const manualProductId = `manual-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const manualProduct: Product = {
+            id: manualProductId,
+            name: name.trim(),
+            barcode: '', // No barcode for manual items
+            price: price,
+            stock: { gudang: 9999, toko: 9999 }, // Unlimited stock for manual items
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        };
+
+        setItems((prev) => [...prev, {
+            product: manualProduct,
+            quantity,
+            discount: 0,
+            isManualEntry: true
+        }]);
+
+        toast({
+            title: '✅ Item ditambahkan',
+            description: `${name} x${quantity} - Rp ${(price * quantity).toLocaleString('id-ID')}`,
+        });
+    }, [toast]);
 
     const updateQuantity = useCallback((productId: string, qty: number) => {
         if (qty < 0) return;
@@ -226,6 +264,7 @@ export function usePOSCart(initialLocation: Location = 'toko'): UsePOSCartReturn
         setOrderDiscount: (discount: number) => setOrderDiscount(Math.max(0, discount)),
         addToCart,
         addToCartWithQuantity,
+        addManualItem,
         updateQuantity,
         updateItemDiscount,
         removeItem,
