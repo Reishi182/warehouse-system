@@ -73,7 +73,7 @@ export function POSCartPanel({
     const isTabMode = !!selectedTabId;
 
     return (
-        <div className="hidden md:flex fixed top-0 right-0 h-screen w-80 lg:w-[430px] flex-col border-l bg-gradient-to-b from-background via-background to-muted/20 shadow-2xl z-[60]">
+        <div className="hidden md:flex fixed top-0 right-0 h-screen w-72 lg:w-80 xl:w-[400px] flex-col border-l bg-gradient-to-b from-background via-background to-muted/20 shadow-2xl z-[60]">
             {/* Header with Glassmorphism */}
             <div className="px-4 py-3 border-b bg-gradient-to-r from-primary/5 to-transparent backdrop-blur-sm">
                 <div className="flex items-center justify-between">
@@ -239,18 +239,18 @@ export function POSCartPanel({
                                         ) : (
                                             // Normal product or manual entry: +/- buttons
                                             <div className={cn(
-                                                "flex items-center gap-0.5 rounded-lg p-0.5",
+                                                "flex items-center rounded-lg p-0.5 shrink-0",
                                                 isManualEntry ? "bg-amber-100/50 dark:bg-amber-900/30" : "bg-muted/50"
                                             )}>
                                                 <Button
                                                     size="icon"
                                                     variant="ghost"
                                                     onClick={() => onUpdateQuantity(it.product.id, it.quantity - 1)}
-                                                    className="h-6 w-6 rounded-md hover:bg-background"
+                                                    className="h-5 w-5 lg:h-6 lg:w-6 rounded-md hover:bg-background"
                                                 >
-                                                    <Minus className="w-3 h-3" />
+                                                    <Minus className="w-2.5 h-2.5 lg:w-3 lg:h-3" />
                                                 </Button>
-                                                <span className="w-6 text-center text-xs font-semibold">{it.quantity}</span>
+                                                <span className="w-5 lg:w-6 text-center text-[10px] lg:text-xs font-semibold">{it.quantity}</span>
                                                 <Button
                                                     size="icon"
                                                     variant="ghost"
@@ -266,9 +266,9 @@ export function POSCartPanel({
                                                         }
                                                     }}
                                                     disabled={!isManualEntry && it.quantity >= it.product.stock[stockLocation]}
-                                                    className="h-6 w-6 rounded-md hover:bg-background disabled:opacity-50"
+                                                    className="h-5 w-5 lg:h-6 lg:w-6 rounded-md hover:bg-background disabled:opacity-50"
                                                 >
-                                                    <Plus className="w-3 h-3" />
+                                                    <Plus className="w-2.5 h-2.5 lg:w-3 lg:h-3" />
                                                 </Button>
                                             </div>
                                         )}

@@ -115,7 +115,7 @@ export default function RequestStatusChart({ data }: RequestStatusChartProps) {
                 </div>
 
                 {/* Quick stats below chart */}
-                <div className="grid grid-cols-4 gap-2 mt-4 pt-4 border-t">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4 pt-4 border-t">
                     {data.map((item) => {
                         const colors: Record<string, string> = {
                             Pending: 'text-amber-600',

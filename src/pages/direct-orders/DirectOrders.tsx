@@ -318,7 +318,7 @@ export default function DirectOrders() {
                     hideSelection
                     filters={
                         <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as DirectOrderStatus | 'all')}>
-                            <SelectTrigger className="w-[180px]">
+                            <SelectTrigger className="w-full sm:w-[180px]">
                                 <SelectValue placeholder="Filter Status" />
                             </SelectTrigger>
                             <SelectContent>

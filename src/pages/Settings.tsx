@@ -260,7 +260,7 @@ export default function Settings() {
           <Separator className="my-4" />
           <div className="space-y-4">
             <Label>Pilih Tema</Label>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <Button
                 variant={theme === 'light' ? 'default' : 'outline'}
                 className="flex flex-col items-center gap-2 h-auto py-4"

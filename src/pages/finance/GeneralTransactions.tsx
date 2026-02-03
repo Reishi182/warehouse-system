@@ -402,7 +402,7 @@ export default function GeneralTransactions() {
                                             value={selectedDate}
                                             onChange={setSelectedDate}
                                             placeholder="Pilih tanggal"
-                                            className="w-[200px]"
+                                            className="w-full sm:w-[200px]"
                                         />
                                     </div>
                                     <div className="flex flex-wrap gap-3 flex-1 justify-end">
@@ -445,7 +445,7 @@ export default function GeneralTransactions() {
                                     <div className="space-y-2">
                                         <Label className="text-xs text-muted-foreground">Pilih Bulan</Label>
                                         <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                                            <SelectTrigger className="w-[200px] rounded-xl bg-background">
+                                            <SelectTrigger className="w-full sm:w-[200px] rounded-xl bg-background">
                                                 <SelectValue placeholder="Pilih bulan" />
                                             </SelectTrigger>
                                             <SelectContent className="rounded-xl">

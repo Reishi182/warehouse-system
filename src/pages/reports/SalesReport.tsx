@@ -355,19 +355,19 @@ export default function SalesReport() {
                                     <YearInput
                                         value={selectedDate}
                                         onChange={(val) => setSelectedDate(val)}
-                                        className="w-[200px]"
+                                        className="w-full sm:w-[200px]"
                                     />
                                 ) : period === 'monthly' ? (
                                     <MonthInput
                                         value={selectedDate}
                                         onChange={(val) => setSelectedDate(val)}
-                                        className="w-[220px]"
+                                        className="w-full sm:w-[220px]"
                                     />
                                 ) : (
                                     <DateInput
                                         value={selectedDate}
                                         onChange={(val) => setSelectedDate(val)}
-                                        className="w-[200px]"
+                                        className="w-full sm:w-[200px]"
                                     />
                                 )}
                                 <Button

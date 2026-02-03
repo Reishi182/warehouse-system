@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect, useCallback } from 'react';
 import {
     CheckCircle2,
     CreditCard,
@@ -57,6 +57,24 @@ export function POSCheckoutDialog({
         return [...amounts].sort((a, b) => a - b).slice(0, 8);
     }, [totalAmount]);
 
+    // Check if payment can be confirmed
+    const canConfirm = !isProcessing && (paymentMethod === 'transfer' || amountPaid >= totalAmount);
+
+    // Handle Enter key to confirm payment
+    useEffect(() => {
+        if (!open) return;
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Enter' && canConfirm) {
+                e.preventDefault();
+                onConfirm();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [open, canConfirm, onConfirm]);
+
     const formatQuickAmount = (amount: number) => {
         if (amount >= 1000000) return `${(amount / 1000000).toFixed(amount % 1000000 === 0 ? 0 : 1)}jt`;
         return `${amount / 1000}k`;
@@ -77,7 +95,7 @@ export function POSCheckoutDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="rounded-2xl max-w-md p-0 overflow-hidden border-0 shadow-2xl">
+            <DialogContent className="rounded-2xl max-w-md p-0 border-0 shadow-2xl max-h-[90vh] overflow-y-auto">
                 {/* Header - White to Primary gradient */}
                 <div className="bg-gradient-to-br from-white to-primary/20 dark:from-slate-900 dark:to-primary/30 p-6 border-b">
                     <DialogHeader>

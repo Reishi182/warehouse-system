@@ -284,7 +284,7 @@ export default function POS() {
 
     return (
         <MainLayout title="Point of Sale" subtitle="Sistem kasir untuk penjualan">
-            <div className="flex gap-4 h-[calc(100vh-180px)] md:h-[calc(100vh-140px)] md:pr-[22rem] lg:pr-[25rem]">
+            <div className="flex gap-4 h-[calc(100vh-180px)] md:h-[calc(100vh-140px)] md:pr-72 lg:pr-80 xl:pr-[400px]">
                 {/* Left Panel - Products */}
                 <div className="flex-1 flex flex-col min-w-0">
                     {/* Location Selector, Barcode Scanner & Offline Status */}

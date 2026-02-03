@@ -263,7 +263,7 @@ export default function RevenueComparisonChart({ sales }: RevenueComparisonChart
 
             <CardContent className="pt-4">
                 {/* Summary Stats */}
-                <div className="grid grid-cols-3 gap-4 mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
                     <div className="text-center p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20">
                         <p className="text-xs text-muted-foreground mb-1">
                             {period === 'daily' ? 'Minggu Ini' : 'Total'}
@@ -281,13 +281,13 @@ export default function RevenueComparisonChart({ sales }: RevenueComparisonChart
                         </p>
                     </div>
                     <div className={`text-center p-3 rounded-xl ${isPositive
-                            ? 'bg-emerald-50 dark:bg-emerald-900/20'
-                            : 'bg-red-50 dark:bg-red-900/20'
+                        ? 'bg-emerald-50 dark:bg-emerald-900/20'
+                        : 'bg-red-50 dark:bg-red-900/20'
                         }`}>
                         <p className="text-xs text-muted-foreground mb-1">Perubahan</p>
                         <p className={`text-lg font-bold flex items-center justify-center gap-1 ${isPositive
-                                ? 'text-emerald-600 dark:text-emerald-400'
-                                : 'text-red-600 dark:text-red-400'
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : 'text-red-600 dark:text-red-400'
                             }`}>
                             {isPositive ? (
                                 <TrendingUp className="w-4 h-4" />

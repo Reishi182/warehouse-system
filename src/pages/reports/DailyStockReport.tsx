@@ -117,8 +117,8 @@ export default function DailyStockReport() {
             accessorKey: 'type',
             cell: (item) => (
                 <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${item.type === 'in'
-                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                        : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                    : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                     }`}>
                     {item.type === 'in' ? <ArrowUpCircle className="w-3 h-3" /> : <ArrowDownCircle className="w-3 h-3" />}
                     {item.type === 'in' ? 'Masuk' : 'Keluar'}
@@ -167,7 +167,7 @@ export default function DailyStockReport() {
                         value={selectedDate}
                         onChange={setSelectedDate}
                         placeholder="Pilih tanggal"
-                        className="w-[200px]"
+                        className="w-full sm:w-[200px]"
                     />
                     {isSelectedToday && (
                         <span className="px-3 py-1 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 text-xs font-semibold rounded-full">

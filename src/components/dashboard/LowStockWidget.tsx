@@ -77,7 +77,7 @@ export function LowStockWidget({ maxItems = 5, className }: LowStockWidgetProps)
             <CardContent className="pt-0">
                 {/* Stats summary */}
                 {hasAlerts && (
-                    <div className="grid grid-cols-3 gap-2 mb-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4">
                         <div className="text-center p-2 rounded-lg bg-red-500/10">
                             <p className="text-lg font-bold text-red-600 dark:text-red-400">{stats.outOfStock}</p>
                             <p className="text-[10px] text-muted-foreground">Habis</p>

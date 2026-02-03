@@ -542,7 +542,7 @@ export default function Sidebar() {
 
               {/* Scrollable Menu Grid */}
               <div className="flex-1 overflow-y-auto min-h-0">
-                <div className="grid grid-cols-3 gap-3 pb-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pb-4">
                   {mobileMoreItems.map((item) => {
                     const isActive = location.pathname === item.href;
                     return (
