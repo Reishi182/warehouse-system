@@ -364,8 +364,16 @@ export function POSSalesHistoryDialog({ open, onOpenChange, onCreateReturn }: PO
                                                             {sale.items?.map((item, idx) => (
                                                                 <div key={idx} className="flex items-center justify-between text-xs">
                                                                     <div className="flex items-center gap-2 min-w-0">
-                                                                        <Package className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                                                        <Package className={cn(
+                                                                            "h-3 w-3 flex-shrink-0",
+                                                                            !item.product_id ? "text-amber-500" : "text-muted-foreground"
+                                                                        )} />
                                                                         <span className="truncate">{item.product_name}</span>
+                                                                        {!item.product_id && (
+                                                                            <Badge className="h-4 px-1.5 text-[9px] bg-amber-500 text-white border-0 rounded-full shrink-0">
+                                                                                Manual
+                                                                            </Badge>
+                                                                        )}
                                                                         <span className="text-muted-foreground flex-shrink-0">x{item.quantity}</span>
                                                                     </div>
                                                                     <span className="font-medium flex-shrink-0 ml-2">

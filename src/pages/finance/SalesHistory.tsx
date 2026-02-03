@@ -330,8 +330,15 @@ export default function SalesHistory() {
                                                                 {sale.items?.map((item, idx) => (
                                                                     <tr key={item.id || idx} className="border-b border-gray-100 dark:border-gray-800 last:border-0">
                                                                         <td className="py-2">
-                                                                            <p className="font-medium text-gray-900 dark:text-white">{item.product_name}</p>
-                                                                            <p className="text-xs text-muted-foreground">{item.barcode}</p>
+                                                                            <div className="flex items-center gap-2">
+                                                                                <p className="font-medium text-gray-900 dark:text-white">{item.product_name}</p>
+                                                                                {!item.product_id && (
+                                                                                    <Badge className="h-4 px-1.5 text-[9px] bg-amber-500 text-white border-0 rounded-full shrink-0">
+                                                                                        Manual
+                                                                                    </Badge>
+                                                                                )}
+                                                                            </div>
+                                                                            <p className="text-xs text-muted-foreground">{item.barcode || '-'}</p>
                                                                         </td>
                                                                         <td className="py-2 text-center font-semibold">{item.quantity}</td>
                                                                         <td className="py-2 text-right">Rp {item.price.toLocaleString('id-ID')}</td>
