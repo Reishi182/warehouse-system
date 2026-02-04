@@ -68,14 +68,16 @@ export default function Dashboard() {
           <LowStockAlertWidget maxVisible={5} />
         )}
 
-        {/* Unified Activity Hub with Tabs */}
-        <DashboardActivityHub
-          role={role}
-          requests={requests}
-          stockLogs={stockLogs}
-          sales={sales}
-          suratJalans={suratJalans}
-        />
+        {/* Unified Activity Hub with Tabs - not for cashier */}
+        {role !== 'cashier' && (
+          <DashboardActivityHub
+            role={role}
+            requests={requests}
+            stockLogs={stockLogs}
+            sales={sales}
+            suratJalans={suratJalans}
+          />
+        )}
       </div>
     </MainLayout>
   );

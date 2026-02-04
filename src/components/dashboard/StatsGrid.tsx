@@ -119,7 +119,7 @@ export default function StatsGrid({
 
     if (role === 'cashier') {
         return (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
                 <StatCard
                     title="Transaksi Hari Ini"
                     value={totalSalesToday}
@@ -129,21 +129,12 @@ export default function StatsGrid({
                     animationDelay={0}
                 />
                 <StatCard
-                    title="Total Penjualan"
-                    value={formatCurrency(totalSalesAmount)}
-                    subtitle="Hari ini"
-                    icon={Banknote}
-                    gradient="green"
-                    change={salesChange}
-                    animationDelay={100}
-                />
-                <StatCard
                     title="Cash Masuk"
                     value={formatCurrency(cashSalesAmount)}
                     subtitle={`${salesToday.filter(s => s.payment_method === 'cash').length} transaksi`}
                     icon={Banknote}
                     gradient="emerald"
-                    animationDelay={200}
+                    animationDelay={100}
                 />
                 <StatCard
                     title="Belum Disetor"
@@ -151,7 +142,7 @@ export default function StatsGrid({
                     subtitle="Perlu setor"
                     icon={Wallet}
                     gradient="amber"
-                    animationDelay={300}
+                    animationDelay={200}
                 />
             </div>
         );

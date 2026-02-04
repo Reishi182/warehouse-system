@@ -561,38 +561,57 @@ export default function SalesReport() {
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div className="flex items-end justify-between h-32 gap-1">
-                                    {stats.hourlyDistribution.slice(7, 22).map((item) => {
-                                        const maxCount = Math.max(...stats.hourlyDistribution.map(h => h.count));
-                                        const height = maxCount > 0 ? (item.count / maxCount) * 100 : 0;
-                                        const isPeak = peakHour?.hour === item.hour;
+                                {(() => {
+                                    const hourlyData = stats.hourlyDistribution.slice(7, 22);
+                                    const maxCount = Math.max(...hourlyData.map(h => h.count), 1);
+                                    const hasData = hourlyData.some(h => h.count > 0);
 
+                                    if (!hasData) {
                                         return (
-                                            <div
-                                                key={item.hour}
-                                                className="flex-1 flex flex-col items-center group"
-                                            >
-                                                <div
-                                                    className={cn(
-                                                        "w-full rounded-t transition-all",
-                                                        isPeak
-                                                            ? "bg-gradient-to-t from-primary to-primary/60"
-                                                            : "bg-primary/20 group-hover:bg-primary/40",
-                                                        height === 0 && "bg-muted"
-                                                    )}
-                                                    style={{ height: `${Math.max(height, 4)}%` }}
-                                                    title={`${item.hour}:00 - ${item.count} transaksi (${formatRupiah(item.amount)})`}
-                                                />
-                                                <span className="text-[10px] text-muted-foreground mt-1">
-                                                    {item.hour}
-                                                </span>
+                                            <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                                                <Clock className="w-8 h-8 mb-2 opacity-50" />
+                                                <p className="text-sm">Belum ada transaksi hari ini</p>
                                             </div>
                                         );
-                                    })}
-                                </div>
-                                <p className="text-xs text-muted-foreground text-center mt-2">
-                                    Jam operasional (07:00 - 21:00)
-                                </p>
+                                    }
+
+                                    return (
+                                        <>
+                                            <div className="flex items-end justify-between h-32 gap-1">
+                                                {hourlyData.map((item) => {
+                                                    const height = (item.count / maxCount) * 100;
+                                                    const isPeak = peakHour?.hour === item.hour;
+
+                                                    return (
+                                                        <div
+                                                            key={item.hour}
+                                                            className="flex-1 flex flex-col items-center group"
+                                                        >
+                                                            <div
+                                                                className={cn(
+                                                                    "w-full rounded-t transition-all",
+                                                                    isPeak
+                                                                        ? "bg-gradient-to-t from-primary to-primary/60"
+                                                                        : item.count > 0
+                                                                            ? "bg-primary/30 group-hover:bg-primary/50"
+                                                                            : "bg-muted"
+                                                                )}
+                                                                style={{ height: `${Math.max(height, 4)}%` }}
+                                                                title={`${item.hour}:00 - ${item.count} transaksi (${formatRupiah(item.amount)})`}
+                                                            />
+                                                            <span className="text-[10px] text-muted-foreground mt-1">
+                                                                {item.hour}
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                            <p className="text-xs text-muted-foreground text-center mt-2">
+                                                Jam operasional (07:00 - 21:00)
+                                            </p>
+                                        </>
+                                    );
+                                })()}
                             </CardContent>
                         </Card>
                     )}

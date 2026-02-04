@@ -1,11 +1,10 @@
-import { useMemo, useEffect, useCallback } from 'react';
+import { useMemo, useEffect } from 'react';
 import {
     CheckCircle2,
     CreditCard,
     Banknote,
     Loader2,
     Delete,
-    Calendar,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +15,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { DatePicker } from '@/components/common/DatePicker';
 import { PaymentMethod } from '@/types';
 import { CartItem } from '@/hooks/usePOSCart';
 import { cn } from '@/lib/utils';
@@ -134,52 +134,13 @@ export function POSCheckoutDialog({
 
                     {/* Transaction Date Picker */}
                     <div className="space-y-2">
-                        <Label className="text-sm flex items-center gap-2">
-                            <Calendar className="w-4 h-4" />
-                            Tanggal Transaksi
-                        </Label>
-                        <div className="flex gap-2">
-                            <button
-                                type="button"
-                                onClick={() => onTransactionDateChange(new Date())}
-                                className={cn(
-                                    "flex-1 py-2.5 rounded-lg text-sm font-medium transition-all border",
-                                    transactionDate.toDateString() === new Date().toDateString()
-                                        ? "bg-primary text-primary-foreground border-primary"
-                                        : "bg-muted hover:bg-muted/80 border-transparent"
-                                )}
-                            >
-                                Hari Ini
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    const yesterday = new Date();
-                                    yesterday.setDate(yesterday.getDate() - 1);
-                                    onTransactionDateChange(yesterday);
-                                }}
-                                className={cn(
-                                    "flex-1 py-2.5 rounded-lg text-sm font-medium transition-all border",
-                                    transactionDate.toDateString() === new Date(new Date().setDate(new Date().getDate() - 1)).toDateString()
-                                        ? "bg-amber-500 text-white border-amber-500"
-                                        : "bg-muted hover:bg-muted/80 border-transparent"
-                                )}
-                            >
-                                Kemarin
-                            </button>
-                        </div>
-                        <Input
-                            type="date"
-                            value={transactionDate.toISOString().split('T')[0]}
-                            onChange={(e) => {
-                                if (e.target.value) {
-                                    const newDate = new Date(e.target.value);
-                                    newDate.setHours(new Date().getHours(), new Date().getMinutes());
-                                    onTransactionDateChange(newDate);
-                                }
-                            }}
-                            max={new Date().toISOString().split('T')[0]}
-                            className="h-10 rounded-lg text-center"
+                        <Label className="text-sm">Tanggal Transaksi</Label>
+                        <DatePicker
+                            date={transactionDate}
+                            onDateChange={(date) => date && onTransactionDateChange(date)}
+                            disableFuture
+                            placeholder="Pilih tanggal transaksi"
+                            className="h-10"
                         />
                         {transactionDate.toDateString() !== new Date().toDateString() && (
                             <p className="text-xs text-amber-600 dark:text-amber-400 text-center">

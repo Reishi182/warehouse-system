@@ -192,14 +192,8 @@ export function RoleCharts({
                         <RevenueSummaryCards sales={validSales} />
 
                         {/* Charts */}
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 gap-6">
                             <RevenueByPaymentChart sales={validSales} days={7} />
-                            <DonutChart
-                                title="Status Permintaan Stok"
-                                totalLabel="Total"
-                                totalValue={requests.length.toString()}
-                                data={requestStatus}
-                            />
                         </div>
                     </div>
                 );
