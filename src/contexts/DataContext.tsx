@@ -579,7 +579,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         amount_paid: data.amountPaid,
         change_amount: changeAmount,
         // Use transaction date for backdated transactions
-        ...(data.transactionDate && { created_at: data.transactionDate.toISOString() }),
+        // Set time to 18:00 to represent end of business day
+        ...(data.transactionDate && {
+          created_at: new Date(
+            data.transactionDate.getFullYear(),
+            data.transactionDate.getMonth(),
+            data.transactionDate.getDate(),
+            18, 0, 0 // 6 PM - end of business day
+          ).toISOString()
+        }),
       })
       .select()
       .single();

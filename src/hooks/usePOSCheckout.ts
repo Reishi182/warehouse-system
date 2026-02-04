@@ -213,6 +213,9 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
             const changeAmount = paymentMethod === 'cash' ? Math.max(0, amountPaid - totalAmount) : 0;
             const finalAmountPaid = paymentMethod === 'cash' ? amountPaid : totalAmount;
 
+            // Only pass transactionDate if it's a backdated (different day from today)
+            const isBackdated = transactionDate.toDateString() !== new Date().toDateString();
+
             const result = await createSale({
                 paymentMethod,
                 stockLocation,
@@ -228,8 +231,8 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
                 })),
                 orderDiscount,
                 amountPaid: finalAmountPaid,
-                // Pass transaction date for backdated transactions
-                transactionDate,
+                // Only pass transaction date for backdated transactions
+                ...(isBackdated && { transactionDate }),
             });
 
             if (result) {
