@@ -288,8 +288,8 @@ export default function POS() {
                 {/* Left Panel - Products */}
                 <div className="flex-1 flex flex-col min-w-0">
                     {/* Location Selector, Barcode Scanner & Offline Status */}
-                    <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-4">
-                        <div className="hidden sm:block flex-1">
+                    <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 mb-3 sm:mb-4 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
+                        <div className="hidden sm:block flex-1 min-w-[200px]">
                             <BarcodeScanner onScan={handleScan} placeholder="Scan barcode..." />
                         </div>
 
@@ -300,37 +300,37 @@ export default function POS() {
                         <Button
                             variant="outline"
                             onClick={() => setQuickSaleDialogOpen(true)}
-                            className="h-11 rounded-xl gap-2 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-900/20"
+                            className="h-9 sm:h-11 px-2 sm:px-3 rounded-lg sm:rounded-xl gap-1.5 sm:gap-2 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-900/20 shrink-0"
                         >
                             <PackagePlus className="h-4 w-4" />
-                            <span className="hidden sm:inline">Quick Sale</span>
+                            <span className="hidden sm:inline text-sm">Quick Sale</span>
                         </Button>
 
                         {/* Tab Button */}
                         <Button
                             variant="outline"
                             onClick={() => setTabDialogOpen(true)}
-                            className="h-11 rounded-xl gap-2"
+                            className="h-9 sm:h-11 px-2 sm:px-3 rounded-lg sm:rounded-xl gap-1.5 sm:gap-2 shrink-0"
                         >
                             <ClipboardList className="h-4 w-4" />
-                            <span className="hidden sm:inline">Nota Gantung</span>
+                            <span className="hidden sm:inline text-sm">Nota Gantung</span>
                         </Button>
 
                         {/* Sales History Button */}
                         <Button
                             variant="outline"
                             onClick={() => setSalesHistoryOpen(true)}
-                            className="h-11 rounded-xl gap-2"
+                            className="h-9 sm:h-11 px-2 sm:px-3 rounded-lg sm:rounded-xl gap-1.5 sm:gap-2 shrink-0"
                         >
                             <History className="h-4 w-4" />
-                            <span className="hidden sm:inline">Riwayat</span>
+                            <span className="hidden sm:inline text-sm">Riwayat</span>
                         </Button>
 
                         <Select
                             value={cart.stockLocation}
                             onValueChange={(v: Location) => cart.setStockLocation(v)}
                         >
-                            <SelectTrigger className="w-28 md:w-32 rounded-xl h-11">
+                            <SelectTrigger className="w-20 sm:w-28 md:w-32 rounded-lg sm:rounded-xl h-9 sm:h-11 text-xs sm:text-sm shrink-0">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent className="rounded-xl">
@@ -446,6 +446,8 @@ export default function POS() {
                 paymentMethod={checkout.paymentMethod}
                 amountPaid={checkout.amountPaid}
                 onAmountPaidChange={checkout.setAmountPaid}
+                transactionDate={checkout.transactionDate}
+                onTransactionDateChange={checkout.setTransactionDate}
                 onConfirm={checkout.handleConfirmCheckout}
                 isProcessing={checkout.isProcessing}
             />

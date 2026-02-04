@@ -36,6 +36,7 @@ interface DataContextType {
     }>;
     orderDiscount: number;
     amountPaid: number;
+    transactionDate?: Date; // Optional: for backdated transactions
   }) => Promise<{ saleId: string; saleNumber: string } | null>;
 
 
@@ -485,6 +486,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }>;
     orderDiscount: number;
     amountPaid: number;
+    transactionDate?: Date; // Optional: for backdated transactions
   }) => {
     if (!user || !profile) return null;
 
@@ -543,10 +545,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    const now = new Date();
-    const yyyy = String(now.getFullYear());
-    const mm = String(now.getMonth() + 1).padStart(2, '0');
-    const dd = String(now.getDate()).padStart(2, '0');
+    // Use transaction date if provided, otherwise use current time
+    const saleDate = data.transactionDate || new Date();
+    const yyyy = String(saleDate.getFullYear());
+    const mm = String(saleDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(saleDate.getDate()).padStart(2, '0');
     const rand = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
     const saleNumber = `INV/${yyyy}${mm}${dd}-${rand}`;
 
@@ -575,6 +578,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         order_discount: data.orderDiscount,
         amount_paid: data.amountPaid,
         change_amount: changeAmount,
+        // Use transaction date for backdated transactions
+        ...(data.transactionDate && { created_at: data.transactionDate.toISOString() }),
       })
       .select()
       .single();

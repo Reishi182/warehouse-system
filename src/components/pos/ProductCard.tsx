@@ -79,15 +79,15 @@ export const ProductCard = memo(function ProductCard({
             </div>
 
             {/* Product Info */}
-            <div className="p-3 flex-1 flex flex-col">
-                <h4 className="font-semibold text-sm line-clamp-2 leading-snug mb-1 group-hover:text-primary transition-colors">
+            <div className="p-2 sm:p-3 flex-1 flex flex-col">
+                <h4 className="font-semibold text-xs sm:text-sm line-clamp-2 leading-snug mb-1 group-hover:text-primary transition-colors">
                     {product.name}
                 </h4>
-                <p className="text-[10px] text-muted-foreground/70 font-mono mb-2 truncate">
+                <p className="text-[9px] sm:text-[10px] text-muted-foreground/70 font-mono mb-1 sm:mb-2 truncate">
                     {product.barcode}
                 </p>
                 <div className="mt-auto">
-                    <p className="font-bold text-base text-primary">
+                    <p className="font-bold text-sm sm:text-base text-primary">
                         Rp {product.price.toLocaleString('id-ID')}
                     </p>
                 </div>

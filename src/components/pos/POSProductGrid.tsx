@@ -85,9 +85,9 @@ export function POSProductGrid({
     const getGridClass = () => {
         switch (viewMode) {
             case 'grid':
-                return 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4';
+                return 'grid grid-cols-2 gap-3 sm:gap-4';
             case 'compact':
-                return 'grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3';
+                return 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3';
             default:
                 return 'space-y-2';
         }
@@ -125,13 +125,13 @@ export function POSProductGrid({
             </div>
 
             {/* Filter Bar */}
-            <div className="flex flex-wrap items-center gap-2 mb-4">
-                {/* Stock Filter Pills */}
-                <div className="flex items-center gap-2 flex-1">
+            <div className="flex items-center gap-2 mb-4 -mx-1 px-1">
+                {/* Stock Filter Pills - Scrollable on mobile */}
+                <div className="flex items-center gap-2 flex-1 overflow-x-auto pb-1 scrollbar-hide">
                     <button
                         onClick={() => setStockFilter('all')}
                         className={cn(
-                            "px-4 py-2 rounded-full text-sm font-medium transition-all",
+                            "px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-medium transition-all whitespace-nowrap",
                             stockFilter === 'all'
                                 ? "bg-primary text-primary-foreground shadow-md"
                                 : "bg-muted hover:bg-muted/80"
@@ -142,7 +142,7 @@ export function POSProductGrid({
                     <button
                         onClick={() => setStockFilter('instock')}
                         className={cn(
-                            "px-4 py-2 rounded-full text-sm font-medium transition-all",
+                            "px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-medium transition-all whitespace-nowrap",
                             stockFilter === 'instock'
                                 ? "bg-emerald-600 text-white shadow-md"
                                 : "bg-muted hover:bg-muted/80"
@@ -154,7 +154,7 @@ export function POSProductGrid({
                         <button
                             onClick={() => setStockFilter('low')}
                             className={cn(
-                                "px-4 py-2 rounded-full text-sm font-medium transition-all",
+                                "px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-medium transition-all whitespace-nowrap",
                                 stockFilter === 'low'
                                     ? "bg-amber-500 text-white shadow-md"
                                     : "bg-muted hover:bg-muted/80"
@@ -245,13 +245,13 @@ export function POSProductGrid({
 
             {/* Pagination */}
             {filteredProducts.length > 0 && (
-                <div className="flex items-center justify-between gap-2 mt-4 pt-4 border-t">
-                    <div className="flex items-center gap-2">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-4 mt-4 pt-4 border-t">
+                    <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
                         <Select
                             value={pageSize === 'all' ? 'all' : String(pageSize)}
                             onValueChange={(v) => setPageSize(v === 'all' ? 'all' : parseInt(v))}
                         >
-                            <SelectTrigger className="w-[80px] h-9 rounded-lg">
+                            <SelectTrigger className="w-[70px] sm:w-[80px] h-9 rounded-lg text-xs sm:text-sm">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent className="rounded-lg">
@@ -261,29 +261,29 @@ export function POSProductGrid({
                                 <SelectItem value="all">All</SelectItem>
                             </SelectContent>
                         </Select>
-                        <span className="text-sm text-muted-foreground">
+                        <span className="text-xs sm:text-sm text-muted-foreground">
                             dari {filteredProducts.length} produk
                         </span>
                     </div>
 
                     {pageSize !== 'all' && totalPages > 1 && (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 w-full sm:w-auto justify-center sm:justify-end">
                             <Button
                                 variant="outline"
                                 size="icon"
-                                className="h-9 w-9 rounded-lg"
+                                className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg"
                                 disabled={currentPage === 1}
                                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                             >
                                 <ChevronLeft className="w-4 h-4" />
                             </Button>
-                            <span className="text-sm font-medium px-3 py-1.5 bg-muted rounded-lg">
+                            <span className="text-xs sm:text-sm font-medium px-2 sm:px-3 py-1.5 bg-muted rounded-lg">
                                 {currentPage} / {totalPages}
                             </span>
                             <Button
                                 variant="outline"
                                 size="icon"
-                                className="h-9 w-9 rounded-lg"
+                                className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg"
                                 disabled={currentPage === totalPages}
                                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                             >

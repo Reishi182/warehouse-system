@@ -45,6 +45,8 @@ export interface UsePOSCheckoutReturn {
     showReceiptDialog: boolean;
     amountPaid: number;
     setAmountPaid: (amount: number) => void;
+    transactionDate: Date;
+    setTransactionDate: (date: Date) => void;
     lastSale: LastSaleData | null;
     receiptRef: React.RefObject<HTMLDivElement>;
     openCheckoutDialog: () => void;
@@ -65,6 +67,7 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
     const [showCheckoutDialog, setShowCheckoutDialog] = useState(false);
     const [showReceiptDialog, setShowReceiptDialog] = useState(false);
     const [amountPaid, setAmountPaid] = useState(0);
+    const [transactionDate, setTransactionDate] = useState<Date>(new Date());
     const [lastSale, setLastSale] = useState<LastSaleData | null>(null);
 
     const receiptRef = useRef<HTMLDivElement>(null);
@@ -77,6 +80,7 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
     const openCheckoutDialog = useCallback(() => {
         if (items.length === 0) return;
         setAmountPaid(Math.ceil(totalAmount / 1000) * 1000);
+        setTransactionDate(new Date()); // Reset to today when opening
         setShowCheckoutDialog(true);
     }, [items.length, totalAmount]);
 
@@ -224,6 +228,8 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
                 })),
                 orderDiscount,
                 amountPaid: finalAmountPaid,
+                // Pass transaction date for backdated transactions
+                transactionDate,
             });
 
             if (result) {
@@ -249,7 +255,7 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
                     method: paymentMethod,
                     amountPaid: finalAmountPaid,
                     change: changeAmount,
-                    date: now,
+                    date: transactionDate,
                     isOffline: false,
                     returnRef,
                 });
@@ -266,7 +272,7 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
         } finally {
             setIsProcessing(false);
         }
-    }, [items, paymentMethod, amountPaid, totalAmount, subtotal, orderDiscount, stockLocation, createSale, toast, onSuccess, processOfflineSale, returnRef]);
+    }, [items, paymentMethod, amountPaid, totalAmount, subtotal, orderDiscount, stockLocation, createSale, toast, onSuccess, processOfflineSale, returnRef, transactionDate]);
 
     return {
         paymentMethod,
@@ -276,6 +282,8 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
         showReceiptDialog,
         amountPaid,
         setAmountPaid,
+        transactionDate,
+        setTransactionDate,
         lastSale,
         receiptRef,
         openCheckoutDialog,

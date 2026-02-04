@@ -5,6 +5,7 @@ import {
     Banknote,
     Loader2,
     Delete,
+    Calendar,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +30,8 @@ interface POSCheckoutDialogProps {
     paymentMethod: PaymentMethod;
     amountPaid: number;
     onAmountPaidChange: (amount: number) => void;
+    transactionDate: Date;
+    onTransactionDateChange: (date: Date) => void;
     onConfirm: () => void;
     isProcessing: boolean;
 }
@@ -43,6 +46,8 @@ export function POSCheckoutDialog({
     paymentMethod,
     amountPaid,
     onAmountPaidChange,
+    transactionDate,
+    onTransactionDateChange,
     onConfirm,
     isProcessing,
 }: POSCheckoutDialogProps) {
@@ -124,6 +129,62 @@ export function POSCheckoutDialog({
                                 <span>Diskon</span>
                                 <span>-Rp {orderDiscount.toLocaleString('id-ID')}</span>
                             </div>
+                        )}
+                    </div>
+
+                    {/* Transaction Date Picker */}
+                    <div className="space-y-2">
+                        <Label className="text-sm flex items-center gap-2">
+                            <Calendar className="w-4 h-4" />
+                            Tanggal Transaksi
+                        </Label>
+                        <div className="flex gap-2">
+                            <button
+                                type="button"
+                                onClick={() => onTransactionDateChange(new Date())}
+                                className={cn(
+                                    "flex-1 py-2.5 rounded-lg text-sm font-medium transition-all border",
+                                    transactionDate.toDateString() === new Date().toDateString()
+                                        ? "bg-primary text-primary-foreground border-primary"
+                                        : "bg-muted hover:bg-muted/80 border-transparent"
+                                )}
+                            >
+                                Hari Ini
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const yesterday = new Date();
+                                    yesterday.setDate(yesterday.getDate() - 1);
+                                    onTransactionDateChange(yesterday);
+                                }}
+                                className={cn(
+                                    "flex-1 py-2.5 rounded-lg text-sm font-medium transition-all border",
+                                    transactionDate.toDateString() === new Date(new Date().setDate(new Date().getDate() - 1)).toDateString()
+                                        ? "bg-amber-500 text-white border-amber-500"
+                                        : "bg-muted hover:bg-muted/80 border-transparent"
+                                )}
+                            >
+                                Kemarin
+                            </button>
+                        </div>
+                        <Input
+                            type="date"
+                            value={transactionDate.toISOString().split('T')[0]}
+                            onChange={(e) => {
+                                if (e.target.value) {
+                                    const newDate = new Date(e.target.value);
+                                    newDate.setHours(new Date().getHours(), new Date().getMinutes());
+                                    onTransactionDateChange(newDate);
+                                }
+                            }}
+                            max={new Date().toISOString().split('T')[0]}
+                            className="h-10 rounded-lg text-center"
+                        />
+                        {transactionDate.toDateString() !== new Date().toDateString() && (
+                            <p className="text-xs text-amber-600 dark:text-amber-400 text-center">
+                                ⚠️ Transaksi akan dicatat pada tanggal {transactionDate.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                            </p>
                         )}
                     </div>
 
