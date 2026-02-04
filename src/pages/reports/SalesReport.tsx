@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import MainLayout from '@/components/layout/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,6 +30,8 @@ import {
     ChevronUp,
     CalendarDays,
     CalendarRange,
+    Percent,
+    Printer,
 } from 'lucide-react';
 import {
     format,
@@ -47,14 +49,17 @@ import {
 import { id } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { formatRupiah } from '@/lib/format';
+import { useReactToPrint } from 'react-to-print';
 
 type PeriodType = 'daily' | 'monthly' | 'yearly';
 
 interface SalesData {
     date: string;
     totalSales: number;
+    grossSales: number;
     totalTransactions: number;
     totalItems: number;
+    totalDiscount: number;
     cashSales: number;
     transferSales: number;
     averageTransaction: number;
@@ -124,7 +129,7 @@ async function fetchSalesForPeriod(date: Date, period: PeriodType): Promise<Sale
         payment_method: row.payment_method as 'cash' | 'transfer',
         stock_location: row.stock_location as 'gudang' | 'toko',
         total_amount: row.total_amount,
-        order_discount: 0,
+        order_discount: row.order_discount || 0,
         amount_paid: row.total_amount,
         change_amount: 0,
         created_at: row.created_at,
@@ -142,6 +147,8 @@ function calculateStats(sales: Sale[], date: Date): SalesData {
     const totalSales = validSales.reduce((sum, s) => sum + s.total_amount, 0);
     const totalTransactions = validSales.length;
     const totalItems = validSales.reduce((sum, s) => sum + s.items.reduce((iSum, i) => iSum + i.quantity, 0), 0);
+    const totalDiscount = validSales.reduce((sum, s) => sum + (s.order_discount || 0), 0);
+    const grossSales = totalSales + totalDiscount; // Total before discount
     const cashSales = validSales.filter(s => s.payment_method === 'cash').reduce((sum, s) => sum + s.total_amount, 0);
     const transferSales = validSales.filter(s => s.payment_method === 'transfer').reduce((sum, s) => sum + s.total_amount, 0);
     const averageTransaction = totalTransactions > 0 ? totalSales / totalTransactions : 0;
@@ -190,8 +197,10 @@ function calculateStats(sales: Sale[], date: Date): SalesData {
     return {
         date: format(date, 'yyyy-MM-dd'),
         totalSales,
+        grossSales,
         totalTransactions,
         totalItems,
+        totalDiscount,
         cashSales,
         transferSales,
         averageTransaction,
@@ -242,6 +251,10 @@ export default function SalesReport() {
 
     const stats = useMemo(() => calculateStats(sales, parsedDate), [sales, parsedDate]);
 
+    // Print ref and handler
+    const printRef = useRef<HTMLDivElement>(null);
+    const handlePrint = useReactToPrint({ contentRef: printRef });
+
     // Get period labels
     const getPeriodLabel = () => {
         switch (period) {
@@ -269,7 +282,7 @@ export default function SalesReport() {
 
     // Calculate percentage changes
     const changes = useMemo(() => {
-        if (!previousPeriodData) return { sales: null, transactions: null, average: null };
+        if (!previousPeriodData) return { sales: null, transactions: null, average: null, discount: null };
         const salesChange = previousPeriodData.totalSales > 0
             ? ((stats.totalSales - previousPeriodData.totalSales) / previousPeriodData.totalSales) * 100
             : null;
@@ -279,7 +292,10 @@ export default function SalesReport() {
         const averageChange = previousPeriodData.averageTransaction > 0
             ? ((stats.averageTransaction - previousPeriodData.averageTransaction) / previousPeriodData.averageTransaction) * 100
             : null;
-        return { sales: salesChange, transactions: transactionsChange, average: averageChange };
+        const discountChange = previousPeriodData.totalDiscount > 0
+            ? ((stats.totalDiscount - previousPeriodData.totalDiscount) / previousPeriodData.totalDiscount) * 100
+            : null;
+        return { sales: salesChange, transactions: transactionsChange, average: averageChange, discount: discountChange };
     }, [stats, previousPeriodData]);
 
     // Product columns for BeautifulTable
@@ -385,13 +401,17 @@ export default function SalesReport() {
                                     <RefreshCw className="w-4 h-4 mr-2" />
                                     Refresh
                                 </Button>
+                                <Button variant="default" onClick={() => handlePrint()}>
+                                    <Printer className="w-4 h-4 mr-2" />
+                                    Print Laporan
+                                </Button>
                             </div>
                         </div>
                     </CardContent>
                 </Card>
 
                 {/* Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                     <Card className="relative overflow-hidden">
                         <CardContent className="p-6">
                             <div className="flex items-start justify-between">
@@ -499,6 +519,36 @@ export default function SalesReport() {
                             </div>
                         </CardContent>
                         <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 to-amber-500" />
+                    </Card>
+
+                    <Card className="relative overflow-hidden">
+                        <CardContent className="p-6">
+                            <div className="flex items-start justify-between">
+                                <div>
+                                    <p className="text-sm text-muted-foreground">Total Diskon</p>
+                                    <p className="text-3xl font-bold mt-1">
+                                        {formatRupiah(stats.totalDiscount)}
+                                    </p>
+                                    {changes.discount !== null && (
+                                        <div className={cn(
+                                            "flex items-center gap-1 mt-2 text-sm",
+                                            changes.discount >= 0 ? "text-red-600" : "text-green-600"
+                                        )}>
+                                            {changes.discount >= 0 ? (
+                                                <ArrowUp className="w-4 h-4" />
+                                            ) : (
+                                                <ArrowDown className="w-4 h-4" />
+                                            )}
+                                            {Math.abs(changes.discount).toFixed(1)}% vs {getPeriodLabel()}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="p-3 rounded-xl bg-rose-100 dark:bg-rose-900/30">
+                                    <Percent className="w-6 h-6 text-rose-600" />
+                                </div>
+                            </div>
+                        </CardContent>
+                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-rose-500 to-pink-500" />
                     </Card>
                 </div>
 
@@ -837,6 +887,100 @@ export default function SalesReport() {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Hidden Printable Receipt */}
+            <div className="hidden">
+                <div
+                    ref={printRef}
+                    className="p-4 bg-white text-black font-mono text-sm"
+                    style={{ width: '80mm', margin: '0 auto' }}
+                >
+                    {/* Header */}
+                    <div className="text-center mb-4 border-b-2 border-dashed border-black pb-3">
+                        <h1 className="text-base font-bold">
+                            {period === 'monthly' ? 'LAPORAN PENJUALAN BULANAN' :
+                                period === 'yearly' ? 'LAPORAN PENJUALAN TAHUNAN' :
+                                    'LAPORAN PENJUALAN HARIAN'}
+                        </h1>
+                        <p className="text-sm mt-1">{getDateDisplay()}</p>
+                        <p className="text-xs text-gray-600 mt-1">
+                            Dicetak: {format(new Date(), 'dd/MM/yyyy HH:mm', { locale: id })}
+                        </p>
+                    </div>
+
+                    {/* Summary Stats */}
+                    <div className="space-y-2 text-xs">
+                        <div className="flex justify-between border-b border-dotted border-gray-400 pb-1">
+                            <span>Total Transaksi:</span>
+                            <span className="font-bold">{stats.totalTransactions}</span>
+                        </div>
+                        <div className="flex justify-between border-b border-dotted border-gray-400 pb-1">
+                            <span>Total Item Terjual:</span>
+                            <span className="font-bold">{stats.totalItems}</span>
+                        </div>
+                        <div className="flex justify-between border-b border-dotted border-gray-400 pb-1">
+                            <span>Total Diskon:</span>
+                            <span className="font-bold">{formatRupiah(stats.totalDiscount)}</span>
+                        </div>
+                    </div>
+
+                    {/* Payment Methods */}
+                    <div className="mt-4 pt-3 border-t-2 border-dashed border-black">
+                        <h2 className="font-bold text-center mb-2 text-xs">METODE PEMBAYARAN</h2>
+                        <div className="space-y-1 text-xs">
+                            <div className="flex justify-between">
+                                <span>Tunai:</span>
+                                <span className="font-bold">{formatRupiah(stats.cashSales)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span>Transfer:</span>
+                                <span className="font-bold">{formatRupiah(stats.transferSales)}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Grand Total */}
+                    <div className="mt-4 pt-3 border-t-2 border-double border-black">
+                        <div className="flex justify-between text-xs">
+                            <span>Subtotal:</span>
+                            <span>{formatRupiah(stats.grossSales)}</span>
+                        </div>
+                        <div className="flex justify-between text-xs text-red-600">
+                            <span>Diskon:</span>
+                            <span>- {formatRupiah(stats.totalDiscount)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm mt-2 pt-2 border-t border-gray-400">
+                            <span className="font-bold">TOTAL PENJUALAN:</span>
+                            <span className="font-bold">{formatRupiah(stats.totalSales)}</span>
+                        </div>
+                        <div className="flex justify-between text-xs mt-1">
+                            <span>Rata-rata/Transaksi:</span>
+                            <span>{formatRupiah(stats.averageTransaction)}</span>
+                        </div>
+                    </div>
+
+                    {/* Top Products */}
+                    {stats.topProducts.length > 0 && (
+                        <div className="mt-4 pt-3 border-t-2 border-dashed border-black">
+                            <h2 className="font-bold text-center mb-2 text-xs">TOP 5 PRODUK TERLARIS</h2>
+                            <div className="space-y-1 text-xs">
+                                {stats.topProducts.slice(0, 5).map((product, idx) => (
+                                    <div key={idx} className="flex justify-between">
+                                        <span className="truncate" style={{ maxWidth: '55%' }}>{idx + 1}. {product.name}</span>
+                                        <span>{product.quantity} pcs</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Footer */}
+                    <div className="mt-4 pt-3 border-t border-dashed border-gray-400 text-center text-xs text-gray-500">
+                        <p>--- Terima Kasih ---</p>
+                    </div>
+                </div>
+            </div>
         </MainLayout>
     );
 }
+
