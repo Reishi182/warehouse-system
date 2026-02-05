@@ -236,8 +236,15 @@ export function POSCartPanel({
                                                     {qtyDisplay}
                                                 </span>
                                             </div>
+                                        ) : isManualEntry && it.quantity % 1 !== 0 ? (
+                                            // Manual entry with decimal quantity: show as display only (no +/- buttons)
+                                            <div className="px-2 py-1 bg-amber-100 dark:bg-amber-900/50 rounded-lg">
+                                                <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">
+                                                    {it.quantity}
+                                                </span>
+                                            </div>
                                         ) : (
-                                            // Normal product or manual entry: +/- buttons
+                                            // Normal product or manual entry with integer: +/- buttons
                                             <div className={cn(
                                                 "flex items-center rounded-lg p-0.5 shrink-0",
                                                 isManualEntry ? "bg-amber-100/50 dark:bg-amber-900/30" : "bg-muted/50"

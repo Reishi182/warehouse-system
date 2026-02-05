@@ -111,11 +111,17 @@ export function QuickSaleDialog({
                             id="item-qty"
                             type="number"
                             value={quantity}
-                            onChange={(e) => setQuantity(e.target.value ? parseInt(e.target.value) : '')}
+                            onChange={(e) => setQuantity(e.target.value ? parseFloat(e.target.value) : '')}
                             placeholder="1"
                             className="h-11 rounded-xl"
-                            min={1}
+                            min={0.01}
+                            step="any"
                         />
+                        {typeof quantity === 'number' && quantity > 0 && quantity % 1 !== 0 && (
+                            <p className="text-xs text-amber-600 dark:text-amber-400">
+                                💡 Input desimal aktif (mis. untuk pipa, kabel dll)
+                            </p>
+                        )}
                     </div>
 
                     {/* Subtotal Preview */}
