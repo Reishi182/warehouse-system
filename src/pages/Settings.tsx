@@ -1,5 +1,5 @@
 import { useState, useEffect, type ChangeEvent } from 'react';
-import { Settings as SettingsIcon, Building2, Bell, Shield, Database, Save, User as UserIcon, Upload, Sun, Moon, Monitor, Store, Loader2 } from 'lucide-react';
+import { Settings as SettingsIcon, Building2, Bell, Shield, Database, Save, User as UserIcon, Upload, Sun, Moon, Monitor, Store, Loader2, Zap, ZapOff } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import MainLayout from '@/components/layout/MainLayout';
 import PageSkeleton from '@/components/common/PageSkeleton';
@@ -47,6 +47,14 @@ export default function Settings() {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
+
+  // Low performance mode
+  const [lowPerformanceMode, setLowPerformanceMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('low-performance-mode') === 'true';
+    }
+    return false;
+  });
 
   // Load store settings into state
   useEffect(() => {
@@ -285,6 +293,44 @@ export default function Settings() {
                 <Monitor className="w-5 h-5" />
                 <span className="text-sm">Sistem</span>
               </Button>
+            </div>
+
+            {/* Low Performance Mode */}
+            <Separator className="my-4" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {lowPerformanceMode ? (
+                  <ZapOff className="w-5 h-5 text-muted-foreground" />
+                ) : (
+                  <Zap className="w-5 h-5 text-amber-500" />
+                )}
+                <div>
+                  <p className="font-medium">Mode Performa Rendah</p>
+                  <p className="text-sm text-muted-foreground">
+                    Matikan animasi & efek blur untuk PC lambat
+                  </p>
+                </div>
+              </div>
+              <Switch
+                checked={lowPerformanceMode}
+                onCheckedChange={(checked) => {
+                  setLowPerformanceMode(checked);
+                  localStorage.setItem('low-performance-mode', String(checked));
+                  if (checked) {
+                    document.body.classList.add('low-performance-mode');
+                    toast({
+                      title: '⚡ Mode Performa Rendah Aktif',
+                      description: 'Animasi dan efek berat dinonaktifkan',
+                    });
+                  } else {
+                    document.body.classList.remove('low-performance-mode');
+                    toast({
+                      title: '✨ Mode Normal Aktif',
+                      description: 'Semua efek visual diaktifkan kembali',
+                    });
+                  }
+                }}
+              />
             </div>
           </div>
         </div>

@@ -74,6 +74,14 @@ const queryClient = new QueryClient({
   },
 });
 
+// Initialize low performance mode from localStorage on startup
+if (typeof window !== 'undefined') {
+  const isLowPerformance = localStorage.getItem('low-performance-mode') === 'true';
+  if (isLowPerformance) {
+    document.body.classList.add('low-performance-mode');
+  }
+}
+
 // Loading fallback component
 function PageLoader() {
   return (

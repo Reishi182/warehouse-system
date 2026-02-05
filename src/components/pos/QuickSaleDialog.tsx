@@ -114,8 +114,9 @@ export function QuickSaleDialog({
                             onChange={(e) => setQuantity(e.target.value ? parseFloat(e.target.value) : '')}
                             placeholder="1"
                             className="h-11 rounded-xl"
-                            min={0.01}
-                            step="any"
+                            min="0.01"
+                            step="0.01"
+                            inputMode="decimal"
                         />
                         {typeof quantity === 'number' && quantity > 0 && quantity % 1 !== 0 && (
                             <p className="text-xs text-amber-600 dark:text-amber-400">

@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useCallback, memo } from 'react';
 import {
     Search,
     Package,
@@ -23,6 +23,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Product, Location } from '@/types';
 import { cn } from '@/lib/utils';
+import { useDebounce } from '@/hooks/useDebounce';
 
 type ViewMode = 'grid' | 'compact' | 'list';
 
@@ -33,24 +34,30 @@ interface POSProductGridProps {
     searchInputRef?: React.RefObject<HTMLInputElement>;
 }
 
-export function POSProductGrid({
+export const POSProductGrid = memo(function POSProductGrid({
     products,
     stockLocation,
     onAddToCart,
     searchInputRef,
 }: POSProductGridProps) {
     const [searchQuery, setSearchQuery] = useState('');
+    const debouncedSearchQuery = useDebounce(searchQuery, 300); // Debounce 300ms
     const [viewMode, setViewMode] = useState<ViewMode>('compact');
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState<number | 'all'>(24);
     const [stockFilter, setStockFilter] = useState<'all' | 'instock' | 'low'>('all');
 
-    // Filter products
+    // Memoized onAddToCart callback to prevent child re-renders
+    const handleAddToCart = useCallback((product: Product) => {
+        onAddToCart(product);
+    }, [onAddToCart]);
+
+    // Filter products with debounced search
     const filteredProducts = useMemo(() => {
         let filtered = products;
 
-        if (searchQuery.trim()) {
-            const query = searchQuery.toLowerCase();
+        if (debouncedSearchQuery.trim()) {
+            const query = debouncedSearchQuery.toLowerCase();
             filtered = filtered.filter(p =>
                 p.name.toLowerCase().includes(query) ||
                 p.barcode.toLowerCase().includes(query)
@@ -64,7 +71,7 @@ export function POSProductGrid({
         }
 
         return filtered;
-    }, [products, searchQuery, stockFilter, stockLocation]);
+    }, [products, debouncedSearchQuery, stockFilter, stockLocation]);
 
     // Paginated products
     const paginatedProducts = useMemo(() => {
@@ -80,7 +87,7 @@ export function POSProductGrid({
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchQuery, pageSize, stockFilter]);
+    }, [debouncedSearchQuery, pageSize, stockFilter]);
 
     const getGridClass = () => {
         switch (viewMode) {
@@ -215,7 +222,7 @@ export function POSProductGrid({
                                 key={product.id}
                                 product={product}
                                 stockLocation={stockLocation}
-                                onAddToCart={onAddToCart}
+                                onAddToCart={handleAddToCart}
                             />
                         ))}
                     </div>
@@ -226,7 +233,7 @@ export function POSProductGrid({
                                 key={product.id}
                                 product={product}
                                 stockLocation={stockLocation}
-                                onAddToCart={onAddToCart}
+                                onAddToCart={handleAddToCart}
                             />
                         ))}
                     </div>
@@ -295,4 +302,4 @@ export function POSProductGrid({
             )}
         </div>
     );
-}
+});

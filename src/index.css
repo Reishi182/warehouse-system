@@ -334,6 +334,67 @@
   }
 }
 
+/* ===========================================
+   LOW PERFORMANCE MODE
+   Untuk PC dengan spek rendah
+   Aktifkan dengan menambahkan class 'low-performance-mode' ke body
+=========================================== */
+.low-performance-mode {
+
+  /* Disable all backdrop-filter (paling berat untuk GPU) */
+  .glass-card,
+  .glass-card:hover {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: hsl(var(--card)) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+  }
+
+  /* Disable all animations */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+  }
+
+  /* Simpler shadows */
+  .shadow-soft,
+  .shadow-glass,
+  .shadow-lg,
+  .shadow-xl,
+  .shadow-2xl {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+  }
+
+  /* Remove gradient on primary buttons */
+  .bg-gradient-to-r,
+  .bg-gradient-to-l,
+  .bg-gradient-to-t,
+  .bg-gradient-to-b {
+    background-image: none !important;
+  }
+
+  /* Disable text gradients */
+  .bg-clip-text {
+    background-clip: unset !important;
+    -webkit-background-clip: unset !important;
+    -webkit-text-fill-color: inherit !important;
+  }
+
+  /* Smoother scrolling with less repaints */
+  * {
+    will-change: auto !important;
+  }
+
+  /* Disable blur on overlays */
+  [class*="bg-black"] {
+    backdrop-filter: none !important;
+  }
+}
+
 @layer utilities {
   .animate-fade-in {
     animation: fadeIn 0.3s ease-out;
@@ -391,12 +452,15 @@
 
   /* Hide scrollbar for horizontal scroll areas */
   .scrollbar-hide {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
   }
-  
+
   .scrollbar-hide::-webkit-scrollbar {
-    display: none;  /* Chrome, Safari and Opera */
+    display: none;
+    /* Chrome, Safari and Opera */
   }
 }
 

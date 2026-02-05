@@ -1,3 +1,4 @@
+import React, { memo, useMemo } from 'react';
 import {
     ShoppingCart,
     Trash2,
@@ -45,7 +46,7 @@ interface POSCartPanelProps {
     onSelectTab?: (tabId: string | null) => void;
 }
 
-export function POSCartPanel({
+export const POSCartPanel = memo(function POSCartPanel({
     items,
     subtotal,
     totalAmount,
@@ -67,9 +68,17 @@ export function POSCartPanel({
     selectedTabId,
     onSelectTab,
 }: POSCartPanelProps) {
-    const itemCount = items.reduce((acc, it) => acc + it.quantity, 0);
+    // Memoize computed values to prevent re-calculations
+    const itemCount = useMemo(() =>
+        items.reduce((acc, it) => acc + it.quantity, 0),
+        [items]
+    );
 
-    const selectedTab = openTabs.find(t => t.id === selectedTabId);
+    const selectedTab = useMemo(() =>
+        openTabs.find(t => t.id === selectedTabId),
+        [openTabs, selectedTabId]
+    );
+
     const isTabMode = !!selectedTabId;
 
     return (
@@ -423,4 +432,4 @@ export function POSCartPanel({
             )}
         </div>
     );
-}
+});
