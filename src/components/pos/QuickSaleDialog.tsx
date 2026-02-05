@@ -25,6 +25,7 @@ export function QuickSaleDialog({
     const [name, setName] = useState('');
     const [price, setPrice] = useState<number | ''>('');
     const [quantity, setQuantity] = useState<number | ''>(1);
+    const [quantityInput, setQuantityInput] = useState('1'); // Raw input string for decimal support
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -39,6 +40,7 @@ export function QuickSaleDialog({
         setName('');
         setPrice('');
         setQuantity(1);
+        setQuantityInput('1');
         onOpenChange(false);
     };
 
@@ -46,6 +48,7 @@ export function QuickSaleDialog({
         setName('');
         setPrice('');
         setQuantity(1);
+        setQuantityInput('1');
     };
 
     const isValid = name.trim() && price && price > 0 && quantity && quantity > 0;
@@ -109,14 +112,20 @@ export function QuickSaleDialog({
                         <Label htmlFor="item-qty">Jumlah</Label>
                         <Input
                             id="item-qty"
-                            type="number"
-                            value={quantity}
-                            onChange={(e) => setQuantity(e.target.value ? parseFloat(e.target.value) : '')}
+                            type="text"
+                            inputMode="decimal"
+                            value={quantityInput}
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                // Allow empty, numbers, and decimals (with . or ,)
+                                if (val === '' || /^[0-9]*[.,]?[0-9]*$/.test(val)) {
+                                    setQuantityInput(val);
+                                    const parsed = parseFloat(val.replace(',', '.'));
+                                    setQuantity(isNaN(parsed) || val === '' ? '' : parsed);
+                                }
+                            }}
                             placeholder="1"
                             className="h-11 rounded-xl"
-                            min="0.01"
-                            step="0.01"
-                            inputMode="decimal"
                         />
                         {typeof quantity === 'number' && quantity > 0 && quantity % 1 !== 0 && (
                             <p className="text-xs text-amber-600 dark:text-amber-400">

@@ -1,9 +1,10 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { UserRole } from '@/types';
 import { initializeSession, validateSession, clearSession } from '@/lib/sessionSecurity';
 import { clearKeyCache } from '@/lib/secureStorage';
+import { SessionExpiredDialog } from '@/components/common/SessionExpiredDialog';
 
 interface Profile {
   id: string;
@@ -33,7 +34,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sessionExpired, setSessionExpired] = useState(false);
   const sessionCheckInterval = useRef<NodeJS.Timeout | null>(null);
+  const hadSession = useRef(false); // Track if user had a session before
 
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
@@ -49,17 +52,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return data as Profile;
   };
 
+  // Handle going to login page
+  const handleGoToLogin = useCallback(() => {
+    setSessionExpired(false);
+    // Clear all state
+    setUser(null);
+    setSession(null);
+    setProfile(null);
+    // Navigate to login
+    window.location.href = '/login';
+  }, []);
+
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+      (event, newSession) => {
+        // Check if session was lost (user had session before but now doesn't)
+        if (hadSession.current && !newSession && event === 'SIGNED_OUT') {
+          // Don't show dialog for manual sign out
+          // Dialog will be shown by TOKEN_REFRESHED failure or session check
+        }
+
+        // Handle token refresh failure - this means session expired
+        if (event === 'TOKEN_REFRESHED' && !newSession) {
+          setSessionExpired(true);
+          return;
+        }
+
+        // Track if user has had a session
+        if (newSession) {
+          hadSession.current = true;
+        }
+
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
 
         // Defer profile fetch with setTimeout to avoid deadlock
-        if (session?.user) {
+        if (newSession?.user) {
           setTimeout(() => {
-            fetchProfile(session.user.id).then(setProfile);
+            fetchProfile(newSession.user.id).then(setProfile);
           }, 0);
         } else {
           setProfile(null);
@@ -68,11 +99,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id).then(setProfile);
+    supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
+      setSession(existingSession);
+      setUser(existingSession?.user ?? null);
+      if (existingSession?.user) {
+        hadSession.current = true;
+        fetchProfile(existingSession.user.id).then(setProfile);
       }
       setLoading(false);
     });
@@ -87,10 +119,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       initializeSession(profile.user_id);
 
       // Start periodic session validation
-      sessionCheckInterval.current = setInterval(() => {
+      sessionCheckInterval.current = setInterval(async () => {
+        // Check session security
         if (!validateSession()) {
-          console.warn('[Security] Session tampering detected, forcing logout');
-          signOut();
+          console.warn('[Security] Session tampering detected');
+          setSessionExpired(true);
+          return;
+        }
+
+        // Also check if token is still valid with Supabase
+        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+        if (error || !currentSession) {
+          console.warn('[Security] Session no longer valid');
+          setSessionExpired(true);
         }
       }, 30000); // Check every 30 seconds
     }
@@ -121,6 +162,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
+    // Reset session expired state on new login attempt
+    setSessionExpired(false);
+
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password
@@ -133,6 +177,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Clear security caches
     clearSession();
     clearKeyCache();
+
+    // Reset tracking
+    hadSession.current = false;
+    setSessionExpired(false);
 
     await supabase.auth.signOut();
     setUser(null);
@@ -174,6 +222,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAuthenticated: !!session
     }}>
       {children}
+
+      {/* Session Expired Dialog */}
+      <SessionExpiredDialog
+        open={sessionExpired}
+        onLogin={handleGoToLogin}
+      />
     </AuthContext.Provider>
   );
 }
@@ -205,3 +259,4 @@ export function hasPermission(role: UserRole | undefined, permission: string): b
   if (role === 'admin') return true;
   return permissions[role]?.includes(permission) || false;
 }
+

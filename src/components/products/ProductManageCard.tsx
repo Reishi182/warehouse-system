@@ -1,0 +1,171 @@
+import React, { memo } from 'react';
+import { Package, MoreHorizontal, Pencil, Trash2, Plus, AlertTriangle, Warehouse, Store } from 'lucide-react';
+import { LazyImage } from '@/components/common/LazyImage';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+    DropdownMenuSeparator
+} from '@/components/ui/dropdown-menu';
+import { Product } from '@/types';
+import { cn } from '@/lib/utils';
+import { STOCK_THRESHOLDS } from '@/constants';
+
+interface ProductManageCardProps {
+    product: Product;
+    onEdit?: (product: Product) => void;
+    onDelete?: (product: Product) => void;
+    onAdjustStock?: (product: Product) => void;
+    canEdit?: boolean;
+    canDelete?: boolean;
+    canAdjustStock?: boolean;
+}
+
+export const ProductManageCard = memo(function ProductManageCard({
+    product,
+    onEdit,
+    onDelete,
+    onAdjustStock,
+    canEdit = true,
+    canDelete = true,
+    canAdjustStock = true,
+}: ProductManageCardProps) {
+    const stockGudang = product.stock.gudang;
+    const stockToko = product.stock.toko;
+    const totalStock = stockGudang + stockToko;
+
+    const isLowStockGudang = stockGudang < STOCK_THRESHOLDS.LOW_STOCK_GUDANG && stockGudang > 0;
+    const isLowStockToko = stockToko < STOCK_THRESHOLDS.LOW_STOCK_TOKO && stockToko > 0;
+    const isOutOfStock = totalStock <= 0;
+    const hasLowStock = isLowStockGudang || isLowStockToko;
+
+    return (
+        <div
+            className={cn(
+                "group relative flex flex-col rounded-2xl border bg-card overflow-hidden transition-all duration-200",
+                "hover:shadow-lg hover:border-primary/40 hover:-translate-y-0.5",
+                isOutOfStock && "opacity-70"
+            )}
+        >
+            {/* Action Menu - Top Right */}
+            <div className="absolute top-2 right-2 z-10">
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button
+                            variant="secondary"
+                            size="icon"
+                            className="h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                            <MoreHorizontal className="w-4 h-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="rounded-xl border-border shadow-lg w-48">
+                        {canAdjustStock && onAdjustStock && (
+                            <>
+                                <DropdownMenuItem
+                                    onClick={() => onAdjustStock(product)}
+                                    className="gap-2 cursor-pointer"
+                                >
+                                    <Plus className="w-4 h-4" /> Sesuaikan Stok
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                            </>
+                        )}
+                        {canEdit && onEdit && (
+                            <DropdownMenuItem
+                                onClick={() => onEdit(product)}
+                                className="gap-2 cursor-pointer"
+                            >
+                                <Pencil className="w-4 h-4" /> Edit Produk
+                            </DropdownMenuItem>
+                        )}
+                        {canDelete && onDelete && (
+                            <DropdownMenuItem
+                                onClick={() => onDelete(product)}
+                                className="gap-2 cursor-pointer text-destructive focus:text-destructive"
+                            >
+                                <Trash2 className="w-4 h-4" /> Hapus
+                            </DropdownMenuItem>
+                        )}
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
+
+            {/* Product Image */}
+            <div className="relative aspect-square w-full bg-muted/50 overflow-hidden">
+                <LazyImage
+                    src={product.image_url}
+                    alt={product.name}
+                    containerClassName="w-full h-full"
+                    className="group-hover:scale-105 transition-transform duration-300"
+                    fallbackIcon={<Package className="w-12 h-12 text-muted-foreground/20" />}
+                />
+
+                {/* Out of stock overlay */}
+                {isOutOfStock && (
+                    <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center">
+                        <div className="bg-destructive text-white text-xs font-bold px-3 py-1.5 rounded-full">
+                            STOK HABIS
+                        </div>
+                    </div>
+                )}
+
+                {/* Low Stock Warning */}
+                {hasLowStock && !isOutOfStock && (
+                    <div className="absolute top-2 left-2">
+                        <Badge variant="outline" className="bg-amber-500/90 text-white border-0 gap-1">
+                            <AlertTriangle className="w-3 h-3" />
+                            Stok Rendah
+                        </Badge>
+                    </div>
+                )}
+            </div>
+
+            {/* Product Info */}
+            <div className="p-3 sm:p-4 flex-1 flex flex-col">
+                <h4 className="font-semibold text-sm sm:text-base line-clamp-2 leading-snug mb-1 group-hover:text-primary transition-colors">
+                    {product.name}
+                </h4>
+                <p className="text-[10px] sm:text-xs text-muted-foreground font-mono mb-2 truncate">
+                    {product.barcode}
+                </p>
+
+                {/* Price */}
+                <p className="font-bold text-base sm:text-lg text-primary mb-3">
+                    Rp {product.price.toLocaleString('id-ID')}
+                </p>
+
+                {/* Stock Info */}
+                <div className="mt-auto grid grid-cols-2 gap-2">
+                    <div className={cn(
+                        "flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium",
+                        stockGudang <= 0
+                            ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                            : isLowStockGudang
+                                ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                                : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                    )}>
+                        <Warehouse className="w-3.5 h-3.5" />
+                        <span>{stockGudang}</span>
+                    </div>
+                    <div className={cn(
+                        "flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium",
+                        stockToko <= 0
+                            ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                            : isLowStockToko
+                                ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                                : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                    )}>
+                        <Store className="w-3.5 h-3.5" />
+                        <span>{stockToko}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+});
+
+export default ProductManageCard;
