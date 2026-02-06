@@ -37,6 +37,9 @@ interface DataContextType {
     orderDiscount: number;
     amountPaid: number;
     transactionDate?: Date; // Optional: for backdated transactions
+    // Credit transaction fields
+    isCredit?: boolean;
+    creditCustomerName?: string;
   }) => Promise<{ saleId: string; saleNumber: string } | null>;
 
 
@@ -245,7 +248,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     let query = supabase
       .from('sales')
-      .select('id, sale_number, cashier_id, cashier_name, payment_method, stock_location, total_amount, order_discount, amount_paid, change_amount, created_at, is_exchanged, exchanged_to_sale_id, exchanged_to_sale_number, exchange_from_sale_id, exchange_from_sale_number, is_cancelled, cancelled_at, cancelled_reason, sale_items(id, sale_id, product_id, product_name, barcode, quantity, price, subtotal, discount)')
+      .select('id, sale_number, cashier_id, cashier_name, payment_method, stock_location, total_amount, order_discount, amount_paid, change_amount, created_at, is_exchanged, exchanged_to_sale_id, exchanged_to_sale_number, exchange_from_sale_id, exchange_from_sale_number, is_cancelled, cancelled_at, cancelled_reason, is_credit, credit_customer_name, credit_settled_at, credit_payment_method, sale_items(id, sale_id, product_id, product_name, barcode, quantity, price, subtotal, discount)')
       .order('created_at', { ascending: false })
       .limit(100);
 
@@ -282,6 +285,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       is_cancelled: s.is_cancelled || false,
       cancelled_at: s.cancelled_at,
       cancelled_reason: s.cancelled_reason,
+      // Credit transaction tracking
+      is_credit: s.is_credit || false,
+      credit_customer_name: s.credit_customer_name,
+      credit_settled_at: s.credit_settled_at,
+      credit_payment_method: s.credit_payment_method as PaymentMethod | null,
       created_at: s.created_at,
       items: (s.sale_items || []).map((it: any): SaleItem => ({
         id: it.id,
@@ -487,6 +495,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     orderDiscount: number;
     amountPaid: number;
     transactionDate?: Date; // Optional: for backdated transactions
+    // Credit transaction fields
+    isCredit?: boolean;
+    creditCustomerName?: string;
   }) => {
     if (!user || !profile) return null;
 
@@ -578,6 +589,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         order_discount: data.orderDiscount,
         amount_paid: data.amountPaid,
         change_amount: changeAmount,
+        // Credit transaction fields
+        is_credit: data.isCredit || false,
+        credit_customer_name: data.isCredit ? data.creditCustomerName : null,
         // Use transaction date for backdated transactions
         // Set time to 18:00 to represent end of business day
         ...(data.transactionDate && {
@@ -646,9 +660,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
 
     await addNotification({
-      title: 'Penjualan Berhasil',
-      message: `Penjualan ${saleNumber} berhasil dibuat`,
-      type: 'success',
+      title: data.isCredit ? 'Piutang Baru' : 'Penjualan Berhasil',
+      message: data.isCredit
+        ? `Piutang ${saleNumber} atas nama ${data.creditCustomerName}`
+        : `Penjualan ${saleNumber} berhasil dibuat`,
+      type: data.isCredit ? 'warning' : 'success',
       link: '/finance/sales-history',
     });
 

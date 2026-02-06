@@ -15,6 +15,14 @@ function transformSale(row: any, items: SaleItem[]): Sale {
         payment_method: row.payment_method as PaymentMethod,
         stock_location: row.stock_location as Location,
         total_amount: row.total_amount,
+        order_discount: row.order_discount || 0,
+        amount_paid: row.amount_paid || 0,
+        change_amount: row.change_amount || 0,
+        // Credit transaction fields
+        is_credit: row.is_credit || false,
+        credit_customer_name: row.credit_customer_name,
+        credit_settled_at: row.credit_settled_at,
+        credit_payment_method: row.credit_payment_method as PaymentMethod | null,
         created_at: row.created_at,
         items: items.filter(item => item.sale_id === row.id),
     };
@@ -35,7 +43,7 @@ async function fetchSales(): Promise<Sale[]> {
 
     if (itemsError) throw itemsError;
 
-    const saleItems: SaleItem[] = (items || []).map(item => ({
+    const saleItems: SaleItem[] = (items || []).map((item: any) => ({
         id: item.id,
         sale_id: item.sale_id,
         product_id: item.product_id,
@@ -43,6 +51,7 @@ async function fetchSales(): Promise<Sale[]> {
         barcode: item.barcode,
         quantity: item.quantity,
         price: item.price,
+        discount: item.discount || 0,
         subtotal: item.subtotal,
     }));
 
@@ -70,6 +79,8 @@ export function useCreateSale() {
             cashierId,
             cashierName,
             products,
+            isCredit,
+            creditCustomerName,
         }: {
             paymentMethod: PaymentMethod;
             stockLocation: Location;
@@ -77,6 +88,8 @@ export function useCreateSale() {
             cashierId?: string;
             cashierName: string;
             products: any[];
+            isCredit?: boolean;
+            creditCustomerName?: string;
         }) => {
             // Security: Rate limiting
             enforceRateLimit('createSale', 'Terlalu banyak transaksi, coba lagi nanti');
@@ -131,6 +144,8 @@ export function useCreateSale() {
                     payment_method: paymentMethod,
                     stock_location: stockLocation,
                     total_amount: totalAmount,
+                    is_credit: isCredit || false,
+                    credit_customer_name: isCredit ? creditCustomerName : null,
                 })
                 .select()
                 .single();
@@ -178,13 +193,16 @@ export function useCreateSale() {
 
             return sale;
         },
-        onSuccess: () => {
+        onSuccess: (sale: any) => {
             queryClient.invalidateQueries({ queryKey: ['sales'] });
             queryClient.invalidateQueries({ queryKey: ['products'] });
             queryClient.invalidateQueries({ queryKey: ['stock-logs'] });
+            queryClient.invalidateQueries({ queryKey: ['credit-sales'] });
             toast({
-                title: 'Penjualan berhasil',
-                description: 'Transaksi penjualan berhasil dicatat',
+                title: sale.is_credit ? 'Piutang berhasil dicatat' : 'Penjualan berhasil',
+                description: sale.is_credit
+                    ? `Piutang atas nama ${sale.credit_customer_name} sebesar Rp ${sale.total_amount.toLocaleString('id-ID')}`
+                    : 'Transaksi penjualan berhasil dicatat',
             });
         },
         onError: (error: Error) => {

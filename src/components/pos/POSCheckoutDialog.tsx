@@ -5,10 +5,13 @@ import {
     Banknote,
     Loader2,
     Delete,
+    AlertCircle,
+    User,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import {
     Dialog,
     DialogContent,
@@ -34,6 +37,11 @@ interface POSCheckoutDialogProps {
     onTransactionDateChange: (date: Date) => void;
     onConfirm: () => void;
     isProcessing: boolean;
+    // Credit transaction props
+    isCredit: boolean;
+    onIsCreditChange: (isCredit: boolean) => void;
+    creditCustomerName: string;
+    onCreditCustomerNameChange: (name: string) => void;
 }
 
 export function POSCheckoutDialog({
@@ -50,6 +58,10 @@ export function POSCheckoutDialog({
     onTransactionDateChange,
     onConfirm,
     isProcessing,
+    isCredit,
+    onIsCreditChange,
+    creditCustomerName,
+    onCreditCustomerNameChange,
 }: POSCheckoutDialogProps) {
     const changeAmount = useMemo(() => Math.max(0, amountPaid - totalAmount), [amountPaid, totalAmount]);
 
@@ -63,7 +75,13 @@ export function POSCheckoutDialog({
     }, [totalAmount]);
 
     // Check if payment can be confirmed
-    const canConfirm = !isProcessing && (paymentMethod === 'transfer' || amountPaid >= totalAmount);
+    const canConfirm = useMemo(() => {
+        if (isProcessing) return false;
+        if (isCredit) {
+            return creditCustomerName.trim().length > 0;
+        }
+        return paymentMethod === 'transfer' || amountPaid >= totalAmount;
+    }, [isProcessing, isCredit, creditCustomerName, paymentMethod, amountPaid, totalAmount]);
 
     // Handle Enter key to confirm payment
     useEffect(() => {
@@ -102,16 +120,26 @@ export function POSCheckoutDialog({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="rounded-2xl max-w-md p-0 border-0 shadow-2xl max-h-[90vh] overflow-y-auto">
                 {/* Header - White to Primary gradient */}
-                <div className="bg-gradient-to-br from-white to-primary/20 dark:from-slate-900 dark:to-primary/30 p-6 border-b">
+                <div className={cn(
+                    "p-6 border-b",
+                    isCredit
+                        ? "bg-gradient-to-br from-white to-orange-100 dark:from-slate-900 dark:to-orange-900/30"
+                        : "bg-gradient-to-br from-white to-primary/20 dark:from-slate-900 dark:to-primary/30"
+                )}>
                     <DialogHeader>
-                        <DialogTitle className="text-xl font-bold">Pembayaran</DialogTitle>
+                        <DialogTitle className="text-xl font-bold">
+                            {isCredit ? 'Transaksi Piutang' : 'Pembayaran'}
+                        </DialogTitle>
                     </DialogHeader>
 
                     <div className="mt-3 flex items-center justify-between">
                         <div className="text-sm text-muted-foreground">
-                            {items.length} item · {paymentMethod === 'cash' ? 'Tunai' : 'Transfer'}
+                            {items.length} item · {isCredit ? 'Piutang' : paymentMethod === 'cash' ? 'Tunai' : 'Transfer'}
                         </div>
-                        <div className="text-2xl font-bold text-primary">
+                        <div className={cn(
+                            "text-2xl font-bold",
+                            isCredit ? "text-orange-600" : "text-primary"
+                        )}>
                             Rp {totalAmount.toLocaleString('id-ID')}
                         </div>
                     </div>
@@ -132,6 +160,46 @@ export function POSCheckoutDialog({
                         )}
                     </div>
 
+                    {/* Credit Transaction Toggle */}
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800">
+                        <div className="flex items-center gap-3">
+                            <div className={cn(
+                                "w-10 h-10 rounded-lg flex items-center justify-center",
+                                isCredit ? "bg-orange-500 text-white" : "bg-orange-100 dark:bg-orange-900/30"
+                            )}>
+                                <AlertCircle className={cn(
+                                    "w-5 h-5",
+                                    isCredit ? "text-white" : "text-orange-600"
+                                )} />
+                            </div>
+                            <div>
+                                <p className="font-medium text-sm">Transaksi Piutang</p>
+                                <p className="text-xs text-muted-foreground">Customer belum bayar</p>
+                            </div>
+                        </div>
+                        <Switch
+                            checked={isCredit}
+                            onCheckedChange={onIsCreditChange}
+                        />
+                    </div>
+
+                    {/* Credit Customer Name Input */}
+                    {isCredit && (
+                        <div className="space-y-2">
+                            <Label className="text-sm">Nama Customer</Label>
+                            <div className="relative">
+                                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                <Input
+                                    value={creditCustomerName}
+                                    onChange={(e) => onCreditCustomerNameChange(e.target.value)}
+                                    className="h-11 pl-10 rounded-xl"
+                                    placeholder="Masukkan nama customer..."
+                                    autoFocus
+                                />
+                            </div>
+                        </div>
+                    )}
+
                     {/* Transaction Date Picker */}
                     <div className="space-y-2">
                         <Label className="text-sm">Tanggal Transaksi</Label>
@@ -149,8 +217,8 @@ export function POSCheckoutDialog({
                         )}
                     </div>
 
-                    {/* Cash Payment */}
-                    {paymentMethod === 'cash' && (
+                    {/* Cash Payment - Only show if not credit */}
+                    {!isCredit && paymentMethod === 'cash' && (
                         <div className="space-y-4">
                             {/* Amount Input */}
                             <div className="space-y-2">
@@ -216,8 +284,8 @@ export function POSCheckoutDialog({
                         </div>
                     )}
 
-                    {/* Transfer Payment - White to Blue gradient */}
-                    {paymentMethod === 'transfer' && (
+                    {/* Transfer Payment - White to Blue gradient - Only show if not credit */}
+                    {!isCredit && paymentMethod === 'transfer' && (
                         <div className="p-5 rounded-xl bg-gradient-to-br from-white to-blue-100 dark:from-slate-900 dark:to-blue-900/30 border border-blue-200 dark:border-blue-800 text-center">
                             <div className="w-14 h-14 mx-auto mb-3 rounded-xl bg-blue-600 flex items-center justify-center">
                                 <CreditCard className="w-7 h-7 text-white" />
@@ -227,16 +295,39 @@ export function POSCheckoutDialog({
                         </div>
                     )}
 
+                    {/* Credit Info - Show when credit is enabled */}
+                    {isCredit && (
+                        <div className="p-5 rounded-xl bg-gradient-to-br from-white to-orange-100 dark:from-slate-900 dark:to-orange-900/30 border border-orange-200 dark:border-orange-800 text-center">
+                            <div className="w-14 h-14 mx-auto mb-3 rounded-xl bg-orange-500 flex items-center justify-center">
+                                <AlertCircle className="w-7 h-7 text-white" />
+                            </div>
+                            <p className="font-semibold text-orange-700 dark:text-orange-400">Transaksi Piutang</p>
+                            <p className="text-sm text-orange-600/70 dark:text-orange-400/70 mt-1">
+                                Stok akan berkurang, pembayaran ditangguhkan
+                            </p>
+                        </div>
+                    )}
+
                     {/* Confirm Button */}
                     <Button
-                        className="w-full h-12 text-base font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700"
+                        className={cn(
+                            "w-full h-12 text-base font-bold rounded-xl",
+                            isCredit
+                                ? "bg-orange-600 hover:bg-orange-700"
+                                : "bg-emerald-600 hover:bg-emerald-700"
+                        )}
                         onClick={onConfirm}
-                        disabled={isProcessing || (paymentMethod === 'cash' && amountPaid < totalAmount)}
+                        disabled={!canConfirm}
                     >
                         {isProcessing ? (
                             <>
                                 <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                                 Memproses...
+                            </>
+                        ) : isCredit ? (
+                            <>
+                                <AlertCircle className="w-5 h-5 mr-2" />
+                                Catat Piutang
                             </>
                         ) : (
                             <>
@@ -250,3 +341,4 @@ export function POSCheckoutDialog({
         </Dialog>
     );
 }
+

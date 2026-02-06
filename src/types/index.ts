@@ -126,6 +126,11 @@ export interface Sale {
   is_cancelled?: boolean;
   cancelled_at?: string | null;
   cancelled_reason?: string | null;
+  // Credit transaction tracking (piutang)
+  is_credit?: boolean;
+  credit_customer_name?: string | null;
+  credit_settled_at?: string | null;
+  credit_payment_method?: PaymentMethod | null;
   created_at: string;
   items: SaleItem[];
 }

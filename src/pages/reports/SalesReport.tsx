@@ -32,6 +32,7 @@ import {
     CalendarRange,
     Percent,
     Printer,
+    AlertCircle,
 } from 'lucide-react';
 import {
     format,
@@ -63,6 +64,8 @@ interface SalesData {
     cashSales: number;
     transferSales: number;
     averageTransaction: number;
+    totalCredit: number; // Credit sales (unsettled)
+    totalCreditAmount: number; // Total amount of credit sales
     topProducts: { name: string; quantity: number; revenue: number }[];
     hourlyDistribution: { hour: number; count: number; amount: number }[];
     cashierPerformance: { name: string; transactions: number; amount: number }[];
@@ -153,6 +156,11 @@ function calculateStats(sales: Sale[], date: Date): SalesData {
     const transferSales = validSales.filter(s => s.payment_method === 'transfer').reduce((sum, s) => sum + s.total_amount, 0);
     const averageTransaction = totalTransactions > 0 ? totalSales / totalTransactions : 0;
 
+    // Credit sales (unsettled) - count and total amount
+    const creditSales = validSales.filter(s => s.is_credit && !s.credit_settled_at);
+    const totalCredit = creditSales.length;
+    const totalCreditAmount = creditSales.reduce((sum, s) => sum + s.total_amount, 0);
+
     // Top products - only from valid sales
     const productMap = new Map<string, { name: string; quantity: number; revenue: number }>();
     validSales.forEach(sale => {
@@ -204,6 +212,8 @@ function calculateStats(sales: Sale[], date: Date): SalesData {
         cashSales,
         transferSales,
         averageTransaction,
+        totalCredit,
+        totalCreditAmount,
         topProducts,
         hourlyDistribution,
         cashierPerformance,
@@ -550,6 +560,30 @@ export default function SalesReport() {
                         </CardContent>
                         <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-rose-500 to-pink-500" />
                     </Card>
+
+                    {/* Total Piutang Card */}
+                    {stats.totalCredit > 0 && (
+                        <Card className="relative overflow-hidden border-orange-200 dark:border-orange-800">
+                            <CardContent className="p-6">
+                                <div className="flex items-start justify-between">
+                                    <div>
+                                        <p className="text-sm text-muted-foreground">Piutang Belum Lunas</p>
+                                        <p className="text-3xl font-bold mt-1 text-orange-600">
+                                            {formatRupiah(stats.totalCreditAmount)}
+                                        </p>
+                                        <div className="flex items-center gap-1 mt-2 text-sm text-orange-600">
+                                            <AlertCircle className="w-4 h-4" />
+                                            {stats.totalCredit} transaksi piutang
+                                        </div>
+                                    </div>
+                                    <div className="p-3 rounded-xl bg-orange-100 dark:bg-orange-900/30">
+                                        <AlertCircle className="w-6 h-6 text-orange-600" />
+                                    </div>
+                                </div>
+                            </CardContent>
+                            <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 to-amber-500" />
+                        </Card>
+                    )}
                 </div>
 
                 {/* Payment Methods & Peak Hours */}
@@ -862,6 +896,11 @@ export default function SalesReport() {
                                                                         <p className="text-xs text-muted-foreground">
                                                                             {item.quantity} x {formatRupiah(item.price)}
                                                                         </p>
+                                                                        {(item.discount || 0) > 0 && (
+                                                                            <p className="text-xs text-rose-500 font-medium">
+                                                                                Diskon {formatRupiah(item.discount * item.quantity)}
+                                                                            </p>
+                                                                        )}
                                                                     </div>
                                                                 </div>
                                                             ))}

@@ -54,6 +54,11 @@ export interface UsePOSCheckoutReturn {
     closeReceiptDialog: () => void;
     handleConfirmCheckout: () => Promise<void>;
     handlePrint: () => void;
+    // Credit transaction
+    isCredit: boolean;
+    setIsCredit: (isCredit: boolean) => void;
+    creditCustomerName: string;
+    setCreditCustomerName: (name: string) => void;
 }
 
 export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutReturn {
@@ -69,6 +74,9 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
     const [amountPaid, setAmountPaid] = useState(0);
     const [transactionDate, setTransactionDate] = useState<Date>(new Date());
     const [lastSale, setLastSale] = useState<LastSaleData | null>(null);
+    // Credit transaction state
+    const [isCredit, setIsCredit] = useState(false);
+    const [creditCustomerName, setCreditCustomerName] = useState('');
 
     const receiptRef = useRef<HTMLDivElement>(null);
 
@@ -81,6 +89,8 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
         if (items.length === 0) return;
         setAmountPaid(Math.ceil(totalAmount / 1000) * 1000);
         setTransactionDate(new Date()); // Reset to today when opening
+        setIsCredit(false); // Reset credit state
+        setCreditCustomerName(''); // Reset customer name
         setShowCheckoutDialog(true);
     }, [items.length, totalAmount]);
 
@@ -165,10 +175,22 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
 
     const handleConfirmCheckout = useCallback(async () => {
         if (items.length === 0) return;
-        if (paymentMethod === 'cash' && amountPaid < totalAmount) {
+
+        // Skip payment check for credit transactions
+        if (!isCredit && paymentMethod === 'cash' && amountPaid < totalAmount) {
             toast({
                 title: 'Uang tidak cukup',
                 description: 'Jumlah bayar harus minimal sama dengan total',
+                variant: 'destructive'
+            });
+            return;
+        }
+
+        // Validate credit customer name
+        if (isCredit && !creditCustomerName.trim()) {
+            toast({
+                title: 'Nama customer diperlukan',
+                description: 'Masukkan nama customer untuk transaksi piutang',
                 variant: 'destructive'
             });
             return;
@@ -230,7 +252,10 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
                     isManualEntry: it.isManualEntry || false,
                 })),
                 orderDiscount,
-                amountPaid: finalAmountPaid,
+                amountPaid: isCredit ? 0 : finalAmountPaid, // No payment for credit
+                // Credit transaction fields
+                isCredit,
+                creditCustomerName: isCredit ? creditCustomerName.trim() : undefined,
                 // Only pass transaction date for backdated transactions
                 ...(isBackdated && { transactionDate }),
             });
@@ -294,5 +319,10 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
         closeReceiptDialog,
         handleConfirmCheckout,
         handlePrint: () => handlePrint(),
+        // Credit transaction
+        isCredit,
+        setIsCredit,
+        creditCustomerName,
+        setCreditCustomerName,
     };
 }

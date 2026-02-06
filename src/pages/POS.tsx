@@ -13,6 +13,7 @@ import { POSSalesHistoryDialog } from '@/components/pos/POSSalesHistoryDialog';
 import { TabDialog } from '@/components/pos/TabDialog';
 import QuantityInputDialog from '@/components/pos/QuantityInputDialog';
 import { QuickSaleDialog } from '@/components/pos/QuickSaleDialog';
+import { CreditListDialog } from '@/components/pos/CreditListDialog';
 import { OfflineSyncStatus } from '@/components/pos/OfflineSyncStatus';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,7 +23,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { History, ClipboardList, RotateCcw, PackagePlus } from 'lucide-react';
+import { History, ClipboardList, RotateCcw, PackagePlus, AlertCircle } from 'lucide-react';
 import { useData } from '@/contexts/DataContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -58,6 +59,9 @@ export default function POS() {
 
     // Quick Sale dialog state
     const [quickSaleDialogOpen, setQuickSaleDialogOpen] = useState(false);
+
+    // Credit List dialog state
+    const [creditListDialogOpen, setCreditListDialogOpen] = useState(false);
 
     // Cart state
     const cart = usePOSCart('toko');
@@ -306,6 +310,16 @@ export default function POS() {
                             <span className="hidden sm:inline text-sm font-medium">Quick Sale</span>
                         </Button>
 
+                        {/* Piutang (Credit) Button */}
+                        <Button
+                            variant="outline"
+                            onClick={() => setCreditListDialogOpen(true)}
+                            className="h-9 sm:h-11 px-2 sm:px-3 rounded-lg sm:rounded-xl gap-1.5 sm:gap-2 border-orange-400 bg-orange-50 text-orange-800 hover:bg-orange-100 dark:border-orange-600 dark:bg-orange-900/30 dark:text-orange-300 dark:hover:bg-orange-900/50 shrink-0"
+                        >
+                            <AlertCircle className="h-4 w-4" />
+                            <span className="hidden sm:inline text-sm font-medium">Piutang</span>
+                        </Button>
+
                         {/* Tab Button */}
                         <Button
                             variant="outline"
@@ -450,6 +464,11 @@ export default function POS() {
                 onTransactionDateChange={checkout.setTransactionDate}
                 onConfirm={checkout.handleConfirmCheckout}
                 isProcessing={checkout.isProcessing}
+                // Credit transaction props
+                isCredit={checkout.isCredit}
+                onIsCreditChange={checkout.setIsCredit}
+                creditCustomerName={checkout.creditCustomerName}
+                onCreditCustomerNameChange={checkout.setCreditCustomerName}
             />
 
             {/* Receipt Dialog */}
@@ -491,6 +510,12 @@ export default function POS() {
                 open={quickSaleDialogOpen}
                 onOpenChange={setQuickSaleDialogOpen}
                 onAddItem={cart.addManualItem}
+            />
+
+            {/* Credit List Dialog */}
+            <CreditListDialog
+                open={creditListDialogOpen}
+                onOpenChange={setCreditListDialogOpen}
             />
         </MainLayout>
     );
