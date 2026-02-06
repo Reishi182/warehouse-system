@@ -830,9 +830,9 @@ export default function SalesReport() {
                             }
 
                             return (
-                                <ScrollArea className="h-[500px]">
+                                <ScrollArea className="h-[600px]">
                                     <div className="space-y-2">
-                                        {filteredSales.slice(0, 30).map((sale) => {
+                                        {filteredSales.map((sale) => {
                                             const isExpanded = expandedSaleId === sale.id;
                                             return (
                                                 <div key={sale.id} className="rounded-xl border overflow-hidden">
