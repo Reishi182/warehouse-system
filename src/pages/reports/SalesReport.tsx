@@ -33,6 +33,7 @@ import {
     Percent,
     Printer,
     AlertCircle,
+    Search,
 } from 'lucide-react';
 import {
     format,
@@ -120,7 +121,7 @@ async function fetchSalesForPeriod(date: Date, period: PeriodType): Promise<Sale
             quantity: item.quantity,
             price: item.price,
             subtotal: item.subtotal,
-            discount: 0,
+            discount: item.discount || 0,
         }));
     }
 
@@ -245,6 +246,7 @@ export default function SalesReport() {
     const [period, setPeriod] = useState<PeriodType>('daily');
     const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
     const [expandedSaleId, setExpandedSaleId] = useState<string | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
     const parsedDate = selectedDate ? parseISO(selectedDate) : new Date();
 
     // Fetch sales for selected period
@@ -770,13 +772,26 @@ export default function SalesReport() {
                 {/* Recent Transactions */}
                 <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <ShoppingCart className="w-5 h-5" />
-                            Transaksi Terbaru
-                            <Badge variant="secondary" className="ml-2">
-                                {sales.length} transaksi
-                            </Badge>
-                        </CardTitle>
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                            <CardTitle className="flex items-center gap-2">
+                                <ShoppingCart className="w-5 h-5" />
+                                Transaksi Terbaru
+                                <Badge variant="secondary" className="ml-2">
+                                    {sales.length} transaksi
+                                </Badge>
+                            </CardTitle>
+                            {/* Search Input */}
+                            <div className="relative w-full sm:w-72">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                <input
+                                    type="text"
+                                    placeholder="Cari no. invoice, kasir, produk..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="w-full pl-9 pr-4 py-2 text-sm border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                />
+                            </div>
+                        </div>
                     </CardHeader>
                     <CardContent>
                         {isLoading ? (
@@ -788,141 +803,179 @@ export default function SalesReport() {
                                 <ShoppingCart className="w-12 h-12 mb-4 opacity-50" />
                                 <p>Tidak ada transaksi pada tanggal ini</p>
                             </div>
-                        ) : (
-                            <ScrollArea className="h-[500px]">
-                                <div className="space-y-2">
-                                    {sales.slice(0, 30).map((sale) => {
-                                        const isExpanded = expandedSaleId === sale.id;
-                                        return (
-                                            <div key={sale.id} className="rounded-xl border overflow-hidden">
-                                                {/* Transaction Header - Clickable */}
-                                                <div
-                                                    className={cn(
-                                                        "flex items-center justify-between p-4 cursor-pointer transition-colors",
-                                                        isExpanded ? "bg-muted" : "bg-muted/30 hover:bg-muted/50"
-                                                    )}
-                                                    onClick={() => setExpandedSaleId(isExpanded ? null : sale.id)}
-                                                >
-                                                    <div className="flex items-center gap-4">
-                                                        <div className={cn(
-                                                            "w-10 h-10 rounded-lg flex items-center justify-center",
-                                                            sale.is_cancelled ? "bg-red-100 dark:bg-red-900/30" :
-                                                                sale.is_exchanged ? "bg-orange-100 dark:bg-orange-900/30" :
-                                                                    sale.payment_method === 'cash'
-                                                                        ? "bg-green-100 dark:bg-green-900/30"
-                                                                        : "bg-blue-100 dark:bg-blue-900/30"
-                                                        )}>
-                                                            {sale.payment_method === 'cash' ? (
-                                                                <Banknote className={cn(
-                                                                    "w-5 h-5",
-                                                                    sale.is_cancelled ? "text-red-600" :
-                                                                        sale.is_exchanged ? "text-orange-600" : "text-green-600"
-                                                                )} />
+                        ) : (() => {
+                            // Filter sales based on search query
+                            const filteredSales = searchQuery.trim()
+                                ? sales.filter(sale => {
+                                    const query = searchQuery.toLowerCase();
+                                    // Search by sale number
+                                    if (sale.sale_number.toLowerCase().includes(query)) return true;
+                                    // Search by cashier name
+                                    if (sale.cashier_name.toLowerCase().includes(query)) return true;
+                                    // Search by product name in items
+                                    if (sale.items.some(item => item.product_name.toLowerCase().includes(query))) return true;
+                                    // Search by barcode
+                                    if (sale.items.some(item => item.barcode?.toLowerCase().includes(query))) return true;
+                                    return false;
+                                })
+                                : sales;
+
+                            if (filteredSales.length === 0) {
+                                return (
+                                    <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                                        <Search className="w-12 h-12 mb-4 opacity-50" />
+                                        <p>Tidak ditemukan transaksi untuk "{searchQuery}"</p>
+                                    </div>
+                                );
+                            }
+
+                            return (
+                                <ScrollArea className="h-[500px]">
+                                    <div className="space-y-2">
+                                        {filteredSales.slice(0, 30).map((sale) => {
+                                            const isExpanded = expandedSaleId === sale.id;
+                                            return (
+                                                <div key={sale.id} className="rounded-xl border overflow-hidden">
+                                                    {/* Transaction Header - Clickable */}
+                                                    <div
+                                                        className={cn(
+                                                            "flex items-center justify-between p-4 cursor-pointer transition-colors",
+                                                            isExpanded ? "bg-muted" : "bg-muted/30 hover:bg-muted/50"
+                                                        )}
+                                                        onClick={() => setExpandedSaleId(isExpanded ? null : sale.id)}
+                                                    >
+                                                        <div className="flex items-center gap-4">
+                                                            <div className={cn(
+                                                                "w-10 h-10 rounded-lg flex items-center justify-center",
+                                                                sale.is_cancelled ? "bg-red-100 dark:bg-red-900/30" :
+                                                                    sale.is_exchanged ? "bg-orange-100 dark:bg-orange-900/30" :
+                                                                        sale.payment_method === 'cash'
+                                                                            ? "bg-green-100 dark:bg-green-900/30"
+                                                                            : "bg-blue-100 dark:bg-blue-900/30"
+                                                            )}>
+                                                                {sale.payment_method === 'cash' ? (
+                                                                    <Banknote className={cn(
+                                                                        "w-5 h-5",
+                                                                        sale.is_cancelled ? "text-red-600" :
+                                                                            sale.is_exchanged ? "text-orange-600" : "text-green-600"
+                                                                    )} />
+                                                                ) : (
+                                                                    <CreditCard className={cn(
+                                                                        "w-5 h-5",
+                                                                        sale.is_cancelled ? "text-red-600" :
+                                                                            sale.is_exchanged ? "text-orange-600" : "text-blue-600"
+                                                                    )} />
+                                                                )}
+                                                            </div>
+                                                            <div>
+                                                                <div className="flex items-center gap-2">
+                                                                    <p className="font-medium">{sale.sale_number}</p>
+                                                                    {sale.is_cancelled && (
+                                                                        <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                                                                            Dibatalkan
+                                                                        </Badge>
+                                                                    )}
+                                                                    {sale.is_exchanged && (
+                                                                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+                                                                            Ditukar
+                                                                        </Badge>
+                                                                    )}
+                                                                </div>
+                                                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                                    <User className="w-3 h-3" />
+                                                                    {sale.cashier_name}
+                                                                    <span>•</span>
+                                                                    <Clock className="w-3 h-3" />
+                                                                    {format(parseISO(sale.created_at), 'HH:mm')}
+                                                                    <span>•</span>
+                                                                    <Package className="w-3 h-3" />
+                                                                    {sale.items.length} item
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="text-right">
+                                                                <p className={cn(
+                                                                    "font-bold",
+                                                                    (sale.is_cancelled || sale.is_exchanged) && "text-muted-foreground line-through"
+                                                                )}>{formatRupiah(sale.total_amount)}</p>
+                                                                <p className="text-xs text-muted-foreground">
+                                                                    {sale.payment_method === 'cash' ? 'Tunai' : 'Transfer'}
+                                                                </p>
+                                                            </div>
+                                                            {isExpanded ? (
+                                                                <ChevronUp className="w-5 h-5 text-muted-foreground" />
                                                             ) : (
-                                                                <CreditCard className={cn(
-                                                                    "w-5 h-5",
-                                                                    sale.is_cancelled ? "text-red-600" :
-                                                                        sale.is_exchanged ? "text-orange-600" : "text-blue-600"
-                                                                )} />
+                                                                <ChevronDown className="w-5 h-5 text-muted-foreground" />
                                                             )}
                                                         </div>
-                                                        <div>
-                                                            <div className="flex items-center gap-2">
-                                                                <p className="font-medium">{sale.sale_number}</p>
-                                                                {sale.is_cancelled && (
-                                                                    <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
-                                                                        Dibatalkan
-                                                                    </Badge>
-                                                                )}
-                                                                {sale.is_exchanged && (
-                                                                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
-                                                                        Ditukar
-                                                                    </Badge>
-                                                                )}
-                                                            </div>
-                                                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                                                <User className="w-3 h-3" />
-                                                                {sale.cashier_name}
-                                                                <span>•</span>
-                                                                <Clock className="w-3 h-3" />
-                                                                {format(parseISO(sale.created_at), 'HH:mm')}
-                                                                <span>•</span>
-                                                                <Package className="w-3 h-3" />
-                                                                {sale.items.length} item
-                                                            </div>
-                                                        </div>
                                                     </div>
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="text-right">
-                                                            <p className={cn(
-                                                                "font-bold",
-                                                                (sale.is_cancelled || sale.is_exchanged) && "text-muted-foreground line-through"
-                                                            )}>{formatRupiah(sale.total_amount)}</p>
-                                                            <p className="text-xs text-muted-foreground">
-                                                                {sale.payment_method === 'cash' ? 'Tunai' : 'Transfer'}
-                                                            </p>
-                                                        </div>
-                                                        {isExpanded ? (
-                                                            <ChevronUp className="w-5 h-5 text-muted-foreground" />
-                                                        ) : (
-                                                            <ChevronDown className="w-5 h-5 text-muted-foreground" />
-                                                        )}
-                                                    </div>
-                                                </div>
 
-                                                {/* Expanded Detail */}
-                                                {isExpanded && (
-                                                    <div className="border-t bg-background/50 p-4">
-                                                        <p className="text-xs font-semibold text-muted-foreground mb-3">DETAIL ITEM</p>
-                                                        <div className="space-y-2">
-                                                            {sale.items.map((item, idx) => (
-                                                                <div
-                                                                    key={idx}
-                                                                    className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/30"
-                                                                >
-                                                                    <div className="flex items-center gap-3">
-                                                                        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                                                                            <Package className="w-4 h-4 text-primary" />
+                                                    {/* Expanded Detail */}
+                                                    {isExpanded && (
+                                                        <div className="border-t bg-background/50 p-4">
+                                                            <p className="text-xs font-semibold text-muted-foreground mb-3">DETAIL ITEM</p>
+                                                            <div className="space-y-2">
+                                                                {sale.items.map((item, idx) => (
+                                                                    <div
+                                                                        key={idx}
+                                                                        className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/30"
+                                                                    >
+                                                                        <div className="flex items-center gap-3">
+                                                                            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                                                                                <Package className="w-4 h-4 text-primary" />
+                                                                            </div>
+                                                                            <div>
+                                                                                <p className="font-medium text-sm">{item.product_name}</p>
+                                                                                <p className="text-xs text-muted-foreground">
+                                                                                    {item.barcode}
+                                                                                </p>
+                                                                            </div>
                                                                         </div>
-                                                                        <div>
-                                                                            <p className="font-medium text-sm">{item.product_name}</p>
+                                                                        <div className="text-right">
+                                                                            <p className="font-medium">{formatRupiah(item.subtotal)}</p>
                                                                             <p className="text-xs text-muted-foreground">
-                                                                                {item.barcode}
+                                                                                {item.quantity} x {formatRupiah(item.price)}
                                                                             </p>
+                                                                            {(item.discount || 0) > 0 && (
+                                                                                <p className="text-xs text-rose-500 font-medium">
+                                                                                    Diskon {formatRupiah(item.discount * item.quantity)}
+                                                                                </p>
+                                                                            )}
                                                                         </div>
                                                                     </div>
-                                                                    <div className="text-right">
-                                                                        <p className="font-medium">{formatRupiah(item.subtotal)}</p>
-                                                                        <p className="text-xs text-muted-foreground">
-                                                                            {item.quantity} x {formatRupiah(item.price)}
-                                                                        </p>
-                                                                        {(item.discount || 0) > 0 && (
-                                                                            <p className="text-xs text-rose-500 font-medium">
-                                                                                Diskon {formatRupiah(item.discount * item.quantity)}
-                                                                            </p>
-                                                                        )}
+                                                                ))}
+                                                            </div>
+                                                            {/* Summary */}
+                                                            <div className="mt-4 pt-3 border-t space-y-1">
+                                                                {/* Show order discount if exists */}
+                                                                {(sale.order_discount || 0) > 0 && (
+                                                                    <div className="flex justify-between items-center">
+                                                                        <span className="text-sm text-muted-foreground">Diskon</span>
+                                                                        <span className="text-sm font-medium text-rose-500">
+                                                                            - {formatRupiah(sale.order_discount)}
+                                                                        </span>
                                                                     </div>
+                                                                )}
+                                                                <div className="flex justify-between items-center">
+                                                                    <span className="text-sm text-muted-foreground">Total</span>
+                                                                    <span className={cn(
+                                                                        "text-lg font-bold",
+                                                                        (sale.is_cancelled || sale.is_exchanged) ? "text-muted-foreground line-through" : "text-primary"
+                                                                    )}>
+                                                                        {formatRupiah(sale.total_amount)}
+                                                                    </span>
                                                                 </div>
-                                                            ))}
+                                                            </div>
                                                         </div>
-                                                        {/* Summary */}
-                                                        <div className="mt-4 pt-3 border-t flex justify-between items-center">
-                                                            <span className="text-sm text-muted-foreground">Total</span>
-                                                            <span className={cn(
-                                                                "text-lg font-bold",
-                                                                (sale.is_cancelled || sale.is_exchanged) ? "text-muted-foreground line-through" : "text-primary"
-                                                            )}>
-                                                                {formatRupiah(sale.total_amount)}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </ScrollArea>
-                        )}
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </ScrollArea>
+                            );
+                        })()}
                     </CardContent>
                 </Card>
             </div>
