@@ -139,6 +139,11 @@ async function fetchSalesForPeriod(date: Date, period: PeriodType): Promise<Sale
         created_at: row.created_at,
         is_cancelled: row.is_cancelled || false,
         is_exchanged: row.is_exchanged || false,
+        // Credit transaction fields
+        is_credit: row.is_credit || false,
+        credit_customer_name: row.credit_customer_name || null,
+        credit_settled_at: row.credit_settled_at || null,
+        credit_payment_method: row.credit_payment_method || null,
         items: saleItems.filter(item => item.sale_id === row.id),
     }));
 }
@@ -564,28 +569,45 @@ export default function SalesReport() {
                     </Card>
 
                     {/* Total Piutang Card */}
-                    {stats.totalCredit > 0 && (
-                        <Card className="relative overflow-hidden border-orange-200 dark:border-orange-800">
-                            <CardContent className="p-6">
-                                <div className="flex items-start justify-between">
-                                    <div>
-                                        <p className="text-sm text-muted-foreground">Piutang Belum Lunas</p>
-                                        <p className="text-3xl font-bold mt-1 text-orange-600">
-                                            {formatRupiah(stats.totalCreditAmount)}
-                                        </p>
-                                        <div className="flex items-center gap-1 mt-2 text-sm text-orange-600">
-                                            <AlertCircle className="w-4 h-4" />
-                                            {stats.totalCredit} transaksi piutang
-                                        </div>
-                                    </div>
-                                    <div className="p-3 rounded-xl bg-orange-100 dark:bg-orange-900/30">
-                                        <AlertCircle className="w-6 h-6 text-orange-600" />
+                    <Card className="relative overflow-hidden border-orange-200 dark:border-orange-800">
+                        <CardContent className="p-6">
+                            <div className="flex items-start justify-between">
+                                <div>
+                                    <p className="text-sm text-muted-foreground">Piutang Belum Lunas</p>
+                                    <p className={cn(
+                                        "text-3xl font-bold mt-1",
+                                        stats.totalCredit > 0 ? "text-orange-600" : "text-muted-foreground"
+                                    )}>
+                                        {formatRupiah(stats.totalCreditAmount)}
+                                    </p>
+                                    <div className={cn(
+                                        "flex items-center gap-1 mt-2 text-sm",
+                                        stats.totalCredit > 0 ? "text-orange-600" : "text-muted-foreground"
+                                    )}>
+                                        <AlertCircle className="w-4 h-4" />
+                                        {stats.totalCredit} transaksi piutang
                                     </div>
                                 </div>
-                            </CardContent>
-                            <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 to-amber-500" />
-                        </Card>
-                    )}
+                                <div className={cn(
+                                    "p-3 rounded-xl",
+                                    stats.totalCredit > 0
+                                        ? "bg-orange-100 dark:bg-orange-900/30"
+                                        : "bg-muted"
+                                )}>
+                                    <AlertCircle className={cn(
+                                        "w-6 h-6",
+                                        stats.totalCredit > 0 ? "text-orange-600" : "text-muted-foreground"
+                                    )} />
+                                </div>
+                            </div>
+                        </CardContent>
+                        <div className={cn(
+                            "absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r",
+                            stats.totalCredit > 0
+                                ? "from-orange-500 to-amber-500"
+                                : "from-muted to-muted"
+                        )} />
+                    </Card>
                 </div>
 
                 {/* Payment Methods & Peak Hours */}
