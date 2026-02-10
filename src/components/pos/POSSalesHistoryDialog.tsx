@@ -24,7 +24,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
+
 import {
     Collapsible,
     CollapsibleContent,
@@ -195,7 +195,7 @@ export function POSSalesHistoryDialog({ open, onOpenChange, onCreateReturn }: PO
     return (
         <>
             <Dialog open={open} onOpenChange={onOpenChange}>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col p-0">
+                <DialogContent className="max-w-2xl max-h-[90vh] !overflow-y-hidden !flex flex-col p-0">
                     <DialogHeader className="p-4 sm:p-6 pb-0">
                         <DialogTitle className="flex items-center gap-2 text-lg">
                             <History className="h-5 w-5 text-primary" />
@@ -203,7 +203,7 @@ export function POSSalesHistoryDialog({ open, onOpenChange, onCreateReturn }: PO
                         </DialogTitle>
                     </DialogHeader>
 
-                    <div className="flex-1 overflow-hidden flex flex-col px-4 sm:px-6 pb-4 sm:pb-6">
+                    <div className="flex-1 min-h-0 overflow-hidden flex flex-col px-4 sm:px-6 pb-4 sm:pb-6">
                         {/* Filters */}
                         <div className="flex flex-col gap-3 py-4 border-b">
                             {/* Date Filter */}
@@ -281,7 +281,7 @@ export function POSSalesHistoryDialog({ open, onOpenChange, onCreateReturn }: PO
                         </div>
 
                         {/* Sales List */}
-                        <ScrollArea className="flex-1 min-h-0 mt-3">
+                        <div className="flex-1 min-h-0 mt-3 overflow-y-auto">
                             {filteredSales.length === 0 ? (
                                 <div className="text-center py-12 text-muted-foreground">
                                     <ShoppingCart className="h-12 w-12 mx-auto mb-4 opacity-30" />
@@ -446,7 +446,7 @@ export function POSSalesHistoryDialog({ open, onOpenChange, onCreateReturn }: PO
                                     ))}
                                 </div>
                             )}
-                        </ScrollArea>
+                        </div>
                     </div>
                 </DialogContent>
             </Dialog>
