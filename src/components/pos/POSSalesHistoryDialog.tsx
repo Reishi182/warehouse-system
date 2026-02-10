@@ -281,7 +281,7 @@ export function POSSalesHistoryDialog({ open, onOpenChange, onCreateReturn }: PO
                         </div>
 
                         {/* Sales List */}
-                        <ScrollArea className="flex-1 mt-3">
+                        <ScrollArea className="flex-1 min-h-0 mt-3">
                             {filteredSales.length === 0 ? (
                                 <div className="text-center py-12 text-muted-foreground">
                                     <ShoppingCart className="h-12 w-12 mx-auto mb-4 opacity-30" />
