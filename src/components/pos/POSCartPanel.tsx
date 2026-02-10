@@ -39,6 +39,7 @@ interface POSCartPanelProps {
     todayStats: { count: number; total: number };
     returnRef?: string | null;
     onSetReturnRef?: (ref: string | null) => void;
+    onCancelExchange?: () => void;
     stockLocation: Location;
     // Tab customer selection
     openTabs?: CustomerTab[];
@@ -63,6 +64,7 @@ export const POSCartPanel = memo(function POSCartPanel({
     todayStats,
     returnRef,
     onSetReturnRef,
+    onCancelExchange,
     stockLocation,
     openTabs = [],
     selectedTabId,
@@ -154,7 +156,17 @@ export const POSCartPanel = memo(function POSCartPanel({
                         <RotateCcw className="w-3 h-3" />
                         Ref Tukar Barang: {returnRef}
                     </Badge>
-                    {onSetReturnRef && (
+                    {onCancelExchange ? (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 text-xs text-red-600 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/30 gap-1"
+                            onClick={onCancelExchange}
+                        >
+                            <X className="w-3 h-3" />
+                            Batalkan Tukar
+                        </Button>
+                    ) : onSetReturnRef && (
                         <Button
                             variant="ghost"
                             size="sm"

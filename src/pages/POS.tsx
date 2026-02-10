@@ -112,6 +112,7 @@ export default function POS() {
             setReturnRef(null);
             setExchangeFromSaleId(null);
             setExchangeFromSaleNumber(null);
+            setExchangeFromSale(null);
         },
         returnRef,
     });
@@ -119,6 +120,7 @@ export default function POS() {
     // State to hold exchange from sale info for linking after checkout
     const [exchangeFromSaleId, setExchangeFromSaleId] = useState<string | null>(null);
     const [exchangeFromSaleNumber, setExchangeFromSaleNumber] = useState<string | null>(null);
+    const [exchangeFromSale, setExchangeFromSale] = useState<Sale | null>(null);
 
     // Handle exchange - immediately mark original sale as exchanged and return stock
     const handleExchangeSale = async (sale: Sale) => {
@@ -185,6 +187,7 @@ export default function POS() {
             // 4. Store exchange reference for linking after new sale is created
             setExchangeFromSaleId(sale.id);
             setExchangeFromSaleNumber(sale.sale_number);
+            setExchangeFromSale(sale);
 
             // 5. Load items into cart (now stock is available)
             cart.loadFromSale(sale);
@@ -199,6 +202,80 @@ export default function POS() {
         } catch (err) {
             console.error('Exchange error:', err);
             toast({ title: 'Error', description: 'Gagal memproses ganti barang', variant: 'destructive' });
+        } finally {
+            setIsProcessingExchange(false);
+        }
+    };
+
+    // Handle cancel exchange - reverse stock changes and unmark the sale
+    const handleCancelExchange = async () => {
+        if (!exchangeFromSale || !exchangeFromSaleId) return;
+
+        const confirmed = window.confirm(
+            `Batalkan tukar barang dari ${exchangeFromSaleNumber}?\n\nStok akan dikurangi kembali dan transaksi asli akan dipulihkan.`
+        );
+        if (!confirmed) return;
+
+        setIsProcessingExchange(true);
+        const stockLocation = exchangeFromSale.stock_location || 'toko';
+        const stockField = stockLocation === 'toko' ? 'stock_toko' : 'stock_gudang';
+
+        try {
+            // 1. Re-deduct stock for each item (reverse the return)
+            for (const item of exchangeFromSale.items || []) {
+                const { data: product, error: fetchError } = await supabase
+                    .from('products')
+                    .select(`id, ${stockField}`)
+                    .eq('id', item.product_id)
+                    .single();
+
+                if (fetchError) {
+                    console.error(`Failed to fetch product ${item.product_id}:`, fetchError);
+                    continue;
+                }
+
+                const currentStock = (product as any)?.[stockField] || 0;
+                const newStock = Math.max(0, currentStock - item.quantity);
+
+                await supabase
+                    .from('products')
+                    .update({ [stockField]: newStock })
+                    .eq('id', item.product_id);
+
+                // Log stock deduction
+                await supabase.from('stock_logs').insert({
+                    product_id: item.product_id,
+                    type: 'out',
+                    quantity: item.quantity,
+                    location: stockLocation,
+                    user_id: profile?.id,
+                    note: `Batal ganti barang dari ${exchangeFromSaleNumber}`,
+                });
+            }
+
+            // 2. Unmark the original sale
+            await supabase
+                .from('sales')
+                .update({ is_exchanged: false } as any)
+                .eq('id', exchangeFromSaleId);
+
+            // 3. Clear all exchange state
+            cart.clearCart();
+            setReturnRef(null);
+            setExchangeFromSaleId(null);
+            setExchangeFromSaleNumber(null);
+            setExchangeFromSale(null);
+
+            // 4. Refresh data
+            queryClient.invalidateQueries({ queryKey: ['notifications'] });
+
+            toast({
+                title: '↩️ Tukar barang dibatalkan',
+                description: `Transaksi ${exchangeFromSaleNumber} dipulihkan ke semula.`,
+            });
+        } catch (err) {
+            console.error('Cancel exchange error:', err);
+            toast({ title: 'Error', description: 'Gagal membatalkan tukar barang', variant: 'destructive' });
         } finally {
             setIsProcessingExchange(false);
         }
@@ -381,10 +458,16 @@ export default function POS() {
                         onUpdateQuantity={cart.updateQuantity}
                         onRemoveItem={cart.removeItem}
                         onClearCart={() => {
-                            cart.clearCart();
-                            setReturnRef(null);
-                            setSelectedTabId(null);
+                            if (exchangeFromSaleId) {
+                                // If in exchange mode, cancel exchange properly
+                                handleCancelExchange();
+                            } else {
+                                cart.clearCart();
+                                setReturnRef(null);
+                                setSelectedTabId(null);
+                            }
                         }}
+                        onCancelExchange={exchangeFromSaleId ? handleCancelExchange : undefined}
                         onCheckout={checkout.openCheckoutDialog}
                         onSaveToTab={(tabId) => {
                             // Find the selected tab to get tabNumber
