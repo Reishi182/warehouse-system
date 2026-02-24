@@ -8,7 +8,8 @@ import {
     Banknote,
     Wallet,
     Truck,
-    ShoppingCart
+    ShoppingCart,
+    CreditCard,
 } from 'lucide-react';
 import StatCard from '@/components/common/StatCard';
 import { UserRole, Product, Sale, CashTransfer, SuratJalan, StockOutRequest } from '@/types';
@@ -51,6 +52,14 @@ export default function StatsGrid({
     const totalCashTransfer = transfersToday.reduce((acc, t) => acc + t.amount, 0);
     const saldoBelumDisetor = Math.max(0, cashSalesAmount - totalCashTransfer);
 
+    // Piutang aktif (credit sales belum lunas)
+    const activeCreditSales = sales.filter(s =>
+        s.is_credit &&
+        !s.credit_settled_at &&
+        !s.is_cancelled
+    );
+    const totalPiutang = activeCreditSales.reduce((acc, s) => acc + s.total_amount, 0);
+
     // Yesterday's stats for comparison - also exclude cancelled/exchanged
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
@@ -65,7 +74,6 @@ export default function StatsGrid({
 
     // Surat Jalan stats
     const pendingSuratJalan = suratJalans.filter(s => s.status === 'pending').length;
-    const shippedSuratJalan = suratJalans.filter(s => s.status === 'shipped').length;
 
     // Format currency helper
     const formatCurrency = (value: number) => {
@@ -119,7 +127,7 @@ export default function StatsGrid({
 
     if (role === 'cashier') {
         return (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
                 <StatCard
                     title="Transaksi Hari Ini"
                     value={totalSalesToday}
@@ -144,6 +152,14 @@ export default function StatsGrid({
                     gradient="amber"
                     animationDelay={200}
                 />
+                <StatCard
+                    title="Piutang Aktif"
+                    value={formatCurrency(totalPiutang)}
+                    subtitle={`${activeCreditSales.length} pelanggan`}
+                    icon={CreditCard}
+                    gradient="pink"
+                    animationDelay={300}
+                />
             </div>
         );
     }
@@ -152,35 +168,36 @@ export default function StatsGrid({
         return (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
                 <StatCard
+                    title="Penjualan Hari Ini"
+                    value={formatCurrency(totalSalesAmount)}
+                    subtitle={`${totalSalesToday} transaksi`}
+                    icon={Banknote}
+                    gradient="emerald"
+                    change={salesChange}
+                    animationDelay={0}
+                />
+                <StatCard
+                    title="Permintaan Pending"
+                    value={pendingRequests}
+                    subtitle="Menunggu approval"
+                    icon={ArrowUpFromLine}
+                    gradient="orange"
+                    animationDelay={100}
+                />
+                <StatCard
                     title="Surat Jalan Pending"
                     value={pendingSuratJalan}
                     subtitle="Menunggu verifikasi"
                     icon={FileText}
                     gradient="cyan"
-                    animationDelay={0}
-                />
-                <StatCard
-                    title="Dalam Pengiriman"
-                    value={shippedSuratJalan}
-                    subtitle="Surat jalan shipped"
-                    icon={Truck}
-                    gradient="purple"
-                    animationDelay={100}
-                />
-                <StatCard
-                    title="Total Produk"
-                    value={totalProducts}
-                    subtitle="Produk terdaftar"
-                    icon={Package}
-                    gradient="blue"
                     animationDelay={200}
                 />
                 <StatCard
-                    title="Total Stok"
-                    value={totalStock.toLocaleString('id-ID')}
-                    subtitle="Unit tersedia"
-                    icon={ArrowDownToLine}
-                    gradient="green"
+                    title="Dalam Pengiriman"
+                    value={suratJalans.filter(s => s.status === 'shipped').length}
+                    subtitle="Surat jalan shipped"
+                    icon={Truck}
+                    gradient="purple"
                     animationDelay={300}
                 />
             </div>
@@ -188,7 +205,6 @@ export default function StatsGrid({
     }
 
     if (role === 'main_office') {
-        // NOTE: "Penjualan Hari Ini" removed as per user request
         return (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
                 <StatCard
@@ -216,11 +232,11 @@ export default function StatsGrid({
                     animationDelay={200}
                 />
                 <StatCard
-                    title="Surat Jalan Pending"
-                    value={pendingSuratJalan}
-                    subtitle="Perlu ditindaklanjuti"
-                    icon={FileText}
-                    gradient="violet"
+                    title="Piutang Aktif"
+                    value={formatCurrency(totalPiutang)}
+                    subtitle={`${activeCreditSales.length} pelanggan`}
+                    icon={CreditCard}
+                    gradient="pink"
                     animationDelay={300}
                 />
             </div>

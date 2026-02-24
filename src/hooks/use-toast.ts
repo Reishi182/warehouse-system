@@ -18,6 +18,8 @@ function showToast(props: ToastProps) {
   const { title, description, variant = 'default', link } = props;
 
   // Build action button if link provided
+  // Note: uses window.location.hash because this runs outside React Router context
+  // and the app uses HashRouter, so hash-based navigation is correct
   const action = link ? {
     label: 'Lihat Detail',
     onClick: () => {

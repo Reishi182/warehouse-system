@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, memo } from 'react';
-import { Package, AlertTriangle, Warehouse, Store, ArrowDownToLine, ChevronLeft, ChevronRight, Filter, X } from 'lucide-react';
+import { Package, AlertTriangle, Warehouse, Store, ArrowDownToLine, ChevronLeft, ChevronRight, Filter, X, ArrowUpDown } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import BarcodeScanner from '@/components/common/BarcodeScanner';
 import PageSkeleton from '@/components/common/PageSkeleton';
@@ -15,8 +15,17 @@ import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { STOCK_THRESHOLDS } from '@/constants';
 import { cn } from '@/lib/utils';
+
+type SortOption = 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc' | 'stock-asc' | 'stock-desc' | 'newest' | 'oldest';
 
 type PageSize = 5 | 10 | 15 | 'all';
 
@@ -30,6 +39,7 @@ export default function Products() {
     const debouncedSearch = useDebounce(searchQuery, 300);
     const [stockFilter, setStockFilter] = useState<StockFilter>('all');
     const [locationFilter, setLocationFilter] = useState<LocationFilter>('all');
+    const [sortBy, setSortBy] = useState<SortOption>('name-asc');
 
     // Pagination states
     const [currentPage, setCurrentPage] = useState(1);
@@ -101,8 +111,29 @@ export default function Products() {
             filtered = [...filtered].sort((a, b) => b.stock[loc] - a.stock[loc]);
         }
 
-        return filtered;
-    }, [products, debouncedSearch, stockFilter, locationFilter]);
+        // Apply sort
+        const sorted = [...filtered];
+        switch (sortBy) {
+            case 'name-asc': sorted.sort((a, b) => a.name.localeCompare(b.name)); break;
+            case 'name-desc': sorted.sort((a, b) => b.name.localeCompare(a.name)); break;
+            case 'price-asc': sorted.sort((a, b) => a.price - b.price); break;
+            case 'price-desc': sorted.sort((a, b) => b.price - a.price); break;
+            case 'stock-asc': {
+                const loc = locationFilter !== 'all' ? locationFilter : 'toko';
+                sorted.sort((a, b) => (a.stock[loc as 'gudang' | 'toko']) - (b.stock[loc as 'gudang' | 'toko']));
+                break;
+            }
+            case 'stock-desc': {
+                const loc = locationFilter !== 'all' ? locationFilter : 'toko';
+                sorted.sort((a, b) => (b.stock[loc as 'gudang' | 'toko']) - (a.stock[loc as 'gudang' | 'toko']));
+                break;
+            }
+            case 'newest': sorted.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()); break;
+            case 'oldest': sorted.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()); break;
+        }
+
+        return sorted;
+    }, [products, debouncedSearch, stockFilter, locationFilter, sortBy]);
 
     // Paginated products
     const paginatedProducts = useMemo(() => {
@@ -119,7 +150,7 @@ export default function Products() {
     // Reset page when filters change
     useMemo(() => {
         setCurrentPage(1);
-    }, [debouncedSearch, stockFilter, locationFilter, pageSize]);
+    }, [debouncedSearch, stockFilter, locationFilter, pageSize, sortBy]);
 
     // Stats for hero section
     const stats = useMemo(() => ({
@@ -197,6 +228,7 @@ export default function Products() {
         setSearchQuery('');
         setStockFilter('all');
         setLocationFilter('all');
+        setSortBy('name-asc');
         setCurrentPage(1);
     }, []);
 
@@ -332,6 +364,25 @@ export default function Products() {
 
                             {/* Page Size Selector */}
                             <div className="flex items-center gap-2">
+                                {/* Sort Dropdown */}
+                                <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+                                    <SelectTrigger className="w-[130px] sm:w-[150px] h-9 rounded-xl text-xs sm:text-sm">
+                                        <ArrowUpDown className="w-3.5 h-3.5 mr-1.5 shrink-0" />
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent className="rounded-xl">
+                                        <SelectItem value="name-asc">Nama A-Z</SelectItem>
+                                        <SelectItem value="name-desc">Nama Z-A</SelectItem>
+                                        <SelectItem value="price-asc">Harga ↑</SelectItem>
+                                        <SelectItem value="price-desc">Harga ↓</SelectItem>
+                                        <SelectItem value="stock-desc">Stok ↓</SelectItem>
+                                        <SelectItem value="stock-asc">Stok ↑</SelectItem>
+                                        <SelectItem value="newest">Terbaru</SelectItem>
+                                        <SelectItem value="oldest">Terlama</SelectItem>
+                                    </SelectContent>
+                                </Select>
+
+                                {/* Page Size Selector */}
                                 <span className="text-xs text-muted-foreground hidden sm:inline">Tampilkan:</span>
                                 <div className="flex items-center gap-1 p-1 bg-muted rounded-xl">
                                     {pageSizeOptions.map((size) => (

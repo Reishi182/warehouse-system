@@ -65,14 +65,24 @@ export function useSettleCreditSale() {
             saleId: string;
             paymentMethod: PaymentMethod;
         }) => {
+            // First fetch total_amount so we can set amount_paid correctly
+            const { data: saleData, error: fetchError } = await supabase
+                .from('sales')
+                .select('total_amount')
+                .eq('id', saleId)
+                .single();
+
+            if (fetchError) throw fetchError;
+
             const { data, error } = await supabase
                 .from('sales')
                 .update({
                     credit_settled_at: new Date().toISOString(),
                     credit_payment_method: paymentMethod,
                     // Update amount_paid to match total since it's now paid
-                    amount_paid: supabase.rpc ? undefined : undefined, // Keep existing
-                })
+                    amount_paid: saleData?.total_amount || 0,
+                    change_amount: 0,
+                } as any)
                 .eq('id', saleId)
                 .select()
                 .single();

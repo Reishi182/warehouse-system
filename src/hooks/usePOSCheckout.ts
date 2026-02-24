@@ -229,8 +229,11 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
             const yyyy = String(now.getFullYear());
             const mm = String(now.getMonth() + 1).padStart(2, '0');
             const dd = String(now.getDate()).padStart(2, '0');
-            const rand = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
-            const saleNumber = `INV/${yyyy}${mm}${dd}-${rand}`;
+            const HH = String(now.getHours()).padStart(2, '0');
+            const MM = String(now.getMinutes()).padStart(2, '0');
+            const ss = String(now.getSeconds()).padStart(2, '0');
+            const rand = String(Math.floor(Math.random() * 1000000)).padStart(6, '0');
+            const saleNumber = `INV/${yyyy}${mm}${dd}-${HH}${MM}${ss}-${rand}`;
 
             const changeAmount = paymentMethod === 'cash' ? Math.max(0, amountPaid - totalAmount) : 0;
             const finalAmountPaid = paymentMethod === 'cash' ? amountPaid : totalAmount;

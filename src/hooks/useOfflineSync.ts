@@ -27,40 +27,6 @@ export function useOfflineSync() {
         setPendingSales(getOfflineSales().filter(s => !s.synced));
     }, []);
 
-    // Handle coming back online
-    const handleOnline = useCallback(async () => {
-        setOnline(true);
-        refreshStatus();
-
-        const status = getSyncStatus();
-        if (status.pending > 0) {
-            toast({
-                title: '🌐 Kembali Online',
-                description: `${status.pending} transaksi menunggu sinkronisasi...`,
-            });
-
-            // Auto-sync after a short delay
-            setTimeout(() => {
-                syncNow();
-            }, 2000);
-        } else {
-            toast({
-                title: '🌐 Kembali Online',
-                description: 'Koneksi internet pulih.',
-            });
-        }
-    }, [toast, refreshStatus]);
-
-    // Handle going offline
-    const handleOffline = useCallback(() => {
-        setOnline(false);
-        toast({
-            title: '📴 Mode Offline',
-            description: 'Transaksi akan disimpan lokal dan sync saat online.',
-            variant: 'destructive',
-        });
-    }, [toast]);
-
     // Sync pending sales now
     const syncNow = useCallback(async () => {
         if (!isOnline() || isSyncing) return;
@@ -112,6 +78,40 @@ export function useOfflineSync() {
             refreshStatus();
         }
     }, [isSyncing, toast, refreshStatus]);
+
+    // Handle coming back online
+    const handleOnline = useCallback(async () => {
+        setOnline(true);
+        refreshStatus();
+
+        const status = getSyncStatus();
+        if (status.pending > 0) {
+            toast({
+                title: '🌐 Kembali Online',
+                description: `${status.pending} transaksi menunggu sinkronisasi...`,
+            });
+
+            // Auto-sync after a short delay
+            setTimeout(() => {
+                syncNow();
+            }, 2000);
+        } else {
+            toast({
+                title: '🌐 Kembali Online',
+                description: 'Koneksi internet pulih.',
+            });
+        }
+    }, [toast, refreshStatus, syncNow]);
+
+    // Handle going offline
+    const handleOffline = useCallback(() => {
+        setOnline(false);
+        toast({
+            title: '📴 Mode Offline',
+            description: 'Transaksi akan disimpan lokal dan sync saat online.',
+            variant: 'destructive',
+        });
+    }, [toast]);
 
     // Setup online/offline listeners
     useEffect(() => {

@@ -98,7 +98,7 @@ export interface SaleItem {
   quantity: number;
   price: number;
   subtotal: number;
-  discount: number; // percentage discount per item
+  discount: number; // fixed amount discount in Rupiah per item
   exchanged?: boolean; // true if item was exchanged
   exchanged_qty?: number; // quantity that was exchanged
   exchange_id?: string | null; // reference to exchange record
@@ -112,7 +112,7 @@ export interface Sale {
   payment_method: PaymentMethod;
   stock_location: Location;
   total_amount: number;
-  order_discount: number; // percentage discount for entire order
+  order_discount: number; // fixed amount discount in Rupiah for entire order
   amount_paid: number; // amount customer paid
   change_amount: number; // change returned to customer
   has_exchange?: boolean; // true if any item was exchanged

@@ -250,7 +250,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       .from('sales')
       .select('id, sale_number, cashier_id, cashier_name, payment_method, stock_location, total_amount, order_discount, amount_paid, change_amount, created_at, is_exchanged, exchanged_to_sale_id, exchanged_to_sale_number, exchange_from_sale_id, exchange_from_sale_number, is_cancelled, cancelled_at, cancelled_reason, is_credit, credit_customer_name, credit_settled_at, credit_payment_method, sale_items(id, sale_id, product_id, product_name, barcode, quantity, price, subtotal, discount)')
       .order('created_at', { ascending: false })
-      .limit(100);
+      .limit(500);
 
     // Filter by cashier_id for cashier role
     if (isCashier && user?.id) {
@@ -561,8 +561,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const yyyy = String(saleDate.getFullYear());
     const mm = String(saleDate.getMonth() + 1).padStart(2, '0');
     const dd = String(saleDate.getDate()).padStart(2, '0');
-    const rand = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
-    const saleNumber = `INV/${yyyy}${mm}${dd}-${rand}`;
+    const HH = String(saleDate.getHours()).padStart(2, '0');
+    const MM = String(saleDate.getMinutes()).padStart(2, '0');
+    const ss = String(saleDate.getSeconds()).padStart(2, '0');
+    const rand = String(Math.floor(Math.random() * 1000000)).padStart(6, '0');
+    const saleNumber = `INV/${yyyy}${mm}${dd}-${HH}${MM}${ss}-${rand}`;
 
     // Calculate subtotal with per-item discounts (discount is now nominal Rupiah per item)
     const subtotal = processedItems.reduce((acc, it) => {
@@ -636,7 +639,26 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     for (const it of processedItems) {
       if (!it.isManualEntry && it.product) {
         const stockField = `stock_${data.stockLocation}`;
-        const newStock = it.product.stock[data.stockLocation] - it.quantity;
+
+        // Read fresh stock from database to prevent race conditions
+        const { data: freshProduct, error: freshError } = await supabase
+          .from('products')
+          .select(`id, ${stockField}`)
+          .eq('id', it.product.id)
+          .single();
+
+        if (freshError) {
+          toast({ title: 'Gagal membaca stok terbaru', description: freshError.message, variant: 'destructive' });
+          return null;
+        }
+
+        const currentStock = (freshProduct as any)?.[stockField] || 0;
+        const newStock = currentStock - it.quantity;
+
+        if (newStock < 0) {
+          toast({ title: 'Stok tidak cukup', description: `${it.productName} stok terbaru tidak mencukupi`, variant: 'destructive' });
+          return null;
+        }
 
         const { error: stockError } = await supabase
           .from('products')

@@ -87,8 +87,8 @@ export default function DashboardActivityHub({
     const tabs = useMemo(() => {
         const allTabs = [];
 
-        // Permintaan Stok - for warehouse, cashier, admin
-        if (role === 'warehouse' || role === 'cashier' || role === 'admin') {
+        // Permintaan Stok - for warehouse, cashier, main_office, auditor, admin
+        if (role === 'warehouse' || role === 'cashier' || role === 'main_office' || role === 'auditor' || role === 'admin') {
             allTabs.push({
                 id: 'requests',
                 label: 'Permintaan',
@@ -107,8 +107,8 @@ export default function DashboardActivityHub({
             });
         }
 
-        // Transaksi - for cashier, admin
-        if (role === 'cashier' || role === 'admin') {
+        // Transaksi - for cashier, main_office, admin
+        if (role === 'cashier' || role === 'main_office' || role === 'admin') {
             allTabs.push({
                 id: 'transactions',
                 label: 'Transaksi',
@@ -117,8 +117,8 @@ export default function DashboardActivityHub({
             });
         }
 
-        // Surat Jalan - for auditor, admin
-        if (role === 'auditor' || role === 'admin') {
+        // Surat Jalan - for auditor, main_office, admin
+        if (role === 'auditor' || role === 'main_office' || role === 'admin') {
             allTabs.push({
                 id: 'suratJalan',
                 label: 'Surat Jalan',

@@ -8,6 +8,7 @@ import {
     X,
     ChevronLeft,
     ChevronRight,
+    ArrowUpDown,
 } from 'lucide-react';
 import { ProductCard } from '@/components/pos/ProductCard';
 import { ProductListItem } from '@/components/pos/ProductListItem';
@@ -26,6 +27,7 @@ import { cn } from '@/lib/utils';
 import { useDebounce } from '@/hooks/useDebounce';
 
 type ViewMode = 'grid' | 'compact' | 'list';
+type SortOption = 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc' | 'stock-asc' | 'stock-desc' | 'newest' | 'oldest';
 
 interface POSProductGridProps {
     products: Product[];
@@ -46,6 +48,7 @@ export const POSProductGrid = memo(function POSProductGrid({
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState<number | 'all'>(24);
     const [stockFilter, setStockFilter] = useState<'all' | 'instock' | 'low'>('all');
+    const [sortBy, setSortBy] = useState<SortOption>('name-asc');
 
     // Memoized onAddToCart callback to prevent child re-renders
     const handleAddToCart = useCallback((product: Product) => {
@@ -73,21 +76,37 @@ export const POSProductGrid = memo(function POSProductGrid({
         return filtered;
     }, [products, debouncedSearchQuery, stockFilter, stockLocation]);
 
+    // Sorted products
+    const sortedProducts = useMemo(() => {
+        const sorted = [...filteredProducts];
+        switch (sortBy) {
+            case 'name-asc': sorted.sort((a, b) => a.name.localeCompare(b.name)); break;
+            case 'name-desc': sorted.sort((a, b) => b.name.localeCompare(a.name)); break;
+            case 'price-asc': sorted.sort((a, b) => a.price - b.price); break;
+            case 'price-desc': sorted.sort((a, b) => b.price - a.price); break;
+            case 'stock-asc': sorted.sort((a, b) => a.stock[stockLocation] - b.stock[stockLocation]); break;
+            case 'stock-desc': sorted.sort((a, b) => b.stock[stockLocation] - a.stock[stockLocation]); break;
+            case 'newest': sorted.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()); break;
+            case 'oldest': sorted.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()); break;
+        }
+        return sorted;
+    }, [filteredProducts, sortBy, stockLocation]);
+
     // Paginated products
     const paginatedProducts = useMemo(() => {
-        if (pageSize === 'all') return filteredProducts;
+        if (pageSize === 'all') return sortedProducts;
         const startIndex = (currentPage - 1) * pageSize;
-        return filteredProducts.slice(startIndex, startIndex + pageSize);
-    }, [filteredProducts, currentPage, pageSize]);
+        return sortedProducts.slice(startIndex, startIndex + pageSize);
+    }, [sortedProducts, currentPage, pageSize]);
 
     const totalPages = useMemo(() => {
         if (pageSize === 'all') return 1;
-        return Math.ceil(filteredProducts.length / pageSize);
-    }, [filteredProducts.length, pageSize]);
+        return Math.ceil(sortedProducts.length / pageSize);
+    }, [sortedProducts.length, pageSize]);
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [debouncedSearchQuery, pageSize, stockFilter]);
+    }, [debouncedSearchQuery, pageSize, stockFilter, sortBy]);
 
     const getGridClass = () => {
         switch (viewMode) {
@@ -211,6 +230,24 @@ export const POSProductGrid = memo(function POSProductGrid({
                         <List className="w-4 h-4" />
                     </button>
                 </div>
+
+                {/* Sort Dropdown */}
+                <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+                    <SelectTrigger className="w-[120px] sm:w-[140px] h-9 rounded-xl text-xs sm:text-sm shrink-0">
+                        <ArrowUpDown className="w-3.5 h-3.5 mr-1.5 shrink-0" />
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl">
+                        <SelectItem value="name-asc">Nama A-Z</SelectItem>
+                        <SelectItem value="name-desc">Nama Z-A</SelectItem>
+                        <SelectItem value="price-asc">Harga ↑</SelectItem>
+                        <SelectItem value="price-desc">Harga ↓</SelectItem>
+                        <SelectItem value="stock-desc">Stok ↓</SelectItem>
+                        <SelectItem value="stock-asc">Stok ↑</SelectItem>
+                        <SelectItem value="newest">Terbaru</SelectItem>
+                        <SelectItem value="oldest">Terlama</SelectItem>
+                    </SelectContent>
+                </Select>
             </div>
 
             {/* Products */}

@@ -56,6 +56,7 @@ export default function Dashboard() {
           requests={requests}
           suratJalans={suratJalans}
           cashTransfers={cashTransfers}
+          stockLogs={stockLogs}
         />
 
         {/* PO Discrepancy Widget - for main_office, auditor, admin */}
@@ -63,21 +64,19 @@ export default function Dashboard() {
           <PODiscrepancyWidget />
         )}
 
-        {/* Low Stock Alert Widget - for warehouse and admin */}
-        {(role === 'warehouse' || role === 'admin') && (
+        {/* Low Stock Alert Widget - for warehouse, cashier, and admin */}
+        {(role === 'warehouse' || role === 'cashier' || role === 'admin') && (
           <LowStockAlertWidget maxVisible={5} />
         )}
 
-        {/* Unified Activity Hub with Tabs - not for cashier */}
-        {role !== 'cashier' && (
-          <DashboardActivityHub
-            role={role}
-            requests={requests}
-            stockLogs={stockLogs}
-            sales={sales}
-            suratJalans={suratJalans}
-          />
-        )}
+        {/* Unified Activity Hub with Tabs - for all roles */}
+        <DashboardActivityHub
+          role={role}
+          requests={requests}
+          stockLogs={stockLogs}
+          sales={sales}
+          suratJalans={suratJalans}
+        />
       </div>
     </MainLayout>
   );

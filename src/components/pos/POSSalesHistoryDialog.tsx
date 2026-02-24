@@ -1,9 +1,8 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { DateInput } from '@/components/common/DatePicker';
-import { useData } from '@/contexts/DataContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { Sale } from '@/types';
-import { format, startOfDay, endOfDay, subDays } from 'date-fns';
+import { Sale, SaleItem, PaymentMethod, Location } from '@/types';
+import { format, subDays } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import {
     Receipt,
@@ -20,6 +19,7 @@ import {
     X,
     XCircle,
     RotateCcw,
+    Loader2,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -41,6 +41,7 @@ import { useReactToPrint } from 'react-to-print';
 import POSReceipt from '@/components/pos/POSReceipt';
 import { useStoreSettings } from '@/hooks/useStoreSettings';
 import { useCancelSale } from '@/hooks/useCancelSale';
+import { supabase } from '@/integrations/supabase/client';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -66,7 +67,6 @@ interface POSSalesHistoryDialogProps {
 }
 
 export function POSSalesHistoryDialog({ open, onOpenChange, onCreateReturn }: POSSalesHistoryDialogProps) {
-    const { sales } = useData();
     const { user, profile } = useAuth();
     const { data: storeSettings } = useStoreSettings();
     const cancelSale = useCancelSale();
@@ -79,10 +79,84 @@ export function POSSalesHistoryDialog({ open, onOpenChange, onCreateReturn }: PO
     const [printDialogOpen, setPrintDialogOpen] = useState(false);
     const receiptRef = useRef<HTMLDivElement>(null);
 
+    // Direct-fetch state: fetch sales for the selected date directly from Supabase
+    const [dateSales, setDateSales] = useState<Sale[]>([]);
+    const [loadingSales, setLoadingSales] = useState(false);
+
     // Cancel dialog state
     const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
     const [saleToCancel, setSaleToCancel] = useState<Sale | null>(null);
     const [cancelReason, setCancelReason] = useState('');
+
+    // Fetch sales for the selected date directly from Supabase (no limit issues)
+    const fetchSalesForDate = useCallback(async () => {
+        if (!open || !user?.id) return;
+
+        setLoadingSales(true);
+        try {
+            // Build UTC range from local date
+            const localStart = new Date(selectedDate + 'T00:00:00');
+            const localEnd = new Date(selectedDate + 'T23:59:59.999');
+
+            const { data, error } = await supabase
+                .from('sales')
+                .select('id, sale_number, cashier_id, cashier_name, payment_method, stock_location, total_amount, order_discount, amount_paid, change_amount, created_at, is_exchanged, exchanged_to_sale_id, exchanged_to_sale_number, exchange_from_sale_id, exchange_from_sale_number, is_cancelled, cancelled_at, cancelled_reason, is_credit, credit_customer_name, credit_settled_at, credit_payment_method, sale_items(id, sale_id, product_id, product_name, barcode, quantity, price, subtotal, discount)')
+                .eq('cashier_id', user.id)
+                .gte('created_at', localStart.toISOString())
+                .lte('created_at', localEnd.toISOString())
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                console.error('Error fetching sales for date:', error);
+                setDateSales([]);
+                return;
+            }
+
+            setDateSales((data || []).map((s: any): Sale => ({
+                id: s.id,
+                sale_number: s.sale_number,
+                cashier_id: s.cashier_id,
+                cashier_name: s.cashier_name,
+                payment_method: s.payment_method as PaymentMethod,
+                stock_location: s.stock_location as Location,
+                total_amount: s.total_amount,
+                order_discount: s.order_discount || 0,
+                amount_paid: s.amount_paid || 0,
+                change_amount: s.change_amount || 0,
+                is_exchanged: s.is_exchanged || false,
+                exchanged_to_sale_id: s.exchanged_to_sale_id,
+                exchanged_to_sale_number: s.exchanged_to_sale_number,
+                exchange_from_sale_id: s.exchange_from_sale_id,
+                exchange_from_sale_number: s.exchange_from_sale_number,
+                is_cancelled: s.is_cancelled || false,
+                cancelled_at: s.cancelled_at,
+                cancelled_reason: s.cancelled_reason,
+                is_credit: s.is_credit || false,
+                credit_customer_name: s.credit_customer_name,
+                credit_settled_at: s.credit_settled_at,
+                credit_payment_method: s.credit_payment_method as PaymentMethod | null,
+                created_at: s.created_at,
+                items: (s.sale_items || []).map((it: any): SaleItem => ({
+                    id: it.id,
+                    sale_id: it.sale_id,
+                    product_id: it.product_id,
+                    product_name: it.product_name,
+                    barcode: it.barcode,
+                    quantity: it.quantity,
+                    price: it.price,
+                    subtotal: it.subtotal,
+                    discount: it.discount || 0,
+                })),
+            })));
+        } finally {
+            setLoadingSales(false);
+        }
+    }, [open, selectedDate, user?.id]);
+
+    // Fetch when dialog opens or date changes
+    useEffect(() => {
+        fetchSalesForDate();
+    }, [fetchSalesForDate]);
 
     // Print handler
     const handlePrint = useReactToPrint({
@@ -99,17 +173,9 @@ export function POSSalesHistoryDialog({ open, onOpenChange, onCreateReturn }: PO
         setPrintDialogOpen(true);
     };
 
-    // Filter sales by current cashier, date and search query
+    // Filter sales by search query only (date filtering is already done by the query)
     const filteredSales = useMemo(() => {
-        return sales.filter(s => {
-            // Only show current cashier's sales
-            if (s.cashier_id !== user?.id) return false;
-
-            const saleDate = s.created_at.slice(0, 10);
-
-            // Date filter
-            if (saleDate !== selectedDate) return false;
-
+        return dateSales.filter(s => {
             // Search filter
             if (searchQuery) {
                 const query = searchQuery.toLowerCase();
@@ -122,8 +188,8 @@ export function POSSalesHistoryDialog({ open, onOpenChange, onCreateReturn }: PO
             }
 
             return true;
-        }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    }, [sales, selectedDate, searchQuery, user?.id]);
+        });
+    }, [dateSales, searchQuery]);
 
     // Stats - exclude cancelled and exchanged sales from totals
     const stats = useMemo(() => {
@@ -180,6 +246,7 @@ export function POSSalesHistoryDialog({ open, onOpenChange, onCreateReturn }: PO
                 setCancelDialogOpen(false);
                 setSaleToCancel(null);
                 setCancelReason('');
+                fetchSalesForDate(); // Re-fetch to update list
             },
         });
     };
@@ -282,7 +349,12 @@ export function POSSalesHistoryDialog({ open, onOpenChange, onCreateReturn }: PO
 
                         {/* Sales List */}
                         <div className="flex-1 min-h-0 mt-3 overflow-y-auto">
-                            {filteredSales.length === 0 ? (
+                            {loadingSales ? (
+                                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-3">
+                                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                                    <p className="text-sm">Memuat riwayat...</p>
+                                </div>
+                            ) : filteredSales.length === 0 ? (
                                 <div className="text-center py-12 text-muted-foreground">
                                     <ShoppingCart className="h-12 w-12 mx-auto mb-4 opacity-30" />
                                     <p className="text-sm">Tidak ada transaksi ditemukan</p>
@@ -342,6 +414,12 @@ export function POSSalesHistoryDialog({ open, onOpenChange, onCreateReturn }: PO
                                                                         Dari → {sale.exchange_from_sale_number}
                                                                     </Badge>
                                                                 )}
+                                                                {/* Bug fix 5: Show credit badge */}
+                                                                {sale.is_credit && (
+                                                                    <Badge className="text-[10px] px-1.5 py-0 bg-yellow-100 text-yellow-700 border-0">
+                                                                        Piutang{sale.credit_customer_name ? ` • ${sale.credit_customer_name}` : ''}
+                                                                    </Badge>
+                                                                )}
                                                             </div>
                                                             <div className="text-xs text-muted-foreground">
                                                                 {format(new Date(sale.created_at), 'HH:mm', { locale: idLocale })} • {sale.items?.length || 0} item
@@ -384,10 +462,11 @@ export function POSSalesHistoryDialog({ open, onOpenChange, onCreateReturn }: PO
                                                         </div>
 
                                                         {/* Discount & Total */}
-                                                        {(sale.discount && sale.discount > 0) && (
+                                                        {/* Bug fix 3: Use order_discount instead of non-existent discount field */}
+                                                        {(sale.order_discount && sale.order_discount > 0) && (
                                                             <div className="flex justify-between text-xs mt-2 pt-2 border-t border-dashed">
                                                                 <span className="text-red-500">Diskon</span>
-                                                                <span className="text-red-500">-Rp {sale.discount.toLocaleString('id-ID')}</span>
+                                                                <span className="text-red-500">-Rp {sale.order_discount.toLocaleString('id-ID')}</span>
                                                             </div>
                                                         )}
 

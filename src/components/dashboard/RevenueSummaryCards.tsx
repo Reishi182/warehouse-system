@@ -5,8 +5,6 @@ import {
     DollarSign,
     Calendar,
     CalendarDays,
-    Wallet,
-    ArrowUpRight,
     Sparkles
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -22,12 +20,6 @@ function toISODate(d: Date) {
     const mm = String(d.getMonth() + 1).padStart(2, '0');
     const dd = String(d.getDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
-}
-
-function getStartOfWeek(d: Date) {
-    const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Monday as first day
-    return new Date(d.setDate(diff));
 }
 
 export default function RevenueSummaryCards({ sales }: RevenueSummaryCardsProps) {
@@ -144,10 +136,8 @@ export default function RevenueSummaryCards({ sales }: RevenueSummaryCardsProps)
             change: stats.dailyChange,
             subtitle: `${stats.todayTransactions} transaksi`,
             icon: DollarSign,
-            gradient: 'from-emerald-500/20 via-emerald-500/10 to-transparent',
-            iconBg: 'bg-emerald-500/20',
-            iconColor: 'text-emerald-600 dark:text-emerald-400',
-            valueColor: 'text-emerald-600 dark:text-emerald-400',
+            bgGradient: 'from-emerald-500 to-teal-600',
+            iconBg: 'bg-white/20',
         },
         {
             title: 'Revenue 7 Hari',
@@ -155,10 +145,8 @@ export default function RevenueSummaryCards({ sales }: RevenueSummaryCardsProps)
             change: stats.weeklyChange,
             subtitle: 'vs minggu lalu',
             icon: Calendar,
-            gradient: 'from-blue-500/20 via-blue-500/10 to-transparent',
-            iconBg: 'bg-blue-500/20',
-            iconColor: 'text-blue-600 dark:text-blue-400',
-            valueColor: 'text-blue-600 dark:text-blue-400',
+            bgGradient: 'from-blue-500 to-indigo-600',
+            iconBg: 'bg-white/20',
         },
         {
             title: 'Revenue Bulan Ini',
@@ -166,10 +154,8 @@ export default function RevenueSummaryCards({ sales }: RevenueSummaryCardsProps)
             change: stats.monthlyChange,
             subtitle: 'vs bulan lalu',
             icon: CalendarDays,
-            gradient: 'from-violet-500/20 via-violet-500/10 to-transparent',
-            iconBg: 'bg-violet-500/20',
-            iconColor: 'text-violet-600 dark:text-violet-400',
-            valueColor: 'text-violet-600 dark:text-violet-400',
+            bgGradient: 'from-violet-500 to-purple-600',
+            iconBg: 'bg-white/20',
         },
         {
             title: 'Rata-rata Order',
@@ -177,10 +163,8 @@ export default function RevenueSummaryCards({ sales }: RevenueSummaryCardsProps)
             change: stats.aovChange,
             subtitle: 'per transaksi',
             icon: Sparkles,
-            gradient: 'from-amber-500/20 via-amber-500/10 to-transparent',
-            iconBg: 'bg-amber-500/20',
-            iconColor: 'text-amber-600 dark:text-amber-400',
-            valueColor: 'text-amber-600 dark:text-amber-400',
+            bgGradient: 'from-amber-500 to-orange-600',
+            iconBg: 'bg-white/20',
         },
     ];
 
@@ -194,32 +178,33 @@ export default function RevenueSummaryCards({ sales }: RevenueSummaryCardsProps)
                     <Card
                         key={card.title}
                         className={`
-                            relative overflow-hidden border-0 shadow-lg 
-                            bg-gradient-to-br ${card.gradient}
-                            backdrop-blur-xl
-                            hover:shadow-xl hover:scale-[1.02]
+                            relative overflow-hidden border-0 
+                            bg-gradient-to-br ${card.bgGradient}
+                            hover:shadow-2xl hover:scale-[1.03] hover:-translate-y-1
                             transition-all duration-300 ease-out
-                            animate-slide-up
+                            animate-slide-up cursor-default
+                            group
                         `}
                         style={{ animationDelay: `${index * 100}ms` }}
                     >
-                        {/* Decorative glow */}
-                        <div className="absolute -top-12 -right-12 w-32 h-32 bg-gradient-to-br from-white/20 to-transparent rounded-full blur-2xl" />
+                        {/* Decorative circles */}
+                        <div className="absolute -top-8 -right-8 w-28 h-28 bg-white/10 rounded-full blur-xl group-hover:scale-125 transition-transform duration-500" />
+                        <div className="absolute -bottom-6 -left-6 w-20 h-20 bg-white/5 rounded-full blur-lg" />
 
                         <CardContent className="p-5 relative">
                             {/* Header */}
-                            <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center justify-between mb-3">
                                 <div className={`p-2.5 rounded-xl ${card.iconBg} backdrop-blur-sm`}>
-                                    <Icon className={`w-5 h-5 ${card.iconColor}`} />
+                                    <Icon className="w-5 h-5 text-white" />
                                 </div>
 
                                 <Badge
                                     variant="secondary"
                                     className={`
-                                        rounded-full px-2.5 py-1 text-xs font-semibold
+                                        rounded-full px-2.5 py-1 text-xs font-semibold border-0
                                         ${isPositive
-                                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
-                                            : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400'
+                                            ? 'bg-white/20 text-white'
+                                            : 'bg-red-500/30 text-white'
                                         }
                                     `}
                                 >
@@ -236,13 +221,13 @@ export default function RevenueSummaryCards({ sales }: RevenueSummaryCardsProps)
 
                             {/* Value */}
                             <div className="space-y-1">
-                                <p className={`text-2xl xl:text-3xl font-bold ${card.valueColor} tracking-tight`}>
+                                <p className="text-2xl xl:text-3xl font-bold text-white tracking-tight">
                                     Rp {formatCurrency(card.value)}
                                 </p>
-                                <p className="text-sm text-muted-foreground font-medium">
+                                <p className="text-sm text-white/80 font-medium">
                                     {card.title}
                                 </p>
-                                <p className="text-xs text-muted-foreground/70">
+                                <p className="text-xs text-white/60">
                                     {card.subtitle}
                                 </p>
                             </div>

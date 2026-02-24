@@ -146,12 +146,25 @@ export function usePOSCart(initialLocation: Location = 'toko'): UsePOSCartReturn
 
     const updateQuantity = useCallback((productId: string, qty: number) => {
         if (qty < 0) return;
-        setItems((prev) =>
-            prev
+        setItems((prev) => {
+            const item = prev.find((it) => it.product.id === productId);
+            // Validate stock for non-manual items
+            if (item && !item.isManualEntry && qty > 0) {
+                const availableStock = item.product.stock[stockLocation];
+                if (qty > availableStock) {
+                    toast({
+                        title: 'Stok tidak cukup',
+                        description: `Maksimal ${availableStock} unit tersedia di ${stockLocation}`,
+                        variant: 'destructive'
+                    });
+                    return prev;
+                }
+            }
+            return prev
                 .map((it) => (it.product.id === productId ? { ...it, quantity: qty } : it))
-                .filter((it) => it.quantity > 0),
-        );
-    }, []);
+                .filter((it) => it.quantity > 0);
+        });
+    }, [stockLocation, toast]);
 
     const updateItemDiscount = useCallback((productId: string, discount: number) => {
         setItems((prev) =>
