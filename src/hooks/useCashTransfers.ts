@@ -79,7 +79,7 @@ export function useCreateCashTransfer() {
                     cashier_name: cashierName,
                     amount,
                     transfer_date: transferDate || today,
-                    note,
+                    note: sanitizedNote,
                 })
                 .select()
                 .single();

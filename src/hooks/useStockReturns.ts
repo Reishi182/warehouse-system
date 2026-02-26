@@ -110,37 +110,33 @@ export function useStockReturns() {
 
             // 3. Update stock: decrease toko, increase gudang
             for (const item of items || []) {
-                // Decrease stock_toko
-                const { error: tokoError } = await supabase.rpc('release_stock_reservation', {
-                    p_product_id: item.product_id,
-                    p_quantity: 0 // We just use this to trigger an update
-                });
+                // Bug fix #2: Read fresh stock per-field and update separately
+                // to avoid overwriting concurrent changes
+                const { data: tokoData, error: tokoErr } = await supabase
+                    .from('products').select('stock_toko').eq('id', item.product_id).single();
+                if (tokoErr) throw tokoErr;
 
-                // Manual stock update since we need custom logic
-                const { data: product, error: prodError } = await supabase
-                    .from('products')
-                    .select('stock_toko, stock_gudang')
-                    .eq('id', item.product_id)
-                    .single();
+                const { data: gudangData, error: gudangErr } = await supabase
+                    .from('products').select('stock_gudang').eq('id', item.product_id).single();
+                if (gudangErr) throw gudangErr;
 
-                if (prodError) throw prodError;
+                const newToko = Math.max(0, (tokoData.stock_toko || 0) - item.quantity);
+                const newGudang = (gudangData.stock_gudang || 0) + item.quantity;
 
                 const { error: updateError } = await supabase
                     .from('products')
-                    .update({
-                        stock_toko: Math.max(0, product.stock_toko - item.quantity),
-                        stock_gudang: product.stock_gudang + item.quantity
-                    })
+                    .update({ stock_toko: newToko, stock_gudang: newGudang })
                     .eq('id', item.product_id);
 
                 if (updateError) throw updateError;
 
-                // Log the stock movement
+                // Bug fix #4: Add user_id to stock_logs
                 await supabase.from('stock_logs').insert({
                     product_id: item.product_id,
                     type: 'out',
                     quantity: item.quantity,
                     location: 'toko',
+                    user_id: data.mainOfficeId,
                     note: `Retur ke gudang - ${docNum}`
                 });
 
@@ -149,6 +145,7 @@ export function useStockReturns() {
                     type: 'in',
                     quantity: item.quantity,
                     location: 'gudang',
+                    user_id: data.mainOfficeId,
                     note: `Retur dari toko - ${docNum}`
                 });
             }

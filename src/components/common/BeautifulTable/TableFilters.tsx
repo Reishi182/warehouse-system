@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Search, X, ArrowUp, ArrowDown, Filter } from 'lucide-react';
 import { ColumnFiltersState, SortingState } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
@@ -31,11 +31,28 @@ export function TableFilters({
 }: TableFiltersProps) {
     const hasActiveFilters = globalFilter || columnFilters.length > 0 || sorting.length > 0;
 
-    const clearFilters = () => {
+    // Bug fix #5: Debounce search input (300ms)
+    const [localSearch, setLocalSearch] = useState(globalFilter);
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setGlobalFilter(localSearch);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [localSearch, setGlobalFilter]);
+
+    // Sync local search when globalFilter is cleared externally
+    useEffect(() => {
+        if (globalFilter === '' && localSearch !== '') {
+            setLocalSearch('');
+        }
+    }, [globalFilter]);
+
+    const clearFilters = useCallback(() => {
+        setLocalSearch('');
         setGlobalFilter('');
         setColumnFilters([]);
         setSorting([]);
-    };
+    }, [setGlobalFilter, setColumnFilters, setSorting]);
 
     return (
         <div className="px-6 pb-4 space-y-3 relative">
@@ -45,19 +62,19 @@ export function TableFilters({
                     <div className="relative mt-4 flex-1 max-w-md">
                         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
-                            placeholder="Search all columns..."
+                            placeholder="Cari semua kolom..."
                             className={cn(
                                 "pl-10 pr-10 h-10 focus-visible:ring-1",
                                 isPremium
                                     ? "rounded-xl bg-muted/30 backdrop-blur-sm"
                                     : "rounded-xl bg-muted/50"
                             )}
-                            value={globalFilter}
-                            onChange={(e) => setGlobalFilter(e.target.value)}
+                            value={localSearch}
+                            onChange={(e) => setLocalSearch(e.target.value)}
                         />
-                        {globalFilter && (
+                        {localSearch && (
                             <button
-                                onClick={() => setGlobalFilter('')}
+                                onClick={() => setLocalSearch('')}
                                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                             >
                                 <X className="w-4 h-4" />
@@ -66,21 +83,22 @@ export function TableFilters({
                     </div>
                 )}
 
-                {/* Clear All Filters Button */}
-                <div className="flex items-center gap-2">
+                {/* Clear All Filters Button — styled as pill/chip */}
+                <div className="flex items-center gap-2 mt-4">
                     {hasActiveFilters && (
-                        <Button
-                            variant="ghost"
-                            size="sm"
+                        <button
                             onClick={clearFilters}
                             className={cn(
-                                "h-10 gap-2 text-muted-foreground hover:text-foreground",
-                                isPremium && "rounded-xl"
+                                "inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium",
+                                "border border-destructive/20 bg-destructive/5 text-destructive",
+                                "hover:bg-destructive/10 hover:border-destructive/30",
+                                "transition-all duration-200",
+                                isPremium ? "rounded-full" : "rounded-lg"
                             )}
                         >
-                            <X className="w-4 h-4" />
-                            <span className="hidden sm:inline">Clear Filters</span>
-                        </Button>
+                            <X className="w-3.5 h-3.5" />
+                            Hapus Filter
+                        </button>
                     )}
                 </div>
             </div>

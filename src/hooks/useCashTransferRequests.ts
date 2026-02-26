@@ -122,7 +122,7 @@ export function useApproveCashTransferRequest() {
 
             if (fetchError) throw fetchError;
 
-            // Update request status
+            // Bug fix #16: Step 1 — Update request status
             const { error: updateError } = await supabase
                 .from('cash_transfer_requests')
                 .update({
@@ -135,7 +135,7 @@ export function useApproveCashTransferRequest() {
 
             if (updateError) throw updateError;
 
-            // Create the actual cash transfer record
+            // Step 2: Create the actual cash transfer record
             const today = new Date().toISOString().slice(0, 10);
             const { error: transferError } = await supabase
                 .from('cash_transfers')
@@ -147,9 +147,16 @@ export function useApproveCashTransferRequest() {
                     note: request.note ? `${request.note} (Diterima oleh ${auditorName})` : `Diterima oleh ${auditorName}`,
                 });
 
-            if (transferError) throw transferError;
+            if (transferError) {
+                // Rollback: revert request status to pending
+                await supabase
+                    .from('cash_transfer_requests')
+                    .update({ status: 'pending', auditor_id: null, auditor_name: null, processed_at: null } as any)
+                    .eq('id', requestId);
+                throw transferError;
+            }
 
-            // Auto-create entry in other_transactions (Transaksi Umum)
+            // Step 3: Auto-create entry in other_transactions (Transaksi Umum)
             const { error: otherTransactionError } = await supabase
                 .from('other_transactions')
                 .insert({
@@ -162,7 +169,10 @@ export function useApproveCashTransferRequest() {
                     created_by_name: auditorName,
                 });
 
-            if (otherTransactionError) throw otherTransactionError;
+            // Don't throw on other_transaction error — cash transfer already created
+            if (otherTransactionError) {
+                console.error('[CashTransferRequest] Failed to create other_transaction:', otherTransactionError);
+            }
         },
         onSuccess: (_data, variables) => {
             queryClient.invalidateQueries({ queryKey: ['cash-transfer-requests'] });

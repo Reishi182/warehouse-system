@@ -25,8 +25,8 @@ export function useGoodsReceipt() {
             receivedByName: string;
             photoFile: File;
             note?: string;
-            signatureDataUrl?: string; // Base64 signature
-            items: ReceivedItem[]; // Per-item received quantities
+            signatureDataUrl?: string;
+            items: ReceivedItem[];
         }) => {
             // 1. Upload Photo
             const fileExt = data.photoFile.name.split('.').pop();
@@ -85,6 +85,9 @@ export function useGoodsReceipt() {
             const hasDiscrepancy = discrepancyItems.length > 0;
 
             // 4. Add Stock to Toko based on RECEIVED quantity (not shipped)
+            // Bug fix #8: Track stock updates for rollback
+            const stockUpdated: { productId: string; goodQty: number }[] = [];
+
             for (const item of data.items) {
                 const { data: product, error: prodError } = await supabase
                     .from('products')
@@ -100,6 +103,8 @@ export function useGoodsReceipt() {
                     await supabase.from('products')
                         .update({ stock_toko: (product.stock_toko || 0) + goodQty })
                         .eq('id', item.productId);
+
+                    stockUpdated.push({ productId: item.productId, goodQty });
 
                     // Log stock-in to stock_logs for stock history tracking
                     await supabase.from('stock_logs').insert({
@@ -135,7 +140,22 @@ export function useGoodsReceipt() {
                     total_damaged: totalDamaged,
                 });
 
-            if (receiptError) throw receiptError;
+            // Bug fix #8: Rollback stock if receipt record fails
+            if (receiptError) {
+                for (const updated of stockUpdated) {
+                    const { data: curr } = await supabase
+                        .from('products')
+                        .select('stock_toko')
+                        .eq('id', updated.productId)
+                        .single();
+                    if (curr) {
+                        await supabase.from('products')
+                            .update({ stock_toko: Math.max(0, (curr.stock_toko || 0) - updated.goodQty) })
+                            .eq('id', updated.productId);
+                    }
+                }
+                throw receiptError;
+            }
 
             // 7. Update Request Status
             const finalStatus = hasDiscrepancy ? 'completed_with_discrepancy' : 'completed';

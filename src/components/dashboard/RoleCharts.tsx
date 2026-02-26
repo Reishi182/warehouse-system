@@ -212,16 +212,11 @@ export function RoleCharts({
             case 'cashier':
                 return (
                     <div className="space-y-6 mb-6">
-                        {/* Revenue Summary - Daily focus for cashier */}
-                        <RevenueSummaryCards sales={validSales} />
+                        {/* Revenue Summary - Daily focus only for cashier */}
+                        <RevenueSummaryCards sales={validSales} compact />
 
                         {/* Charts */}
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            <div className="lg:col-span-2">
-                                <RevenueByPaymentChart sales={validSales} days={7} />
-                            </div>
-                            <TopRevenueProducts sales={validSales} products={products} />
-                        </div>
+                        <RevenueByPaymentChart sales={validSales} days={7} />
                     </div>
                 );
 
@@ -264,22 +259,12 @@ export function RoleCharts({
                             <RevenueByPaymentChart sales={validSales} />
                         </div>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            <div className="lg:col-span-2">
-                                <PerformanceChart
-                                    title="Cash Transfer"
-                                    value={`Rp ${totalCashTransfer.toLocaleString('id-ID')}`}
-                                    change={cashTransferChange}
-                                    data={monthlyCashData}
-                                />
-                            </div>
-                            <DonutChart
-                                title="Status Surat Jalan"
-                                totalLabel="Total"
-                                totalValue={suratJalans.length.toString()}
-                                data={suratJalanStatus}
-                            />
-                        </div>
+                        <PerformanceChart
+                            title="Cash Transfer"
+                            value={`Rp ${totalCashTransfer.toLocaleString('id-ID')}`}
+                            change={cashTransferChange}
+                            data={monthlyCashData}
+                        />
                     </div>
                 );
 
@@ -308,21 +293,13 @@ export function RoleCharts({
                             <TopRevenueProducts sales={validSales} products={products} />
                         </div>
 
-                        {/* Status Charts */}
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            <DonutChart
-                                title="Status Surat Jalan"
-                                totalLabel="Total"
-                                totalValue={suratJalans.length.toString()}
-                                data={suratJalanStatus}
-                            />
-                            <DonutChart
-                                title="Status Permintaan"
-                                totalLabel="Total"
-                                totalValue={requests.length.toString()}
-                                data={requestStatus}
-                            />
-                        </div>
+                        {/* Status Surat Jalan */}
+                        <DonutChart
+                            title="Status Surat Jalan"
+                            totalLabel="Total"
+                            totalValue={suratJalans.length.toString()}
+                            data={suratJalanStatus}
+                        />
                     </div>
                 );
 

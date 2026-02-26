@@ -49,15 +49,20 @@ function TablePaginationComponent({
 
         if (totalPages <= maxVisible) {
             for (let i = 1; i <= totalPages; i++) pages.push(i);
-        } else if (currentPage < 3) {
-            for (let i = 1; i <= maxVisible; i++) pages.push(i);
-        } else if (currentPage >= totalPages - 3) {
-            for (let i = totalPages - maxVisible + 1; i <= totalPages; i++) pages.push(i);
         } else {
-            for (let i = currentPage - 1; i <= currentPage + 3; i++) pages.push(i);
+            // Bug fix #3: Properly center current page
+            const current = currentPage + 1; // convert 0-indexed to 1-indexed
+            const half = Math.floor(maxVisible / 2);
+            let start = Math.max(1, current - half);
+            let end = start + maxVisible - 1;
+            if (end > totalPages) {
+                end = totalPages;
+                start = Math.max(1, end - maxVisible + 1);
+            }
+            for (let i = start; i <= end; i++) pages.push(i);
         }
 
-        return pages.filter(p => p >= 1 && p <= totalPages);
+        return pages;
     }, [currentPage, totalPages]);
 
     // Memoize handlers
@@ -85,7 +90,7 @@ function TablePaginationComponent({
                 {/* Page Size Selector */}
                 <div className="flex items-center gap-2 text-sm">
                     <label htmlFor="page-size-select" className="text-muted-foreground">
-                        Show
+                        Tampilkan
                     </label>
                     <Select
                         value={String(pageSize)}
@@ -109,7 +114,7 @@ function TablePaginationComponent({
                             ))}
                         </SelectContent>
                     </Select>
-                    <span className="text-muted-foreground">entries</span>
+                    <span className="text-muted-foreground">data</span>
                 </div>
 
                 {/* Showing info */}
@@ -118,15 +123,15 @@ function TablePaginationComponent({
                     aria-live="polite"
                     aria-atomic="true"
                 >
-                    <span>Showing</span>
+                    <span>Menampilkan</span>
                     <span className="font-semibold text-foreground">
                         {totalFiltered === 0 ? 0 : currentPage * effectivePageSize + 1}
                     </span>
-                    <span>to</span>
+                    <span>sampai</span>
                     <span className="font-semibold text-foreground">
                         {Math.min((currentPage + 1) * effectivePageSize, totalFiltered)}
                     </span>
-                    <span>of</span>
+                    <span>dari</span>
                     <span className="font-semibold text-foreground">
                         {totalFiltered}
                     </span>
@@ -165,7 +170,7 @@ function TablePaginationComponent({
                     aria-label="Go to previous page"
                 >
                     <ChevronLeft className="w-4 h-4 mr-1" />
-                    <span className="hidden sm:inline">Previous</span>
+                    <span className="hidden sm:inline">Sebelumnya</span>
                 </Button>
 
                 {/* Page Number Buttons */}
@@ -209,7 +214,7 @@ function TablePaginationComponent({
                     )}
                     aria-label="Go to next page"
                 >
-                    <span className="hidden sm:inline">Next</span>
+                    <span className="hidden sm:inline">Selanjutnya</span>
                     <ChevronRight className="w-4 h-4 ml-1" />
                 </Button>
 

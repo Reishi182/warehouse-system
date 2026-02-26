@@ -187,6 +187,9 @@ export default function Products() {
         price: number;
         stock: { gudang: number; toko: number };
         image_url?: string;
+        has_multi_unit?: boolean;
+        pcs_per_box?: number | null;
+        box_price?: number | null;
     }): Promise<boolean> => {
         const success = await addProduct(product);
         return success;

@@ -13,6 +13,7 @@ import { Sale } from '@/types';
 
 interface RevenueSummaryCardsProps {
     sales: Sale[];
+    compact?: boolean;
 }
 
 function toISODate(d: Date) {
@@ -22,7 +23,7 @@ function toISODate(d: Date) {
     return `${yyyy}-${mm}-${dd}`;
 }
 
-export default function RevenueSummaryCards({ sales }: RevenueSummaryCardsProps) {
+export default function RevenueSummaryCards({ sales, compact = false }: RevenueSummaryCardsProps) {
     const stats = useMemo(() => {
         const now = new Date();
         const todayStr = toISODate(now);
@@ -129,7 +130,7 @@ export default function RevenueSummaryCards({ sales }: RevenueSummaryCardsProps)
         return value.toLocaleString('id-ID');
     };
 
-    const cards = [
+    const allCards = [
         {
             title: 'Revenue Hari Ini',
             value: stats.todayRevenue,
@@ -168,8 +169,10 @@ export default function RevenueSummaryCards({ sales }: RevenueSummaryCardsProps)
         },
     ];
 
+    const cards = compact ? allCards.slice(0, 1) : allCards;
+
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className={`grid grid-cols-1 ${compact ? '' : 'sm:grid-cols-2 xl:grid-cols-4'} gap-4`}>
             {cards.map((card, index) => {
                 const Icon = card.icon;
                 const isPositive = card.change >= 0;

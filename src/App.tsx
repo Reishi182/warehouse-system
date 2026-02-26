@@ -45,6 +45,9 @@ const PODiscrepancyReport = React.lazy(() => import('@/pages/purchase-orders/POD
 const GeneralTransactions = React.lazy(() => import('@/pages/finance/GeneralTransactions'));
 const Backorders = React.lazy(() => import('@/pages/finance/Backorders'));
 const SalesHistory = React.lazy(() => import('@/pages/finance/SalesHistory'));
+const Expenses = React.lazy(() => import('@/pages/finance/Expenses'));
+const CashierOpeningCash = React.lazy(() => import('@/pages/finance/CashierOpeningCash'));
+const FinancialReport = React.lazy(() => import('@/pages/finance/FinancialReport'));
 const DailyStockReport = React.lazy(() => import('@/pages/reports/DailyStockReport'));
 const SalesReport = React.lazy(() => import('@/pages/reports/SalesReport'));
 const POS = React.lazy(() => import('./pages/POS'));
@@ -317,6 +320,24 @@ function AppRoutes() {
         <Route path="/finance/backorders" element={
           <ProtectedRoute allowedRoles={['cashier', 'main_office', 'admin']}>
             <Backorders />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/finance/expenses" element={
+          <ProtectedRoute allowedRoles={['main_office', 'admin']}>
+            <Expenses />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/finance/opening-cash" element={
+          <ProtectedRoute allowedRoles={['main_office', 'admin']}>
+            <CashierOpeningCash />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/finance/report" element={
+          <ProtectedRoute allowedRoles={['main_office', 'admin']}>
+            <FinancialReport />
           </ProtectedRoute>
         } />
 

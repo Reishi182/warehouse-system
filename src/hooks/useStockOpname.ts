@@ -173,14 +173,26 @@ export function useApproveStockOpname() {
 
             if (updateError) throw updateError;
 
-            // Adjust the actual stock in products table
+            // Bug fix #9: Apply diff to current stock instead of overwriting
             const stockField = opname.location === 'gudang' ? 'stock_gudang'
                 : opname.location === 'toko' ? 'stock_toko'
                     : 'stock_other';
 
+            // Read current stock fresh from DB
+            const { data: freshProduct, error: freshErr } = await supabase
+                .from('products')
+                .select(`id, ${stockField}`)
+                .eq('id', opname.product_id)
+                .single();
+
+            if (freshErr) throw freshErr;
+
+            const currentStock = (freshProduct as any)?.[stockField] || 0;
+            const adjustedStock = Math.max(0, currentStock + opname.difference);
+
             const { error: stockError } = await supabase
                 .from('products')
-                .update({ [stockField]: opname.actual_stock })
+                .update({ [stockField]: adjustedStock })
                 .eq('id', opname.product_id);
 
             if (stockError) throw stockError;

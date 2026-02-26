@@ -87,8 +87,8 @@ export default function DashboardActivityHub({
     const tabs = useMemo(() => {
         const allTabs = [];
 
-        // Permintaan Stok - for warehouse, cashier, main_office, auditor, admin
-        if (role === 'warehouse' || role === 'cashier' || role === 'main_office' || role === 'auditor' || role === 'admin') {
+        // Permintaan Stok - for warehouse, main_office, admin
+        if (role === 'warehouse' || role === 'main_office' || role === 'admin') {
             allTabs.push({
                 id: 'requests',
                 label: 'Permintaan',

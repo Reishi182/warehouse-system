@@ -18,13 +18,14 @@ export interface OfflineSale {
     paymentMethod: 'cash' | 'transfer';
     stockLocation: 'gudang' | 'toko';
     items: Array<{
-        productId: string;
+        productId: string | null; // Bug fix #3: null for manual entries
         productName: string;
         barcode: string;
         quantity: number;
         price: number;
         discount: number;
         subtotal: number;
+        isManualEntry?: boolean; // Bug fix #3: track manual entries
     }>;
     totalAmount: number;
     orderDiscount: number;
@@ -33,6 +34,9 @@ export interface OfflineSale {
     createdAt: string;
     synced: boolean;
     syncError?: string;
+    // Bug fix #3: Credit transaction fields
+    isCredit?: boolean;
+    creditCustomerName?: string;
 }
 
 export interface SyncStatus {
@@ -151,6 +155,18 @@ function updateLastSync(): void {
 // Sync a single sale to server
 async function syncSaleToServer(sale: OfflineSale): Promise<boolean> {
     try {
+        // Bug fix #14: Check for duplicate sale_number before inserting
+        const { data: existing } = await supabase
+            .from('sales')
+            .select('id')
+            .eq('sale_number', sale.saleNumber)
+            .maybeSingle();
+
+        if (existing) {
+            console.log('[Sync] Sale already exists, skipping:', sale.saleNumber);
+            return true; // Already synced
+        }
+
         // 1. Insert sale record
         const { data: saleRow, error: saleError } = await supabase
             .from('sales')
@@ -165,6 +181,9 @@ async function syncSaleToServer(sale: OfflineSale): Promise<boolean> {
                 amount_paid: sale.amountPaid,
                 change_amount: sale.changeAmount,
                 created_at: sale.createdAt, // Use original offline timestamp
+                // Bug fix #3: Include credit fields
+                is_credit: sale.isCredit || false,
+                credit_customer_name: sale.isCredit ? sale.creditCustomerName : null,
             })
             .select()
             .single();
@@ -190,8 +209,11 @@ async function syncSaleToServer(sale: OfflineSale): Promise<boolean> {
             throw new Error(`Items error: ${itemsError.message}`);
         }
 
-        // 3. Update stock for each item
+        // 3. Update stock for each item (skip manual entries)
         for (const item of sale.items) {
+            // Bug fix #3: Skip manual entries for stock update
+            if (item.isManualEntry || !item.productId) continue;
+
             const stockField = `stock_${sale.stockLocation}`;
 
             // Get current stock
@@ -209,6 +231,11 @@ async function syncSaleToServer(sale: OfflineSale): Promise<boolean> {
             const currentStock = sale.stockLocation === 'gudang'
                 ? product.stock_gudang
                 : product.stock_toko;
+
+            // Bug fix #7: Check if deducting would make stock negative
+            if (currentStock < item.quantity) {
+                console.warn(`[Sync] Insufficient stock for ${item.productId}: have ${currentStock}, need ${item.quantity}. Clamping to 0.`);
+            }
             const newStock = Math.max(0, currentStock - item.quantity);
 
             await supabase

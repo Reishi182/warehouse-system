@@ -166,7 +166,7 @@ export default function StatsGrid({
 
     if (role === 'auditor') {
         return (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
                 <StatCard
                     title="Penjualan Hari Ini"
                     value={formatCurrency(totalSalesAmount)}
@@ -191,14 +191,6 @@ export default function StatsGrid({
                     icon={FileText}
                     gradient="cyan"
                     animationDelay={200}
-                />
-                <StatCard
-                    title="Dalam Pengiriman"
-                    value={suratJalans.filter(s => s.status === 'shipped').length}
-                    subtitle="Surat jalan shipped"
-                    icon={Truck}
-                    gradient="purple"
-                    animationDelay={300}
                 />
             </div>
         );

@@ -243,18 +243,20 @@ export default function Sidebar() {
       <Link
         to={item.href}
         className={cn(
-          'flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 group relative',
+          'flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group relative',
           isCollapsed && 'justify-center px-2',
-          isSubItem && !isCollapsed && 'ml-4 pl-6 border-l-2 border-muted',
+          isSubItem && !isCollapsed && 'ml-6 pl-4 relative before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-1.5 before:h-1.5 before:rounded-full before:transition-colors before:duration-200',
+          isSubItem && !isCollapsed && isActive && 'before:bg-primary',
+          isSubItem && !isCollapsed && !isActive && 'before:bg-muted-foreground/30',
           isActive
-            ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30'
-            : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground'
+            ? 'bg-gradient-to-r from-primary to-accent text-primary-foreground sidebar-active-glow font-semibold'
+            : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground hover:translate-x-0.5'
         )}
       >
         <item.icon className={cn(
           'w-4 h-4 flex-shrink-0 transition-transform duration-200',
           isActive && 'scale-110',
-          !isActive && 'group-hover:scale-105'
+          !isActive && 'group-hover:scale-110'
         )} />
         {!isCollapsed && (
           <span className={cn(
@@ -270,7 +272,7 @@ export default function Sidebar() {
             'min-w-5 h-5 flex items-center justify-center rounded-full text-xs font-bold',
             isActive
               ? 'bg-primary-foreground text-primary'
-              : 'bg-destructive text-destructive-foreground',
+              : 'bg-destructive text-destructive-foreground animate-pulse',
             isCollapsed && 'absolute -top-1 -right-1 min-w-4 h-4 text-[10px]'
           )}>
             {badgeCount > 99 ? '99+' : badgeCount}
@@ -349,25 +351,31 @@ export default function Sidebar() {
           <button
             type="button"
             className={cn(
-              'flex items-center justify-between w-full px-3 py-2.5 rounded-xl transition-all duration-200',
+              'flex items-center justify-between w-full px-3 py-2.5 rounded-xl transition-all duration-200 group',
               hasActiveChild
-                ? 'bg-primary/10 text-primary'
+                ? 'bg-primary/10 text-primary border-l-[3px] border-primary rounded-l-none'
                 : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground'
             )}
           >
             <div className="flex items-center gap-3">
-              <item.icon className="w-4 h-4 flex-shrink-0" />
-              <span className="text-sm font-medium">{item.label}</span>
+              <item.icon className={cn(
+                'w-4 h-4 flex-shrink-0 transition-transform duration-200',
+                hasActiveChild && 'scale-110',
+                !hasActiveChild && 'group-hover:scale-105'
+              )} />
+              <span className={cn(
+                'text-sm font-medium',
+                hasActiveChild && 'font-semibold'
+              )}>{item.label}</span>
             </div>
-            {isExpanded ? (
-              <ChevronDown className="w-4 h-4" />
-            ) : (
-              <ChevronRight className="w-4 h-4" />
-            )}
+            <ChevronDown className={cn(
+              'w-4 h-4 transition-transform duration-200',
+              !isExpanded && '-rotate-90'
+            )} />
           </button>
         </CollapsibleTrigger>
         <CollapsibleContent
-          className="mt-1 space-y-1 overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down"
+          className="mt-1 space-y-0.5 ml-2 pl-3 border-l border-muted/50 overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down"
         >
           {item.children.map(child => (
             <NavLink key={child.href} item={child} isSubItem />
@@ -377,39 +385,40 @@ export default function Sidebar() {
     );
   };
 
+  // Determine which items need a separator after them (group boundaries)
+  const groupBoundaries = new Set(['Panduan', 'Kasir (POS)', 'Produk', 'Persetujuan', 'Pengguna']);
+
   return (
     <>
       {/* Desktop Sidebar - Always collapsed, expands on hover */}
       <aside
         className={cn(
-          'fixed left-0 top-0 z-40 h-screen bg-sidebar border-r border-sidebar-border hidden md:flex flex-col transition-all duration-300 shadow-[4px_0_24px_rgba(0,0,0,0.02)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.2)]',
-          isCollapsed ? 'w-20' : 'w-72'
+          'fixed left-0 top-0 z-40 h-screen bg-sidebar border-r border-sidebar-border hidden md:flex flex-col transition-all duration-300',
+          'shadow-[4px_0_24px_rgba(0,0,0,0.03)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.25)]',
+          isCollapsed ? 'w-[72px]' : 'w-[280px]'
         )}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
         {/* Logo */}
         <div className={cn(
-          'border-b border-sidebar-border transition-all duration-300',
-          isCollapsed ? 'p-4 px-3' : 'p-8'
+          'border-b border-sidebar-border transition-all duration-300 flex items-center',
+          isCollapsed ? 'p-4 justify-center' : 'p-5 px-6'
         )}>
           <Link to="/" className="flex items-center gap-3">
             <div className={cn(
-              'rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/20 transition-all duration-300',
-              isCollapsed ? 'w-12 h-12' : 'w-10 h-10'
+              'rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/20 transition-all duration-300 flex-shrink-0',
+              isCollapsed ? 'w-10 h-10' : 'w-10 h-10'
             )}>
-              <Building2 className={cn(
-                'text-white transition-all duration-300',
-                isCollapsed ? 'w-7 h-7' : 'w-6 h-6'
-              )} />
+              <Building2 className="w-5 h-5 text-white" />
             </div>
             {!isCollapsed && (
               <div className="overflow-hidden">
                 <h1 className="text-lg font-bold text-foreground leading-tight whitespace-nowrap tracking-tight">
                   VMB
                 </h1>
-                <span className="text-xs text-muted-foreground font-medium tracking-wide uppercase">
-                  System
+                <span className="text-[10px] text-muted-foreground font-semibold tracking-widest uppercase">
+                  Warehouse System
                 </span>
               </div>
             )}
@@ -418,22 +427,28 @@ export default function Sidebar() {
 
         {/* Navigation */}
         <nav className={cn(
-          'flex-1 p-3 space-y-1 overflow-y-auto transition-all duration-300',
+          'sidebar-nav flex-1 py-4 px-3 space-y-0.5 overflow-y-auto transition-all duration-300',
           isCollapsed && 'px-2'
         )}>
-          {filteredNavGroups.map((item) => (
-            <NavGroup key={item.label} item={item} />
+          {filteredNavGroups.map((item, index) => (
+            <div key={item.label}>
+              <NavGroup item={item} />
+              {/* Visual separator after specific items */}
+              {groupBoundaries.has(item.label) && index < filteredNavGroups.length - 1 && (
+                <div className="sidebar-separator" />
+              )}
+            </div>
           ))}
         </nav>
 
         {/* User Profile */}
         <div className={cn(
-          'p-6 border-t border-sidebar-border transition-all duration-300',
-          isCollapsed && 'px-2 p-4'
+          'border-t border-sidebar-border transition-all duration-300',
+          isCollapsed ? 'p-3 flex flex-col items-center gap-2' : 'p-4'
         )}>
-          {!isCollapsed && (
-            <div className="glass-card p-4 rounded-2xl flex items-center gap-3 mb-3 border border-border shadow-sm">
-              <div className="w-10 h-10 rounded-full bg-muted border border-border shadow-inner flex items-center justify-center flex-shrink-0 overflow-hidden">
+          {!isCollapsed ? (
+            <div className="sidebar-profile-card p-4 rounded-2xl flex items-center gap-3 mb-3 shadow-sm">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 border-2 border-primary/30 flex items-center justify-center flex-shrink-0 overflow-hidden">
                 {profile?.avatar ? (
                   <img
                     src={profile.avatar}
@@ -441,7 +456,7 @@ export default function Sidebar() {
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <span className="text-lg font-semibold text-foreground">
+                  <span className="text-base font-bold text-primary">
                     {profile?.name?.[0]?.toUpperCase() || 'U'}
                   </span>
                 )}
@@ -451,17 +466,42 @@ export default function Sidebar() {
                   {profile?.name || 'User'}
                 </p>
                 {role && (
-                  <span className="text-xs text-primary font-medium truncate">
+                  <span className={cn(
+                    'inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full mt-0.5',
+                    getRoleBadgeColor(role)
+                  )}>
                     {getRoleLabel(role)}
                   </span>
                 )}
               </div>
             </div>
+          ) : (
+            <Tooltip delayDuration={0}>
+              <TooltipTrigger asChild>
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 border-2 border-primary/30 flex items-center justify-center flex-shrink-0 overflow-hidden cursor-default">
+                  {profile?.avatar ? (
+                    <img
+                      src={profile.avatar}
+                      alt={profile.name || 'Avatar'}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-sm font-bold text-primary">
+                      {profile?.name?.[0]?.toUpperCase() || 'U'}
+                    </span>
+                  )}
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="font-medium">
+                <p>{profile?.name || 'User'}</p>
+                {role && <p className="text-xs text-muted-foreground">{getRoleLabel(role)}</p>}
+              </TooltipContent>
+            </Tooltip>
           )}
           <button
             onClick={signOut}
             className={cn(
-              'flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sidebar-foreground/70 hover:bg-destructive/10 hover:text-destructive transition-all duration-200',
+              'flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sidebar-foreground/60 hover:bg-destructive/10 hover:text-destructive transition-all duration-200',
               isCollapsed && 'justify-center px-2'
             )}
           >

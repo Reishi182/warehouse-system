@@ -217,6 +217,21 @@ export function useStockRequests() {
     // Resubmit Request (Cashier)
     const resubmitRequest = useMutation({
         mutationFn: async (requestId: string) => {
+            // Bug fix #15: Validate stock availability before resubmitting
+            const { data: items, error: itemsError } = await supabase
+                .from('stock_request_items')
+                .select('*, product:products(name, stock_gudang, stock_reserved)')
+                .eq('stock_request_id', requestId);
+
+            if (itemsError) throw itemsError;
+
+            for (const item of items || []) {
+                const available = (item.product?.stock_gudang || 0) - (item.product?.stock_reserved || 0);
+                if (item.quantity > available) {
+                    throw new Error(`Stok ${item.product?.name || 'produk'} tidak cukup (tersedia: ${available}, diminta: ${item.quantity})`);
+                }
+            }
+
             const { error } = await supabase
                 .from('stock_requests')
                 .update({
@@ -228,21 +243,12 @@ export function useStockRequests() {
             if (error) throw error;
 
             // RE-RESERVE STOCK
-            // 1. Fetch Items
-            const { data: items, error: itemsError } = await supabase
-                .from('stock_request_items')
-                .select('*')
-                .eq('stock_request_id', requestId);
-
-            if (itemsError) throw itemsError;
-
-            // 2. Reserve Stock
             for (const item of items || []) {
-                const { error: releaseError } = await supabase.rpc('reserve_stock', {
+                const { error: reserveError } = await supabase.rpc('reserve_stock', {
                     p_product_id: item.product_id,
                     p_quantity: item.quantity
                 });
-                if (releaseError) throw releaseError;
+                if (reserveError) throw reserveError;
             }
         },
         onSuccess: () => {

@@ -84,7 +84,7 @@ export const POSCartPanel = memo(function POSCartPanel({
     const isTabMode = !!selectedTabId;
 
     return (
-        <div className="hidden md:flex fixed top-0 right-0 h-screen w-72 lg:w-80 xl:w-[400px] flex-col border-l bg-gradient-to-b from-background via-background to-muted/20 shadow-2xl z-[60]">
+        <div className="hidden md:flex fixed top-0 right-0 h-screen w-72 lg:w-80 xl:w-[400px] flex-col border-l bg-gradient-to-b from-background via-background to-muted/20 shadow-2xl z-40 pointer-events-auto">
             {/* Header with Glassmorphism */}
             <div className="px-4 py-3 border-b bg-gradient-to-r from-primary/5 to-transparent backdrop-blur-sm">
                 <div className="flex items-center justify-between">

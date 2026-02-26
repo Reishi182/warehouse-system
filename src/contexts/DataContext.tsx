@@ -99,6 +99,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         gudang: p.stock_gudang,
         toko: p.stock_toko
       },
+      has_multi_unit: p.has_multi_unit ?? false,
+      pcs_per_box: p.pcs_per_box ?? null,
+      box_price: p.box_price ?? null,
       created_at: p.created_at,
       updated_at: p.updated_at
     })));
@@ -413,6 +416,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Create SEPARATE channels for each table (Supabase works better this way)
+    // Bug fix #18: Added notifications to realtime subscriptions
     const tables = [
       { table: 'products', callback: fetchProducts },
       { table: 'sales', callback: fetchSales },
@@ -421,6 +425,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       { table: 'stock_out_requests', callback: fetchRequests },
       { table: 'surat_jalan', callback: fetchSuratJalans },
       { table: 'activity_logs', callback: fetchActivityLogs },
+      { table: 'notifications', callback: fetchNotifications },
     ];
 
     const channels = tables.map(({ table, callback }) => {
@@ -491,6 +496,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       quantity: number;
       discount: number;
       isManualEntry?: boolean;
+      stockDeductQty?: number; // Multi-unit: base units to deduct (e.g. 1 box = 70 pcs)
     }>;
     orderDiscount: number;
     amountPaid: number;
@@ -524,11 +530,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             product,
             productId: i.productId,
             productName: product?.name || i.productName || '',
-            price: product?.price || i.price || 0,
+            price: i.price || product?.price || 0,
             barcode: product?.barcode || i.barcode || '',
             quantity: i.quantity,
             discount: i.discount,
             isManualEntry: false,
+            stockDeductQty: i.stockDeductQty || i.quantity, // default to quantity for regular items
           };
         }
       });
@@ -549,7 +556,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           toast({ title: 'Jumlah tidak valid', description: 'Jumlah harus lebih dari 0', variant: 'destructive' });
           return null;
         }
-        if (it.quantity > it.product.stock[data.stockLocation]) {
+        const deductQty = (it as any).stockDeductQty || it.quantity;
+        if (deductQty > it.product.stock[data.stockLocation]) {
           toast({ title: 'Stok tidak cukup', description: `${it.product.name} stok ${data.stockLocation} tidak cukup`, variant: 'destructive' });
           return null;
         }
@@ -635,12 +643,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       return null;
     }
 
-    // Update stock ONLY for non-manual items
+    // Bug fix #1+2: Atomic stock update with full rollback on failure
+    const stockUpdated: { productId: string; quantity: number; field: string }[] = [];
+    let stockUpdateFailed = false;
+
     for (const it of processedItems) {
       if (!it.isManualEntry && it.product) {
         const stockField = `stock_${data.stockLocation}`;
+        const deductQty = (it as any).stockDeductQty || it.quantity;
 
-        // Read fresh stock from database to prevent race conditions
+        // Read fresh stock from database
         const { data: freshProduct, error: freshError } = await supabase
           .from('products')
           .select(`id, ${stockField}`)
@@ -648,16 +660,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           .single();
 
         if (freshError) {
-          toast({ title: 'Gagal membaca stok terbaru', description: freshError.message, variant: 'destructive' });
-          return null;
+          stockUpdateFailed = true;
+          toast({ title: 'Gagal membaca stok', description: freshError.message, variant: 'destructive' });
+          break;
         }
 
         const currentStock = (freshProduct as any)?.[stockField] || 0;
-        const newStock = currentStock - it.quantity;
+        const newStock = currentStock - deductQty;
 
         if (newStock < 0) {
+          stockUpdateFailed = true;
           toast({ title: 'Stok tidak cukup', description: `${it.productName} stok terbaru tidak mencukupi`, variant: 'destructive' });
-          return null;
+          break;
         }
 
         const { error: stockError } = await supabase
@@ -666,19 +680,42 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           .eq('id', it.product.id);
 
         if (stockError) {
+          stockUpdateFailed = true;
           toast({ title: 'Gagal update stok', description: stockError.message, variant: 'destructive' });
-          return null;
+          break;
         }
+
+        stockUpdated.push({ productId: it.product.id, quantity: deductQty, field: stockField });
 
         await supabase.from('stock_logs').insert({
           product_id: it.product.id,
           type: 'out',
-          quantity: it.quantity,
+          quantity: deductQty,
           location: data.stockLocation,
           user_id: user.id,
           note: `Penjualan ${saleNumber} (${data.paymentMethod})`,
         });
       }
+    }
+
+    // Rollback if stock update failed
+    if (stockUpdateFailed) {
+      // Restore already-updated stock
+      for (const updated of stockUpdated) {
+        const { data: curr } = await supabase
+          .from('products')
+          .select(`id, ${updated.field}`)
+          .eq('id', updated.productId)
+          .single();
+        if (curr) {
+          const restored = ((curr as any)[updated.field] || 0) + updated.quantity;
+          await supabase.from('products').update({ [updated.field]: restored }).eq('id', updated.productId);
+        }
+      }
+      // Delete sale items and sale record
+      await supabase.from('sale_items').delete().eq('sale_id', saleRow.id);
+      await supabase.from('sales').delete().eq('id', saleRow.id);
+      return null;
     }
 
     await addNotification({
@@ -695,7 +732,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
 
-  const addProduct = async (product: { name: string; barcode: string; price: number; stock: { gudang: number; toko: number }; image_url?: string }) => {
+  const addProduct = async (product: { name: string; barcode: string; price: number; stock: { gudang: number; toko: number }; image_url?: string; has_multi_unit?: boolean; pcs_per_box?: number | null; box_price?: number | null }) => {
     const { data: inserted, error } = await supabase
       .from('products')
       .insert({
@@ -704,7 +741,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         price: product.price,
         stock_gudang: product.stock.gudang,
         stock_toko: product.stock.toko,
-        image_url: product.image_url
+        image_url: product.image_url,
+        has_multi_unit: product.has_multi_unit ?? false,
+        pcs_per_box: product.pcs_per_box ?? null,
+        box_price: product.box_price ?? null,
       })
       .select()
       .single();
@@ -735,14 +775,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const updateProduct = async (id: string, updates: Partial<Product>) => {
     const updateData: any = {};
-    if (updates.name) updateData.name = updates.name;
-    if (updates.barcode) updateData.barcode = updates.barcode;
+    // Bug fix #10: Use !== undefined instead of truthy check
+    if (updates.name !== undefined) updateData.name = updates.name;
+    if (updates.barcode !== undefined) updateData.barcode = updates.barcode;
     if (typeof updates.price === 'number') updateData.price = updates.price;
     if (updates.image_url !== undefined) updateData.image_url = updates.image_url;
     if (updates.stock) {
       updateData.stock_gudang = updates.stock.gudang;
       updateData.stock_toko = updates.stock.toko;
     }
+    if (updates.has_multi_unit !== undefined) updateData.has_multi_unit = updates.has_multi_unit;
+    if (updates.pcs_per_box !== undefined) updateData.pcs_per_box = updates.pcs_per_box;
+    if (updates.box_price !== undefined) updateData.box_price = updates.box_price;
 
     const { error } = await supabase.from('products').update(updateData).eq('id', id);
     if (error) {
@@ -771,6 +815,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const deleteProduct = async (id: string) => {
     const product = products.find(p => p.id === id);
+
+    // Bug fix #19: Check for existing sales before deleting product
+    const { count: saleCount } = await supabase
+      .from('sale_items')
+      .select('id', { count: 'exact', head: true })
+      .eq('product_id', id);
+
+    if (saleCount && saleCount > 0) {
+      toast({
+        title: 'Tidak bisa hapus produk',
+        description: `Produk ini memiliki ${saleCount} riwayat penjualan. Nonaktifkan saja jika tidak digunakan lagi.`,
+        variant: 'destructive',
+      });
+      return false;
+    }
 
     // Best-effort delete image from storage if it's from our bucket
     if (product?.image_url) {
@@ -824,7 +883,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (!product || !user) return;
 
     const stockField = `stock_${location}`;
-    const newStock = product.stock[location] + quantity;
+
+    // Bug fix #11: Read fresh stock from DB instead of stale client state
+    const { data: freshProduct, error: readError } = await supabase
+      .from('products')
+      .select(`id, ${stockField}`)
+      .eq('id', productId)
+      .single();
+
+    if (readError || !freshProduct) {
+      toast({ title: 'Error', description: readError?.message || 'Produk tidak ditemukan', variant: 'destructive' });
+      return;
+    }
+
+    const currentStock = (freshProduct as any)?.[stockField] || 0;
+    const newStock = currentStock + quantity;
 
     const { error: updateError } = await supabase
       .from('products')
@@ -982,11 +1055,26 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           const fromField = `stock_${item.from_location}`;
           const toField = `stock_${item.to_location}`;
 
+          // Bug fix #5: Read fresh stock from DB instead of stale client state
+          const { data: freshProduct, error: freshErr } = await supabase
+            .from('products')
+            .select('id, stock_gudang, stock_toko')
+            .eq('id', product.id)
+            .single();
+
+          if (freshErr || !freshProduct) {
+            console.error('Failed to read fresh stock:', freshErr);
+            continue;
+          }
+
+          const freshFrom = item.from_location === 'gudang' ? freshProduct.stock_gudang : freshProduct.stock_toko;
+          const freshTo = item.to_location === 'gudang' ? freshProduct.stock_gudang : freshProduct.stock_toko;
+
           await supabase
             .from('products')
             .update({
-              [fromField]: product.stock[item.from_location] - item.quantity,
-              [toField]: product.stock[item.to_location] + item.quantity
+              [fromField]: Math.max(0, freshFrom - item.quantity),
+              [toField]: freshTo + item.quantity
             })
             .eq('id', product.id);
 

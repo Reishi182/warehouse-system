@@ -332,6 +332,67 @@
   .shadow-glass {
     box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
   }
+
+  /* ═══ Sidebar Styles ═══ */
+
+  /* Ultra-thin sidebar scrollbar — auto-hides */
+  .sidebar-nav::-webkit-scrollbar {
+    width: 3px;
+  }
+  .sidebar-nav::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .sidebar-nav::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 3px;
+    transition: background 0.2s;
+  }
+  .sidebar-nav:hover::-webkit-scrollbar-thumb {
+    background: hsl(var(--sidebar-border));
+  }
+  .sidebar-nav {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+  .sidebar-nav:hover {
+    scrollbar-color: hsl(var(--sidebar-border)) transparent;
+  }
+
+  /* Active nav glow */
+  .sidebar-active-glow {
+    box-shadow: 0 2px 12px hsl(var(--sidebar-primary) / 0.35),
+                0 0 0 1px hsl(var(--sidebar-primary) / 0.15);
+  }
+
+  /* Separator between sidebar groups */
+  .sidebar-separator {
+    height: 1px;
+    margin: 6px 12px;
+    background: linear-gradient(90deg, transparent, hsl(var(--sidebar-border)), transparent);
+  }
+
+  /* Profile card gradient border */
+  .sidebar-profile-card {
+    position: relative;
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    overflow: hidden;
+  }
+  .sidebar-profile-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--accent)), hsl(var(--primary)));
+    background-size: 200% 100%;
+    animation: shimmer-bar 3s ease-in-out infinite;
+  }
+  @keyframes shimmer-bar {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
 }
 
 /* ===========================================

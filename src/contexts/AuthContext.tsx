@@ -60,7 +60,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSession(null);
     setProfile(null);
     // Navigate to login
-    window.location.href = '/login';
+    // Bug fix #12: Use hash navigation for HashRouter
+    window.location.hash = '#/login';
+    window.location.reload();
   }, []);
 
   useEffect(() => {

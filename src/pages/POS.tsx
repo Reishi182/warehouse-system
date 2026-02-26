@@ -12,6 +12,8 @@ import { POSReceiptDialog } from '@/components/pos/POSReceiptDialog';
 import { POSSalesHistoryDialog } from '@/components/pos/POSSalesHistoryDialog';
 import { TabDialog } from '@/components/pos/TabDialog';
 import QuantityInputDialog from '@/components/pos/QuantityInputDialog';
+import { UnitPickerDialog, SellUnit } from '@/components/pos/UnitPickerDialog';
+import { isMultiUnit } from '@/lib/multiUnit';
 import { QuickSaleDialog } from '@/components/pos/QuickSaleDialog';
 import { CreditListDialog } from '@/components/pos/CreditListDialog';
 import { OfflineSyncStatus } from '@/components/pos/OfflineSyncStatus';
@@ -57,6 +59,10 @@ export default function POS() {
     const [quantityDialogOpen, setQuantityDialogOpen] = useState(false);
     const [quantityDialogProduct, setQuantityDialogProduct] = useState<Product | null>(null);
 
+    // Multi-unit picker dialog state
+    const [unitPickerOpen, setUnitPickerOpen] = useState(false);
+    const [unitPickerProduct, setUnitPickerProduct] = useState<Product | null>(null);
+
     // Quick Sale dialog state
     const [quickSaleDialogOpen, setQuickSaleDialogOpen] = useState(false);
 
@@ -75,12 +81,42 @@ export default function POS() {
         stockLocation: cart.stockLocation,
         onSuccess: async (newSaleId?: string, newSaleNumber?: string) => {
             // Link exchange if we have an original sale
-            if (exchangeFromSaleId && newSaleId && newSaleNumber) {
+            if (exchangeFromSaleId && exchangeFromSale && newSaleId && newSaleNumber) {
                 try {
-                    // Update original sale with link to new sale
+                    const stockLocation = exchangeFromSale.stock_location || 'toko';
+                    const stockField = stockLocation === 'toko' ? 'stock_toko' : 'stock_gudang';
+
+                    // Bug fix #3: Return stock NOW (at checkout), not when exchange starts
+                    for (const item of exchangeFromSale.items || []) {
+                        const { data: product } = await supabase
+                            .from('products')
+                            .select(`id, ${stockField}`)
+                            .eq('id', item.product_id)
+                            .single();
+
+                        if (product) {
+                            const currentStock = (product as any)?.[stockField] || 0;
+                            await supabase
+                                .from('products')
+                                .update({ [stockField]: currentStock + item.quantity })
+                                .eq('id', item.product_id);
+
+                            await supabase.from('stock_logs').insert({
+                                product_id: item.product_id,
+                                type: 'in',
+                                quantity: item.quantity,
+                                location: stockLocation,
+                                user_id: profile?.user_id,
+                                note: `Ganti barang dari ${exchangeFromSaleNumber}`,
+                            });
+                        }
+                    }
+
+                    // Mark original sale as exchanged
                     await supabase
                         .from('sales')
                         .update({
+                            is_exchanged: true,
                             exchanged_to_sale_id: newSaleId,
                             exchanged_to_sale_number: newSaleNumber,
                         } as any)
@@ -102,7 +138,6 @@ export default function POS() {
                         type: 'success',
                         link: '/pos',
                     });
-                    // Refresh notifications
                     queryClient.invalidateQueries({ queryKey: ['notifications'] });
                 } catch (err) {
                     console.error('Failed to link exchange sales:', err);
@@ -122,7 +157,8 @@ export default function POS() {
     const [exchangeFromSaleNumber, setExchangeFromSaleNumber] = useState<string | null>(null);
     const [exchangeFromSale, setExchangeFromSale] = useState<Sale | null>(null);
 
-    // Handle exchange - immediately mark original sale as exchanged and return stock
+    // Bug fix #3: Exchange no longer returns stock immediately.
+    // Stock is only returned when checkout completes (in onSuccess above).
     const handleExchangeSale = async (sale: Sale) => {
         if (!sale.items || sale.items.length === 0) {
             toast({ title: 'Error', description: 'Transaksi tidak memiliki item', variant: 'destructive' });
@@ -130,73 +166,21 @@ export default function POS() {
         }
 
         setIsProcessingExchange(true);
-        const stockLocation = sale.stock_location || 'toko';
-        const stockField = stockLocation === 'toko' ? 'stock_toko' : 'stock_gudang';
 
         try {
-            // 1. Return stock for each item in original sale
-            for (const item of sale.items) {
-                // Get current stock
-                const { data: product, error: fetchError } = await supabase
-                    .from('products')
-                    .select(`id, ${stockField}`)
-                    .eq('id', item.product_id)
-                    .single();
-
-                if (fetchError) {
-                    console.error(`Failed to fetch product ${item.product_id}:`, fetchError);
-                    continue;
-                }
-
-                const currentStock = (product as any)?.[stockField] || 0;
-                const newStock = currentStock + item.quantity;
-
-                // Update stock
-                await supabase
-                    .from('products')
-                    .update({ [stockField]: newStock })
-                    .eq('id', item.product_id);
-
-                // Log stock return
-                await supabase.from('stock_logs').insert({
-                    product_id: item.product_id,
-                    type: 'in',
-                    quantity: item.quantity,
-                    location: stockLocation,
-                    user_id: profile?.id,
-                    note: `Ganti barang dari ${sale.sale_number}`,
-                });
-            }
-
-            // 2. Mark the original sale as exchanged (instead of deleting)
-            await supabase
-                .from('sales')
-                .update({ is_exchanged: true } as any)
-                .eq('id', sale.id);
-
-            // 3. Add notification for exchange
-            await supabase.from('notifications').insert({
-                title: 'Ganti Barang Dimulai',
-                message: `Transaksi ${sale.sale_number} sedang ditukar oleh ${profile?.name || 'Kasir'}`,
-                type: 'info',
-                link: '/pos',
-            });
-            // Refresh notifications
-            queryClient.invalidateQueries({ queryKey: ['notifications'] });
-
-            // 4. Store exchange reference for linking after new sale is created
+            // Store exchange reference for linking after new sale is created
             setExchangeFromSaleId(sale.id);
             setExchangeFromSaleNumber(sale.sale_number);
             setExchangeFromSale(sale);
 
-            // 5. Load items into cart (now stock is available)
+            // Load items into cart for editing
             cart.loadFromSale(sale);
             setReturnRef(sale.sale_number);
             setSalesHistoryOpen(false);
 
             toast({
                 title: '✅ Siap ganti barang',
-                description: `Stok dari ${sale.sale_number} sudah dikembalikan. Silakan edit keranjang.`,
+                description: `Item dari ${sale.sale_number} dimuat ke keranjang. Edit lalu checkout untuk menyelesaikan.`,
             });
 
         } catch (err) {
@@ -207,79 +191,30 @@ export default function POS() {
         }
     };
 
-    // Handle cancel exchange - reverse stock changes and unmark the sale
+    // Handle cancel exchange — since stock is NOT returned until checkout, just clear state
     const handleCancelExchange = async () => {
         if (!exchangeFromSale || !exchangeFromSaleId) return;
 
         const confirmed = window.confirm(
-            `Batalkan tukar barang dari ${exchangeFromSaleNumber}?\n\nStok akan dikurangi kembali dan transaksi asli akan dipulihkan.`
+            `Batalkan tukar barang dari ${exchangeFromSaleNumber}?`
         );
         if (!confirmed) return;
 
-        setIsProcessingExchange(true);
-        const stockLocation = exchangeFromSale.stock_location || 'toko';
-        const stockField = stockLocation === 'toko' ? 'stock_toko' : 'stock_gudang';
+        // Simply clear exchange state — no stock to reverse
+        cart.clearCart();
+        setReturnRef(null);
+        setExchangeFromSaleId(null);
+        setExchangeFromSaleNumber(null);
+        setExchangeFromSale(null);
 
-        try {
-            // 1. Re-deduct stock for each item (reverse the return)
-            for (const item of exchangeFromSale.items || []) {
-                const { data: product, error: fetchError } = await supabase
-                    .from('products')
-                    .select(`id, ${stockField}`)
-                    .eq('id', item.product_id)
-                    .single();
+        queryClient.invalidateQueries({ queryKey: ['notifications'] });
 
-                if (fetchError) {
-                    console.error(`Failed to fetch product ${item.product_id}:`, fetchError);
-                    continue;
-                }
-
-                const currentStock = (product as any)?.[stockField] || 0;
-                const newStock = Math.max(0, currentStock - item.quantity);
-
-                await supabase
-                    .from('products')
-                    .update({ [stockField]: newStock })
-                    .eq('id', item.product_id);
-
-                // Log stock deduction
-                await supabase.from('stock_logs').insert({
-                    product_id: item.product_id,
-                    type: 'out',
-                    quantity: item.quantity,
-                    location: stockLocation,
-                    user_id: profile?.id,
-                    note: `Batal ganti barang dari ${exchangeFromSaleNumber}`,
-                });
-            }
-
-            // 2. Unmark the original sale
-            await supabase
-                .from('sales')
-                .update({ is_exchanged: false } as any)
-                .eq('id', exchangeFromSaleId);
-
-            // 3. Clear all exchange state
-            cart.clearCart();
-            setReturnRef(null);
-            setExchangeFromSaleId(null);
-            setExchangeFromSaleNumber(null);
-            setExchangeFromSale(null);
-
-            // 4. Refresh data
-            queryClient.invalidateQueries({ queryKey: ['notifications'] });
-
-            toast({
-                title: '↩️ Tukar barang dibatalkan',
-                description: `Transaksi ${exchangeFromSaleNumber} dipulihkan ke semula.`,
-            });
-        } catch (err) {
-            console.error('Cancel exchange error:', err);
-            toast({ title: 'Error', description: 'Gagal membatalkan tukar barang', variant: 'destructive' });
-        } finally {
-            setIsProcessingExchange(false);
-        }
+        toast({
+            title: 'Tukar barang dibatalkan',
+            description: 'Keranjang dikosongkan',
+        });
     };
+
 
     // Today's stats - exclude cancelled and exchanged sales
     const todayIso = new Date().toISOString().slice(0, 10);
@@ -335,16 +270,29 @@ export default function POS() {
         handleAddToCart(product);
     };
 
-    // Handle adding product to cart - check for variable unit products
+    // Handle adding product to cart - check for variable unit or multi-unit products
     const handleAddToCart = (product: Product) => {
         if (product.sell_by_quantity) {
             // Open quantity input dialog for variable unit products
             setQuantityDialogProduct(product);
             setQuantityDialogOpen(true);
+        } else if (isMultiUnit(product)) {
+            // Open unit picker dialog for multi-unit products (box/pcs)
+            setUnitPickerProduct(product);
+            setUnitPickerOpen(true);
         } else {
             // Normal product - add directly
             cart.addToCart(product);
         }
+    };
+
+    // Handle multi-unit selection
+    const handleUnitSelect = (unit: SellUnit) => {
+        if (unitPickerProduct) {
+            cart.addToCartWithUnit(unitPickerProduct, unit);
+        }
+        setUnitPickerOpen(false);
+        setUnitPickerProduct(null);
     };
 
     // Handle variable quantity confirmation
@@ -445,7 +393,7 @@ export default function POS() {
                     />
                 </div>
 
-                {/* Desktop Cart Panel */}
+                {/* Desktop Cart Panel — portaled to body to avoid parent overflow clip */}
                 {createPortal(
                     <POSCartPanel
                         items={cart.items}
@@ -459,7 +407,6 @@ export default function POS() {
                         onRemoveItem={cart.removeItem}
                         onClearCart={() => {
                             if (exchangeFromSaleId) {
-                                // If in exchange mode, cancel exchange properly
                                 handleCancelExchange();
                             } else {
                                 cart.clearCart();
@@ -470,11 +417,8 @@ export default function POS() {
                         onCancelExchange={exchangeFromSaleId ? handleCancelExchange : undefined}
                         onCheckout={checkout.openCheckoutDialog}
                         onSaveToTab={(tabId) => {
-                            // Find the selected tab to get tabNumber
                             const selectedTab = openTabs.find(t => t.id === tabId);
                             if (!selectedTab) return;
-
-                            // Add items to selected tab
                             addTabTransaction.mutate({
                                 tabId,
                                 tabNumber: selectedTab.tab_number,
@@ -511,6 +455,7 @@ export default function POS() {
                     document.body
                 )}
 
+
                 {/* Mobile Cart */}
                 <POSMobileCart
                     items={cart.items}
@@ -529,6 +474,9 @@ export default function POS() {
                     todayStats={todayStats}
                     open={cartDrawerOpen}
                     onOpenChange={setCartDrawerOpen}
+                    stockLocation={cart.stockLocation}
+                    returnRef={returnRef}
+                    onCancelExchange={exchangeFromSaleId ? handleCancelExchange : undefined}
                 />
             </div>
 
@@ -586,6 +534,14 @@ export default function POS() {
                 onOpenChange={setQuantityDialogOpen}
                 product={quantityDialogProduct}
                 onConfirm={handleQuantityConfirm}
+            />
+
+            {/* Multi-Unit Picker Dialog (Box/Pcs) */}
+            <UnitPickerDialog
+                open={unitPickerOpen}
+                onClose={() => { setUnitPickerOpen(false); setUnitPickerProduct(null); }}
+                product={unitPickerProduct}
+                onSelect={handleUnitSelect}
             />
 
             {/* Quick Sale Dialog */}

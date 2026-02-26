@@ -113,12 +113,13 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
         const rand = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
         const saleNumber = `INV/${yyyy}${mm}${dd}-${rand}-OFF`; // -OFF suffix for offline
 
-        const changeAmount = paymentMethod === 'cash' ? Math.max(0, amountPaid - totalAmount) : 0;
-        const finalAmountPaid = paymentMethod === 'cash' ? amountPaid : totalAmount;
+        const changeAmount = (paymentMethod === 'cash' && !isCredit) ? Math.max(0, amountPaid - totalAmount) : 0;
+        const finalAmountPaid = isCredit ? 0 : (paymentMethod === 'cash' ? amountPaid : totalAmount);
 
         // Prepare items with product details
         const saleItems = items.map(it => {
-            const itemTotal = it.product.price * it.quantity;
+            const effectivePrice = it.unitPrice || it.product.price;
+            const itemTotal = effectivePrice * it.quantity;
             // discount is now a fixed amount in Rupiah per item
             const itemDiscountAmount = it.discount * it.quantity;
             return {
@@ -127,14 +128,17 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
                 productName: it.product.name,
                 barcode: it.product.barcode || '',
                 quantity: it.quantity,
-                price: it.product.price,
+                price: effectivePrice,
                 discount: it.discount,
                 subtotal: Math.round(itemTotal - itemDiscountAmount),
                 isManualEntry: it.isManualEntry || false,
+                // Multi-unit: how many base units to deduct from stock
+                stockDeductQty: it.quantity * (it.unitMultiplier || 1),
             };
         });
 
         // Save to offline queue
+        // Bug fix #2: Include isCredit, creditCustomerName, and transactionDate
         addOfflineSale({
             saleNumber,
             cashierId: user.id,
@@ -146,7 +150,9 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
             orderDiscount,
             amountPaid: finalAmountPaid,
             changeAmount,
-            createdAt: now.toISOString(),
+            createdAt: transactionDate.toISOString(),
+            isCredit,
+            creditCustomerName: isCredit ? creditCustomerName.trim() : undefined,
         });
 
         // Set last sale for receipt
@@ -165,13 +171,13 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
             method: paymentMethod,
             amountPaid: finalAmountPaid,
             change: changeAmount,
-            date: now,
+            date: transactionDate,
             isOffline: true,
             returnRef,
         });
 
         return true;
-    }, [user, profile, items, paymentMethod, amountPaid, totalAmount, subtotal, orderDiscount, stockLocation, returnRef]);
+    }, [user, profile, items, paymentMethod, amountPaid, totalAmount, subtotal, orderDiscount, stockLocation, returnRef, isCredit, creditCustomerName, transactionDate]);
 
     const handleConfirmCheckout = useCallback(async () => {
         if (items.length === 0) return;
@@ -248,11 +254,13 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
                     // Use null for manual entry items (Quick Sale)
                     productId: it.isManualEntry ? null : it.product.id,
                     productName: it.product.name,
-                    price: it.product.price,
+                    price: it.unitPrice || it.product.price,
                     barcode: it.product.barcode || '',
                     quantity: it.quantity,
                     discount: it.discount,
                     isManualEntry: it.isManualEntry || false,
+                    // Multi-unit: how many base units to deduct from stock
+                    stockDeductQty: it.quantity * (it.unitMultiplier || 1),
                 })),
                 orderDiscount,
                 amountPaid: isCredit ? 0 : finalAmountPaid, // No payment for credit
@@ -265,13 +273,14 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
 
             if (result) {
                 const saleItems = items.map(it => {
-                    const itemTotal = it.product.price * it.quantity;
+                    const effectivePrice = it.unitPrice || it.product.price;
+                    const itemTotal = effectivePrice * it.quantity;
                     // discount is now a fixed amount in Rupiah per item
                     const itemDiscountAmount = it.discount * it.quantity;
                     return {
                         name: it.product.name,
                         quantity: it.quantity,
-                        price: it.product.price,
+                        price: effectivePrice,
                         discount: it.discount,
                         subtotal: Math.round(itemTotal - itemDiscountAmount),
                     };
@@ -321,7 +330,7 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
         closeCheckoutDialog,
         closeReceiptDialog,
         handleConfirmCheckout,
-        handlePrint: () => handlePrint(),
+        handlePrint,
         // Credit transaction
         isCredit,
         setIsCredit,

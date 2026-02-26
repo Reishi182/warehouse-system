@@ -1,13 +1,18 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Product, Location, Sale } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { useData } from '@/contexts/DataContext';
+import { SellUnit } from '@/components/pos/UnitPickerDialog';
+import { getUnitPrice, getUnitMultiplier } from '@/lib/multiUnit';
 
 export type CartItem = {
     product: Product;
     quantity: number;
     discount: number;
     isManualEntry?: boolean; // true for quick sale items (no product_id)
+    sellUnit?: SellUnit; // 'box' or 'pcs' for multi-unit products
+    unitMultiplier?: number; // how many base units per sell unit (e.g. 70 for box)
+    unitPrice?: number; // effective price per sell unit
 };
 
 export interface UsePOSCartOptions {
@@ -21,6 +26,7 @@ export interface UsePOSCartReturn {
     orderDiscount: number;
     setOrderDiscount: (discount: number) => void;
     addToCart: (product: Product) => void;
+    addToCartWithUnit: (product: Product, unit: SellUnit) => void;
     addToCartWithQuantity: (product: Product, quantity: number) => void; // For variable unit products
     addManualItem: (name: string, price: number, quantity: number) => void; // For quick sale items
     updateQuantity: (productId: string, quantity: number) => void;
@@ -36,8 +42,38 @@ export interface UsePOSCartReturn {
 export function usePOSCart(initialLocation: Location = 'toko'): UsePOSCartReturn {
     const { toast } = useToast();
     const [items, setItems] = useState<CartItem[]>([]);
-    const [stockLocation, setStockLocation] = useState<Location>(initialLocation);
+    const [stockLocation, setStockLocationState] = useState<Location>(initialLocation);
     const [orderDiscount, setOrderDiscount] = useState(0);
+
+    // Bug fix #5: Revalidate cart items when stock location changes
+    const setStockLocation = useCallback((newLocation: Location) => {
+        setStockLocationState(prev => {
+            if (prev === newLocation) return prev;
+            // Check if any items exceed stock at new location
+            setItems(currentItems => {
+                let adjusted = false;
+                const newItems = currentItems.map(it => {
+                    if (it.isManualEntry) return it;
+                    const availableStock = it.product.stock[newLocation];
+                    if (it.quantity > availableStock) {
+                        adjusted = true;
+                        if (availableStock <= 0) return null; // Remove if no stock
+                        return { ...it, quantity: availableStock };
+                    }
+                    return it;
+                }).filter(Boolean) as CartItem[];
+                if (adjusted) {
+                    toast({
+                        title: 'Keranjang disesuaikan',
+                        description: `Beberapa item disesuaikan karena stok di ${newLocation} berbeda`,
+                        variant: 'destructive'
+                    });
+                }
+                return newItems;
+            });
+            return newLocation;
+        });
+    }, [toast]);
 
     const addToCart = useCallback((product: Product) => {
         const availableStock = product.stock[stockLocation];
@@ -70,6 +106,57 @@ export function usePOSCart(initialLocation: Location = 'toko'): UsePOSCartReturn
                 return next;
             }
             return [...prev, { product, quantity: 1, discount: 0 }];
+        });
+    }, [stockLocation, toast]);
+
+    // Add to cart with specific unit (for multi-unit products like box/pcs)
+    const addToCartWithUnit = useCallback((product: Product, unit: SellUnit) => {
+        const multiplier = getUnitMultiplier(product, unit);
+        const price = getUnitPrice(product, unit);
+        const availableStock = product.stock[stockLocation];
+        const cartKey = `${product.id}_${unit}`;
+
+        if (availableStock < multiplier) {
+            toast({
+                title: 'Stok tidak cukup',
+                description: `Stok ${stockLocation}: ${availableStock} pcs, dibutuhkan ${multiplier} pcs untuk 1 ${unit}`,
+                variant: 'destructive'
+            });
+            return;
+        }
+
+        setItems((prev) => {
+            // Find existing item with same product AND same unit
+            const idx = prev.findIndex((it) => 
+                it.product.id === product.id && (it.sellUnit || 'pcs') === unit
+            );
+            if (idx >= 0) {
+                const next = [...prev];
+                const newQty = next[idx].quantity + 1;
+                const totalBaseUnitsNeeded = newQty * multiplier;
+                // Check total stock including other units of same product
+                const otherUnitsStock = prev
+                    .filter((it, i) => i !== idx && it.product.id === product.id)
+                    .reduce((sum, it) => sum + it.quantity * (it.unitMultiplier || 1), 0);
+                if (totalBaseUnitsNeeded + otherUnitsStock > availableStock) {
+                    toast({
+                        title: 'Stok tidak cukup',
+                        description: `Stok tersedia: ${availableStock} pcs`,
+                        variant: 'destructive'
+                    });
+                    return prev;
+                }
+                next[idx] = { ...next[idx], quantity: newQty };
+                return next;
+            }
+            return [...prev, {
+                product,
+                quantity: 1,
+                discount: 0,
+                sellUnit: unit,
+                unitMultiplier: multiplier,
+                unitPrice: price,
+            }];
         });
     }, [stockLocation, toast]);
 
@@ -166,11 +253,12 @@ export function usePOSCart(initialLocation: Location = 'toko'): UsePOSCartReturn
         });
     }, [stockLocation, toast]);
 
+    // Bug fix #3: Clamp discount to not exceed product price
     const updateItemDiscount = useCallback((productId: string, discount: number) => {
         setItems((prev) =>
             prev.map((it) =>
                 it.product.id === productId
-                    ? { ...it, discount: Math.max(0, discount) } // discount is now nominal Rupiah
+                    ? { ...it, discount: Math.max(0, Math.min(discount, it.product.price)) }
                     : it
             ),
         );
@@ -253,17 +341,21 @@ export function usePOSCart(initialLocation: Location = 'toko'): UsePOSCartReturn
 
     const subtotal = useMemo(() => {
         return items.reduce((acc, it) => {
-            const itemTotal = it.product.price * it.quantity;
+            // Use unitPrice if available (multi-unit), otherwise use product.price
+            const effectivePrice = it.unitPrice || it.product.price;
+            const itemTotal = effectivePrice * it.quantity;
             // discount is now a fixed amount in Rupiah per item
             const itemDiscount = it.discount * it.quantity;
             return acc + (itemTotal - itemDiscount);
         }, 0);
     }, [items]);
 
+    // Bug fix #6: Cap orderDiscount at subtotal
+    const clampedOrderDiscount = useMemo(() => Math.min(orderDiscount, subtotal), [orderDiscount, subtotal]);
+
     const totalAmount = useMemo(() => {
-        // orderDiscount is now a fixed amount in Rupiah
-        return Math.max(0, subtotal - orderDiscount);
-    }, [subtotal, orderDiscount]);
+        return Math.max(0, subtotal - clampedOrderDiscount);
+    }, [subtotal, clampedOrderDiscount]);
 
     const itemCount = useMemo(() => {
         return items.reduce((acc, it) => acc + it.quantity, 0);
@@ -273,9 +365,10 @@ export function usePOSCart(initialLocation: Location = 'toko'): UsePOSCartReturn
         items,
         stockLocation,
         setStockLocation,
-        orderDiscount,
+        orderDiscount: clampedOrderDiscount,
         setOrderDiscount: (discount: number) => setOrderDiscount(Math.max(0, discount)),
         addToCart,
+        addToCartWithUnit,
         addToCartWithQuantity,
         addManualItem,
         updateQuantity,

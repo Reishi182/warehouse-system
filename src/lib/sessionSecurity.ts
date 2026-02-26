@@ -44,7 +44,13 @@ export function validateSession(): boolean {
     try {
         const storedData = sessionStorage.getItem(SESSION_FINGERPRINT_KEY);
         if (!storedData) {
-            // No session data - might be a fresh session
+            // Bug fix #17: Check if fingerprint was cleared but timestamp exists
+            const hasTimestamp = sessionStorage.getItem(SESSION_TIMESTAMP_KEY);
+            if (hasTimestamp) {
+                console.warn('[SessionSecurity] Fingerprint cleared but timestamp exists');
+                return false;
+            }
+            // Truly fresh session
             return true;
         }
 

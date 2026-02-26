@@ -47,7 +47,7 @@ export type Database = {
         }
         Relationships: []
       }
-      products: {
+       products: {
         Row: {
           barcode: string
           created_at: string
@@ -59,6 +59,9 @@ export type Database = {
           stock_lainnya: number
           stock_toko: number
           stock_reserved: number
+          has_multi_unit: boolean
+          pcs_per_box: number | null
+          box_price: number | null
           updated_at: string
         }
         Insert: {
@@ -71,6 +74,9 @@ export type Database = {
           stock_gudang?: number
           stock_lainnya?: number
           stock_toko?: number
+          has_multi_unit?: boolean
+          pcs_per_box?: number | null
+          box_price?: number | null
           updated_at?: string
         }
         Update: {
@@ -83,6 +89,9 @@ export type Database = {
           stock_gudang?: number
           stock_lainnya?: number
           stock_toko?: number
+          has_multi_unit?: boolean
+          pcs_per_box?: number | null
+          box_price?: number | null
           updated_at?: string
         }
         Relationships: []
@@ -195,6 +204,72 @@ export type Database = {
           id?: string
           note?: string | null
           transfer_date?: string
+        }
+        Relationships: []
+      }
+      expenses: {
+        Row: {
+          id: string
+          category: string
+          amount: number
+          description: string | null
+          expense_date: string
+          payment_method: string
+          created_by: string | null
+          created_by_name: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          category: string
+          amount: number
+          description?: string | null
+          expense_date?: string
+          payment_method?: string
+          created_by?: string | null
+          created_by_name: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          category?: string
+          amount?: number
+          description?: string | null
+          expense_date?: string
+          payment_method?: string
+          created_by?: string | null
+          created_by_name?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      cashier_sessions: {
+        Row: {
+          id: string
+          cashier_id: string | null
+          cashier_name: string
+          opening_cash: number
+          session_date: string
+          note: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          cashier_id?: string | null
+          cashier_name: string
+          opening_cash?: number
+          session_date?: string
+          note?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          cashier_id?: string | null
+          cashier_name?: string
+          opening_cash?: number
+          session_date?: string
+          note?: string | null
+          created_at?: string
         }
         Relationships: []
       }

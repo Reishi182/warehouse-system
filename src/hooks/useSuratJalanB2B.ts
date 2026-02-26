@@ -175,7 +175,8 @@ export function useSuratJalanB2B() {
                             p_product_id: item.product_id,
                             p_quantity: item.quantity
                         });
-                        if (reserveError) console.warn('Reserve stock warning:', reserveError);
+                        // Bug fix #6: Throw on reserve failure instead of ignoring
+                        if (reserveError) throw new Error(`Gagal reservasi stok: ${reserveError.message}`);
                     }
                 }
             }
@@ -326,7 +327,12 @@ export function useSuratJalanB2B() {
                         .single();
 
                     if (prod) {
-                        const newStock = Math.max(0, (prod.stock_toko || 0) - item.quantity);
+                        // Bug fix #5: Validate stock before deducting
+                        const currentStock = prod.stock_toko || 0;
+                        if (currentStock < item.quantity) {
+                            throw new Error(`Stok toko tidak cukup untuk ${item.product_name || 'produk'}: tersedia ${currentStock}, dibutuhkan ${item.quantity}`);
+                        }
+                        const newStock = currentStock - item.quantity;
                         await supabase.from('products')
                             .update({ stock_toko: newStock })
                             .eq('id', item.product_id);

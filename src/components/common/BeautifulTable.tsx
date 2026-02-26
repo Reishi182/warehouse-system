@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
     useReactTable,
     getCoreRowModel,
@@ -212,7 +212,7 @@ export function BeautifulTable<T extends { id: string }>({
                                             Tampilkan Semua
                                             {!hasFilter && (
                                                 <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">
-                                                    Active
+                                                    Aktif
                                                 </Badge>
                                             )}
                                         </DropdownMenuItem>
@@ -244,7 +244,7 @@ export function BeautifulTable<T extends { id: string }>({
                                                     <span className="truncate">{opt.label}</span>
                                                     {isSelected && (
                                                         <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">
-                                                            Active
+                                                            Aktif
                                                         </Badge>
                                                     )}
                                                 </DropdownMenuItem>
@@ -264,12 +264,18 @@ export function BeautifulTable<T extends { id: string }>({
                     return <span className="text-sm text-foreground">{String(value ?? '')}</span>;
                 },
                 enableSorting: col.sortable !== false,
-                filterFn: 'includesString',
+                // Bug fix #1: Use exact match for column filters (dropdown sets exact value)
+                filterFn: (row, columnId, filterValue) => {
+                    const cellValue = String(row.getValue(columnId) ?? '');
+                    return cellValue === String(filterValue);
+                },
             });
         });
 
         return cols;
-    }, [columns, hideSelection, isPremium, columnFilters, getUniqueValues, setColumnFilters]);
+        // Bug fix #2: Removed columnFilters and setColumnFilters from deps
+        // to prevent re-creating all columns on every filter change
+    }, [columns, hideSelection, isPremium, getUniqueValues]);
 
     // Effective page size (handle "All" case)
     const effectivePageSize = pageSize === -1 ? data.length || 1 : pageSize;
@@ -309,10 +315,22 @@ export function BeautifulTable<T extends { id: string }>({
         table.setPageSize(effectivePageSize);
     }, [effectivePageSize, table]);
 
-    // Reset page index when data or filters change
+    // Bug fix #4: Reset page index only when filters actually change
+    // Use serialized values for stable comparison
+    const prevDataLenRef = useRef(data.length);
+    const serializedFilters = JSON.stringify(columnFilters);
     React.useEffect(() => {
         setPageIndex(0);
-    }, [data.length, globalFilter, columnFilters]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [globalFilter, serializedFilters]);
+
+    // Only reset page when data count actually changes (not on reference changes)
+    React.useEffect(() => {
+        if (data.length !== prevDataLenRef.current) {
+            prevDataLenRef.current = data.length;
+            setPageIndex(0);
+        }
+    }, [data.length]);
 
     // Generate export columns from our column definitions
     const exportColumns: ExportColumn[] = React.useMemo(() => {
@@ -371,11 +389,12 @@ export function BeautifulTable<T extends { id: string }>({
                 {/* Table */}
                 <div className="w-full overflow-x-auto">
                     <Table>
-                        <TableHeader>
+                        {/* Bug fix #8: Sticky header for better UX on long tables */}
+                        <TableHeader className="sticky top-0 z-10">
                             {table.getHeaderGroups().map((headerGroup) => (
                                 <TableRow
                                     key={headerGroup.id}
-                                    className="border-b border-gray-100 dark:border-gray-800 hover:bg-transparent bg-gray-50/50 dark:bg-gray-800/30"
+                                    className="border-b border-gray-100 dark:border-gray-800 hover:bg-transparent bg-gray-50 dark:bg-gray-800"
                                 >
                                     {headerGroup.headers.map((header, idx) => (
                                         <TableHead

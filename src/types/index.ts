@@ -26,6 +26,10 @@ export interface Product {
   // Variable unit products (sold by meter/kg/gram)
   sell_by_quantity?: boolean;
   sell_unit?: string; // 'pcs' | 'meter' | 'cm' | 'kg' | 'gram' | 'liter'
+  // Multi-unit support (e.g. box + pcs)
+  has_multi_unit?: boolean;
+  pcs_per_box?: number | null; // how many pcs in one box (null = unknown/sealed)
+  box_price?: number | null; // price per box (null = use price × pcs_per_box)
   created_at: string;
   updated_at: string;
 }
@@ -143,6 +147,30 @@ export interface CashTransfer {
   transfer_date: string;
   created_at: string;
   note?: string | null;
+}
+
+export type ExpenseCategory = 'listrik' | 'gaji' | 'beli_stok' | 'sewa' | 'transport' | 'lainnya';
+
+export interface Expense {
+  id: string;
+  category: ExpenseCategory;
+  amount: number;
+  description: string | null;
+  expense_date: string;
+  payment_method: 'cash' | 'transfer';
+  created_by: string | null;
+  created_by_name: string;
+  created_at: string;
+}
+
+export interface CashierSession {
+  id: string;
+  cashier_id: string | null;
+  cashier_name: string;
+  opening_cash: number;
+  session_date: string;
+  note: string | null;
+  created_at: string;
 }
 
 export interface ActivityLog {

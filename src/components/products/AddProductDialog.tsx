@@ -51,6 +51,9 @@ interface AddProductDialogProps {
         image_url?: string;
         sell_by_quantity?: boolean;
         sell_unit?: string;
+        has_multi_unit?: boolean;
+        pcs_per_box?: number | null;
+        box_price?: number | null;
     }) => Promise<boolean>;
     getProductByBarcode: (barcode: string) => Product | undefined;
     userRole?: UserRole;
@@ -69,6 +72,9 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
         location: 'gudang' as Location,
         sell_by_quantity: false,
         sell_unit: 'meter',
+        has_multi_unit: false,
+        pcs_per_box: 0,
+        box_price: 0,
     });
 
     // Camera scanner state
@@ -312,6 +318,9 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
             image_url: imageUrl,
             sell_by_quantity: newProduct.sell_by_quantity,
             sell_unit: newProduct.sell_by_quantity ? newProduct.sell_unit : 'pcs',
+            has_multi_unit: newProduct.has_multi_unit,
+            pcs_per_box: newProduct.has_multi_unit && newProduct.pcs_per_box > 0 ? newProduct.pcs_per_box : null,
+            box_price: newProduct.has_multi_unit && newProduct.box_price > 0 ? newProduct.box_price : null,
         });
 
         if (!ok) return;
@@ -321,7 +330,7 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
             description: `${newProduct.name} berhasil ditambahkan`,
         });
 
-        setNewProduct({ name: '', barcode: '', price: 0, quantity: 0, location: 'gudang', sell_by_quantity: false, sell_unit: 'meter' });
+        setNewProduct({ name: '', barcode: '', price: 0, quantity: 0, location: 'gudang', sell_by_quantity: false, sell_unit: 'meter', has_multi_unit: false, pcs_per_box: 0, box_price: 0 });
         setProductImageFile(null);
         if (productImagePreviewUrl) {
             URL.revokeObjectURL(productImagePreviewUrl);
@@ -435,6 +444,53 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
                                     <p className="text-xs text-amber-700 dark:text-amber-300">
                                         💡 Stok dan penjualan dalam {newProduct.sell_unit}
                                     </p>
+                                </div>
+                            )}
+                        </div>
+                        {/* Multi-unit toggle (Box + Pcs) */}
+                        <div className="space-y-3 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-xl border border-blue-200 dark:border-blue-800">
+                            <div className="flex items-center gap-3">
+                                <input
+                                    type="checkbox"
+                                    id="has-multi-unit"
+                                    checked={newProduct.has_multi_unit}
+                                    onChange={(e) => setNewProduct({ ...newProduct, has_multi_unit: e.target.checked })}
+                                    className="w-4 h-4 rounded border-gray-300"
+                                />
+                                <Label htmlFor="has-multi-unit" className="cursor-pointer text-blue-800 dark:text-blue-200">
+                                    📦 Jual per Box + Pcs (Multi-Unit)
+                                </Label>
+                            </div>
+                            {newProduct.has_multi_unit && (
+                                <div className="space-y-3 pl-7">
+                                    <div className="space-y-1">
+                                        <Label className="text-sm">Isi per Box (pcs)</Label>
+                                        <Input
+                                            type="number"
+                                            value={newProduct.pcs_per_box || ''}
+                                            onChange={(e) => setNewProduct({ ...newProduct, pcs_per_box: parseInt(e.target.value) || 0 })}
+                                            placeholder="Misal: 70"
+                                            min={0}
+                                            className="rounded-xl border-blue-200"
+                                        />
+                                        <p className="text-xs text-blue-700 dark:text-blue-300">
+                                            💡 Kosongkan jika tidak tahu isi per box (box segel)
+                                        </p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label className="text-sm">Harga per Box (Rp)</Label>
+                                        <Input
+                                            type="number"
+                                            value={newProduct.box_price || ''}
+                                            onChange={(e) => setNewProduct({ ...newProduct, box_price: parseInt(e.target.value) || 0 })}
+                                            placeholder="Misal: 50000"
+                                            min={0}
+                                            className="rounded-xl border-blue-200"
+                                        />
+                                        <p className="text-xs text-blue-700 dark:text-blue-300">
+                                            💡 Kosongkan untuk auto-hitung (harga pcs × isi per box)
+                                        </p>
+                                    </div>
                                 </div>
                             )}
                         </div>
