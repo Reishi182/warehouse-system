@@ -12,6 +12,7 @@ import PageSkeleton from "@/components/common/PageSkeleton";
 import { RealtimeNotificationProvider } from "@/components/common/RealtimeNotificationProvider";
 import OfflineIndicator from "@/components/common/OfflineIndicator";
 import { GlobalShortcutsProvider } from "@/components/common/GlobalShortcutsProvider";
+import { PwaReloadPrompt } from "@/components/common/PwaReloadPrompt";
 
 // Lazy load all pages for better performance (code splitting)
 const Login = React.lazy(() => import("./pages/Login"));
@@ -370,6 +371,7 @@ const App = () => (
                 <HashRouter>
                   <GlobalShortcutsProvider>
                     <RealtimeNotificationProvider>
+                      <PwaReloadPrompt />
                       <AppRoutes />
                     </RealtimeNotificationProvider>
                   </GlobalShortcutsProvider>
