@@ -388,14 +388,15 @@ export default function Products() {
                             </Sheet>
                         </div>
 
-                        {/* Results Count & Page Size */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-                            <p className="text-xs sm:text-sm text-muted-foreground">
-                                Menampilkan <span className="font-medium text-foreground">{paginatedProducts.length}</span> dari{' '}
-                                <span className="font-medium text-foreground">{filteredProducts.length}</span> produk
-                            </p>
+                        {/* Results Count, Sort & Page Size */}
+                        <div className="flex flex-col gap-2 mb-4">
+                            {/* Row 1: Results count + Sort */}
+                            <div className="flex items-center justify-between">
+                                <p className="text-xs sm:text-sm text-muted-foreground">
+                                    Menampilkan <span className="font-medium text-foreground">{paginatedProducts.length}</span> dari{' '}
+                                    <span className="font-medium text-foreground">{filteredProducts.length}</span> produk
+                                </p>
 
-                            <div className="flex items-center gap-2">
                                 {/* Sort Dropdown */}
                                 <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
                                     <SelectTrigger className="w-[120px] sm:w-[150px] h-9 rounded-xl text-xs sm:text-sm">
@@ -413,16 +414,18 @@ export default function Products() {
                                         <SelectItem value="oldest">Terlama</SelectItem>
                                     </SelectContent>
                                 </Select>
+                            </div>
 
-                                {/* Page Size Selector - hidden on very small screens */}
-                                <span className="text-xs text-muted-foreground hidden md:inline">Tampilkan:</span>
-                                <div className="hidden sm:flex items-center gap-1 p-1 bg-muted rounded-xl">
+                            {/* Row 2: Page Size Selector - always visible */}
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground">Tampilkan:</span>
+                                <div className="flex items-center gap-1 p-1 bg-muted rounded-xl">
                                     {pageSizeOptions.map((size) => (
                                         <button
                                             key={size}
                                             onClick={() => setPageSize(size)}
                                             className={cn(
-                                                "px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all",
+                                                "px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg text-xs font-medium transition-all",
                                                 pageSize === size
                                                     ? "bg-background shadow-sm"
                                                     : "hover:bg-background/50"
