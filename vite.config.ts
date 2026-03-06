@@ -6,7 +6,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  base: './', // Required for Electron file:// protocol
+  base: '/', // Use absolute paths for web deployment (Netlify)
   server: {
     host: "::",
     port: 8080,
