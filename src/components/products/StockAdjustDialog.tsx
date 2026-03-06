@@ -16,7 +16,7 @@ interface StockAdjustDialogProps {
     product: Product | null;
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onSave: (productId: string, newStock: { gudang: number; toko: number }) => Promise<void>;
+    onSave: (productId: string, adjustments: { gudang: number; toko: number }) => Promise<void>;
 }
 
 export function StockAdjustDialog({
@@ -37,13 +37,11 @@ export function StockAdjustDialog({
 
     const handleSave = async () => {
         if (!product) return;
+        if (adjustments.gudang === 0 && adjustments.toko === 0) return;
 
-        const newStock = {
-            gudang: Math.max(0, product.stock.gudang + adjustments.gudang),
-            toko: Math.max(0, product.stock.toko + adjustments.toko),
-        };
-
-        await onSave(product.id, newStock);
+        // Pass the adjustments (deltas), not absolute values
+        // The parent will use atomic RPCs to apply these
+        await onSave(product.id, adjustments);
         onOpenChange(false);
     };
 

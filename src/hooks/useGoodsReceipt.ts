@@ -89,20 +89,17 @@ export function useGoodsReceipt() {
             const stockUpdated: { productId: string; goodQty: number }[] = [];
 
             for (const item of data.items) {
-                const { data: product, error: prodError } = await supabase
-                    .from('products')
-                    .select('stock_toko')
-                    .eq('id', item.productId)
-                    .single();
-
-                if (prodError) throw prodError;
-
                 // Add only received qty (good condition) to stock
                 const goodQty = item.quantityReceived - item.quantityDamaged;
                 if (goodQty > 0) {
-                    await supabase.from('products')
-                        .update({ stock_toko: (product.stock_toko || 0) + goodQty })
-                        .eq('id', item.productId);
+                    // Atomic increment — no race condition
+                    const { error: incrementError } = await supabase.rpc('atomic_increment_stock', {
+                        p_product_id: item.productId,
+                        p_quantity: goodQty,
+                        p_location: 'toko',
+                    });
+
+                    if (incrementError) throw incrementError;
 
                     stockUpdated.push({ productId: item.productId, goodQty });
 
@@ -143,16 +140,11 @@ export function useGoodsReceipt() {
             // Bug fix #8: Rollback stock if receipt record fails
             if (receiptError) {
                 for (const updated of stockUpdated) {
-                    const { data: curr } = await supabase
-                        .from('products')
-                        .select('stock_toko')
-                        .eq('id', updated.productId)
-                        .single();
-                    if (curr) {
-                        await supabase.from('products')
-                            .update({ stock_toko: Math.max(0, (curr.stock_toko || 0) - updated.goodQty) })
-                            .eq('id', updated.productId);
-                    }
+                    await supabase.rpc('atomic_decrement_stock', {
+                        p_product_id: updated.productId,
+                        p_quantity: updated.goodQty,
+                        p_location: 'toko',
+                    });
                 }
                 throw receiptError;
             }

@@ -164,31 +164,32 @@ export function useCreateSale() {
 
             if (itemsError) throw itemsError;
 
-            // Update stock and create logs
+            // Update stock atomically and create logs
             for (const item of items) {
-                const stockField = `stock_${stockLocation}`;
-                const { data: product } = await supabase
-                    .from('products')
-                    .select('*')
-                    .eq('id', item.productId)
-                    .single();
+                // Atomic decrement — raises exception if stock insufficient
+                const { error: decrementError } = await supabase.rpc('atomic_decrement_stock', {
+                    p_product_id: item.productId,
+                    p_quantity: item.quantity,
+                    p_location: stockLocation,
+                });
 
-                if (product) {
-                    const newStock = Math.max(0, (product[stockField] || 0) - item.quantity);
-                    await supabase
-                        .from('products')
-                        .update({ [stockField]: newStock })
-                        .eq('id', item.productId);
-
-                    await supabase.from('stock_logs').insert({
-                        product_id: item.productId,
-                        type: 'out',
-                        quantity: item.quantity,
-                        location: stockLocation,
-                        user_id: cashierId,
-                        note: `Penjualan ${saleNumber}`,
-                    });
+                if (decrementError) {
+                    // Re-throw with user-friendly message
+                    if (decrementError.message.includes('Stok tidak cukup')) {
+                        const product = products.find(p => p.id === item.productId);
+                        throw new Error(`Stok ${product?.name || 'produk'} tidak cukup`);
+                    }
+                    throw decrementError;
                 }
+
+                await supabase.from('stock_logs').insert({
+                    product_id: item.productId,
+                    type: 'out',
+                    quantity: item.quantity,
+                    location: stockLocation,
+                    user_id: cashierId,
+                    note: `Penjualan ${saleNumber}`,
+                });
             }
 
             return sale;

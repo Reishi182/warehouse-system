@@ -108,27 +108,17 @@ export function useStockReturns() {
 
             if (itemsError) throw itemsError;
 
-            // 3. Update stock: decrease toko, increase gudang
+            // 3. Update stock: decrease toko, increase gudang (atomic)
             for (const item of items || []) {
-                // Bug fix #2: Read fresh stock per-field and update separately
-                // to avoid overwriting concurrent changes
-                const { data: tokoData, error: tokoErr } = await supabase
-                    .from('products').select('stock_toko').eq('id', item.product_id).single();
-                if (tokoErr) throw tokoErr;
+                // Atomic transfer — no race condition
+                const { error: transferError } = await supabase.rpc('atomic_transfer_stock', {
+                    p_product_id: item.product_id,
+                    p_quantity: item.quantity,
+                    p_from: 'toko',
+                    p_to: 'gudang',
+                });
 
-                const { data: gudangData, error: gudangErr } = await supabase
-                    .from('products').select('stock_gudang').eq('id', item.product_id).single();
-                if (gudangErr) throw gudangErr;
-
-                const newToko = Math.max(0, (tokoData.stock_toko || 0) - item.quantity);
-                const newGudang = (gudangData.stock_gudang || 0) + item.quantity;
-
-                const { error: updateError } = await supabase
-                    .from('products')
-                    .update({ stock_toko: newToko, stock_gudang: newGudang })
-                    .eq('id', item.product_id);
-
-                if (updateError) throw updateError;
+                if (transferError) throw transferError;
 
                 // Bug fix #4: Add user_id to stock_logs
                 await supabase.from('stock_logs').insert({

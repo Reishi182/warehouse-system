@@ -244,26 +244,14 @@ export function useAddStock() {
             location: Location;
             userId?: string;
         }) => {
-            // Get current product
-            const { data: product, error: productError } = await supabase
-                .from('products')
-                .select('*')
-                .eq('id', productId)
-                .single();
+            // Atomic increment — no read-then-write race condition
+            const { error: incrementError } = await supabase.rpc('atomic_increment_stock', {
+                p_product_id: productId,
+                p_quantity: quantity,
+                p_location: location,
+            });
 
-            if (productError) throw productError;
-
-            // Update stock based on location
-            const stockField = `stock_${location}` as const;
-            const currentStock = product[stockField] || 0;
-            const newStock = currentStock + quantity;
-
-            const { error: updateError } = await supabase
-                .from('products')
-                .update({ [stockField]: newStock })
-                .eq('id', productId);
-
-            if (updateError) throw updateError;
+            if (incrementError) throw incrementError;
 
             // Log the stock addition
             const { error: logError } = await supabase.from('stock_logs').insert({
