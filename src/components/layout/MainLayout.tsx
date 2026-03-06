@@ -31,7 +31,7 @@ export default function MainLayout({ children, title, subtitle, actions }: MainL
         />
 
         <Header title={title} subtitle={subtitle} actions={actions} />
-        <main className="flex-1 overflow-y-auto z-10 p-8 pb-28 md:pb-8 scroll-smooth">
+        <main className="flex-1 overflow-y-auto z-10 p-4 pb-28 sm:p-6 md:p-8 md:pb-8 scroll-smooth">
           {children}
         </main>
       </div>

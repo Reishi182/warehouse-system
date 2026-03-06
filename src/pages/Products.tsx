@@ -365,11 +365,11 @@ export default function Products() {
                                         <Filter className="h-4 w-4" />
                                     </Button>
                                 </SheetTrigger>
-                                <SheetContent side="left" className="w-80">
+                                <SheetContent side="left">
                                     <SheetHeader>
                                         <SheetTitle>Filter Produk</SheetTitle>
                                     </SheetHeader>
-                                    <ScrollArea className="h-[calc(100vh-80px)] pr-4">
+                                    <ScrollArea className="h-[calc(100dvh-80px)] pr-4">
                                         <ProductFilterSidebar
                                             searchQuery={searchQuery}
                                             onSearchChange={setSearchQuery}
@@ -389,17 +389,16 @@ export default function Products() {
                         </div>
 
                         {/* Results Count & Page Size */}
-                        <div className="flex items-center justify-between mb-4">
-                            <p className="text-sm text-muted-foreground">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+                            <p className="text-xs sm:text-sm text-muted-foreground">
                                 Menampilkan <span className="font-medium text-foreground">{paginatedProducts.length}</span> dari{' '}
                                 <span className="font-medium text-foreground">{filteredProducts.length}</span> produk
                             </p>
 
-                            {/* Page Size Selector */}
                             <div className="flex items-center gap-2">
                                 {/* Sort Dropdown */}
                                 <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
-                                    <SelectTrigger className="w-[130px] sm:w-[150px] h-9 rounded-xl text-xs sm:text-sm">
+                                    <SelectTrigger className="w-[120px] sm:w-[150px] h-9 rounded-xl text-xs sm:text-sm">
                                         <ArrowUpDown className="w-3.5 h-3.5 mr-1.5 shrink-0" />
                                         <SelectValue />
                                     </SelectTrigger>
@@ -415,15 +414,15 @@ export default function Products() {
                                     </SelectContent>
                                 </Select>
 
-                                {/* Page Size Selector */}
-                                <span className="text-xs text-muted-foreground hidden sm:inline">Tampilkan:</span>
-                                <div className="flex items-center gap-1 p-1 bg-muted rounded-xl">
+                                {/* Page Size Selector - hidden on very small screens */}
+                                <span className="text-xs text-muted-foreground hidden md:inline">Tampilkan:</span>
+                                <div className="hidden sm:flex items-center gap-1 p-1 bg-muted rounded-xl">
                                     {pageSizeOptions.map((size) => (
                                         <button
                                             key={size}
                                             onClick={() => setPageSize(size)}
                                             className={cn(
-                                                "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                                                "px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all",
                                                 pageSize === size
                                                     ? "bg-background shadow-sm"
                                                     : "hover:bg-background/50"

@@ -58,7 +58,7 @@ export const ProductManageCard = memo(function ProductManageCard({
                         <Button
                             variant="secondary"
                             size="icon"
-                            className="h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm shadow-md opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
                         >
                             <MoreHorizontal className="w-4 h-4" />
                         </Button>

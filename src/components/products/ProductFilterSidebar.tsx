@@ -194,67 +194,59 @@ export const ProductFilterSidebar = memo(function ProductFilterSidebar({
                 </RadioGroup>
             </div>
 
-            {/* Data Completeness Filter - only show if there are missing items */}
-            {(productCounts.noBarcode > 0 || productCounts.noStock > 0 || productCounts.noImage > 0) && (
-                <div className="space-y-3">
-                    <Label className="text-xs text-muted-foreground">Data Belum Lengkap</Label>
-                    <div className="space-y-2">
-                        {productCounts.noBarcode > 0 && (
-                            <button
-                                onClick={() => onDataFilterToggle('noBarcode')}
-                                className={cn(
-                                    "flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-all w-full text-left",
-                                    dataFilters.includes('noBarcode')
-                                        ? "bg-yellow-500/10 border border-yellow-500/30"
-                                        : "hover:bg-muted/50"
-                                )}
-                            >
-                                <ScanBarcode className="w-4 h-4 text-yellow-500" />
-                                <span className="flex-1 text-sm">Belum ada Barcode</span>
-                                <span className="text-xs text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/30 px-2 py-0.5 rounded-full">
-                                    {productCounts.noBarcode}
-                                </span>
-                            </button>
+            {/* Data Completeness Filter - always visible */}
+            <div className="space-y-3">
+                <Label className="text-xs text-muted-foreground">Data Belum Lengkap</Label>
+                <div className="space-y-2">
+                    <button
+                        onClick={() => onDataFilterToggle('noBarcode')}
+                        className={cn(
+                            "flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-all w-full text-left",
+                            dataFilters.includes('noBarcode')
+                                ? "bg-yellow-500/10 border border-yellow-500/30"
+                                : "hover:bg-muted/50"
                         )}
+                    >
+                        <ScanBarcode className="w-4 h-4 text-yellow-500" />
+                        <span className="flex-1 text-sm">Belum ada Barcode</span>
+                        <span className="text-xs text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/30 px-2 py-0.5 rounded-full">
+                            {productCounts.noBarcode}
+                        </span>
+                    </button>
 
-                        {productCounts.noStock > 0 && (
-                            <button
-                                onClick={() => onDataFilterToggle('noStock')}
-                                className={cn(
-                                    "flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-all w-full text-left",
-                                    dataFilters.includes('noStock')
-                                        ? "bg-orange-500/10 border border-orange-500/30"
-                                        : "hover:bg-muted/50"
-                                )}
-                            >
-                                <PackageMinus className="w-4 h-4 text-orange-500" />
-                                <span className="flex-1 text-sm">Belum ada Stok</span>
-                                <span className="text-xs text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/30 px-2 py-0.5 rounded-full">
-                                    {productCounts.noStock}
-                                </span>
-                            </button>
+                    <button
+                        onClick={() => onDataFilterToggle('noStock')}
+                        className={cn(
+                            "flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-all w-full text-left",
+                            dataFilters.includes('noStock')
+                                ? "bg-orange-500/10 border border-orange-500/30"
+                                : "hover:bg-muted/50"
                         )}
+                    >
+                        <PackageMinus className="w-4 h-4 text-orange-500" />
+                        <span className="flex-1 text-sm">Belum ada Stok</span>
+                        <span className="text-xs text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/30 px-2 py-0.5 rounded-full">
+                            {productCounts.noStock}
+                        </span>
+                    </button>
 
-                        {productCounts.noImage > 0 && (
-                            <button
-                                onClick={() => onDataFilterToggle('noImage')}
-                                className={cn(
-                                    "flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-all w-full text-left",
-                                    dataFilters.includes('noImage')
-                                        ? "bg-purple-500/10 border border-purple-500/30"
-                                        : "hover:bg-muted/50"
-                                )}
-                            >
-                                <ImageOff className="w-4 h-4 text-purple-500" />
-                                <span className="flex-1 text-sm">Belum ada Gambar</span>
-                                <span className="text-xs text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30 px-2 py-0.5 rounded-full">
-                                    {productCounts.noImage}
-                                </span>
-                            </button>
+                    <button
+                        onClick={() => onDataFilterToggle('noImage')}
+                        className={cn(
+                            "flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-all w-full text-left",
+                            dataFilters.includes('noImage')
+                                ? "bg-purple-500/10 border border-purple-500/30"
+                                : "hover:bg-muted/50"
                         )}
-                    </div>
+                    >
+                        <ImageOff className="w-4 h-4 text-purple-500" />
+                        <span className="flex-1 text-sm">Belum ada Gambar</span>
+                        <span className="text-xs text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30 px-2 py-0.5 rounded-full">
+                            {productCounts.noImage}
+                        </span>
+                    </button>
                 </div>
-            )}
+            </div>
         </div>
     );
 });
