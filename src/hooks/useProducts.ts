@@ -23,15 +23,31 @@ function transformProduct(row: any): Product {
     };
 }
 
-// Fetch all products
+// Fetch all products (paginated to bypass Supabase 1000-row default limit)
 async function fetchProducts(): Promise<Product[]> {
-    const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .order('name', { ascending: true });
+    const PAGE_SIZE = 1000;
+    let allData: any[] = [];
+    let from = 0;
+    let hasMore = true;
 
-    if (error) throw error;
-    return (data || []).map(transformProduct);
+    while (hasMore) {
+        const { data, error } = await supabase
+            .from('products')
+            .select('*')
+            .order('name', { ascending: true })
+            .range(from, from + PAGE_SIZE - 1);
+
+        if (error) throw error;
+
+        allData = allData.concat(data || []);
+        if (!data || data.length < PAGE_SIZE) {
+            hasMore = false;
+        } else {
+            from += PAGE_SIZE;
+        }
+    }
+
+    return allData.map(transformProduct);
 }
 
 // Hook to get all products with realtime updates

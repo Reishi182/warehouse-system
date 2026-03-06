@@ -20,7 +20,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Location, Product, UserRole } from '@/types';
+import { Product, UserRole } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { compressImageToFile, formatFileSize } from '@/lib/imageCompression';
 
@@ -68,8 +68,8 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
         name: '',
         barcode: '',
         price: 0,
-        quantity: 0,
-        location: 'gudang' as Location,
+        stockGudang: 0,
+        stockToko: 0,
         sell_by_quantity: false,
         sell_unit: 'meter',
         has_multi_unit: false,
@@ -314,19 +314,10 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
             name: newProduct.name,
             barcode: finalBarcode,
             price: newProduct.price,
-            stock: canSetStock ? (isCashier ? {
-                // Cashier can only set stock to toko
-                gudang: 0,
-                toko: newProduct.quantity,
-            } : isWarehouse ? {
-                // Warehouse can only set stock to gudang
-                gudang: newProduct.quantity,
-                toko: 0,
-            } : {
-                // Admin/auditor can choose location
-                gudang: newProduct.location === 'gudang' ? newProduct.quantity : 0,
-                toko: newProduct.location === 'toko' ? newProduct.quantity : 0,
-            }) : { gudang: 0, toko: 0 },
+            stock: {
+                gudang: newProduct.stockGudang,
+                toko: newProduct.stockToko,
+            },
             image_url: imageUrl,
             sell_by_quantity: newProduct.sell_by_quantity,
             sell_unit: newProduct.sell_by_quantity ? newProduct.sell_unit : 'pcs',
@@ -351,7 +342,7 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
             });
         }
 
-        setNewProduct({ name: '', barcode: '', price: 0, quantity: 0, location: 'gudang', sell_by_quantity: false, sell_unit: 'meter', has_multi_unit: false, pcs_per_box: 0, box_price: 0 });
+        setNewProduct({ name: '', barcode: '', price: 0, stockGudang: 0, stockToko: 0, sell_by_quantity: false, sell_unit: 'meter', has_multi_unit: false, pcs_per_box: 0, box_price: 0 });
         setProductImageFile(null);
         if (productImagePreviewUrl) {
             URL.revokeObjectURL(productImagePreviewUrl);
@@ -533,52 +524,30 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
                                 </div>
                             )}
                         </div>
-                        {canSetStock && (
-                            <div className={canChooseLocation ? "grid grid-cols-2 gap-4" : ""}>
-                                <div className="space-y-2">
-                                    <Label>{isCashier ? 'Stok Toko' : isWarehouse ? 'Stok Gudang' : 'Jumlah Awal'}</Label>
-                                    <Input
-                                        type="number"
-                                        value={newProduct.quantity}
-                                        onChange={(e) => setNewProduct({ ...newProduct, quantity: parseInt(e.target.value) || 0 })}
-                                        min={0}
-                                        className="rounded-xl"
-                                    />
-                                    {isCashier && (
-                                        <p className="text-xs text-muted-foreground">
-                                            💡 Kasir hanya dapat menambah stok toko
-                                        </p>
-                                    )}
-                                    {isWarehouse && (
-                                        <p className="text-xs text-muted-foreground">
-                                            💡 Gudang hanya dapat menambah stok gudang
-                                        </p>
-                                    )}
-                                </div>
-                                {canChooseLocation && (
-                                    <div className="space-y-2">
-                                        <Label>Lokasi</Label>
-                                        <Select
-                                            value={newProduct.location}
-                                            onValueChange={(value: Location) => setNewProduct({ ...newProduct, location: value })}
-                                        >
-                                            <SelectTrigger className="rounded-xl h-10 border-gray-200">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent className="rounded-xl">
-                                                <SelectItem value="gudang" className="cursor-pointer rounded-lg my-1">Gudang</SelectItem>
-                                                <SelectItem value="toko" className="cursor-pointer rounded-lg my-1">Toko</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                )}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>📦 Stok Gudang</Label>
+                                <Input
+                                    type="number"
+                                    value={newProduct.stockGudang}
+                                    onChange={(e) => setNewProduct({ ...newProduct, stockGudang: parseInt(e.target.value) || 0 })}
+                                    min={0}
+                                    className="rounded-xl"
+                                    placeholder="0"
+                                />
                             </div>
-                        )}
-                        {!canSetStock && (
-                            <p className="text-sm text-muted-foreground p-3 bg-muted/50 rounded-xl">
-                                💡 Stok awal akan diatur ke 0. Minta Auditor untuk menyesuaikan stok.
-                            </p>
-                        )}
+                            <div className="space-y-2">
+                                <Label>🏪 Stok Toko</Label>
+                                <Input
+                                    type="number"
+                                    value={newProduct.stockToko}
+                                    onChange={(e) => setNewProduct({ ...newProduct, stockToko: parseInt(e.target.value) || 0 })}
+                                    min={0}
+                                    className="rounded-xl"
+                                    placeholder="0"
+                                />
+                            </div>
+                        </div>
                         <Button onClick={handleAddProduct} className="w-full rounded-xl">
                             Simpan Produk
                         </Button>

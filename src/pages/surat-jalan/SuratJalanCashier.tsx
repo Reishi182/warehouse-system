@@ -65,13 +65,21 @@ export default function SuratJalanCashier() {
         }
     });
 
-    // Fetch Products for selection based on source location
+    // Fetch Products for selection based on source location (paginated to bypass Supabase 1000-row limit)
     const { data: products = [] } = useQuery({
         queryKey: ['products-available', sourceLocation],
         queryFn: async () => {
             const stockColumn = sourceLocation === 'gudang' ? 'stock_gudang' : 'stock_toko';
-            const { data } = await supabase.from('products').select('*').gt(stockColumn, 0);
-            return data as Product[];
+            const PAGE_SIZE = 1000;
+            let allData: any[] = [];
+            let from = 0;
+            let hasMore = true;
+            while (hasMore) {
+                const { data } = await supabase.from('products').select('*').gt(stockColumn, 0).range(from, from + PAGE_SIZE - 1);
+                allData = allData.concat(data || []);
+                if (!data || data.length < PAGE_SIZE) { hasMore = false; } else { from += PAGE_SIZE; }
+            }
+            return allData as Product[];
         }
     });
 

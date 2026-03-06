@@ -46,12 +46,20 @@ export default function CreateInvoiceForm({ onSubmit, onCancel }: CreateInvoiceF
 
     const [items, setItems] = useState<any[]>([]);
 
-    // Fetch Products
+    // Fetch Products (paginated to bypass Supabase 1000-row limit)
     const { data: products = [] } = useQuery({
         queryKey: ['products-available-for-invoice'],
         queryFn: async () => {
-            const { data } = await supabase.from('products').select('*');
-            return data as Product[];
+            const PAGE_SIZE = 1000;
+            let allData: any[] = [];
+            let from = 0;
+            let hasMore = true;
+            while (hasMore) {
+                const { data } = await supabase.from('products').select('*').range(from, from + PAGE_SIZE - 1);
+                allData = allData.concat(data || []);
+                if (!data || data.length < PAGE_SIZE) { hasMore = false; } else { from += PAGE_SIZE; }
+            }
+            return allData as Product[];
         }
     });
 

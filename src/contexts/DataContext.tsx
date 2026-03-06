@@ -79,17 +79,34 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const fetchProducts = async () => {
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .order('created_at', { ascending: false });
+    // Supabase defaults to 1000 rows max per request.
+    // Fetch in batches to get ALL products.
+    const PAGE_SIZE = 1000;
+    let allData: any[] = [];
+    let from = 0;
+    let hasMore = true;
 
-    if (error) {
-      console.error('Error fetching products:', error);
-      return;
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range(from, from + PAGE_SIZE - 1);
+
+      if (error) {
+        console.error('Error fetching products:', error);
+        return;
+      }
+
+      allData = allData.concat(data || []);
+      if (!data || data.length < PAGE_SIZE) {
+        hasMore = false;
+      } else {
+        from += PAGE_SIZE;
+      }
     }
 
-    setProducts(data.map(p => ({
+    setProducts(allData.map(p => ({
       id: p.id,
       name: p.name,
       barcode: p.barcode,

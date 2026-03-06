@@ -5,7 +5,7 @@ import BarcodeScanner from '@/components/common/BarcodeScanner';
 import PageSkeleton from '@/components/common/PageSkeleton';
 import { AddProductDialog, EditProductDialog, StockAdjustDialog, StockInDialog } from '@/components/products';
 import { ProductManageCard } from '@/components/products/ProductManageCard';
-import { ProductFilterSidebar, StockFilter, LocationFilter } from '@/components/products/ProductFilterSidebar';
+import { ProductFilterSidebar, StockFilter, LocationFilter, DataFilter } from '@/components/products/ProductFilterSidebar';
 import { useData } from '@/contexts/DataContext';
 import { useRole } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -40,6 +40,7 @@ export default function Products() {
     const [stockFilter, setStockFilter] = useState<StockFilter>('all');
     const [locationFilter, setLocationFilter] = useState<LocationFilter>('all');
     const [sortBy, setSortBy] = useState<SortOption>('name-asc');
+    const [dataFilters, setDataFilters] = useState<DataFilter[]>([]);
 
     // Pagination states
     const [currentPage, setCurrentPage] = useState(1);
@@ -68,7 +69,20 @@ export default function Products() {
             (p.stock.toko < STOCK_THRESHOLDS.LOW_STOCK_TOKO && p.stock.toko > 0)
         ).length,
         outOfStock: products.filter(p => p.stock.gudang <= 0 && p.stock.toko <= 0).length,
+        noBarcode: products.filter(p => p.barcode.startsWith('TEMP-')).length,
+        noStock: products.filter(p => p.stock.gudang <= 0 && p.stock.toko <= 0).length,
+        noImage: products.filter(p => !p.image_url).length,
     }), [products]);
+
+    // Toggle data filter
+    const handleDataFilterToggle = useCallback((filter: DataFilter) => {
+        setDataFilters(prev =>
+            prev.includes(filter)
+                ? prev.filter(f => f !== filter)
+                : [...prev, filter]
+        );
+        setCurrentPage(1);
+    }, []);
 
     // Filtered products
     const filteredProducts = useMemo(() => {
@@ -105,6 +119,17 @@ export default function Products() {
             });
         }
 
+        // Data completeness filters
+        if (dataFilters.includes('noBarcode')) {
+            filtered = filtered.filter(p => p.barcode.startsWith('TEMP-'));
+        }
+        if (dataFilters.includes('noStock')) {
+            filtered = filtered.filter(p => p.stock.gudang <= 0 && p.stock.toko <= 0);
+        }
+        if (dataFilters.includes('noImage')) {
+            filtered = filtered.filter(p => !p.image_url);
+        }
+
         // Location-based secondary sort (optional, doesn't filter if stockFilter handles it)
         if (locationFilter !== 'all' && stockFilter === 'all') {
             const loc = locationFilter;
@@ -133,7 +158,7 @@ export default function Products() {
         }
 
         return sorted;
-    }, [products, debouncedSearch, stockFilter, locationFilter, sortBy]);
+    }, [products, debouncedSearch, stockFilter, locationFilter, sortBy, dataFilters]);
 
     // Paginated products
     const paginatedProducts = useMemo(() => {
@@ -150,7 +175,7 @@ export default function Products() {
     // Reset page when filters change
     useMemo(() => {
         setCurrentPage(1);
-    }, [debouncedSearch, stockFilter, locationFilter, pageSize, sortBy]);
+    }, [debouncedSearch, stockFilter, locationFilter, pageSize, sortBy, dataFilters]);
 
     // Stats for hero section
     const stats = useMemo(() => ({
@@ -231,6 +256,7 @@ export default function Products() {
         setSearchQuery('');
         setStockFilter('all');
         setLocationFilter('all');
+        setDataFilters([]);
         setSortBy('name-asc');
         setCurrentPage(1);
     }, []);
@@ -316,6 +342,8 @@ export default function Products() {
                                 onStockFilterChange={setStockFilter}
                                 locationFilter={locationFilter}
                                 onLocationFilterChange={setLocationFilter}
+                                dataFilters={dataFilters}
+                                onDataFilterToggle={handleDataFilterToggle}
                                 productCounts={productCounts}
                                 onReset={resetFilters}
                             />
@@ -349,6 +377,8 @@ export default function Products() {
                                             onStockFilterChange={setStockFilter}
                                             locationFilter={locationFilter}
                                             onLocationFilterChange={setLocationFilter}
+                                            dataFilters={dataFilters}
+                                            onDataFilterToggle={handleDataFilterToggle}
                                             productCounts={productCounts}
                                             onReset={resetFilters}
                                             className="py-4"
