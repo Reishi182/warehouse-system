@@ -36,6 +36,7 @@ export const ProductManageCard = memo(function ProductManageCard({
     const stockGudang = product.stock.gudang;
     const stockToko = product.stock.toko;
     const totalStock = stockGudang + stockToko;
+    const hasTempBarcode = product.barcode.startsWith('TEMP-');
 
     const isLowStockGudang = stockGudang < STOCK_THRESHOLDS.LOW_STOCK_GUDANG && stockGudang > 0;
     const isLowStockToko = stockToko < STOCK_THRESHOLDS.LOW_STOCK_TOKO && stockToko > 0;
@@ -122,6 +123,15 @@ export const ProductManageCard = memo(function ProductManageCard({
                         </Badge>
                     </div>
                 )}
+
+                {/* Temp Barcode Warning */}
+                {hasTempBarcode && (
+                    <div className={cn("absolute left-2", hasLowStock && !isOutOfStock ? "top-9" : "top-2")}>
+                        <Badge variant="outline" className="bg-yellow-500/90 text-white border-0 gap-1 text-[10px]">
+                            ⚠️ Belum ada Barcode
+                        </Badge>
+                    </div>
+                )}
             </div>
 
             {/* Product Info */}
@@ -129,8 +139,11 @@ export const ProductManageCard = memo(function ProductManageCard({
                 <h4 className="font-semibold text-sm sm:text-base line-clamp-2 leading-snug mb-1 group-hover:text-primary transition-colors">
                     {product.name}
                 </h4>
-                <p className="text-[10px] sm:text-xs text-muted-foreground font-mono mb-2 truncate">
-                    {product.barcode}
+                <p className={cn(
+                    "text-[10px] sm:text-xs font-mono mb-2 truncate",
+                    hasTempBarcode ? "text-yellow-600 dark:text-yellow-400 italic" : "text-muted-foreground"
+                )}>
+                    {hasTempBarcode ? '⚠️ Barcode belum diisi' : product.barcode}
                 </p>
 
                 {/* Price */}

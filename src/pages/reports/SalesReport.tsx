@@ -4,7 +4,7 @@ import MainLayout from '@/components/layout/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
+
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DateInput, MonthInput, YearInput } from '@/components/common/DatePicker';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
@@ -21,19 +21,14 @@ import {
     Clock,
     User,
     Calendar,
-    BarChart3,
     RefreshCw,
-    FileDown,
     ArrowUp,
     ArrowDown,
-    ChevronDown,
-    ChevronUp,
     CalendarDays,
     CalendarRange,
     Percent,
     Printer,
     AlertCircle,
-    Search,
 } from 'lucide-react';
 import {
     format,
@@ -250,8 +245,6 @@ async function fetchComparisonData(date: Date, period: PeriodType): Promise<Sale
 export default function SalesReport() {
     const [period, setPeriod] = useState<PeriodType>('daily');
     const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-    const [expandedSaleId, setExpandedSaleId] = useState<string | null>(null);
-    const [searchQuery, setSearchQuery] = useState('');
     const parsedDate = selectedDate ? parseISO(selectedDate) : new Date();
 
     // Fetch sales for selected period
@@ -315,47 +308,128 @@ export default function SalesReport() {
         return { sales: salesChange, transactions: transactionsChange, average: averageChange, discount: discountChange };
     }, [stats, previousPeriodData]);
 
-    // Product columns for BeautifulTable
-    const productColumns: Column<(typeof stats.topProducts)[0] & { id: string }>[] = [
+    // Transaction columns for BeautifulTable
+    const transactionColumns: Column<Sale>[] = [
         {
-            header: 'Produk',
-            accessorKey: 'name',
+            header: 'No. Invoice',
+            accessorKey: 'sale_number',
+            sortable: true,
             cell: (row) => (
-                <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <Package className="w-4 h-4 text-primary" />
+                <div className="flex items-center gap-2">
+                    <div className={cn(
+                        "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
+                        row.is_cancelled ? "bg-red-100 dark:bg-red-900/30" :
+                            row.is_exchanged ? "bg-orange-100 dark:bg-orange-900/30" :
+                                row.payment_method === 'cash'
+                                    ? "bg-green-100 dark:bg-green-900/30"
+                                    : "bg-blue-100 dark:bg-blue-900/30"
+                    )}>
+                        {row.payment_method === 'cash' ? (
+                            <Banknote className={cn(
+                                "w-4 h-4",
+                                row.is_cancelled ? "text-red-600" :
+                                    row.is_exchanged ? "text-orange-600" : "text-green-600"
+                            )} />
+                        ) : (
+                            <CreditCard className={cn(
+                                "w-4 h-4",
+                                row.is_cancelled ? "text-red-600" :
+                                    row.is_exchanged ? "text-orange-600" : "text-blue-600"
+                            )} />
+                        )}
                     </div>
-                    <span className="font-medium">{row.name}</span>
+                    <div>
+                        <span className="font-medium">{row.sale_number}</span>
+                        <div className="flex gap-1 mt-0.5">
+                            {row.is_cancelled && (
+                                <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                                    Dibatalkan
+                                </Badge>
+                            )}
+                            {row.is_exchanged && (
+                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+                                    Ditukar
+                                </Badge>
+                            )}
+                            {row.is_credit && !row.credit_settled_at && (
+                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                                    Piutang
+                                </Badge>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            ),
+            exportFormat: (value) => String(value),
+        },
+        {
+            header: 'Kasir',
+            accessorKey: 'cashier_name',
+            sortable: true,
+            cell: (row) => (
+                <div className="flex items-center gap-2">
+                    <User className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span className="text-sm">{row.cashier_name}</span>
                 </div>
             ),
         },
         {
-            header: 'Qty Terjual',
-            accessorKey: 'quantity',
+            header: 'Waktu',
+            accessorKey: 'created_at',
+            sortable: true,
             cell: (row) => (
-                <Badge variant="secondary" className="font-mono">
-                    {row.quantity} unit
-                </Badge>
+                <div className="flex items-center gap-2">
+                    <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span className="text-sm font-mono">{format(parseISO(row.created_at), 'HH:mm')}</span>
+                </div>
             ),
+            exportFormat: (value) => format(parseISO(value), 'HH:mm'),
         },
         {
-            header: 'Pendapatan',
-            accessorKey: 'revenue',
+            header: 'Items',
             cell: (row) => (
-                <span className="font-bold text-green-600">
-                    {formatRupiah(row.revenue)}
+                <Badge variant="secondary" className="font-mono">
+                    {row.items.length} item
+                </Badge>
+            ),
+            exportFormat: (_value, row) => row ? String(row.items.length) : '0',
+        },
+        {
+            header: 'Total',
+            accessorKey: 'total_amount',
+            sortable: true,
+            cell: (row) => (
+                <span className={cn(
+                    "font-bold",
+                    (row.is_cancelled || row.is_exchanged) ? "text-muted-foreground line-through" : "text-green-600"
+                )}>
+                    {formatRupiah(row.total_amount)}
                 </span>
             ),
+            exportFormat: (value) => formatRupiah(value),
+        },
+        {
+            header: 'Pembayaran',
+            accessorKey: 'payment_method',
+            sortable: true,
+            filterable: true,
+            filterOptions: [
+                { label: 'Tunai', value: 'cash' },
+                { label: 'Transfer', value: 'transfer' },
+            ],
+            cell: (row) => (
+                <Badge variant="outline" className={cn(
+                    "text-xs",
+                    row.payment_method === 'cash'
+                        ? "border-green-200 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400"
+                        : "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-400"
+                )}>
+                    {row.payment_method === 'cash' ? 'Tunai' : 'Transfer'}
+                </Badge>
+            ),
+            exportFormat: (value) => value === 'cash' ? 'Tunai' : 'Transfer',
         },
     ];
-
-    // Peak hours
-    const peakHour = useMemo(() => {
-        const max = stats.hourlyDistribution.reduce((prev, curr) =>
-            curr.amount > prev.amount ? curr : prev
-        );
-        return max.count > 0 ? max : null;
-    }, [stats.hourlyDistribution]);
 
     return (
         <MainLayout title={getPageTitle()} subtitle="Analisis penjualan per periode">
@@ -523,12 +597,6 @@ export default function SalesReport() {
                                 <div>
                                     <p className="text-sm text-muted-foreground">Total Item Terjual</p>
                                     <p className="text-3xl font-bold mt-1">{stats.totalItems}</p>
-                                    {peakHour && (
-                                        <div className="flex items-center gap-1 mt-2 text-sm text-muted-foreground">
-                                            <Clock className="w-4 h-4" />
-                                            Peak: {peakHour.hour}:00 ({peakHour.count} transaksi)
-                                        </div>
-                                    )}
                                 </div>
                                 <div className="p-3 rounded-xl bg-orange-100 dark:bg-orange-900/30">
                                     <Package className="w-6 h-6 text-orange-600" />
@@ -568,6 +636,10 @@ export default function SalesReport() {
                         <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-rose-500 to-pink-500" />
                     </Card>
 
+                </div>
+
+                {/* Piutang + Payment Methods Side by Side */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Total Piutang Card */}
                     <Card className="relative overflow-hidden border-orange-200 dark:border-orange-800">
                         <CardContent className="p-6">
@@ -608,10 +680,7 @@ export default function SalesReport() {
                                 : "from-muted to-muted"
                         )} />
                     </Card>
-                </div>
 
-                {/* Payment Methods & Peak Hours */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Payment Methods */}
                     <Card>
                         <CardHeader>
@@ -658,71 +727,6 @@ export default function SalesReport() {
                             </div>
                         </CardContent>
                     </Card>
-
-                    {/* Hourly Distribution - Only for Daily */}
-                    {period === 'daily' && (
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <BarChart3 className="w-5 h-5" />
-                                    Distribusi Per Jam
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                {(() => {
-                                    const hourlyData = stats.hourlyDistribution.slice(7, 22);
-                                    const maxCount = Math.max(...hourlyData.map(h => h.count), 1);
-                                    const hasData = hourlyData.some(h => h.count > 0);
-
-                                    if (!hasData) {
-                                        return (
-                                            <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-                                                <Clock className="w-8 h-8 mb-2 opacity-50" />
-                                                <p className="text-sm">Belum ada transaksi hari ini</p>
-                                            </div>
-                                        );
-                                    }
-
-                                    return (
-                                        <>
-                                            <div className="flex items-end justify-between h-32 gap-1">
-                                                {hourlyData.map((item) => {
-                                                    const height = (item.count / maxCount) * 100;
-                                                    const isPeak = peakHour?.hour === item.hour;
-
-                                                    return (
-                                                        <div
-                                                            key={item.hour}
-                                                            className="flex-1 flex flex-col items-center group"
-                                                        >
-                                                            <div
-                                                                className={cn(
-                                                                    "w-full rounded-t transition-all",
-                                                                    isPeak
-                                                                        ? "bg-gradient-to-t from-primary to-primary/60"
-                                                                        : item.count > 0
-                                                                            ? "bg-primary/30 group-hover:bg-primary/50"
-                                                                            : "bg-muted"
-                                                                )}
-                                                                style={{ height: `${Math.max(height, 4)}%` }}
-                                                                title={`${item.hour}:00 - ${item.count} transaksi (${formatRupiah(item.amount)})`}
-                                                            />
-                                                            <span className="text-[10px] text-muted-foreground mt-1">
-                                                                {item.hour}
-                                                            </span>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                            <p className="text-xs text-muted-foreground text-center mt-2">
-                                                Jam operasional (07:00 - 21:00)
-                                            </p>
-                                        </>
-                                    );
-                                })()}
-                            </CardContent>
-                        </Card>
-                    )}
                 </div>
 
                 {/* Cashier Performance */}
@@ -773,233 +777,24 @@ export default function SalesReport() {
                     </Card>
                 )}
 
-                {/* Top Products */}
+                {/* Recent Transactions - BeautifulTable */}
                 <BeautifulTable
-                    data={stats.topProducts.map((p, i) => ({ ...p, id: `${i}` }))}
-                    columns={productColumns}
-                    title="Produk Terlaris"
-                    subtitle={`Top ${stats.topProducts.length} produk terjual pada ${getDateDisplay()}`}
+                    data={sales}
+                    columns={transactionColumns}
+                    title="Transaksi Terbaru"
+                    subtitle={`${sales.filter(s => !s.is_cancelled && !s.is_exchanged).length} transaksi pada ${getDateDisplay()}`}
                     isLoading={isLoading}
                     hideSelection
                     hideExport={false}
-                    exportFilename={`produk-terlaris-${selectedDate}`}
-                    exportTitle="Produk Terlaris"
+                    exportFilename={`transaksi-${selectedDate}`}
+                    exportTitle="Transaksi Terbaru"
+                    itemsPerPage={10}
                     emptyState={{
-                        icon: <Package className="w-8 h-8" />,
-                        title: 'Belum Ada Penjualan',
-                        description: 'Tidak ada penjualan pada tanggal ini',
+                        icon: <ShoppingCart className="w-8 h-8" />,
+                        title: 'Belum Ada Transaksi',
+                        description: 'Tidak ada transaksi pada tanggal ini',
                     }}
                 />
-
-                {/* Recent Transactions */}
-                <Card>
-                    <CardHeader>
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                            <CardTitle className="flex items-center gap-2">
-                                <ShoppingCart className="w-5 h-5" />
-                                Transaksi Terbaru
-                                <Badge variant="secondary" className="ml-2">
-                                    {sales.length} transaksi
-                                </Badge>
-                            </CardTitle>
-                            {/* Search Input */}
-                            <div className="relative w-full sm:w-72">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                <input
-                                    type="text"
-                                    placeholder="Cari no. invoice, kasir, produk..."
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="w-full pl-9 pr-4 py-2 text-sm border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
-                                />
-                            </div>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        {isLoading ? (
-                            <div className="flex items-center justify-center py-12">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-                            </div>
-                        ) : sales.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                                <ShoppingCart className="w-12 h-12 mb-4 opacity-50" />
-                                <p>Tidak ada transaksi pada tanggal ini</p>
-                            </div>
-                        ) : (() => {
-                            // Filter sales based on search query
-                            const filteredSales = searchQuery.trim()
-                                ? sales.filter(sale => {
-                                    const query = searchQuery.toLowerCase();
-                                    // Search by sale number
-                                    if (sale.sale_number.toLowerCase().includes(query)) return true;
-                                    // Search by cashier name
-                                    if (sale.cashier_name.toLowerCase().includes(query)) return true;
-                                    // Search by product name in items
-                                    if (sale.items.some(item => item.product_name.toLowerCase().includes(query))) return true;
-                                    // Search by barcode
-                                    if (sale.items.some(item => item.barcode?.toLowerCase().includes(query))) return true;
-                                    return false;
-                                })
-                                : sales;
-
-                            if (filteredSales.length === 0) {
-                                return (
-                                    <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                                        <Search className="w-12 h-12 mb-4 opacity-50" />
-                                        <p>Tidak ditemukan transaksi untuk "{searchQuery}"</p>
-                                    </div>
-                                );
-                            }
-
-                            return (
-                                <ScrollArea className="h-[600px]">
-                                    <div className="space-y-2">
-                                        {filteredSales.map((sale) => {
-                                            const isExpanded = expandedSaleId === sale.id;
-                                            return (
-                                                <div key={sale.id} className="rounded-xl border overflow-hidden">
-                                                    {/* Transaction Header - Clickable */}
-                                                    <div
-                                                        className={cn(
-                                                            "flex items-center justify-between p-4 cursor-pointer transition-colors",
-                                                            isExpanded ? "bg-muted" : "bg-muted/30 hover:bg-muted/50"
-                                                        )}
-                                                        onClick={() => setExpandedSaleId(isExpanded ? null : sale.id)}
-                                                    >
-                                                        <div className="flex items-center gap-4">
-                                                            <div className={cn(
-                                                                "w-10 h-10 rounded-lg flex items-center justify-center",
-                                                                sale.is_cancelled ? "bg-red-100 dark:bg-red-900/30" :
-                                                                    sale.is_exchanged ? "bg-orange-100 dark:bg-orange-900/30" :
-                                                                        sale.payment_method === 'cash'
-                                                                            ? "bg-green-100 dark:bg-green-900/30"
-                                                                            : "bg-blue-100 dark:bg-blue-900/30"
-                                                            )}>
-                                                                {sale.payment_method === 'cash' ? (
-                                                                    <Banknote className={cn(
-                                                                        "w-5 h-5",
-                                                                        sale.is_cancelled ? "text-red-600" :
-                                                                            sale.is_exchanged ? "text-orange-600" : "text-green-600"
-                                                                    )} />
-                                                                ) : (
-                                                                    <CreditCard className={cn(
-                                                                        "w-5 h-5",
-                                                                        sale.is_cancelled ? "text-red-600" :
-                                                                            sale.is_exchanged ? "text-orange-600" : "text-blue-600"
-                                                                    )} />
-                                                                )}
-                                                            </div>
-                                                            <div>
-                                                                <div className="flex items-center gap-2">
-                                                                    <p className="font-medium">{sale.sale_number}</p>
-                                                                    {sale.is_cancelled && (
-                                                                        <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
-                                                                            Dibatalkan
-                                                                        </Badge>
-                                                                    )}
-                                                                    {sale.is_exchanged && (
-                                                                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
-                                                                            Ditukar
-                                                                        </Badge>
-                                                                    )}
-                                                                </div>
-                                                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                                                    <User className="w-3 h-3" />
-                                                                    {sale.cashier_name}
-                                                                    <span>•</span>
-                                                                    <Clock className="w-3 h-3" />
-                                                                    {format(parseISO(sale.created_at), 'HH:mm')}
-                                                                    <span>•</span>
-                                                                    <Package className="w-3 h-3" />
-                                                                    {sale.items.length} item
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="text-right">
-                                                                <p className={cn(
-                                                                    "font-bold",
-                                                                    (sale.is_cancelled || sale.is_exchanged) && "text-muted-foreground line-through"
-                                                                )}>{formatRupiah(sale.total_amount)}</p>
-                                                                <p className="text-xs text-muted-foreground">
-                                                                    {sale.payment_method === 'cash' ? 'Tunai' : 'Transfer'}
-                                                                </p>
-                                                            </div>
-                                                            {isExpanded ? (
-                                                                <ChevronUp className="w-5 h-5 text-muted-foreground" />
-                                                            ) : (
-                                                                <ChevronDown className="w-5 h-5 text-muted-foreground" />
-                                                            )}
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Expanded Detail */}
-                                                    {isExpanded && (
-                                                        <div className="border-t bg-background/50 p-4">
-                                                            <p className="text-xs font-semibold text-muted-foreground mb-3">DETAIL ITEM</p>
-                                                            <div className="space-y-2">
-                                                                {sale.items.map((item, idx) => (
-                                                                    <div
-                                                                        key={idx}
-                                                                        className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/30"
-                                                                    >
-                                                                        <div className="flex items-center gap-3">
-                                                                            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                                                                                <Package className="w-4 h-4 text-primary" />
-                                                                            </div>
-                                                                            <div>
-                                                                                <p className="font-medium text-sm">{item.product_name}</p>
-                                                                                <p className="text-xs text-muted-foreground">
-                                                                                    {item.barcode}
-                                                                                </p>
-                                                                            </div>
-                                                                        </div>
-                                                                        <div className="text-right">
-                                                                            <p className="font-medium">{formatRupiah(item.subtotal)}</p>
-                                                                            <p className="text-xs text-muted-foreground">
-                                                                                {item.quantity} x {formatRupiah(item.price)}
-                                                                            </p>
-                                                                            {(item.discount || 0) > 0 && (
-                                                                                <p className="text-xs text-rose-500 font-medium">
-                                                                                    Diskon {formatRupiah(item.discount * item.quantity)}
-                                                                                </p>
-                                                                            )}
-                                                                        </div>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                            {/* Summary */}
-                                                            <div className="mt-4 pt-3 border-t space-y-1">
-                                                                {/* Show order discount if exists */}
-                                                                {(sale.order_discount || 0) > 0 && (
-                                                                    <div className="flex justify-between items-center">
-                                                                        <span className="text-sm text-muted-foreground">Diskon</span>
-                                                                        <span className="text-sm font-medium text-rose-500">
-                                                                            - {formatRupiah(sale.order_discount)}
-                                                                        </span>
-                                                                    </div>
-                                                                )}
-                                                                <div className="flex justify-between items-center">
-                                                                    <span className="text-sm text-muted-foreground">Total</span>
-                                                                    <span className={cn(
-                                                                        "text-lg font-bold",
-                                                                        (sale.is_cancelled || sale.is_exchanged) ? "text-muted-foreground line-through" : "text-primary"
-                                                                    )}>
-                                                                        {formatRupiah(sale.total_amount)}
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </ScrollArea>
-                            );
-                        })()}
-                    </CardContent>
-                </Card>
             </div>
 
             {/* Hidden Printable Receipt */}

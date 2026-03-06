@@ -11,7 +11,7 @@ const REALTIME_TABLES = [
     { table: 'stock_requests', queryKeys: ['stock-requests'] },
     { table: 'stock_shipments', queryKeys: ['stock-shipments', 'goods-receipts'] },
     { table: 'stock_returns', queryKeys: ['stock-returns'] },
-    { table: 'surat_jalan', queryKeys: ['surat-jalan', 'surat_jalan', 'surat-jalan-b2b'] },
+    { table: 'surat_jalan', queryKeys: ['surat-jalan', 'surat_jalan', 'surat-jalan-b2b', 'surat-jalans'] },
     { table: 'goods_issue_notes', queryKeys: ['goods-issue-notes'] },
     { table: 'marketplace_orders', queryKeys: ['marketplace-orders', 'marketplace_orders', 'marketplace-order'] },
     { table: 'marketplace_order_items', queryKeys: ['marketplace-orders', 'marketplace-order'] },
@@ -23,6 +23,13 @@ const REALTIME_TABLES = [
     { table: 'sales', queryKeys: ['sales', 'sales-history'] },
     { table: 'cash_transfers', queryKeys: ['cash-transfers', 'cash-history'] },
     { table: 'backorders', queryKeys: ['backorders'] },
+    { table: 'customers', queryKeys: ['customers'] },
+    { table: 'invoices', queryKeys: ['invoices'] },
+    { table: 'invoice_items', queryKeys: ['invoices'] },
+    { table: 'expenses', queryKeys: ['expenses', 'cash-flow'] },
+    { table: 'suppliers', queryKeys: ['suppliers'] },
+    { table: 'store_settings', queryKeys: ['store-settings'] },
+    { table: 'stock_opname', queryKeys: ['stock-opname'] },
 ] as const;
 
 /**

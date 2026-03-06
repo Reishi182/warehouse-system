@@ -7,7 +7,7 @@ export interface Column<T> {
     sortKey?: string;
     sortable?: boolean;
     filterable?: boolean;
-    filterOptions?: { label: string; value: string }[];
+    filterOptions?: { label: string; value: string; children?: { label: string; value: string }[] }[];
     cell?: (item: T, index?: number) => React.ReactNode;
     className?: string;
     exportFormat?: (value: any, row?: T) => string;

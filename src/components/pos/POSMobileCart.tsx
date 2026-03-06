@@ -125,41 +125,49 @@ export function POSMobileCart({
                             )}
                         </div>
 
-                        {/* Today Stats - Bug fix #7: Use consistent formatting */}
-                        <div className="grid grid-cols-2 gap-2 mt-3">
-                            <div className="px-3 py-2 rounded-lg bg-card border">
-                                <p className="text-[10px] text-muted-foreground">Hari Ini</p>
-                                <p className="font-bold text-sm">{todayStats.count} transaksi</p>
+                        {/* Stats / Exchange Info */}
+                        {returnRef ? (
+                            /* Exchange Mode: show prominent exchange info */
+                            <div className="mt-3 px-3 py-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <div className="p-1.5 rounded-lg bg-amber-100 dark:bg-amber-900/50">
+                                            <RotateCcw className="w-4 h-4 text-amber-600" />
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] text-amber-600 font-medium">Tukar Barang</p>
+                                            <p className="text-xs font-bold text-amber-700 dark:text-amber-400">{returnRef}</p>
+                                        </div>
+                                    </div>
+                                    {onCancelExchange && (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-7 text-xs text-red-600 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/30 gap-1 rounded-lg"
+                                            onClick={onCancelExchange}
+                                        >
+                                            <X className="w-3 h-3" />
+                                            Batalkan
+                                        </Button>
+                                    )}
+                                </div>
                             </div>
-                            <div className="px-3 py-2 rounded-lg bg-gradient-to-r from-white to-emerald-100 dark:from-slate-900 dark:to-emerald-900/30 border border-emerald-200 dark:border-emerald-800">
-                                <p className="text-[10px] text-emerald-600">Total</p>
-                                <p className="font-bold text-sm text-emerald-600">
-                                    Rp {todayStats.total.toLocaleString('id-ID')}
-                                </p>
+                        ) : (
+                            /* Normal Mode: show today stats */
+                            <div className="grid grid-cols-2 gap-2 mt-3">
+                                <div className="px-3 py-2 rounded-lg bg-card border">
+                                    <p className="text-[10px] text-muted-foreground">Hari Ini</p>
+                                    <p className="font-bold text-sm">{todayStats.count} transaksi</p>
+                                </div>
+                                <div className="px-3 py-2 rounded-lg bg-gradient-to-r from-white to-emerald-100 dark:from-slate-900 dark:to-emerald-900/30 border border-emerald-200 dark:border-emerald-800">
+                                    <p className="text-[10px] text-emerald-600">Total</p>
+                                    <p className="font-bold text-sm text-emerald-600">
+                                        Rp {todayStats.total.toLocaleString('id-ID')}
+                                    </p>
+                                </div>
                             </div>
-                        </div>
+                        )}
                     </div>
-
-                    {/* Bug fix #8: Return Reference Badge */}
-                    {returnRef && (
-                        <div className="px-3 py-2 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800 flex items-center justify-between">
-                            <Badge className="bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400 border-0 rounded-full gap-1 text-xs">
-                                <RotateCcw className="w-3 h-3" />
-                                Ref: {returnRef}
-                            </Badge>
-                            {onCancelExchange && (
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 text-xs text-red-600 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/30 gap-1"
-                                    onClick={onCancelExchange}
-                                >
-                                    <X className="w-3 h-3" />
-                                    Batal
-                                </Button>
-                            )}
-                        </div>
-                    )}
 
                     {/* Cart Items */}
                     <div className="flex-1 overflow-hidden">
@@ -180,105 +188,116 @@ export function POSMobileCart({
                                         const qtyDisplay = isVariableUnit
                                             ? `${it.quantity} ${unit}`
                                             : it.quantity;
+                                        const effectivePrice = it.unitPrice || it.product.price;
+                                        const itemTotal = effectivePrice * it.quantity;
 
                                         return (
                                             <div
                                                 key={it.product.id}
                                                 className={cn(
-                                                    "flex items-center gap-3 p-3 rounded-xl bg-card border transition-all",
+                                                    "p-3 rounded-xl bg-card border transition-all space-y-2",
+                                                    "hover:border-primary/30 hover:shadow-sm",
                                                     isManualEntry && "border-amber-300 dark:border-amber-700 bg-amber-50/50 dark:bg-amber-900/20",
                                                     isVariableUnit && !isManualEntry && "border-amber-200/50 dark:border-amber-800/50"
                                                 )}
                                             >
-                                                {/* Product Image */}
-                                                <div className={cn(
-                                                    "w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0",
-                                                    isManualEntry ? "bg-amber-100 dark:bg-amber-900/50" : "bg-muted/50"
-                                                )}>
-                                                    {it.product.image_url ? (
-                                                        <img src={it.product.image_url} alt={it.product.name} className="w-full h-full object-cover" />
-                                                    ) : (
-                                                        <Package className={cn(
-                                                            "w-4 h-4",
-                                                            isManualEntry ? "text-amber-500" : "text-muted-foreground/30"
-                                                        )} />
-                                                    )}
-                                                </div>
-
-                                                {/* Product Info */}
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-1.5">
-                                                        <p className="font-medium text-sm truncate">{it.product.name}</p>
-                                                        {isManualEntry && (
-                                                            <Badge className="h-4 px-1.5 text-[9px] bg-amber-500 text-white border-0 rounded-full shrink-0">
-                                                                Manual
-                                                            </Badge>
+                                                {/* Top Row: Image + Name + Price */}
+                                                <div className="flex items-center gap-3">
+                                                    {/* Product Image */}
+                                                    <div className={cn(
+                                                        "w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0",
+                                                        isManualEntry ? "bg-amber-100 dark:bg-amber-900/50" : "bg-muted/50"
+                                                    )}>
+                                                        {it.product.image_url ? (
+                                                            <img src={it.product.image_url} alt={it.product.name} className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <Package className={cn(
+                                                                "w-4 h-4",
+                                                                isManualEntry ? "text-amber-500" : "text-muted-foreground/30"
+                                                            )} />
                                                         )}
                                                     </div>
-                                                    <p className="text-xs text-muted-foreground">
-                                                        Rp {it.product.price.toLocaleString('id-ID')}
-                                                        {isVariableUnit && <span className="text-amber-600">/{unit}</span>}
-                                                        {it.discount > 0 && (
-                                                            <span className="ml-1 text-emerald-600 font-medium">-Rp {it.discount.toLocaleString('id-ID')}</span>
-                                                        )}
+
+                                                    {/* Name & Price */}
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <p className="font-medium text-sm truncate">{it.product.name}</p>
+                                                            {isManualEntry && (
+                                                                <Badge className="h-4 px-1.5 text-[9px] bg-amber-500 text-white border-0 rounded-full shrink-0">
+                                                                    Manual
+                                                                </Badge>
+                                                            )}
+                                                        </div>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            Rp {effectivePrice.toLocaleString('id-ID')}
+                                                            {isVariableUnit && <span className="text-amber-600">/{unit}</span>}
+                                                        </p>
+                                                    </div>
+
+                                                    {/* Item Total */}
+                                                    <p className="text-sm font-semibold text-primary shrink-0">
+                                                        Rp {itemTotal.toLocaleString('id-ID')}
                                                     </p>
                                                 </div>
 
-                                                {/* Quantity Controls */}
-                                                {isVariableUnit && !isManualEntry ? (
-                                                    <div className="px-2 py-1 bg-amber-100 dark:bg-amber-900/50 rounded-lg">
-                                                        <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">
-                                                            {qtyDisplay}
-                                                        </span>
-                                                    </div>
-                                                ) : isManualEntry && it.quantity % 1 !== 0 ? (
-                                                    <div className="px-2 py-1 bg-amber-100 dark:bg-amber-900/50 rounded-lg">
-                                                        <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">
-                                                            {it.quantity}
-                                                        </span>
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex items-center gap-0.5 bg-background rounded-lg border">
-                                                        <Button
-                                                            size="icon"
-                                                            variant="ghost"
-                                                            onClick={() => onUpdateQuantity(it.product.id, it.quantity - 1)}
-                                                            className="h-7 w-7"
-                                                        >
-                                                            <Minus className="w-3 h-3" />
-                                                        </Button>
-                                                        <span className="w-6 text-center text-sm font-bold">{it.quantity}</span>
-                                                        {/* Bug fix #4: Add stock validation on + button */}
-                                                        <Button
-                                                            size="icon"
-                                                            variant="ghost"
-                                                            onClick={() => {
-                                                                if (isManualEntry) {
-                                                                    onUpdateQuantity(it.product.id, it.quantity + 1);
-                                                                } else {
-                                                                    const availableStock = it.product.stock[stockLocation];
-                                                                    if (it.quantity < availableStock) {
+                                                {/* Bottom Row: Qty Controls + Remove */}
+                                                <div className="flex items-center justify-between">
+                                                    {/* Quantity Controls */}
+                                                    {isVariableUnit && !isManualEntry ? (
+                                                        <div className="px-3 py-1.5 bg-amber-100 dark:bg-amber-900/50 rounded-lg">
+                                                            <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">
+                                                                {qtyDisplay}
+                                                            </span>
+                                                        </div>
+                                                    ) : isManualEntry && it.quantity % 1 !== 0 ? (
+                                                        <div className="px-3 py-1.5 bg-amber-100 dark:bg-amber-900/50 rounded-lg">
+                                                            <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">
+                                                                {it.quantity}
+                                                            </span>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center gap-1 bg-muted/50 rounded-xl border p-0.5">
+                                                            <Button
+                                                                size="icon"
+                                                                variant="ghost"
+                                                                onClick={() => onUpdateQuantity(it.product.id, it.quantity - 1)}
+                                                                className="h-8 w-8 rounded-lg hover:bg-background"
+                                                            >
+                                                                <Minus className="w-3.5 h-3.5" />
+                                                            </Button>
+                                                            <span className="w-8 text-center text-sm font-bold">{it.quantity}</span>
+                                                            <Button
+                                                                size="icon"
+                                                                variant="ghost"
+                                                                onClick={() => {
+                                                                    if (isManualEntry) {
                                                                         onUpdateQuantity(it.product.id, it.quantity + 1);
+                                                                    } else {
+                                                                        const availableStock = it.product.stock[stockLocation];
+                                                                        if (it.quantity < availableStock) {
+                                                                            onUpdateQuantity(it.product.id, it.quantity + 1);
+                                                                        }
                                                                     }
-                                                                }
-                                                            }}
-                                                            disabled={!isManualEntry && it.quantity >= it.product.stock[stockLocation]}
-                                                            className="h-7 w-7 disabled:opacity-50"
-                                                        >
-                                                            <Plus className="w-3 h-3" />
-                                                        </Button>
-                                                    </div>
-                                                )}
+                                                                }}
+                                                                disabled={!isManualEntry && it.quantity >= it.product.stock[stockLocation]}
+                                                                className="h-8 w-8 rounded-lg hover:bg-background disabled:opacity-30"
+                                                            >
+                                                                <Plus className="w-3.5 h-3.5" />
+                                                            </Button>
+                                                        </div>
+                                                    )}
 
-                                                {/* Remove */}
-                                                <Button
-                                                    size="icon"
-                                                    variant="ghost"
-                                                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                                                    onClick={() => onRemoveItem(it.product.id)}
-                                                >
-                                                    <X className="w-4 h-4" />
-                                                </Button>
+                                                    {/* Remove Button */}
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        className="h-8 px-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg gap-1"
+                                                        onClick={() => onRemoveItem(it.product.id)}
+                                                    >
+                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                        <span className="text-xs">Hapus</span>
+                                                    </Button>
+                                                </div>
                                             </div>
                                         );
                                     })}

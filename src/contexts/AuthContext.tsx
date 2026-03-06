@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { UserRole } from '@/types';
@@ -145,7 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [session, profile]);
 
-  const signUp = async (email: string, password: string, name: string, role: UserRole) => {
+  const signUp = useCallback(async (email: string, password: string, name: string, role: UserRole) => {
     const redirectUrl = `${window.location.origin}/`;
 
     const { error } = await supabase.auth.signUp({
@@ -161,9 +161,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return { error: error as Error | null };
-  };
+  }, []);
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = useCallback(async (email: string, password: string) => {
     // Reset session expired state on new login attempt
     setSessionExpired(false);
 
@@ -173,9 +173,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return { error: error as Error | null };
-  };
+  }, []);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     // Clear security caches
     clearSession();
     clearKeyCache();
@@ -188,9 +188,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setSession(null);
     setProfile(null);
-  };
+  }, []);
 
-  const updateProfile = async (updates: { name?: string; avatar?: string | null }) => {
+  const updateProfile = useCallback(async (updates: { name?: string; avatar?: string | null }) => {
     if (!user) return { error: new Error('Not authenticated') };
 
     const updateData: any = {};
@@ -209,20 +209,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const refreshed = await fetchProfile(user.id);
     if (refreshed) setProfile(refreshed);
     return { error: null };
-  };
+  }, [user]);
+
+  const contextValue = useMemo(() => ({
+    user,
+    profile,
+    session,
+    loading,
+    signUp,
+    signIn,
+    signOut,
+    updateProfile,
+    isAuthenticated: !!session,
+  }), [user, profile, session, loading, signUp, signIn, signOut, updateProfile]);
 
   return (
-    <AuthContext.Provider value={{
-      user,
-      profile,
-      session,
-      loading,
-      signUp,
-      signIn,
-      signOut,
-      updateProfile,
-      isAuthenticated: !!session
-    }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
 
       {/* Session Expired Dialog */}

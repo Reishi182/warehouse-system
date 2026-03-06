@@ -127,7 +127,7 @@ export function usePOSCart(initialLocation: Location = 'toko'): UsePOSCartReturn
 
         setItems((prev) => {
             // Find existing item with same product AND same unit
-            const idx = prev.findIndex((it) => 
+            const idx = prev.findIndex((it) =>
                 it.product.id === product.id && (it.sellUnit || 'pcs') === unit
             );
             if (idx >= 0) {
@@ -293,15 +293,21 @@ export function usePOSCart(initialLocation: Location = 'toko'): UsePOSCartReturn
 
         // Convert sale items to cart items
         // Override stock with high value to allow quantity changes during exchange
-        const cartItems: CartItem[] = sale.items.map(saleItem => {
+        const cartItems: CartItem[] = sale.items.map((saleItem, index) => {
+            // Generate a unique ID for items with null product_id (Quick Sale / manual entries)
+            const uniqueProductId = saleItem.product_id || `manual_${saleItem.id || index}_${Date.now()}`;
+            const isManual = !saleItem.product_id;
+
             // Find product from products list
-            const product = products.find(p => p.id === saleItem.product_id);
+            const product = saleItem.product_id
+                ? products.find(p => p.id === saleItem.product_id)
+                : null;
 
             if (!product) {
                 // Create a temporary product object from sale item data
                 return {
                     product: {
-                        id: saleItem.product_id,
+                        id: uniqueProductId,
                         name: saleItem.product_name,
                         barcode: saleItem.barcode,
                         price: saleItem.price,
@@ -311,6 +317,7 @@ export function usePOSCart(initialLocation: Location = 'toko'): UsePOSCartReturn
                     },
                     quantity: saleItem.quantity,
                     discount: saleItem.discount || 0,
+                    isManualEntry: isManual,
                 };
             }
 

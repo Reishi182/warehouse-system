@@ -2,29 +2,31 @@ import { useState, useMemo, useRef } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import PageSkeleton from '@/components/common/PageSkeleton';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
+import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
 import { DateInput } from '@/components/common/DatePicker';
-import { useData } from '@/contexts/DataContext';
+import { useSalesHistory } from '@/hooks/useSalesHistory';
 import { Sale } from '@/types';
-import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
+
+type SaleWithStatus = Sale & { _status: string };
+import { format, parseISO, startOfMonth } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import {
-    Receipt,
     ShoppingCart,
     Calendar,
     Banknote,
     CreditCard,
-    ChevronDown,
-    ChevronRight,
-    Package,
     User,
     TrendingUp,
-    DollarSign,
     Printer,
+    Eye,
+    Package,
+    AlertTriangle,
+    ArrowRightLeft,
+    XCircle,
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
     Select,
     SelectContent,
@@ -32,11 +34,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import {
-    Collapsible,
-    CollapsibleContent,
-    CollapsibleTrigger,
-} from '@/components/ui/collapsible';
 import {
     Dialog,
     DialogContent,
@@ -56,18 +53,23 @@ function toISODate(d: Date) {
 }
 
 export default function SalesHistory() {
-    const { sales, loading } = useData();
+    // Fetch ALL sales directly from Supabase (no DataContext limit)
+    const { sales, loading, totalCount } = useSalesHistory();
     const { data: storeSettings } = useStoreSettings();
     const [startDate, setStartDate] = useState<string>(toISODate(startOfMonth(new Date())));
     const [endDate, setEndDate] = useState<string>(toISODate(new Date()));
     const [selectedCashier, setSelectedCashier] = useState<string>('all');
     const [searchQuery, setSearchQuery] = useState('');
-    const [expandedSales, setExpandedSales] = useState<Set<string>>(new Set());
+
+    // Detail dialog
+    const [detailSale, setDetailSale] = useState<Sale | null>(null);
+    const [detailOpen, setDetailOpen] = useState(false);
+
+    // Print dialog
     const [selectedSaleForPrint, setSelectedSaleForPrint] = useState<Sale | null>(null);
     const [printDialogOpen, setPrintDialogOpen] = useState(false);
     const receiptRef = useRef<HTMLDivElement>(null);
 
-    // Print handler
     const handlePrint = useReactToPrint({
         contentRef: receiptRef,
         documentTitle: selectedSaleForPrint?.sale_number || 'Receipt',
@@ -82,6 +84,11 @@ export default function SalesHistory() {
         setPrintDialogOpen(true);
     };
 
+    const openDetail = (sale: Sale) => {
+        setDetailSale(sale);
+        setDetailOpen(true);
+    };
+
     // Get unique cashiers
     const cashiers = useMemo(() => {
         const uniqueCashiers = new Map<string, string>();
@@ -93,55 +100,205 @@ export default function SalesHistory() {
         return Array.from(uniqueCashiers.entries()).map(([id, name]) => ({ id, name }));
     }, [sales]);
 
-    // Filter sales
-    const filteredSales = useMemo(() => {
-        return sales.filter(s => {
-            const saleDate = s.created_at.slice(0, 10);
+    // Compute status label
+    const getStatusLabel = (s: Sale): string => {
+        if (s.is_cancelled) return 'Dibatalkan';
+        if (s.is_exchanged) return 'Ditukar';
+        if (s.is_credit && !s.credit_settled_at) return 'Piutang';
+        if (s.is_credit && s.credit_settled_at) return 'Lunas';
+        return 'Selesai';
+    };
 
-            // Date filter
-            if (saleDate < startDate || saleDate > endDate) return false;
-
-            // Cashier filter
-            if (selectedCashier !== 'all' && s.cashier_id !== selectedCashier) return false;
-
-            // Search filter
-            if (searchQuery) {
-                const query = searchQuery.toLowerCase();
-                const matchInvoice = s.sale_number.toLowerCase().includes(query);
-                const matchCashier = s.cashier_name?.toLowerCase().includes(query);
-                const matchItems = s.items?.some(item =>
-                    item.product_name.toLowerCase().includes(query)
-                );
-                if (!matchInvoice && !matchCashier && !matchItems) return false;
-            }
-
-            return true;
-        });
+    // Filter sales and add computed _status field
+    const filteredSales = useMemo((): SaleWithStatus[] => {
+        return sales
+            .filter(s => {
+                const saleDate = s.created_at.slice(0, 10);
+                if (saleDate < startDate || saleDate > endDate) return false;
+                if (selectedCashier !== 'all' && s.cashier_id !== selectedCashier) return false;
+                if (searchQuery) {
+                    const query = searchQuery.toLowerCase();
+                    const matchInvoice = s.sale_number.toLowerCase().includes(query);
+                    const matchCashier = s.cashier_name?.toLowerCase().includes(query);
+                    const matchItems = s.items?.some(item =>
+                        item.product_name.toLowerCase().includes(query)
+                    );
+                    if (!matchInvoice && !matchCashier && !matchItems) return false;
+                }
+                return true;
+            })
+            .map(s => ({ ...s, _status: getStatusLabel(s) }));
     }, [sales, startDate, endDate, selectedCashier, searchQuery]);
 
-    // Stats - exclude cancelled and exchanged sales
+    // Stats - exclude cancelled and exchanged
     const stats = useMemo(() => {
         const validSales = filteredSales.filter(s => !s.is_cancelled && !s.is_exchanged);
         const totalSales = validSales.length;
         const totalRevenue = validSales.reduce((sum, s) => sum + s.total_amount, 0);
         const cashTotal = validSales.filter(s => s.payment_method === 'cash').reduce((sum, s) => sum + s.total_amount, 0);
         const transferTotal = validSales.filter(s => s.payment_method === 'transfer').reduce((sum, s) => sum + s.total_amount, 0);
-        const totalItems = validSales.reduce((sum, s) => sum + (s.items?.length || 0), 0);
-
-        return { totalSales, totalRevenue, cashTotal, transferTotal, totalItems };
+        const creditSales = validSales.filter(s => s.is_credit && !s.credit_settled_at);
+        const creditTotal = creditSales.reduce((sum, s) => sum + s.total_amount, 0);
+        const creditCount = creditSales.length;
+        return { totalSales, totalRevenue, cashTotal, transferTotal, creditTotal, creditCount };
     }, [filteredSales]);
 
-    const toggleExpand = (saleId: string) => {
-        setExpandedSales(prev => {
-            const next = new Set(prev);
-            if (next.has(saleId)) {
-                next.delete(saleId);
-            } else {
-                next.add(saleId);
-            }
-            return next;
-        });
+    // Sale status helper
+    const getSaleStatus = (sale: Sale) => {
+        if (sale.is_cancelled) return { label: 'Dibatalkan', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400', icon: <XCircle className="w-3 h-3" /> };
+        if (sale.is_exchanged) return { label: 'Ditukar', color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400', icon: <ArrowRightLeft className="w-3 h-3" /> };
+        if (sale.is_credit && !sale.credit_settled_at) return { label: 'Piutang', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400', icon: <AlertTriangle className="w-3 h-3" /> };
+        if (sale.is_credit && sale.credit_settled_at) return { label: 'Lunas', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400', icon: null };
+        return { label: 'Selesai', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400', icon: null };
     };
+
+    // Dynamic filter options: only show statuses that exist in current data
+    const statusFilterOptions = useMemo(() => {
+        const existing = new Set(filteredSales.map(s => s._status));
+        const allStatuses = [
+            { label: 'Selesai', value: 'Selesai' },
+            { label: 'Dibatalkan', value: 'Dibatalkan' },
+            { label: 'Ditukar', value: 'Ditukar' },
+            { label: 'Piutang', value: 'Piutang' },
+            { label: 'Lunas', value: 'Lunas' },
+        ];
+        return allStatuses.filter(s => existing.has(s.value));
+    }, [filteredSales]);
+
+    // Table columns
+    const columns: Column<SaleWithStatus>[] = [
+        {
+            header: 'Invoice',
+            accessorKey: 'sale_number',
+            cell: (item) => (
+                <span className="font-semibold text-sm">{item.sale_number}</span>
+            ),
+        },
+        {
+            header: 'Kasir',
+            accessorKey: 'cashier_name',
+            cell: (item) => (
+                <div className="flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span className="text-sm">{item.cashier_name || 'Unknown'}</span>
+                </div>
+            ),
+        },
+        {
+            header: 'Item',
+            accessorKey: 'items',
+            filterable: false,
+            cell: (item) => (
+                <div className="flex items-center gap-1.5">
+                    <Package className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span className="text-sm">{item.items?.length || 0} item</span>
+                </div>
+            ),
+        },
+        {
+            header: 'Metode',
+            accessorKey: 'payment_method',
+            filterOptions: [
+                { label: 'Tunai', value: 'cash' },
+                { label: 'Transfer', value: 'transfer' },
+            ],
+            cell: (item) => (
+                <span className={cn(
+                    'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold',
+                    item.payment_method === 'cash'
+                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                        : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                )}>
+                    {item.payment_method === 'cash' ? <Banknote className="w-3 h-3" /> : <CreditCard className="w-3 h-3" />}
+                    {item.payment_method === 'cash' ? 'Tunai' : 'Transfer'}
+                </span>
+            ),
+        },
+        {
+            header: 'Status',
+            accessorKey: '_status' as any,
+            filterOptions: statusFilterOptions,
+            cell: (item) => {
+                const status = getSaleStatus(item);
+                return (
+                    <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold', status.color)}>
+                        {status.icon} {status.label}
+                    </span>
+                );
+            },
+        },
+        {
+            header: 'Total',
+            accessorKey: 'total_amount',
+            filterable: false,
+            cell: (item) => (
+                <span className={cn(
+                    'font-bold text-sm',
+                    item.is_cancelled ? 'line-through text-muted-foreground' : 'text-emerald-600 dark:text-emerald-400'
+                )}>
+                    Rp {item.total_amount.toLocaleString('id-ID')}
+                </span>
+            ),
+        },
+        {
+            header: 'Tanggal',
+            accessorKey: 'created_at',
+            filterOptions: (() => {
+                // Group dates by month
+                const monthMap = new Map<string, Set<string>>();
+                filteredSales.forEach(s => {
+                    const month = s.created_at.slice(0, 7);
+                    const date = s.created_at.slice(0, 10);
+                    if (!monthMap.has(month)) monthMap.set(month, new Set());
+                    monthMap.get(month)!.add(date);
+                });
+                return Array.from(monthMap.entries())
+                    .sort(([a], [b]) => b.localeCompare(a))
+                    .map(([month, dates]) => ({
+                        label: format(new Date(month + '-01'), 'MMMM yyyy', { locale: idLocale }),
+                        value: month,
+                        children: Array.from(dates).sort().map(d => ({
+                            label: format(new Date(d), 'dd MMMM', { locale: idLocale }),
+                            value: d,
+                        })),
+                    }));
+            })(),
+            cell: (item) => (
+                <div className="text-sm text-muted-foreground">
+                    <p>{format(parseISO(item.created_at), 'dd MMM yyyy', { locale: idLocale })}</p>
+                    <p className="text-xs">{format(parseISO(item.created_at), 'HH:mm')}</p>
+                </div>
+            ),
+        },
+        {
+            header: 'Aksi',
+            accessorKey: 'id',
+            filterable: false,
+            sortable: false,
+            cell: (item) => (
+                <div className="flex items-center gap-1">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                        onClick={() => openDetail(item)}
+                        title="Lihat Detail"
+                    >
+                        <Eye className="w-4 h-4 text-blue-600" />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                        onClick={() => openPrintDialog(item)}
+                        title="Cetak Struk"
+                    >
+                        <Printer className="w-4 h-4 text-gray-600" />
+                    </Button>
+                </div>
+            ),
+        },
+    ];
 
     if (loading) {
         return (
@@ -157,49 +314,8 @@ export default function SalesHistory() {
             subtitle="Detail transaksi penjualan dari kasir"
         >
             <div className="space-y-6">
-                {/* Filters */}
-                <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm">
-                    <div className="flex items-center gap-2 w-full sm:w-auto">
-                        <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-indigo-500 flex-shrink-0" />
-                        <span className="font-medium text-gray-700 dark:text-gray-300 text-xs sm:text-sm">Dari:</span>
-                        <DateInput
-                            value={startDate}
-                            onChange={setStartDate}
-                            className="flex-1 sm:w-[150px]"
-                        />
-                    </div>
-                    <div className="flex items-center gap-2 w-full sm:w-auto">
-                        <span className="font-medium text-gray-700 dark:text-gray-300 text-xs sm:text-sm ml-6 sm:ml-0">Sampai:</span>
-                        <DateInput
-                            value={endDate}
-                            onChange={setEndDate}
-                            className="flex-1 sm:w-[150px]"
-                        />
-                    </div>
-                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full sm:w-auto">
-                        <Select value={selectedCashier} onValueChange={setSelectedCashier}>
-                            <SelectTrigger className="w-full sm:w-[150px] rounded-xl text-xs sm:text-sm">
-                                <User className="h-4 w-4 mr-2 text-muted-foreground" />
-                                <SelectValue placeholder="Semua Kasir" />
-                            </SelectTrigger>
-                            <SelectContent className="rounded-xl">
-                                <SelectItem value="all" className="rounded-lg">Semua Kasir</SelectItem>
-                                {cashiers.map(c => (
-                                    <SelectItem key={c.id} value={c.id} className="rounded-lg">{c.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        <Input
-                            placeholder="Cari invoice, kasir..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full sm:w-[200px] rounded-xl text-xs sm:text-sm"
-                        />
-                    </div>
-                </div>
-
                 {/* Stats */}
-                <StatsGrid columns={4}>
+                <StatsGrid columns={5}>
                     <StatsCard
                         title="Total Transaksi"
                         value={stats.totalSales}
@@ -221,169 +337,149 @@ export default function SalesHistory() {
                         value={`Rp ${stats.transferTotal.toLocaleString('id-ID')}`}
                         icon={<CreditCard className="w-5 h-5" />}
                     />
+                    <StatsCard
+                        title="Piutang"
+                        value={`Rp ${stats.creditTotal.toLocaleString('id-ID')}`}
+                        subtitle={`${stats.creditCount} transaksi belum lunas`}
+                        icon={<AlertTriangle className="w-5 h-5" />}
+                        gradient="amber"
+                    />
                 </StatsGrid>
 
-                {/* Sales List */}
-                <Card className="rounded-2xl">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Receipt className="h-5 w-5 text-indigo-500" />
-                            Daftar Transaksi ({filteredSales.length})
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        {filteredSales.length === 0 ? (
-                            <div className="text-center py-12 text-muted-foreground">
-                                <ShoppingCart className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                                <p>Tidak ada transaksi ditemukan</p>
-                            </div>
-                        ) : (
-                            <div className="space-y-3">
-                                {filteredSales.map((sale) => (
-                                    <Collapsible
-                                        key={sale.id}
-                                        open={expandedSales.has(sale.id)}
-                                        onOpenChange={() => toggleExpand(sale.id)}
-                                    >
-                                        <div className="border border-gray-100 dark:border-gray-800 rounded-xl overflow-hidden">
-                                            <CollapsibleTrigger className="w-full">
-                                                <div className="flex items-center gap-4 p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer">
-                                                    {/* Expand Icon */}
-                                                    <div className="text-muted-foreground">
-                                                        {expandedSales.has(sale.id) ? (
-                                                            <ChevronDown className="h-5 w-5" />
-                                                        ) : (
-                                                            <ChevronRight className="h-5 w-5" />
-                                                        )}
-                                                    </div>
-
-                                                    {/* Payment Icon */}
-                                                    <div className={cn(
-                                                        "p-2 rounded-xl",
-                                                        sale.payment_method === 'cash'
-                                                            ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30'
-                                                            : 'bg-blue-100 text-blue-600 dark:bg-blue-900/30'
-                                                    )}>
-                                                        {sale.payment_method === 'cash' ? (
-                                                            <Banknote className="h-5 w-5" />
-                                                        ) : (
-                                                            <CreditCard className="h-5 w-5" />
-                                                        )}
-                                                    </div>
-
-                                                    {/* Invoice Info */}
-                                                    <div className="flex-1 text-left">
-                                                        <p className="font-semibold text-gray-900 dark:text-white">
-                                                            {sale.sale_number}
-                                                        </p>
-                                                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                                            <User className="h-3 w-3" />
-                                                            <span>{sale.cashier_name || 'Unknown'}</span>
-                                                            <span>•</span>
-                                                            <span>{sale.items?.length || 0} item</span>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Date & Time */}
-                                                    <div className="text-right text-sm text-muted-foreground">
-                                                        <p>{format(parseISO(sale.created_at), 'dd MMM yyyy', { locale: idLocale })}</p>
-                                                        <p>{format(parseISO(sale.created_at), 'HH:mm', { locale: idLocale })}</p>
-                                                    </div>
-
-                                                    {/* Total */}
-                                                    <div className="text-right min-w-[120px]">
-                                                        <p className="font-bold text-lg text-emerald-600">
-                                                            Rp {sale.total_amount.toLocaleString('id-ID')}
-                                                        </p>
-                                                        <Badge
-                                                            variant="outline"
-                                                            className={cn(
-                                                                "text-xs rounded-full",
-                                                                sale.payment_method === 'cash'
-                                                                    ? 'border-emerald-200 text-emerald-600'
-                                                                    : 'border-blue-200 text-blue-600'
-                                                            )}
-                                                        >
-                                                            {sale.payment_method === 'cash' ? 'Tunai' : 'Transfer'}
-                                                        </Badge>
-                                                    </div>
-                                                </div>
-                                            </CollapsibleTrigger>
-
-                                            <CollapsibleContent>
-                                                <div className="border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 p-4">
-                                                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
-                                                        <Package className="h-4 w-4" />
-                                                        Detail Item
-                                                    </p>
-                                                    <div className="overflow-x-auto">
-                                                        <table className="w-full text-sm">
-                                                            <thead>
-                                                                <tr className="text-left text-muted-foreground border-b border-gray-200 dark:border-gray-700">
-                                                                    <th className="pb-2 font-medium">Produk</th>
-                                                                    <th className="pb-2 font-medium text-center">Qty</th>
-                                                                    <th className="pb-2 font-medium text-right">Harga</th>
-                                                                    <th className="pb-2 font-medium text-right">Subtotal</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                {sale.items?.map((item, idx) => (
-                                                                    <tr key={item.id || idx} className="border-b border-gray-100 dark:border-gray-800 last:border-0">
-                                                                        <td className="py-2">
-                                                                            <div className="flex items-center gap-2">
-                                                                                <p className="font-medium text-gray-900 dark:text-white">{item.product_name}</p>
-                                                                                {!item.product_id && (
-                                                                                    <Badge className="h-4 px-1.5 text-[9px] bg-amber-500 text-white border-0 rounded-full shrink-0">
-                                                                                        Manual
-                                                                                    </Badge>
-                                                                                )}
-                                                                            </div>
-                                                                            <p className="text-xs text-muted-foreground">{item.barcode || '-'}</p>
-                                                                        </td>
-                                                                        <td className="py-2 text-center font-semibold">{item.quantity}</td>
-                                                                        <td className="py-2 text-right">Rp {item.price.toLocaleString('id-ID')}</td>
-                                                                        <td className="py-2 text-right font-semibold text-emerald-600">
-                                                                            Rp {item.subtotal.toLocaleString('id-ID')}
-                                                                        </td>
-                                                                    </tr>
-                                                                ))}
-                                                            </tbody>
-                                                            <tfoot>
-                                                                <tr className="border-t-2 border-gray-200 dark:border-gray-700">
-                                                                    <td colSpan={3} className="pt-3 text-right font-semibold">Total:</td>
-                                                                    <td className="pt-3 text-right font-bold text-lg text-emerald-600">
-                                                                        Rp {sale.total_amount.toLocaleString('id-ID')}
-                                                                    </td>
-                                                                </tr>
-                                                            </tfoot>
-                                                        </table>
-                                                    </div>
-
-                                                    {/* Print Button */}
-                                                    <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-end">
-                                                        <Button
-                                                            size="sm"
-                                                            variant="outline"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                openPrintDialog(sale);
-                                                            }}
-                                                            className="gap-2 rounded-xl"
-                                                        >
-                                                            <Printer className="h-4 w-4" />
-                                                            Cetak Struk
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                            </CollapsibleContent>
-                                        </div>
-                                    </Collapsible>
-                                ))}
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+                {/* Sales Table */}
+                <BeautifulTable
+                    data={filteredSales}
+                    columns={columns}
+                    title={`Daftar Transaksi (${filteredSales.length})`}
+                    hideSelection
+                    itemsPerPage={15}
+                />
             </div>
+
+            {/* Detail Dialog */}
+            <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+                <DialogContent className="sm:max-w-lg rounded-2xl max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Package className="h-5 w-5 text-indigo-500" />
+                            Detail Transaksi — {detailSale?.sale_number}
+                        </DialogTitle>
+                    </DialogHeader>
+                    {detailSale && (
+                        <div className="space-y-4">
+                            {/* Sale Info */}
+                            <div className="grid grid-cols-2 gap-3 text-sm">
+                                <div>
+                                    <p className="text-muted-foreground">Kasir</p>
+                                    <p className="font-medium">{detailSale.cashier_name || 'Unknown'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-muted-foreground">Tanggal</p>
+                                    <p className="font-medium">{format(parseISO(detailSale.created_at), 'dd MMM yyyy HH:mm', { locale: idLocale })}</p>
+                                </div>
+                                <div>
+                                    <p className="text-muted-foreground">Metode Bayar</p>
+                                    <p className="font-medium">{detailSale.payment_method === 'cash' ? 'Tunai' : 'Transfer'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-muted-foreground">Status</p>
+                                    {(() => {
+                                        const status = getSaleStatus(detailSale);
+                                        return (
+                                            <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold', status.color)}>
+                                                {status.icon} {status.label}
+                                            </span>
+                                        );
+                                    })()}
+                                </div>
+                                {detailSale.is_credit && detailSale.credit_customer_name && (
+                                    <div className="col-span-2">
+                                        <p className="text-muted-foreground">Nama Pelanggan (Piutang)</p>
+                                        <p className="font-medium">{detailSale.credit_customer_name}</p>
+                                    </div>
+                                )}
+                                {detailSale.is_cancelled && detailSale.cancelled_reason && (
+                                    <div className="col-span-2">
+                                        <p className="text-muted-foreground">Alasan Batal</p>
+                                        <p className="font-medium text-red-600">{detailSale.cancelled_reason}</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Items Table */}
+                            <div className="border rounded-xl overflow-hidden">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="bg-gray-50 dark:bg-gray-800 text-left text-muted-foreground">
+                                            <th className="px-3 py-2 font-medium">Produk</th>
+                                            <th className="px-3 py-2 font-medium text-center">Qty</th>
+                                            <th className="px-3 py-2 font-medium text-right">Harga</th>
+                                            <th className="px-3 py-2 font-medium text-right">Diskon</th>
+                                            <th className="px-3 py-2 font-medium text-right">Subtotal</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {detailSale.items?.map((item, idx) => (
+                                            <tr key={item.id || idx} className="border-t border-gray-100 dark:border-gray-800">
+                                                <td className="px-3 py-2">
+                                                    <p className="font-medium">{item.product_name}</p>
+                                                    <p className="text-xs text-muted-foreground">{item.barcode || '-'}</p>
+                                                </td>
+                                                <td className="px-3 py-2 text-center font-semibold">{item.quantity}</td>
+                                                <td className="px-3 py-2 text-right">Rp {item.price.toLocaleString('id-ID')}</td>
+                                                <td className="px-3 py-2 text-right text-red-500">
+                                                    {item.discount > 0 ? `-Rp ${(item.discount * item.quantity).toLocaleString('id-ID')}` : '-'}
+                                                </td>
+                                                <td className="px-3 py-2 text-right font-semibold text-emerald-600">
+                                                    Rp {item.subtotal.toLocaleString('id-ID')}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                    <tfoot>
+                                        {detailSale.order_discount > 0 && (
+                                            <tr className="border-t border-gray-200 dark:border-gray-700">
+                                                <td colSpan={4} className="px-3 py-2 text-right text-sm text-muted-foreground">Diskon Order:</td>
+                                                <td className="px-3 py-2 text-right text-red-500 font-medium">
+                                                    -Rp {detailSale.order_discount.toLocaleString('id-ID')}
+                                                </td>
+                                            </tr>
+                                        )}
+                                        <tr className="border-t-2 border-gray-200 dark:border-gray-700">
+                                            <td colSpan={4} className="px-3 py-2 text-right font-semibold">Total:</td>
+                                            <td className="px-3 py-2 text-right font-bold text-lg text-emerald-600">
+                                                Rp {detailSale.total_amount.toLocaleString('id-ID')}
+                                            </td>
+                                        </tr>
+                                        {detailSale.amount_paid > 0 && (
+                                            <>
+                                                <tr>
+                                                    <td colSpan={4} className="px-3 py-1 text-right text-sm text-muted-foreground">Dibayar:</td>
+                                                    <td className="px-3 py-1 text-right text-sm">Rp {detailSale.amount_paid.toLocaleString('id-ID')}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td colSpan={4} className="px-3 py-1 text-right text-sm text-muted-foreground">Kembalian:</td>
+                                                    <td className="px-3 py-1 text-right text-sm">Rp {detailSale.change_amount.toLocaleString('id-ID')}</td>
+                                                </tr>
+                                            </>
+                                        )}
+                                    </tfoot>
+                                </table>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex justify-end gap-2 pt-2">
+                                <Button variant="outline" onClick={() => setDetailOpen(false)} className="rounded-xl">
+                                    Tutup
+                                </Button>
+                                <Button onClick={() => { setDetailOpen(false); openPrintDialog(detailSale); }} className="rounded-xl gap-2">
+                                    <Printer className="h-4 w-4" /> Cetak Struk
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
 
             {/* Print Receipt Dialog */}
             <Dialog open={printDialogOpen} onOpenChange={setPrintDialogOpen}>
@@ -421,19 +517,11 @@ export default function SalesHistory() {
                         )}
                     </div>
                     <div className="p-4 border-t bg-white dark:bg-gray-900 flex justify-end gap-2">
-                        <Button
-                            variant="outline"
-                            onClick={() => setPrintDialogOpen(false)}
-                            className="rounded-xl"
-                        >
+                        <Button variant="outline" onClick={() => setPrintDialogOpen(false)} className="rounded-xl">
                             Batal
                         </Button>
-                        <Button
-                            onClick={() => handlePrint()}
-                            className="rounded-xl gap-2"
-                        >
-                            <Printer className="h-4 w-4" />
-                            Cetak
+                        <Button onClick={() => handlePrint()} className="rounded-xl gap-2">
+                            <Printer className="h-4 w-4" /> Cetak
                         </Button>
                     </div>
                 </DialogContent>

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Product, StockOutRequest, SuratJalan, StockLog, Notification, Location, RequestStatus, Sale, SaleItem, PaymentMethod, CashTransfer, ActivityLog } from '@/types';
 import { useAuth } from './AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -253,7 +253,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       .from('sales')
       .select('id, sale_number, cashier_id, cashier_name, payment_method, stock_location, total_amount, order_discount, amount_paid, change_amount, created_at, is_exchanged, exchanged_to_sale_id, exchanged_to_sale_number, exchange_from_sale_id, exchange_from_sale_number, is_cancelled, cancelled_at, cancelled_reason, is_credit, credit_customer_name, credit_settled_at, credit_payment_method, sale_items(id, sale_id, product_id, product_name, barcode, quantity, price, subtotal, discount)')
       .order('created_at', { ascending: false })
-      .limit(500);
+      .limit(200);
 
     // Filter by cashier_id for cashier role
     if (isCashier && user?.id) {
@@ -1123,34 +1123,44 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   };
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
+
+  const contextValue = useMemo(() => ({
+    products,
+    requests,
+    suratJalans,
+    stockLogs,
+    notifications,
+    sales,
+    cashTransfers,
+    activityLogs,
+    loading,
+    addProduct,
+    updateProduct,
+    deleteProduct,
+    getProductByBarcode,
+    createSale,
+    addStock,
+    createStockOutRequest,
+    updateRequestStatus,
+    createSuratJalan,
+    updateSuratJalanStatus,
+    markNotificationRead,
+    markAllNotificationsRead,
+    unreadCount,
+    refreshData,
+  }), [
+    products, requests, suratJalans, stockLogs, notifications,
+    sales, cashTransfers, activityLogs, loading, unreadCount,
+    // Functions with stable references (useCallback or defined once)
+    addProduct, updateProduct, deleteProduct, getProductByBarcode,
+    createSale, addStock, createStockOutRequest, updateRequestStatus,
+    createSuratJalan, updateSuratJalanStatus, markNotificationRead,
+    markAllNotificationsRead, refreshData,
+  ]);
 
   return (
-    <DataContext.Provider value={{
-      products,
-      requests,
-      suratJalans,
-      stockLogs,
-      notifications,
-      sales,
-      cashTransfers,
-      activityLogs,
-      loading,
-      addProduct,
-      updateProduct,
-      deleteProduct,
-      getProductByBarcode,
-      createSale,
-      addStock,
-      createStockOutRequest,
-      updateRequestStatus,
-      createSuratJalan,
-      updateSuratJalanStatus,
-      markNotificationRead,
-      markAllNotificationsRead,
-      unreadCount,
-      refreshData
-    }}>
+    <DataContext.Provider value={contextValue}>
       {children}
     </DataContext.Provider>
   );

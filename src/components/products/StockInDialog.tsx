@@ -36,15 +36,25 @@ export function StockInDialog({
 }: StockInDialogProps) {
     const { toast } = useToast();
     const [product, setProduct] = useState<Product | null>(null);
-    const [quantity, setQuantity] = useState(1);
+    const [boxQuantity, setBoxQuantity] = useState(0);
+    const [pcsQuantity, setPcsQuantity] = useState(0);
     const [location, setLocation] = useState<Location>('gudang');
     const [confirmed, setConfirmed] = useState(false);
+
+    const isMultiUnit = product?.has_multi_unit || false;
+    const pcsPerBox = product?.pcs_per_box || 0;
+
+    // Calculate total quantity for multi-unit
+    const totalQuantity = isMultiUnit
+        ? (pcsPerBox > 0 ? boxQuantity * pcsPerBox : 0) + pcsQuantity
+        : pcsQuantity; // For non-multi-unit, pcsQuantity IS the quantity
 
     const handleOpenChange = (newOpen: boolean) => {
         if (!newOpen) {
             // Reset state when closing
             setProduct(null);
-            setQuantity(1);
+            setBoxQuantity(0);
+            setPcsQuantity(0);
             setConfirmed(false);
         }
         onOpenChange(newOpen);
@@ -55,6 +65,8 @@ export function StockInDialog({
         if (foundProduct) {
             setProduct(foundProduct);
             setConfirmed(false);
+            setBoxQuantity(0);
+            setPcsQuantity(0);
             toast({
                 title: 'Produk ditemukan',
                 description: foundProduct.name,
@@ -70,7 +82,7 @@ export function StockInDialog({
     };
 
     const handleSubmit = () => {
-        if (!product || quantity <= 0) {
+        if (!product || totalQuantity <= 0) {
             toast({
                 title: 'Data tidak valid',
                 description: 'Pilih produk dan masukkan jumlah yang valid',
@@ -79,14 +91,26 @@ export function StockInDialog({
             return;
         }
 
-        onAddStock(product.id, quantity, location);
+        onAddStock(product.id, totalQuantity, location);
+
+        const desc = isMultiUnit && pcsPerBox > 0
+            ? `${boxQuantity} box (${boxQuantity * pcsPerBox} pcs) + ${pcsQuantity} pcs = ${totalQuantity} pcs ke ${location}`
+            : `${totalQuantity} ${product.name} ditambahkan ke ${location}`;
 
         toast({
             title: 'Stok berhasil ditambahkan',
-            description: `${quantity} ${product.name} ditambahkan ke ${location}`,
+            description: desc,
         });
 
         handleOpenChange(false);
+    };
+
+    // Helper to display stock in box + pcs format
+    const formatStockDisplay = (stockCount: number) => {
+        if (!isMultiUnit || !pcsPerBox || pcsPerBox <= 0) return null;
+        const boxes = Math.floor(stockCount / pcsPerBox);
+        const loose = stockCount % pcsPerBox;
+        return `${boxes} box + ${loose} pcs`;
     };
 
     return (
@@ -118,6 +142,11 @@ export function StockInDialog({
                                 <div>
                                     <p className="font-semibold">{product.name}</p>
                                     <p className="text-xs text-muted-foreground">{product.barcode}</p>
+                                    {isMultiUnit && (
+                                        <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                                            📦 Multi-Unit{pcsPerBox > 0 ? ` · ${pcsPerBox} pcs/box` : ' · Box segel'}
+                                        </p>
+                                    )}
                                 </div>
                             </div>
 
@@ -126,38 +155,98 @@ export function StockInDialog({
                                 <div className="p-2 bg-muted/30 rounded-lg">
                                     <p className="text-lg font-bold">{product.stock.gudang}</p>
                                     <p className="text-xs text-muted-foreground">Gudang</p>
+                                    {formatStockDisplay(product.stock.gudang) && (
+                                        <p className="text-xs text-blue-600 dark:text-blue-400">{formatStockDisplay(product.stock.gudang)}</p>
+                                    )}
                                 </div>
                                 <div className="p-2 bg-muted/30 rounded-lg">
                                     <p className="text-lg font-bold">{product.stock.toko}</p>
                                     <p className="text-xs text-muted-foreground">Toko</p>
+                                    {formatStockDisplay(product.stock.toko) && (
+                                        <p className="text-xs text-blue-600 dark:text-blue-400">{formatStockDisplay(product.stock.toko)}</p>
+                                    )}
                                 </div>
                             </div>
 
                             {/* Input Fields */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Jumlah Masuk</Label>
-                                    <Input
-                                        type="number"
-                                        value={quantity}
-                                        onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
-                                        min={1}
-                                        className="rounded-xl"
-                                    />
+                            {isMultiUnit ? (
+                                <div className="space-y-3">
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="space-y-2">
+                                            <Label>📦 Jumlah Box</Label>
+                                            <Input
+                                                type="number"
+                                                value={boxQuantity || ''}
+                                                onChange={(e) => setBoxQuantity(parseInt(e.target.value) || 0)}
+                                                min={0}
+                                                placeholder="0"
+                                                className="rounded-xl"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>🔢 Pcs (lepasan)</Label>
+                                            <Input
+                                                type="number"
+                                                value={pcsQuantity || ''}
+                                                onChange={(e) => setPcsQuantity(parseInt(e.target.value) || 0)}
+                                                min={0}
+                                                placeholder="0"
+                                                className="rounded-xl"
+                                            />
+                                        </div>
+                                    </div>
+                                    {pcsPerBox > 0 && (boxQuantity > 0 || pcsQuantity > 0) && (
+                                        <div className="p-2 bg-blue-50 dark:bg-blue-950/30 rounded-lg text-sm text-blue-700 dark:text-blue-300 text-center">
+                                            {boxQuantity > 0 && <span>{boxQuantity} box × {pcsPerBox} = {boxQuantity * pcsPerBox} pcs</span>}
+                                            {boxQuantity > 0 && pcsQuantity > 0 && <span> + {pcsQuantity} pcs</span>}
+                                            {boxQuantity === 0 && pcsQuantity > 0 && <span>{pcsQuantity} pcs</span>}
+                                            <span className="font-bold"> = Total {totalQuantity} pcs</span>
+                                        </div>
+                                    )}
+                                    {!pcsPerBox && boxQuantity > 0 && (
+                                        <div className="p-2 bg-amber-50 dark:bg-amber-950/30 rounded-lg text-xs text-amber-700 dark:text-amber-300 text-center">
+                                            ⚠️ Isi per box belum diatur. Hanya pcs lepasan yang terhitung.
+                                        </div>
+                                    )}
+                                    <div className="space-y-2">
+                                        <Label>Lokasi</Label>
+                                        <Select value={location} onValueChange={(v: Location) => setLocation(v)}>
+                                            <SelectTrigger className="rounded-xl">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent className="rounded-xl">
+                                                <SelectItem value="gudang">Gudang</SelectItem>
+                                                <SelectItem value="toko">Toko</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <Label>Lokasi</Label>
-                                    <Select value={location} onValueChange={(v: Location) => setLocation(v)}>
-                                        <SelectTrigger className="rounded-xl">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent className="rounded-xl">
-                                            <SelectItem value="gudang">Gudang</SelectItem>
-                                            <SelectItem value="toko">Toko</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                            ) : (
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label>Jumlah Masuk</Label>
+                                        <Input
+                                            type="number"
+                                            value={pcsQuantity || ''}
+                                            onChange={(e) => setPcsQuantity(parseInt(e.target.value) || 0)}
+                                            min={1}
+                                            className="rounded-xl"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Lokasi</Label>
+                                        <Select value={location} onValueChange={(v: Location) => setLocation(v)}>
+                                            <SelectTrigger className="rounded-xl">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent className="rounded-xl">
+                                                <SelectItem value="gudang">Gudang</SelectItem>
+                                                <SelectItem value="toko">Toko</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
                                 </div>
-                            </div>
+                            )}
 
                             {/* Confirmation Checkbox */}
                             <div className="p-3 bg-primary/5 border border-primary/20 rounded-xl">
@@ -169,7 +258,7 @@ export function StockInDialog({
                                         className="w-4 h-4 rounded border-primary text-primary focus:ring-primary"
                                     />
                                     <span className="text-sm">
-                                        Konfirmasi: tambahkan <strong>{quantity}</strong> unit ke <strong className="capitalize">{location}</strong>
+                                        Konfirmasi: tambahkan <strong>{totalQuantity}</strong> unit ke <strong className="capitalize">{location}</strong>
                                     </span>
                                 </label>
                             </div>
@@ -189,7 +278,7 @@ export function StockInDialog({
                     </Button>
                     <Button
                         onClick={handleSubmit}
-                        disabled={!product || !confirmed || quantity <= 0}
+                        disabled={!product || !confirmed || totalQuantity <= 0}
                         className="rounded-xl"
                     >
                         <Plus className="w-4 h-4 mr-2" /> Tambah Stok

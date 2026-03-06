@@ -84,7 +84,7 @@ export const POSCartPanel = memo(function POSCartPanel({
     const isTabMode = !!selectedTabId;
 
     return (
-        <div className="hidden md:flex fixed top-0 right-0 h-screen w-72 lg:w-80 xl:w-[400px] flex-col border-l bg-gradient-to-b from-background via-background to-muted/20 shadow-2xl z-40 pointer-events-auto">
+        <div className="hidden md:flex fixed top-0 right-0 h-screen w-72 lg:w-80 xl:w-[400px] flex-col border-l bg-gradient-to-b from-background via-background to-muted/20 shadow-2xl z-40 pointer-events-auto overflow-hidden">
             {/* Header with Glassmorphism */}
             <div className="px-4 py-3 border-b bg-gradient-to-r from-primary/5 to-transparent backdrop-blur-sm">
                 <div className="flex items-center justify-between">
@@ -112,72 +112,73 @@ export const POSCartPanel = memo(function POSCartPanel({
                     )}
                 </div>
 
-                {/* Today's Stats */}
-                <div className="flex items-center gap-2 mt-2">
-                    <div className="flex-1 px-2.5 py-1.5 rounded-lg bg-muted/50">
-                        <p className="text-[10px] text-muted-foreground">Hari Ini</p>
-                        <p className="text-xs font-semibold">{todayStats.count} transaksi</p>
+                {/* Stats / Exchange Info */}
+                {returnRef ? (
+                    /* Exchange Mode */
+                    <div className="mt-2 px-2.5 py-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <div className="p-1 rounded-md bg-amber-100 dark:bg-amber-900/50">
+                                    <RotateCcw className="w-3.5 h-3.5 text-amber-600" />
+                                </div>
+                                <div>
+                                    <p className="text-[9px] text-amber-600 font-medium">Tukar Barang</p>
+                                    <p className="text-[10px] font-bold text-amber-700 dark:text-amber-400">{returnRef}</p>
+                                </div>
+                            </div>
+                            {onCancelExchange && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 text-[10px] text-red-600 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/30 gap-1 rounded-md px-2"
+                                    onClick={onCancelExchange}
+                                >
+                                    <X className="w-3 h-3" />
+                                    Batalkan
+                                </Button>
+                            )}
+                        </div>
                     </div>
-                    <div className="flex-1 px-2.5 py-1.5 rounded-lg bg-emerald-500/10">
-                        <p className="text-[10px] text-emerald-600">Total</p>
-                        <p className="text-xs font-semibold text-emerald-600">
-                            Rp {todayStats.total.toLocaleString('id-ID')}
-                        </p>
-                    </div>
-                </div>
+                ) : (
+                    <>
+                        {/* Normal Mode: Today Stats */}
+                        <div className="flex items-center gap-2 mt-2">
+                            <div className="flex-1 px-2.5 py-1.5 rounded-lg bg-muted/50">
+                                <p className="text-[10px] text-muted-foreground">Hari Ini</p>
+                                <p className="text-xs font-semibold">{todayStats.count} transaksi</p>
+                            </div>
+                            <div className="flex-1 px-2.5 py-1.5 rounded-lg bg-emerald-500/10">
+                                <p className="text-[10px] text-emerald-600">Total</p>
+                                <p className="text-xs font-semibold text-emerald-600">
+                                    Rp {todayStats.total.toLocaleString('id-ID')}
+                                </p>
+                            </div>
+                        </div>
 
-                {/* Nota Gantung Dropdown - Show when no exchange is active */}
-                {!returnRef && onSelectTab && (
-                    <div className="mt-2">
-                        <SearchableSelect
-                            options={[
-                                { value: '__normal__', label: 'Bayar Langsung (Normal)', description: 'Transaksi langsung tanpa tab' },
-                                ...openTabs.map((tab) => ({
-                                    value: tab.id,
-                                    label: tab.customer_name,
-                                    description: `Saldo: Rp ${tab.total_amount.toLocaleString('id-ID')}`
-                                }))
-                            ]}
-                            value={selectedTabId || '__normal__'}
-                            onValueChange={(val) => onSelectTab(val === '__normal__' ? null : val)}
-                            placeholder="Pilih Nota Gantung..."
-                            searchPlaceholder="Cari pelanggan..."
-                            emptyMessage="Pelanggan tidak ditemukan."
-                            className="h-8 text-xs"
-                        />
-                    </div>
+                        {/* Nota Gantung Dropdown */}
+                        {onSelectTab && (
+                            <div className="mt-2">
+                                <SearchableSelect
+                                    options={[
+                                        { value: '__normal__', label: 'Bayar Langsung (Normal)', description: 'Transaksi langsung tanpa tab' },
+                                        ...openTabs.map((tab) => ({
+                                            value: tab.id,
+                                            label: tab.customer_name,
+                                            description: `Saldo: Rp ${tab.total_amount.toLocaleString('id-ID')}`
+                                        }))
+                                    ]}
+                                    value={selectedTabId || '__normal__'}
+                                    onValueChange={(val) => onSelectTab(val === '__normal__' ? null : val)}
+                                    placeholder="Pilih Nota Gantung..."
+                                    searchPlaceholder="Cari pelanggan..."
+                                    emptyMessage="Pelanggan tidak ditemukan."
+                                    className="h-8 text-xs"
+                                />
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
-
-            {/* Return Reference Badge - Show when exchange is active (replaces nota gantung) */}
-            {returnRef && (
-                <div className="px-3 py-2 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800 flex items-center justify-between">
-                    <Badge className="bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400 border-0 rounded-full gap-1 text-xs">
-                        <RotateCcw className="w-3 h-3" />
-                        Ref Tukar Barang: {returnRef}
-                    </Badge>
-                    {onCancelExchange ? (
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 text-xs text-red-600 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/30 gap-1"
-                            onClick={onCancelExchange}
-                        >
-                            <X className="w-3 h-3" />
-                            Batalkan Tukar
-                        </Button>
-                    ) : onSetReturnRef && (
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 text-xs text-amber-600 hover:text-amber-700"
-                            onClick={() => onSetReturnRef(null)}
-                        >
-                            <X className="w-3 h-3" />
-                        </Button>
-                    )}
-                </div>
-            )}
 
             {/* Cart Items */}
             <div className="flex-1 overflow-hidden">
@@ -191,125 +192,108 @@ export const POSCartPanel = memo(function POSCartPanel({
                     </div>
                 ) : (
                     <ScrollArea className="h-full">
-                        <div className="p-3 space-y-2">
-                            {items.map((it, index) => {
+                        <div className="p-2 space-y-1.5">
+                            {items.map((it) => {
                                 const isVariableUnit = it.product.sell_by_quantity;
                                 const isManualEntry = it.isManualEntry;
                                 const unit = it.product.sell_unit || 'pcs';
                                 const qtyDisplay = isVariableUnit
                                     ? `${it.quantity} ${unit}`
                                     : it.quantity;
+                                const effectivePrice = it.unitPrice || it.product.price;
+                                const itemTotal = effectivePrice * it.quantity;
 
                                 return (
                                     <div
                                         key={it.product.id}
                                         className={cn(
-                                            "flex items-center gap-2 p-2 rounded-xl bg-card border transition-all",
-                                            "hover:border-primary/30 hover:shadow-sm",
-                                            isManualEntry && "border-amber-300 dark:border-amber-700 bg-amber-50/50 dark:bg-amber-900/20",
-                                            isVariableUnit && !isManualEntry && "border-amber-200/50 dark:border-amber-800/50"
+                                            "px-2 py-2 rounded-lg border transition-all",
+                                            "hover:border-primary/30",
+                                            isManualEntry && "border-amber-200 dark:border-amber-800 bg-amber-50/30 dark:bg-amber-900/10",
+                                            !isManualEntry && "bg-card"
                                         )}
-                                        style={{ animationDelay: `${index * 50}ms` }}
                                     >
-                                        {/* Product Image */}
-                                        <div className={cn(
-                                            "w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0",
-                                            isManualEntry ? "bg-amber-100 dark:bg-amber-900/50" : "bg-muted/50"
-                                        )}>
-                                            {it.product.image_url ? (
-                                                <img
-                                                    src={it.product.image_url}
-                                                    alt={it.product.name}
-                                                    className="w-full h-full object-cover"
-                                                />
-                                            ) : (
-                                                <Package className={cn(
-                                                    "w-4 h-4",
-                                                    isManualEntry ? "text-amber-500" : "text-muted-foreground/30"
-                                                )} />
-                                            )}
-                                        </div>
-
-                                        {/* Product Info */}
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-1.5">
-                                                <p className="font-medium text-xs truncate">{it.product.name}</p>
-                                                {isManualEntry && (
-                                                    <Badge className="h-4 px-1.5 text-[9px] bg-amber-500 text-white border-0 rounded-full shrink-0">
-                                                        Manual
-                                                    </Badge>
+                                        {/* Top: Image + Name + Price */}
+                                        <div className="flex gap-2">
+                                            {/* Product Image */}
+                                            <div className={cn(
+                                                "w-8 h-8 rounded-md flex items-center justify-center overflow-hidden shrink-0",
+                                                isManualEntry ? "bg-amber-100 dark:bg-amber-900/50" : "bg-muted/50"
+                                            )}>
+                                                {it.product.image_url ? (
+                                                    <img
+                                                        src={it.product.image_url}
+                                                        alt={it.product.name}
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                ) : (
+                                                    <Package className={cn(
+                                                        "w-3.5 h-3.5",
+                                                        isManualEntry ? "text-amber-500" : "text-muted-foreground/30"
+                                                    )} />
                                                 )}
                                             </div>
-                                            <p className="text-[10px] text-muted-foreground">
-                                                Rp {it.product.price.toLocaleString('id-ID')}
-                                                {isVariableUnit && <span className="text-amber-600">/{unit}</span>}
-                                                {it.discount > 0 && (
-                                                    <span className="ml-1 text-emerald-600 font-medium">-Rp {it.discount.toLocaleString('id-ID')}</span>
-                                                )}
-                                            </p>
+
+                                            {/* Name (wraps) + Price */}
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-xs font-medium leading-tight">{it.product.name}</p>
+                                                <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+                                                    Rp {effectivePrice.toLocaleString('id-ID')}
+                                                    {isVariableUnit && <span className="text-amber-600">/{unit}</span>}
+                                                    <span className="mx-1 text-muted-foreground/50">→</span>
+                                                    <span className="font-semibold text-primary">Rp {itemTotal.toLocaleString('id-ID')}</span>
+                                                </p>
+                                            </div>
                                         </div>
 
-                                        {/* Quantity Display */}
-                                        {isVariableUnit && !isManualEntry ? (
-                                            // Variable unit: show quantity with unit
-                                            <div className="px-2 py-1 bg-amber-100 dark:bg-amber-900/50 rounded-lg">
-                                                <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">
+                                        {/* Bottom: Qty Controls + Delete */}
+                                        <div className="flex items-center justify-between mt-1.5 pl-10">
+                                            {/* Qty Controls */}
+                                            {isVariableUnit && !isManualEntry ? (
+                                                <span className="text-[10px] font-semibold text-amber-700 dark:text-amber-300">
                                                     {qtyDisplay}
                                                 </span>
-                                            </div>
-                                        ) : isManualEntry && it.quantity % 1 !== 0 ? (
-                                            // Manual entry with decimal quantity: show as display only (no +/- buttons)
-                                            <div className="px-2 py-1 bg-amber-100 dark:bg-amber-900/50 rounded-lg">
-                                                <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">
+                                            ) : isManualEntry && it.quantity % 1 !== 0 ? (
+                                                <span className="text-[10px] font-semibold text-amber-700 dark:text-amber-300">
                                                     {it.quantity}
                                                 </span>
-                                            </div>
-                                        ) : (
-                                            // Normal product or manual entry with integer: +/- buttons
-                                            <div className={cn(
-                                                "flex items-center rounded-lg p-0.5 shrink-0",
-                                                isManualEntry ? "bg-amber-100/50 dark:bg-amber-900/30" : "bg-muted/50"
-                                            )}>
-                                                <Button
-                                                    size="icon"
-                                                    variant="ghost"
-                                                    onClick={() => onUpdateQuantity(it.product.id, it.quantity - 1)}
-                                                    className="h-5 w-5 lg:h-6 lg:w-6 rounded-md hover:bg-background"
-                                                >
-                                                    <Minus className="w-2.5 h-2.5 lg:w-3 lg:h-3" />
-                                                </Button>
-                                                <span className="w-5 lg:w-6 text-center text-[10px] lg:text-xs font-semibold">{it.quantity}</span>
-                                                <Button
-                                                    size="icon"
-                                                    variant="ghost"
-                                                    onClick={() => {
-                                                        // Manual items have no stock limit
-                                                        if (isManualEntry) {
-                                                            onUpdateQuantity(it.product.id, it.quantity + 1);
-                                                        } else {
-                                                            const availableStock = it.product.stock[stockLocation];
-                                                            if (it.quantity < availableStock) {
+                                            ) : (
+                                                <div className="flex items-center shrink-0 bg-muted/50 rounded-md border">
+                                                    <button
+                                                        onClick={() => onUpdateQuantity(it.product.id, it.quantity - 1)}
+                                                        className="h-7 w-7 flex items-center justify-center hover:bg-background rounded-l-md transition-colors"
+                                                    >
+                                                        <Minus className="w-3 h-3" />
+                                                    </button>
+                                                    <span className="w-6 text-center text-xs font-bold">{it.quantity}</span>
+                                                    <button
+                                                        onClick={() => {
+                                                            if (isManualEntry) {
                                                                 onUpdateQuantity(it.product.id, it.quantity + 1);
+                                                            } else {
+                                                                const availableStock = it.product.stock[stockLocation];
+                                                                if (it.quantity < availableStock) {
+                                                                    onUpdateQuantity(it.product.id, it.quantity + 1);
+                                                                }
                                                             }
-                                                        }
-                                                    }}
-                                                    disabled={!isManualEntry && it.quantity >= it.product.stock[stockLocation]}
-                                                    className="h-5 w-5 lg:h-6 lg:w-6 rounded-md hover:bg-background disabled:opacity-50"
-                                                >
-                                                    <Plus className="w-2.5 h-2.5 lg:w-3 lg:h-3" />
-                                                </Button>
-                                            </div>
-                                        )}
+                                                        }}
+                                                        disabled={!isManualEntry && it.quantity >= it.product.stock[stockLocation]}
+                                                        className="h-7 w-7 flex items-center justify-center hover:bg-background rounded-r-md transition-colors disabled:opacity-30"
+                                                    >
+                                                        <Plus className="w-3 h-3" />
+                                                    </button>
+                                                </div>
+                                            )}
 
-                                        {/* Remove Button */}
-                                        <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md"
-                                            onClick={() => onRemoveItem(it.product.id)}
-                                        >
-                                            <X className="w-3 h-3" />
-                                        </Button>
+                                            {/* Delete Button */}
+                                            <button
+                                                onClick={() => onRemoveItem(it.product.id)}
+                                                className="flex items-center gap-1 px-1.5 h-7 rounded-md text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                            >
+                                                <Trash2 className="w-3 h-3" />
+                                                <span className="text-[10px]">Hapus</span>
+                                            </button>
+                                        </div>
                                     </div>
                                 );
                             })}

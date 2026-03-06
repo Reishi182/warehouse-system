@@ -228,31 +228,21 @@
 
 @layer components {
 
-  /* Glass Card - Luxury Fintech Style */
+  /* Glass Card - Clean, Performant Style */
   .glass-card {
-    background: rgba(255, 255, 255, 0.75);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.6);
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02),
-      0 2px 4px -1px rgba(0, 0, 0, 0.02),
-      0 10px 15px -3px rgba(0, 0, 0, 0.03);
-    transition: all 0.3s ease;
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border) / 0.5);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+    transition: background 0.2s ease, box-shadow 0.2s ease;
   }
 
   .glass-card:hover {
-    background: rgba(255, 255, 255, 0.85);
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05),
-      0 8px 10px -6px rgba(0, 0, 0, 0.01);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06), 0 2px 4px rgba(0, 0, 0, 0.03);
   }
 
   .dark .glass-card {
-    background: rgba(30, 41, 59, 0.75);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-  }
-
-  .dark .glass-card:hover {
-    background: rgba(30, 41, 59, 0.85);
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border) / 0.3);
   }
 
   /* Glow effect for primary elements */
@@ -292,7 +282,7 @@
 
   /* Stat Card */
   .stat-card {
-    @apply glass-card rounded-2xl p-6 hover:border-primary/30 transition-all duration-500;
+    @apply glass-card rounded-2xl p-6 hover:border-primary/30 transition-colors duration-200;
   }
 
   /* Data Table */
@@ -339,21 +329,26 @@
   .sidebar-nav::-webkit-scrollbar {
     width: 3px;
   }
+
   .sidebar-nav::-webkit-scrollbar-track {
     background: transparent;
   }
+
   .sidebar-nav::-webkit-scrollbar-thumb {
     background: transparent;
     border-radius: 3px;
     transition: background 0.2s;
   }
+
   .sidebar-nav:hover::-webkit-scrollbar-thumb {
     background: hsl(var(--sidebar-border));
   }
+
   .sidebar-nav {
     scrollbar-width: thin;
     scrollbar-color: transparent transparent;
   }
+
   .sidebar-nav:hover {
     scrollbar-color: hsl(var(--sidebar-border)) transparent;
   }
@@ -361,7 +356,7 @@
   /* Active nav glow */
   .sidebar-active-glow {
     box-shadow: 0 2px 12px hsl(var(--sidebar-primary) / 0.35),
-                0 0 0 1px hsl(var(--sidebar-primary) / 0.15);
+      0 0 0 1px hsl(var(--sidebar-primary) / 0.15);
   }
 
   /* Separator between sidebar groups */
@@ -378,6 +373,7 @@
     border: 1px solid hsl(var(--border));
     overflow: hidden;
   }
+
   .sidebar-profile-card::before {
     content: '';
     position: absolute;
@@ -389,9 +385,17 @@
     background-size: 200% 100%;
     animation: shimmer-bar 3s ease-in-out infinite;
   }
+
   @keyframes shimmer-bar {
-    0%, 100% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
+
+    0%,
+    100% {
+      background-position: 0% 50%;
+    }
+
+    50% {
+      background-position: 100% 50%;
+    }
   }
 }
 

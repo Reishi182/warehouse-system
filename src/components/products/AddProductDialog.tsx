@@ -90,10 +90,11 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
     const lastScannedTimeRef = useRef<number>(0);
     const scannerContainerId = 'add-product-scanner-container';
 
-    // Admin and auditor can set stock to any location, cashier can only set stock to toko
-    const canSetStock = userRole === 'admin' || userRole === 'auditor' || userRole === 'cashier';
+    // Admin and auditor can set stock to any location, cashier can only set stock to toko, warehouse to gudang
+    const canSetStock = userRole === 'admin' || userRole === 'auditor' || userRole === 'cashier' || userRole === 'warehouse';
     const canChooseLocation = userRole === 'admin' || userRole === 'auditor';
     const isCashier = userRole === 'cashier';
+    const isWarehouse = userRole === 'warehouse';
 
     // Camera scanner functions
     const stopScanner = useCallback(async () => {
@@ -261,16 +262,23 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
     };
 
     const handleAddProduct = async () => {
-        if (!newProduct.name || !newProduct.barcode) {
+        if (!newProduct.name) {
             toast({
                 title: 'Data tidak lengkap',
-                description: 'Nama dan barcode wajib diisi',
+                description: 'Nama produk wajib diisi',
                 variant: 'destructive',
             });
             return;
         }
 
-        if (getProductByBarcode(newProduct.barcode)) {
+        // Generate temp barcode if empty
+        const hasBarcode = newProduct.barcode.trim() !== '';
+        const finalBarcode = hasBarcode
+            ? newProduct.barcode.trim()
+            : `TEMP-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+        // Only check duplicate for real barcodes
+        if (hasBarcode && getProductByBarcode(finalBarcode)) {
             toast({
                 title: 'Barcode sudah ada',
                 description: 'Barcode ini sudah digunakan produk lain',
@@ -286,7 +294,7 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
             const uniqueId = typeof crypto !== 'undefined' && 'randomUUID' in crypto
                 ? crypto.randomUUID()
                 : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-            const fileName = `${sanitizeForFileName(newProduct.barcode)}-${uniqueId}.${ext}`;
+            const fileName = `${sanitizeForFileName(finalBarcode)}-${uniqueId}.${ext}`;
             const filePath = `products/${fileName}`;
 
             const { error: uploadError } = await supabase.storage
@@ -304,12 +312,16 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
 
         const ok = await onAdd({
             name: newProduct.name,
-            barcode: newProduct.barcode,
+            barcode: finalBarcode,
             price: newProduct.price,
             stock: canSetStock ? (isCashier ? {
                 // Cashier can only set stock to toko
                 gudang: 0,
                 toko: newProduct.quantity,
+            } : isWarehouse ? {
+                // Warehouse can only set stock to gudang
+                gudang: newProduct.quantity,
+                toko: 0,
             } : {
                 // Admin/auditor can choose location
                 gudang: newProduct.location === 'gudang' ? newProduct.quantity : 0,
@@ -329,6 +341,15 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
             title: 'Produk ditambahkan',
             description: `${newProduct.name} berhasil ditambahkan`,
         });
+
+        if (!hasBarcode) {
+            toast({
+                title: '⚠️ Barcode belum diisi',
+                description: `Jangan lupa tambahkan barcode untuk "${newProduct.name}" melalui Edit Produk`,
+                variant: 'destructive',
+                duration: 6000,
+            });
+        }
 
         setNewProduct({ name: '', barcode: '', price: 0, quantity: 0, location: 'gudang', sell_by_quantity: false, sell_unit: 'meter', has_multi_unit: false, pcs_per_box: 0, box_price: 0 });
         setProductImageFile(null);
@@ -515,7 +536,7 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
                         {canSetStock && (
                             <div className={canChooseLocation ? "grid grid-cols-2 gap-4" : ""}>
                                 <div className="space-y-2">
-                                    <Label>{isCashier ? 'Stok Toko' : 'Jumlah Awal'}</Label>
+                                    <Label>{isCashier ? 'Stok Toko' : isWarehouse ? 'Stok Gudang' : 'Jumlah Awal'}</Label>
                                     <Input
                                         type="number"
                                         value={newProduct.quantity}
@@ -526,6 +547,11 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
                                     {isCashier && (
                                         <p className="text-xs text-muted-foreground">
                                             💡 Kasir hanya dapat menambah stok toko
+                                        </p>
+                                    )}
+                                    {isWarehouse && (
+                                        <p className="text-xs text-muted-foreground">
+                                            💡 Gudang hanya dapat menambah stok gudang
                                         </p>
                                     )}
                                 </div>

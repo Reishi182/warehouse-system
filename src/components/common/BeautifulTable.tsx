@@ -27,6 +27,8 @@ import {
     ArrowDown,
     Filter,
     X,
+    ChevronRight,
+    ChevronDown,
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ExportColumn } from '@/lib/export';
@@ -75,6 +77,14 @@ export function BeautifulTable<T extends { id: string }>({
     const [rowSelection, setRowSelection] = React.useState({});
     const [pageSize, setPageSize] = React.useState(itemsPerPage);
     const [pageIndex, setPageIndex] = React.useState(0);
+    const expandedGroupsRef = React.useRef<Set<string>>(new Set());
+    const [, forceRender] = React.useState(0);
+    const toggleExpandedGroup = React.useCallback((value: string) => {
+        const groups = expandedGroupsRef.current;
+        if (groups.has(value)) groups.delete(value);
+        else groups.add(value);
+        forceRender(n => n + 1);
+    }, []);
 
     const isPremium = variant === 'premium';
 
@@ -120,7 +130,8 @@ export function BeautifulTable<T extends { id: string }>({
         // Map user columns
         columns.forEach((col, idx) => {
             const columnId = String(col.accessorKey || idx);
-            const canFilter = col.filterable && col.accessorKey;
+            // Excel-like: all columns with accessorKey are filterable by default
+            const canFilter = col.filterable !== false && !!col.accessorKey;
 
             cols.push({
                 id: columnId,
@@ -131,7 +142,7 @@ export function BeautifulTable<T extends { id: string }>({
                     const currentFilter = columnFilters.find(f => f.id === columnId);
                     const hasFilter = !!currentFilter;
 
-                    const filterOptions = col.filterOptions || (
+                    const filterOptions: { label: string; value: string; children?: { label: string; value: string }[] }[] = col.filterOptions || (
                         canFilter ? getUniqueValues(col.accessorKey!).map(v => ({ label: v, value: v })) : []
                     );
 
@@ -220,34 +231,128 @@ export function BeautifulTable<T extends { id: string }>({
                                         <DropdownMenuSeparator />
 
                                         {filterOptions.map(opt => {
-                                            const isSelected = currentFilter?.value === opt.value;
+                                            const hasChildren = opt.children && opt.children.length > 0;
+                                            const isGroupSelected = currentFilter?.value === opt.value;
+                                            const isChildSelected = hasChildren && opt.children!.some(c => currentFilter?.value === c.value);
+                                            const isAnySelected = isGroupSelected || isChildSelected;
+
+                                            if (!hasChildren) {
+                                                // Flat option (no children)
+                                                return (
+                                                    <DropdownMenuItem
+                                                        key={opt.value}
+                                                        onClick={() => {
+                                                            setColumnFilters(prev => {
+                                                                const existing = prev.filter(f => f.id !== columnId);
+                                                                return [...existing, { id: columnId, value: opt.value }];
+                                                            });
+                                                        }}
+                                                        className={cn(
+                                                            "gap-2 cursor-pointer",
+                                                            isGroupSelected && "bg-primary/10 text-primary"
+                                                        )}
+                                                    >
+                                                        <div className={cn(
+                                                            "w-3 h-3 rounded-full border-2 flex-shrink-0",
+                                                            isGroupSelected
+                                                                ? "border-primary bg-primary"
+                                                                : "border-muted-foreground/30"
+                                                        )} />
+                                                        <span className="truncate">{opt.label}</span>
+                                                        {isGroupSelected && (
+                                                            <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">
+                                                                Aktif
+                                                            </Badge>
+                                                        )}
+                                                    </DropdownMenuItem>
+                                                );
+                                            }
+
+                                            // Group option with children (hierarchical)
+                                            const isExpanded = expandedGroupsRef.current.has(opt.value) || isChildSelected;
                                             return (
-                                                <DropdownMenuItem
-                                                    key={opt.value}
-                                                    onClick={() => {
-                                                        setColumnFilters(prev => {
-                                                            const existing = prev.filter(f => f.id !== columnId);
-                                                            return [...existing, { id: columnId, value: opt.value }];
-                                                        });
-                                                    }}
-                                                    className={cn(
-                                                        "gap-2 cursor-pointer",
-                                                        isSelected && "bg-primary/10 text-primary"
-                                                    )}
-                                                >
-                                                    <div className={cn(
-                                                        "w-3 h-3 rounded-full border-2 flex-shrink-0",
-                                                        isSelected
-                                                            ? "border-primary bg-primary"
-                                                            : "border-muted-foreground/30"
-                                                    )} />
-                                                    <span className="truncate">{opt.label}</span>
-                                                    {isSelected && (
-                                                        <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">
-                                                            Aktif
-                                                        </Badge>
-                                                    )}
-                                                </DropdownMenuItem>
+                                                <div key={opt.value}>
+                                                    {/* Group header row: chevron + month label side by side */}
+                                                    <div className="flex items-center gap-0">
+                                                        {/* Chevron — separate DropdownMenuItem that only toggles expand */}
+                                                        <DropdownMenuItem
+                                                            onSelect={(e) => {
+                                                                e.preventDefault();
+                                                                toggleExpandedGroup(opt.value);
+                                                            }}
+                                                            className="px-1.5 py-1.5 cursor-pointer rounded-md flex-shrink-0 focus:bg-muted"
+                                                        >
+                                                            {isExpanded
+                                                                ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+                                                                : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
+                                                            }
+                                                        </DropdownMenuItem>
+
+                                                        {/* Month label — click = filter semua tanggal di bulan ini */}
+                                                        <DropdownMenuItem
+                                                            onSelect={(e) => {
+                                                                e.preventDefault();
+                                                                setColumnFilters(prev => {
+                                                                    const existing = prev.filter(f => f.id !== columnId);
+                                                                    return [...existing, { id: columnId, value: opt.value }];
+                                                                });
+                                                            }}
+                                                            className={cn(
+                                                                "gap-2 cursor-pointer font-semibold flex-1",
+                                                                isGroupSelected && "bg-primary/10 text-primary"
+                                                            )}
+                                                        >
+                                                            <div className={cn(
+                                                                "w-3 h-3 rounded-sm border-2 flex-shrink-0",
+                                                                isAnySelected
+                                                                    ? "border-primary bg-primary"
+                                                                    : "border-muted-foreground/30"
+                                                            )} />
+                                                            <span className="truncate">{opt.label}</span>
+                                                            {isGroupSelected && (
+                                                                <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">
+                                                                    Semua
+                                                                </Badge>
+                                                            )}
+                                                        </DropdownMenuItem>
+                                                    </div>
+
+                                                    {/* Children — only visible when expanded */}
+                                                    {isExpanded && opt.children!.map(child => {
+                                                        const isChildActive = currentFilter?.value === child.value;
+                                                        return (
+                                                            <DropdownMenuItem
+                                                                key={child.value}
+                                                                onSelect={(e) => {
+                                                                    e.preventDefault();
+                                                                    setColumnFilters(prev => {
+                                                                        const existing = prev.filter(f => f.id !== columnId);
+                                                                        return [...existing, { id: columnId, value: child.value }];
+                                                                    });
+                                                                }}
+                                                                className={cn(
+                                                                    "gap-2 cursor-pointer pl-8 text-xs",
+                                                                    isChildActive && "bg-primary/10 text-primary"
+                                                                )}
+                                                            >
+                                                                <div className={cn(
+                                                                    "w-2.5 h-2.5 rounded-full border-2 flex-shrink-0",
+                                                                    isChildActive
+                                                                        ? "border-primary bg-primary"
+                                                                        : "border-muted-foreground/20"
+                                                                )} />
+                                                                <span className="truncate">{child.label}</span>
+                                                                {isChildActive && (
+                                                                    <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0">
+                                                                        Aktif
+                                                                    </Badge>
+                                                                )}
+                                                            </DropdownMenuItem>
+                                                        );
+                                                    })}
+
+                                                    <DropdownMenuSeparator className="my-1" />
+                                                </div>
                                             );
                                         })}
                                     </DropdownMenuContent>
@@ -264,18 +369,17 @@ export function BeautifulTable<T extends { id: string }>({
                     return <span className="text-sm text-foreground">{String(value ?? '')}</span>;
                 },
                 enableSorting: col.sortable !== false,
-                // Bug fix #1: Use exact match for column filters (dropdown sets exact value)
+                // Use startsWith for filter matching (supports date filtering where value is date-only but cell has timestamp)
                 filterFn: (row, columnId, filterValue) => {
                     const cellValue = String(row.getValue(columnId) ?? '');
-                    return cellValue === String(filterValue);
+                    const filter = String(filterValue);
+                    return cellValue === filter || cellValue.startsWith(filter);
                 },
             });
         });
 
         return cols;
-        // Bug fix #2: Removed columnFilters and setColumnFilters from deps
-        // to prevent re-creating all columns on every filter change
-    }, [columns, hideSelection, isPremium, getUniqueValues]);
+    }, [columns, hideSelection, isPremium, getUniqueValues, columnFilters]);
 
     // Effective page size (handle "All" case)
     const effectivePageSize = pageSize === -1 ? data.length || 1 : pageSize;
