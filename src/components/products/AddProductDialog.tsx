@@ -1,7 +1,7 @@
 
-import { useState, useRef, useEffect, useCallback, type ChangeEvent } from 'react';
-import { Plus, Camera, X, SwitchCamera } from 'lucide-react';
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+import { useState, type ChangeEvent } from 'react';
+import { Plus } from 'lucide-react';
+import BarcodeScanner from '@/components/common/BarcodeScanner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -28,19 +28,7 @@ import { compressImageToFile, formatFileSize } from '@/lib/imageCompression';
 const sanitizeForFileName = (str: string): string => {
     return str.replace(/[^a-zA-Z0-9-_]/g, '_');
 };
-// Supported barcode formats
-const SUPPORTED_FORMATS = [
-    Html5QrcodeSupportedFormats.QR_CODE,
-    Html5QrcodeSupportedFormats.EAN_13,
-    Html5QrcodeSupportedFormats.EAN_8,
-    Html5QrcodeSupportedFormats.UPC_A,
-    Html5QrcodeSupportedFormats.UPC_E,
-    Html5QrcodeSupportedFormats.CODE_128,
-    Html5QrcodeSupportedFormats.CODE_39,
-    Html5QrcodeSupportedFormats.CODE_93,
-    Html5QrcodeSupportedFormats.ITF,
-    Html5QrcodeSupportedFormats.CODABAR,
-];
+
 
 interface AddProductDialogProps {
     onAdd: (product: {
@@ -77,131 +65,19 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
         box_price: 0,
     });
 
-    // Camera scanner state
-    const [showCamera, setShowCamera] = useState(false);
-    const [isScanning, setIsScanning] = useState(false);
-    const [cameraError, setCameraError] = useState<string | null>(null);
-    const [useFrontCamera, setUseFrontCamera] = useState(false);
-    const html5QrcodeRef = useRef<Html5Qrcode | null>(null);
-
-    // Debounce refs to prevent multiple detections
-    const isProcessingRef = useRef(false);
-    const lastScannedRef = useRef<string>('');
-    const lastScannedTimeRef = useRef<number>(0);
-    const scannerContainerId = 'add-product-scanner-container';
-
     // Admin and auditor can set stock to any location, cashier can only set stock to toko, warehouse to gudang
     const canSetStock = userRole === 'admin' || userRole === 'auditor' || userRole === 'cashier' || userRole === 'warehouse';
     const canChooseLocation = userRole === 'admin' || userRole === 'auditor';
     const isCashier = userRole === 'cashier';
     const isWarehouse = userRole === 'warehouse';
 
-    // Camera scanner functions
-    const stopScanner = useCallback(async () => {
-        if (html5QrcodeRef.current) {
-            try {
-                const state = html5QrcodeRef.current.getState();
-                if (state === 2) { // SCANNING state
-                    await html5QrcodeRef.current.stop();
-                }
-                html5QrcodeRef.current.clear();
-            } catch (error) {
-                console.error('Error stopping scanner:', error);
-            }
-            html5QrcodeRef.current = null;
-        }
-        setIsScanning(false);
-    }, []);
-
-    const startScanner = useCallback(async () => {
-        setCameraError(null);
-        setIsScanning(true);
-        // Reset processing state when starting scanner
-        isProcessingRef.current = false;
-
-        try {
-            const html5Qrcode = new Html5Qrcode(scannerContainerId, {
-                formatsToSupport: SUPPORTED_FORMATS,
-                verbose: false,
-            });
-            html5QrcodeRef.current = html5Qrcode;
-
-            const config = {
-                fps: 10,
-                qrbox: { width: 250, height: 150 },
-                aspectRatio: 1.0,
-            };
-
-            await html5Qrcode.start(
-                { facingMode: useFrontCamera ? 'user' : 'environment' },
-                config,
-                (decodedText) => {
-                    const now = Date.now();
-
-                    // Debounce: Skip if already processing or same barcode within 2 seconds
-                    if (isProcessingRef.current) {
-                        return;
-                    }
-
-                    if (lastScannedRef.current === decodedText &&
-                        now - lastScannedTimeRef.current < 2000) {
-                        return;
-                    }
-
-                    // Mark as processing to prevent further callbacks
-                    isProcessingRef.current = true;
-                    lastScannedRef.current = decodedText;
-                    lastScannedTimeRef.current = now;
-
-                    // Barcode scanned successfully
-                    setNewProduct(prev => ({ ...prev, barcode: decodedText }));
-                    toast({
-                        title: 'Barcode terdeteksi!',
-                        description: decodedText,
-                    });
-                    stopScanner();
-                    setShowCamera(false);
-                },
-                () => {
-                    // Ignore QR scan errors (continuous scanning)
-                }
-            );
-        } catch (error) {
-            console.error('Camera error:', error);
-            setCameraError(
-                error instanceof Error
-                    ? error.message
-                    : 'Tidak dapat mengakses kamera. Pastikan browser memiliki izin kamera.'
-            );
-            setIsScanning(false);
-        }
-    }, [useFrontCamera, stopScanner, toast]);
-
-    // Start scanner when camera dialog opens
-    useEffect(() => {
-        if (showCamera) {
-            const timer = setTimeout(() => {
-                startScanner();
-            }, 300);
-            return () => clearTimeout(timer);
-        }
-    }, [showCamera, startScanner]);
-
-    // Cleanup on unmount
-    useEffect(() => {
-        return () => {
-            stopScanner();
-        };
-    }, [stopScanner]);
-
-    const toggleCamera = async () => {
-        if (html5QrcodeRef.current && isScanning) {
-            await stopScanner();
-            setUseFrontCamera(!useFrontCamera);
-            setTimeout(() => {
-                startScanner();
-            }, 100);
-        }
+    // Handle barcode scanned from BarcodeScanner component
+    const handleBarcodeScan = (scannedBarcode: string) => {
+        setNewProduct(prev => ({ ...prev, barcode: scannedBarcode }));
+        toast({
+            title: 'Barcode terdeteksi!',
+            description: scannedBarcode,
+        });
     };
 
     const handleImageChange = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -359,8 +235,6 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
                 URL.revokeObjectURL(productImagePreviewUrl);
             }
             setProductImagePreviewUrl(null);
-            stopScanner();
-            setShowCamera(false);
         }
     };
 
@@ -389,26 +263,15 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
                         </div>
                         <div className="space-y-2">
                             <Label>Barcode</Label>
-                            <div className="flex gap-2">
-                                <Input
-                                    value={newProduct.barcode}
-                                    onChange={(e) => setNewProduct({ ...newProduct, barcode: e.target.value })}
-                                    placeholder="Masukkan atau scan barcode"
-                                    className="rounded-xl flex-1"
-                                />
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={() => setShowCamera(true)}
-                                    className="rounded-xl h-10 w-10 flex-shrink-0"
-                                    title="Scan dengan kamera"
-                                >
-                                    <Camera className="w-4 h-4" />
-                                </Button>
-                            </div>
+                            <BarcodeScanner
+                                value={newProduct.barcode}
+                                onChange={(val) => setNewProduct({ ...newProduct, barcode: val })}
+                                onScan={handleBarcodeScan}
+                                placeholder="Masukkan atau scan barcode"
+                                showSubmitButton={false}
+                            />
                             <p className="text-xs text-muted-foreground">
-                                Ketik manual atau tekan tombol kamera untuk scan
+                                Ketik manual atau tekan ikon kamera untuk scan
                             </p>
                         </div>
                         <div className="space-y-2">
@@ -555,80 +418,6 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
                 </DialogContent>
             </Dialog>
 
-            {/* Camera Scanner Dialog */}
-            <Dialog open={showCamera} onOpenChange={(open) => {
-                if (!open) {
-                    stopScanner();
-                }
-                setShowCamera(open);
-            }}>
-                <DialogContent className="rounded-2xl p-0 overflow-hidden max-w-md">
-                    <div className="relative">
-                        {/* Camera View */}
-                        <div className="relative bg-black aspect-square">
-                            <div id={scannerContainerId} className="w-full h-full" />
-
-                            {/* Loading State */}
-                            {isScanning && !cameraError && (
-                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                    <div className="w-64 h-40 border-2 border-primary rounded-lg opacity-50" />
-                                </div>
-                            )}
-
-                            {/* Error State */}
-                            {cameraError && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-black/80 p-6">
-                                    <div className="text-center text-white">
-                                        <Camera className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                                        <p className="text-sm mb-4">{cameraError}</p>
-                                        <Button
-                                            variant="secondary"
-                                            onClick={startScanner}
-                                        >
-                                            Coba Lagi
-                                        </Button>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Controls Overlay */}
-                            <div className="absolute top-4 right-4 flex gap-2">
-                                <Button
-                                    variant="secondary"
-                                    size="icon"
-                                    className="bg-white/10 border-white/20 text-white hover:bg-white/20 rounded-full"
-                                    onClick={toggleCamera}
-                                    title="Ganti Kamera"
-                                >
-                                    <SwitchCamera className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                    variant="secondary"
-                                    size="icon"
-                                    className="bg-white/10 border-white/20 text-white hover:bg-white/20 rounded-full"
-                                    onClick={() => {
-                                        stopScanner();
-                                        setShowCamera(false);
-                                    }}
-                                    title="Tutup"
-                                >
-                                    <X className="w-4 h-4" />
-                                </Button>
-                            </div>
-                        </div>
-
-                        {/* Instructions */}
-                        <div className="p-4 bg-background">
-                            <p className="text-center text-sm text-muted-foreground">
-                                Arahkan kamera ke barcode produk
-                            </p>
-                            <p className="text-center text-xs text-muted-foreground mt-1">
-                                Mendukung: EAN-13, EAN-8, UPC-A/E, Code-128/39/93, ITF, Codabar, QR
-                            </p>
-                        </div>
-                    </div>
-                </DialogContent>
-            </Dialog>
         </>
     );
 }

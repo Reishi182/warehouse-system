@@ -22,6 +22,7 @@ interface ProductManageCardProps {
     canEdit?: boolean;
     canDelete?: boolean;
     canAdjustStock?: boolean;
+    isHighlighted?: boolean;
 }
 
 export const ProductManageCard = memo(function ProductManageCard({
@@ -32,6 +33,7 @@ export const ProductManageCard = memo(function ProductManageCard({
     canEdit = true,
     canDelete = true,
     canAdjustStock = true,
+    isHighlighted = false,
 }: ProductManageCardProps) {
     const stockGudang = product.stock.gudang;
     const stockToko = product.stock.toko;
@@ -45,10 +47,12 @@ export const ProductManageCard = memo(function ProductManageCard({
 
     return (
         <div
+            data-product-id={product.id}
             className={cn(
                 "group relative flex flex-col rounded-2xl border bg-card overflow-hidden transition-all duration-200",
                 "hover:shadow-lg hover:border-primary/40 hover:-translate-y-0.5",
-                isOutOfStock && "opacity-70"
+                isOutOfStock && "opacity-70",
+                isHighlighted && "ring-2 ring-primary ring-offset-2 shadow-lg shadow-primary/20 animate-pulse"
             )}
         >
             {/* Action Menu - Top Right */}

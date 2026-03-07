@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback, memo } from 'react';
-import { Package, AlertTriangle, Warehouse, Store, ArrowDownToLine, ChevronLeft, ChevronRight, Filter, X, ArrowUpDown } from 'lucide-react';
+import { useState, useMemo, useCallback, useEffect, useRef, memo } from 'react';
+import { Package, AlertTriangle, Warehouse, Store, ArrowDownToLine, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, X, ArrowUpDown } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import BarcodeScanner from '@/components/common/BarcodeScanner';
 import PageSkeleton from '@/components/common/PageSkeleton';
@@ -15,6 +15,7 @@ import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { useLocation } from 'react-router-dom';
 import {
     Select,
     SelectContent,
@@ -53,6 +54,8 @@ export default function Products() {
     const [stockAdjustProduct, setStockAdjustProduct] = useState<Product | null>(null);
     const [stockInDialog, setStockInDialog] = useState(false);
     const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
+    const [highlightedProductId, setHighlightedProductId] = useState<string | null>(null);
+    const location = useLocation();
 
     // Role permissions
     const canAddProduct = role === 'admin' || role === 'warehouse' || role === 'cashier';
@@ -173,9 +176,56 @@ export default function Products() {
     }, [filteredProducts.length, pageSize]);
 
     // Reset page when filters change
-    useMemo(() => {
+    useEffect(() => {
         setCurrentPage(1);
     }, [debouncedSearch, stockFilter, locationFilter, pageSize, sortBy, dataFilters]);
+
+    // Handle highlight from URL (?highlight=<productId>)
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const highlightId = params.get('highlight');
+        if (!highlightId || products.length === 0) return;
+
+        // Reset all filters to find the product
+        setSearchQuery('');
+        setStockFilter('all');
+        setLocationFilter('all');
+        setDataFilters([]);
+        setSortBy('newest');
+
+        // Find product index (with newest sort, it will be first if just created)
+        const sortedAll = [...products].sort((a, b) =>
+            new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+        );
+        const idx = sortedAll.findIndex(p => p.id === highlightId);
+        if (idx === -1) return;
+
+        // Navigate to the right page
+        if (pageSize !== 'all') {
+            const targetPage = Math.floor(idx / pageSize) + 1;
+            setCurrentPage(targetPage);
+        }
+
+        setHighlightedProductId(highlightId);
+
+        // Scroll to the product card after render
+        setTimeout(() => {
+            const el = document.querySelector(`[data-product-id="${highlightId}"]`);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }, 300);
+
+        // Clear highlight after 4 seconds
+        const timer = setTimeout(() => {
+            setHighlightedProductId(null);
+        }, 4000);
+
+        // Clean up the URL param
+        window.history.replaceState(null, '', window.location.pathname + window.location.hash.split('?')[0]);
+
+        return () => clearTimeout(timer);
+    }, [location.search, products]);
 
     // Stats for hero section
     const stats = useMemo(() => ({
@@ -451,6 +501,7 @@ export default function Products() {
                                         canEdit={canEditProduct}
                                         canDelete={canDeleteProduct}
                                         canAdjustStock={canAdjustStock}
+                                        isHighlighted={product.id === highlightedProductId}
                                     />
                                 ))}
                             </div>
@@ -475,31 +526,119 @@ export default function Products() {
                         )}
 
                         {/* Pagination */}
-                        {pageSize !== 'all' && totalPages > 1 && (
-                            <div className="flex items-center justify-center gap-2 mt-6 pt-6 border-t">
-                                <Button
-                                    variant="outline"
-                                    size="icon"
-                                    className="h-9 w-9 rounded-lg"
-                                    disabled={currentPage === 1}
-                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                >
-                                    <ChevronLeft className="w-4 h-4" />
-                                </Button>
-                                <span className="text-sm font-medium px-4 py-2 bg-muted rounded-lg">
-                                    {currentPage} / {totalPages}
-                                </span>
-                                <Button
-                                    variant="outline"
-                                    size="icon"
-                                    className="h-9 w-9 rounded-lg"
-                                    disabled={currentPage === totalPages}
-                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                >
-                                    <ChevronRight className="w-4 h-4" />
-                                </Button>
-                            </div>
-                        )}
+                        {pageSize !== 'all' && totalPages > 1 && (() => {
+                            // Generate page numbers with ellipsis
+                            const pages: (number | '...')[] = [];
+                            if (totalPages <= 7) {
+                                for (let i = 1; i <= totalPages; i++) pages.push(i);
+                            } else {
+                                pages.push(1);
+                                if (currentPage > 3) pages.push('...');
+                                const start = Math.max(2, currentPage - 1);
+                                const end = Math.min(totalPages - 1, currentPage + 1);
+                                for (let i = start; i <= end; i++) pages.push(i);
+                                if (currentPage < totalPages - 2) pages.push('...');
+                                pages.push(totalPages);
+                            }
+
+                            return (
+                                <div className="flex flex-col items-center gap-3 mt-6 pt-6 border-t">
+                                    <div className="flex items-center gap-1.5">
+                                        {/* First Page */}
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-9 w-9 rounded-lg"
+                                            disabled={currentPage === 1}
+                                            onClick={() => setCurrentPage(1)}
+                                            title="Halaman pertama"
+                                        >
+                                            <ChevronsLeft className="w-4 h-4" />
+                                        </Button>
+                                        {/* Previous Page */}
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-9 w-9 rounded-lg"
+                                            disabled={currentPage === 1}
+                                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                            title="Halaman sebelumnya"
+                                        >
+                                            <ChevronLeft className="w-4 h-4" />
+                                        </Button>
+
+                                        {/* Page Numbers */}
+                                        <div className="flex items-center gap-1">
+                                            {pages.map((page, idx) =>
+                                                page === '...' ? (
+                                                    <span key={`ellipsis-${idx}`} className="w-9 h-9 flex items-center justify-center text-sm text-muted-foreground">
+                                                        ⋯
+                                                    </span>
+                                                ) : (
+                                                    <button
+                                                        key={page}
+                                                        onClick={() => setCurrentPage(page)}
+                                                        className={cn(
+                                                            "h-9 min-w-[36px] px-2 rounded-lg text-sm font-medium transition-all",
+                                                            currentPage === page
+                                                                ? "bg-primary text-primary-foreground shadow-sm"
+                                                                : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                                                        )}
+                                                    >
+                                                        {page}
+                                                    </button>
+                                                )
+                                            )}
+                                        </div>
+
+                                        {/* Next Page */}
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-9 w-9 rounded-lg"
+                                            disabled={currentPage === totalPages}
+                                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                            title="Halaman berikutnya"
+                                        >
+                                            <ChevronRight className="w-4 h-4" />
+                                        </Button>
+                                        {/* Last Page */}
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-9 w-9 rounded-lg"
+                                            disabled={currentPage === totalPages}
+                                            onClick={() => setCurrentPage(totalPages)}
+                                            title="Halaman terakhir"
+                                        >
+                                            <ChevronsRight className="w-4 h-4" />
+                                        </Button>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                        <span>Halaman</span>
+                                        <input
+                                            type="number"
+                                            min={1}
+                                            max={totalPages}
+                                            value={currentPage}
+                                            onChange={(e) => {
+                                                const val = parseInt(e.target.value);
+                                                if (!isNaN(val)) {
+                                                    setCurrentPage(Math.max(1, Math.min(totalPages, val)));
+                                                }
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    (e.target as HTMLInputElement).blur();
+                                                }
+                                            }}
+                                            className="w-12 h-7 text-center text-sm font-medium text-foreground bg-muted border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                        />
+                                        <span>dari <span className="font-medium text-foreground">{totalPages}</span></span>
+                                    </div>
+                                </div>
+                            );
+                        })()}
                     </div>
                 </div>
             </div>

@@ -776,7 +776,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       title: 'Produk Baru',
       message: `Produk ${product.name} berhasil ditambahkan`,
       type: 'success',
-      link: '/products'
+      link: `/products?highlight=${inserted?.id}`
     });
 
     await addActivityLog({

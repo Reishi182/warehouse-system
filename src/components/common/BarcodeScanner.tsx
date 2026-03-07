@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Camera, X, Keyboard, SwitchCamera, Flashlight } from 'lucide-react';
+import { Camera, X, SwitchCamera, Search } from 'lucide-react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,10 +9,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { cn } from '@/lib/utils';
 
 interface BarcodeScannerProps {
+  /** Called when a barcode is scanned or user submits the input */
   onScan: (barcode: string) => void;
+  /** Placeholder text for the input */
   placeholder?: string;
+  /** Additional className for the root element */
+  className?: string;
+  /** Controlled value (for use as an input field) */
+  value?: string;
+  /** Called when the input value changes (controlled mode) */
+  onChange?: (value: string) => void;
+  /** If true, shows a "Cari" submit button. Default: true */
+  showSubmitButton?: boolean;
 }
 
 // Supported barcode formats
@@ -29,8 +40,26 @@ const SUPPORTED_FORMATS = [
   Html5QrcodeSupportedFormats.CODABAR,
 ];
 
-export default function BarcodeScanner({ onScan, placeholder = 'Masukkan atau scan barcode' }: BarcodeScannerProps) {
-  const [barcode, setBarcode] = useState('');
+export default function BarcodeScanner({
+  onScan,
+  placeholder = 'Masukkan atau scan barcode',
+  className,
+  value: controlledValue,
+  onChange: controlledOnChange,
+  showSubmitButton = true,
+}: BarcodeScannerProps) {
+  // Support both controlled and uncontrolled modes
+  const [internalValue, setInternalValue] = useState('');
+  const isControlled = controlledValue !== undefined;
+  const barcode = isControlled ? controlledValue : internalValue;
+  const setBarcode = useCallback((val: string) => {
+    if (isControlled && controlledOnChange) {
+      controlledOnChange(val);
+    } else {
+      setInternalValue(val);
+    }
+  }, [isControlled, controlledOnChange]);
+
   const [showCamera, setShowCamera] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -38,7 +67,7 @@ export default function BarcodeScanner({ onScan, placeholder = 'Masukkan atau sc
 
   const html5QrcodeRef = useRef<Html5Qrcode | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const scannerContainerId = 'barcode-scanner-container';
+  const scannerContainerId = useRef(`barcode-scanner-${Math.random().toString(36).slice(2, 8)}`).current;
 
   // Debounce refs to prevent multiple detections
   const isProcessingRef = useRef(false);
@@ -64,7 +93,7 @@ export default function BarcodeScanner({ onScan, placeholder = 'Masukkan atau sc
 
       // If Enter is pressed and we have buffered input, it's a barcode scan
       if (e.key === 'Enter' && keyBuffer.current.length > 5) {
-        const scannedBarcode = keyBuffer.current.replace('Enter', '');
+        const scannedBarcode = keyBuffer.current.replace('Enter', '').trim();
         setBarcode(scannedBarcode);
         onScan(scannedBarcode);
         keyBuffer.current = '';
@@ -73,68 +102,7 @@ export default function BarcodeScanner({ onScan, placeholder = 'Masukkan atau sc
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onScan]);
-
-  const startScanner = useCallback(async () => {
-    setCameraError(null);
-    setIsScanning(true);
-    // Reset processing state when starting scanner
-    isProcessingRef.current = false;
-
-    try {
-      // Create scanner instance
-      const html5Qrcode = new Html5Qrcode(scannerContainerId, {
-        formatsToSupport: SUPPORTED_FORMATS,
-        verbose: false,
-      });
-      html5QrcodeRef.current = html5Qrcode;
-
-      const config = {
-        fps: 10,
-        qrbox: { width: 250, height: 150 },
-        aspectRatio: 1.5,
-      };
-
-      await html5Qrcode.start(
-        { facingMode: useFrontCamera ? 'user' : 'environment' },
-        config,
-        (decodedText) => {
-          const now = Date.now();
-
-          // Debounce: Skip if already processing or same barcode within 2 seconds
-          if (isProcessingRef.current) {
-            return;
-          }
-
-          if (lastScannedRef.current === decodedText &&
-            now - lastScannedTimeRef.current < 2000) {
-            return;
-          }
-
-          // Mark as processing to prevent further callbacks
-          isProcessingRef.current = true;
-          lastScannedRef.current = decodedText;
-          lastScannedTimeRef.current = now;
-
-          // Success callback
-          setBarcode(decodedText);
-          onScan(decodedText);
-          stopScanner();
-        },
-        () => {
-          // Ignore scan failures (not found)
-        }
-      );
-    } catch (err) {
-      console.error('Failed to start scanner:', err);
-      setCameraError(
-        err instanceof Error
-          ? err.message
-          : 'Tidak dapat mengakses kamera. Pastikan izin kamera telah diberikan.'
-      );
-      setIsScanning(false);
-    }
-  }, [onScan, useFrontCamera]);
+  }, [onScan, setBarcode]);
 
   const stopScanner = useCallback(async () => {
     if (html5QrcodeRef.current) {
@@ -153,6 +121,57 @@ export default function BarcodeScanner({ onScan, placeholder = 'Masukkan atau sc
     setShowCamera(false);
   }, []);
 
+  const startScanner = useCallback(async () => {
+    setCameraError(null);
+    setIsScanning(true);
+    isProcessingRef.current = false;
+
+    try {
+      const html5Qrcode = new Html5Qrcode(scannerContainerId, {
+        formatsToSupport: SUPPORTED_FORMATS,
+        verbose: false,
+      });
+      html5QrcodeRef.current = html5Qrcode;
+
+      const config = {
+        fps: 10,
+        qrbox: { width: 250, height: 150 },
+        aspectRatio: 1.5,
+      };
+
+      await html5Qrcode.start(
+        { facingMode: useFrontCamera ? 'user' : 'environment' },
+        config,
+        (decodedText) => {
+          const now = Date.now();
+
+          if (isProcessingRef.current) return;
+          if (lastScannedRef.current === decodedText && now - lastScannedTimeRef.current < 2000) return;
+
+          isProcessingRef.current = true;
+          lastScannedRef.current = decodedText;
+          lastScannedTimeRef.current = now;
+
+          const trimmed = decodedText.trim();
+          setBarcode(trimmed);
+          onScan(trimmed);
+          stopScanner();
+        },
+        () => {
+          // Ignore scan failures (not found)
+        }
+      );
+    } catch (err) {
+      console.error('Failed to start scanner:', err);
+      setCameraError(
+        err instanceof Error
+          ? err.message
+          : 'Tidak dapat mengakses kamera. Pastikan izin kamera telah diberikan.'
+      );
+      setIsScanning(false);
+    }
+  }, [onScan, useFrontCamera, scannerContainerId, setBarcode, stopScanner]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -165,7 +184,6 @@ export default function BarcodeScanner({ onScan, placeholder = 'Masukkan atau sc
   // Start scanner when dialog opens
   useEffect(() => {
     if (showCamera) {
-      // Small delay to ensure DOM is ready
       const timer = setTimeout(() => {
         startScanner();
       }, 100);
@@ -175,8 +193,9 @@ export default function BarcodeScanner({ onScan, placeholder = 'Masukkan atau sc
 
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (barcode.trim()) {
-      onScan(barcode.trim());
+    const trimmed = barcode.trim();
+    if (trimmed) {
+      onScan(trimmed);
     }
   };
 
@@ -185,59 +204,56 @@ export default function BarcodeScanner({ onScan, placeholder = 'Masukkan atau sc
       await stopScanner();
       setUseFrontCamera(!useFrontCamera);
       setTimeout(() => {
-        startScanner();
+        setShowCamera(true);
       }, 100);
     }
   };
 
-  const openCameraDialog = () => {
-    setShowCamera(true);
-    setCameraError(null);
-  };
-
   return (
     <>
-      <form onSubmit={handleManualSubmit} className="flex gap-2">
+      <form onSubmit={handleManualSubmit} className={cn("flex gap-2", className)}>
         <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
           <Input
             ref={inputRef}
             value={barcode}
             onChange={(e) => setBarcode(e.target.value)}
             placeholder={placeholder}
-            className="pr-20 rounded-xl"
+            className="pl-9 pr-12 rounded-xl h-11"
           />
-          <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-1">
-            <Button
+          <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
+            {barcode && (
+              <button
+                type="button"
+                onClick={() => setBarcode('')}
+                className="p-1.5 rounded-lg hover:bg-muted transition-colors"
+                title="Hapus"
+              >
+                <X className="w-3.5 h-3.5 text-muted-foreground" />
+              </button>
+            )}
+            <button
               type="button"
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => inputRef.current?.focus()}
-              title="Input Manual"
-            >
-              <Keyboard className="w-4 h-4" />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={openCameraDialog}
+              onClick={() => { setShowCamera(true); setCameraError(null); }}
+              className="p-1.5 rounded-lg hover:bg-muted transition-colors"
               title="Scan dengan Kamera"
             >
-              <Camera className="w-4 h-4" />
-            </Button>
+              <Camera className="w-4 h-4 text-muted-foreground" />
+            </button>
           </div>
         </div>
-        <Button type="submit" disabled={!barcode.trim()} className="rounded-xl">
-          Cari
-        </Button>
+        {showSubmitButton && (
+          <Button type="submit" disabled={!barcode.trim()} className="rounded-xl h-11 px-5">
+            Cari
+          </Button>
+        )}
       </form>
 
+      {/* Camera Scanner Dialog */}
       <Dialog open={showCamera} onOpenChange={(open) => !open && stopScanner()}>
-        <DialogContent className="sm:max-w-md p-0 overflow-hidden">
+        <DialogContent className="sm:max-w-md p-0 overflow-hidden rounded-2xl">
           <DialogHeader className="p-4 pb-2">
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-2 text-base">
               <Camera className="w-5 h-5" />
               Scan Barcode
             </DialogTitle>
@@ -247,8 +263,20 @@ export default function BarcodeScanner({ onScan, placeholder = 'Masukkan atau sc
             {/* Scanner Container */}
             <div
               id={scannerContainerId}
-              className="w-full min-h-[300px] bg-black"
+              className="w-full min-h-[280px] bg-black"
             />
+
+            {/* Scan Guide Overlay */}
+            {isScanning && !cameraError && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="w-56 h-36 border-2 border-white/60 rounded-xl relative">
+                  <div className="absolute -top-0.5 -left-0.5 w-5 h-5 border-t-3 border-l-3 border-primary rounded-tl-lg" />
+                  <div className="absolute -top-0.5 -right-0.5 w-5 h-5 border-t-3 border-r-3 border-primary rounded-tr-lg" />
+                  <div className="absolute -bottom-0.5 -left-0.5 w-5 h-5 border-b-3 border-l-3 border-primary rounded-bl-lg" />
+                  <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 border-b-3 border-r-3 border-primary rounded-br-lg" />
+                </div>
+              </div>
+            )}
 
             {/* Error Message */}
             {cameraError && (
@@ -277,32 +305,35 @@ export default function BarcodeScanner({ onScan, placeholder = 'Masukkan atau sc
                 </div>
               </div>
             )}
+
+            {/* Camera Controls Overlay */}
+            {isScanning && (
+              <div className="absolute top-3 right-3 flex gap-2">
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="h-9 w-9 bg-black/40 border-0 text-white hover:bg-black/60 rounded-full backdrop-blur-sm"
+                  onClick={toggleCamera}
+                  title="Ganti Kamera"
+                >
+                  <SwitchCamera className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
           </div>
 
           <div className="p-4 pt-2 space-y-3">
             <p className="text-sm text-muted-foreground text-center">
               Arahkan barcode ke dalam kotak untuk scan otomatis
             </p>
-
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={toggleCamera}
-                className="flex-1 rounded-xl"
-                disabled={!isScanning}
-              >
-                <SwitchCamera className="w-4 h-4 mr-2" />
-                Ganti Kamera
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={stopScanner}
-                className="flex-1 rounded-xl"
-              >
-                <X className="w-4 h-4 mr-2" />
-                Batal
-              </Button>
-            </div>
+            <Button
+              variant="outline"
+              onClick={stopScanner}
+              className="w-full rounded-xl"
+            >
+              <X className="w-4 h-4 mr-2" />
+              Batal
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

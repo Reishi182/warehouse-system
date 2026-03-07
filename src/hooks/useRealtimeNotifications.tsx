@@ -52,12 +52,17 @@ export function useRealtimeNotifications(userId?: string) {
                 (payload) => {
                     const notification = payload.new as Notification;
 
-                    // Show toast notification with clickable link
-                    toast({
-                        title: notification.title,
-                        description: notification.message,
-                        link: notification.link,
-                    });
+                    // Skip toast for 'success' notifications created by the current user
+                    // These already have a toast shown by the calling code (e.g. "Produk ditambahkan")
+                    // Only show realtime toast for warnings, errors, info (typically from other users/system)
+                    if (notification.type !== 'success') {
+                        toast({
+                            title: notification.title,
+                            description: notification.message,
+                            variant: (notification.type as 'warning' | 'destructive' | 'info') || 'default',
+                            link: notification.link || undefined,
+                        });
+                    }
 
                     // Play notification sound (optional)
                     try {
