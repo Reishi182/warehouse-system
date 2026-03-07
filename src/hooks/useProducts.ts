@@ -35,6 +35,7 @@ async function fetchProducts(): Promise<Product[]> {
             .from('products')
             .select('*')
             .order('name', { ascending: true })
+            .order('id', { ascending: true })
             .range(from, from + PAGE_SIZE - 1);
 
         if (error) throw error;
