@@ -25,7 +25,7 @@ export interface Product {
   };
   // Variable unit products (sold by meter/kg/gram)
   sell_by_quantity?: boolean;
-  sell_unit?: string; // 'pcs' | 'meter' | 'cm' | 'kg' | 'gram' | 'liter'
+  sell_unit?: string; // 'pcs' | 'meter' | 'cm' | 'kg' | 'gram' | 'ons' | 'liter'
   // Multi-unit support (e.g. box + pcs)
   has_multi_unit?: boolean;
   pcs_per_box?: number | null; // how many pcs in one box (null = unknown/sealed)

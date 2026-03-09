@@ -481,7 +481,7 @@ export default function StockReturnCreate() {
                                                             max={item.maxStock}
                                                             value={item.quantity}
                                                             onChange={e => {
-                                                                const val = parseInt(e.target.value) || 0;
+                                                                const val = parseFloat(e.target.value) || 0;
                                                                 const clampedVal = Math.min(Math.max(1, val), item.maxStock);
                                                                 handleUpdateItem(item.productId, 'quantity', clampedVal);
                                                             }}

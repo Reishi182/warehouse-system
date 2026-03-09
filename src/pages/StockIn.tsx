@@ -142,7 +142,7 @@ export default function StockIn() {
                     <Input
                       type="number"
                       value={quantity}
-                      onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
+                      onChange={(e) => setQuantity(parseFloat(e.target.value) || 0)}
                       min={1}
                       className="rounded-xl h-11"
                     />

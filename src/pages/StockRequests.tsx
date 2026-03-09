@@ -414,7 +414,7 @@ export default function StockRequests() {
                           <Input
                             type="number"
                             value={item.quantity}
-                            onChange={(e) => updateItemQuantity(item.id, parseInt(e.target.value))}
+                            onChange={(e) => updateItemQuantity(item.id, parseFloat(e.target.value))}
                             className="w-20 h-9 rounded-lg"
                           />
                           {!useSameLocation && (

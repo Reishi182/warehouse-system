@@ -492,7 +492,7 @@ export default function StockRequestsNew() {
                                                             min={1}
                                                             max={item.maxStock}
                                                             value={item.quantity}
-                                                            onChange={e => handeUpdateItem(item.productId, 'quantity', parseInt(e.target.value) || 0)}
+                                                            onChange={e => handeUpdateItem(item.productId, 'quantity', parseFloat(e.target.value) || 0)}
                                                             className="h-8 text-sm rounded-lg"
                                                         />
                                                     </div>

@@ -313,6 +313,7 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
                                             <SelectItem value="cm" className="cursor-pointer rounded-lg my-1">Centimeter</SelectItem>
                                             <SelectItem value="kg" className="cursor-pointer rounded-lg my-1">Kilogram</SelectItem>
                                             <SelectItem value="gram" className="cursor-pointer rounded-lg my-1">Gram</SelectItem>
+                                            <SelectItem value="ons" className="cursor-pointer rounded-lg my-1">Ons</SelectItem>
                                             <SelectItem value="liter" className="cursor-pointer rounded-lg my-1">Liter</SelectItem>
                                         </SelectContent>
                                     </Select>
@@ -393,7 +394,7 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
                                 <Input
                                     type="number"
                                     value={newProduct.stockGudang}
-                                    onChange={(e) => setNewProduct({ ...newProduct, stockGudang: parseInt(e.target.value) || 0 })}
+                                    onChange={(e) => setNewProduct({ ...newProduct, stockGudang: parseFloat(e.target.value) || 0 })}
                                     min={0}
                                     className="rounded-xl"
                                     placeholder="0"
@@ -404,7 +405,7 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
                                 <Input
                                     type="number"
                                     value={newProduct.stockToko}
-                                    onChange={(e) => setNewProduct({ ...newProduct, stockToko: parseInt(e.target.value) || 0 })}
+                                    onChange={(e) => setNewProduct({ ...newProduct, stockToko: parseFloat(e.target.value) || 0 })}
                                     min={0}
                                     className="rounded-xl"
                                     placeholder="0"

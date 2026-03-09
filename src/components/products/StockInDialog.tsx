@@ -177,7 +177,7 @@ export function StockInDialog({
                                             <Input
                                                 type="number"
                                                 value={boxQuantity || ''}
-                                                onChange={(e) => setBoxQuantity(parseInt(e.target.value) || 0)}
+                                                onChange={(e) => setBoxQuantity(parseFloat(e.target.value) || 0)}
                                                 min={0}
                                                 placeholder="0"
                                                 className="rounded-xl"
@@ -188,7 +188,7 @@ export function StockInDialog({
                                             <Input
                                                 type="number"
                                                 value={pcsQuantity || ''}
-                                                onChange={(e) => setPcsQuantity(parseInt(e.target.value) || 0)}
+                                                onChange={(e) => setPcsQuantity(parseFloat(e.target.value) || 0)}
                                                 min={0}
                                                 placeholder="0"
                                                 className="rounded-xl"
@@ -228,7 +228,7 @@ export function StockInDialog({
                                         <Input
                                             type="number"
                                             value={pcsQuantity || ''}
-                                            onChange={(e) => setPcsQuantity(parseInt(e.target.value) || 0)}
+                                            onChange={(e) => setPcsQuantity(parseFloat(e.target.value) || 0)}
                                             min={1}
                                             className="rounded-xl"
                                         />

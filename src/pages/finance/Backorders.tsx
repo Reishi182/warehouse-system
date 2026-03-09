@@ -342,7 +342,7 @@ export default function Backorders() {
                                         getAvailableStock(selectedBackorder.product_id, selectedBackorder.stock_location)
                                     )}
                                     value={fulfillQty}
-                                    onChange={(e) => setFulfillQty(parseInt(e.target.value) || 0)}
+                                    onChange={(e) => setFulfillQty(parseFloat(e.target.value) || 0)}
                                 />
                                 <p className="text-xs text-muted-foreground">
                                     Total: Rp {(fulfillQty * selectedBackorder.unit_price).toLocaleString('id-ID')}

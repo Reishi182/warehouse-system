@@ -368,7 +368,7 @@ export default function EditProductDialog({
                                                                 min={0}
                                                                 value={stockForm.gudangBox || ''}
                                                                 onChange={(e) => {
-                                                                    const boxes = parseInt(e.target.value) || 0;
+                                                                    const boxes = parseFloat(e.target.value) || 0;
                                                                     const total = boxes * editForm.pcs_per_box + stockForm.gudangPcs;
                                                                     setStockForm({ ...stockForm, gudangBox: boxes, gudang: total });
                                                                 }}
@@ -383,7 +383,7 @@ export default function EditProductDialog({
                                                                 min={0}
                                                                 value={stockForm.gudangPcs || ''}
                                                                 onChange={(e) => {
-                                                                    const pcs = parseInt(e.target.value) || 0;
+                                                                    const pcs = parseFloat(e.target.value) || 0;
                                                                     const total = stockForm.gudangBox * editForm.pcs_per_box + pcs;
                                                                     setStockForm({ ...stockForm, gudangPcs: pcs, gudang: total });
                                                                 }}
@@ -400,7 +400,7 @@ export default function EditProductDialog({
                                                     min={0}
                                                     value={stockForm.gudang || ''}
                                                     onChange={(e) => {
-                                                        const total = parseInt(e.target.value) || 0;
+                                                        const total = parseFloat(e.target.value) || 0;
                                                         setStockForm({ ...stockForm, gudang: total, gudangPcs: total, gudangBox: 0 });
                                                     }}
                                                     placeholder="Total pcs"
@@ -423,7 +423,7 @@ export default function EditProductDialog({
                                                                 min={0}
                                                                 value={stockForm.tokoBox || ''}
                                                                 onChange={(e) => {
-                                                                    const boxes = parseInt(e.target.value) || 0;
+                                                                    const boxes = parseFloat(e.target.value) || 0;
                                                                     const total = boxes * editForm.pcs_per_box + stockForm.tokoPcs;
                                                                     setStockForm({ ...stockForm, tokoBox: boxes, toko: total });
                                                                 }}
@@ -438,7 +438,7 @@ export default function EditProductDialog({
                                                                 min={0}
                                                                 value={stockForm.tokoPcs || ''}
                                                                 onChange={(e) => {
-                                                                    const pcs = parseInt(e.target.value) || 0;
+                                                                    const pcs = parseFloat(e.target.value) || 0;
                                                                     const total = stockForm.tokoBox * editForm.pcs_per_box + pcs;
                                                                     setStockForm({ ...stockForm, tokoPcs: pcs, toko: total });
                                                                 }}
@@ -455,7 +455,7 @@ export default function EditProductDialog({
                                                     min={0}
                                                     value={stockForm.toko || ''}
                                                     onChange={(e) => {
-                                                        const total = parseInt(e.target.value) || 0;
+                                                        const total = parseFloat(e.target.value) || 0;
                                                         setStockForm({ ...stockForm, toko: total, tokoPcs: total, tokoBox: 0 });
                                                     }}
                                                     placeholder="Total pcs"
@@ -474,7 +474,7 @@ export default function EditProductDialog({
                                                 type="number"
                                                 min={0}
                                                 value={stockForm.gudang}
-                                                onChange={(e) => setStockForm({ ...stockForm, gudang: parseInt(e.target.value) || 0 })}
+                                                onChange={(e) => setStockForm({ ...stockForm, gudang: parseFloat(e.target.value) || 0 })}
                                                 className="rounded-lg h-9"
                                             />
                                         </div>
@@ -486,7 +486,7 @@ export default function EditProductDialog({
                                                 type="number"
                                                 min={0}
                                                 value={stockForm.toko}
-                                                onChange={(e) => setStockForm({ ...stockForm, toko: parseInt(e.target.value) || 0 })}
+                                                onChange={(e) => setStockForm({ ...stockForm, toko: parseFloat(e.target.value) || 0 })}
                                                 className="rounded-lg h-9"
                                             />
                                         </div>

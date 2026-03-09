@@ -16,7 +16,7 @@ export const saleValidation = {
     validateQuantity: (qty: number): boolean => {
         return (
             typeof qty === 'number' &&
-            Number.isInteger(qty) &&
+            Number.isFinite(qty) &&
             qty > 0 &&
             qty <= 10000
         );
@@ -125,7 +125,7 @@ export const productValidation = {
     validateStock: (stock: number): boolean => {
         return (
             typeof stock === 'number' &&
-            Number.isInteger(stock) &&
+            Number.isFinite(stock) &&
             stock >= 0 &&
             stock <= 9999999
         );

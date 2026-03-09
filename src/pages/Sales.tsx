@@ -199,7 +199,7 @@ export default function Sales() {
                                 type="number"
                                 min={0}
                                 value={it.quantity}
-                                onChange={(e) => updateQty(it.product.id, parseInt(e.target.value) || 0)}
+                                onChange={(e) => updateQty(it.product.id, parseFloat(e.target.value) || 0)}
                                 className="w-16 text-center h-8 rounded-lg"
                               />
                               <Button

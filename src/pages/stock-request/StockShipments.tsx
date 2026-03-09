@@ -242,7 +242,7 @@ export default function StockShipments() {
                                                         min={0}
                                                         max={item.currentStock}
                                                         value={item.shipQty}
-                                                        onChange={e => handleUpdateShipQty(item.productId, parseInt(e.target.value) || 0)}
+                                                        onChange={e => handleUpdateShipQty(item.productId, parseFloat(e.target.value) || 0)}
                                                         className="h-8 text-center"
                                                     />
                                                 </td>
