@@ -58,9 +58,9 @@ export default function Products() {
     const location = useLocation();
 
     // Role permissions
-    const canAddProduct = role === 'admin' || role === 'warehouse' || role === 'cashier';
-    const canEditProduct = role === 'admin' || role === 'warehouse' || role === 'cashier' || role === 'auditor';
-    const canDeleteProduct = role === 'admin' || role === 'auditor';
+    const canAddProduct = role === 'admin' || role === 'warehouse' || role === 'cashier' || role === 'main_office';
+    const canEditProduct = role === 'admin' || role === 'warehouse' || role === 'cashier' || role === 'auditor' || role === 'main_office';
+    const canDeleteProduct = role === 'admin' || role === 'auditor' || role === 'main_office';
     const canAdjustStock = role === 'admin' || role === 'auditor';
 
     // Product counts for filter sidebar

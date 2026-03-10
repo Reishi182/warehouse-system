@@ -120,6 +120,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       has_multi_unit: p.has_multi_unit ?? false,
       pcs_per_box: p.pcs_per_box ?? null,
       box_price: p.box_price ?? null,
+      sell_by_quantity: p.sell_by_quantity ?? false,
+      sell_unit: p.sell_unit ?? 'pcs',
       created_at: p.created_at,
       updated_at: p.updated_at
     })));
@@ -750,7 +752,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
 
-  const addProduct = async (product: { name: string; barcode: string; price: number; stock: { gudang: number; toko: number }; image_url?: string; has_multi_unit?: boolean; pcs_per_box?: number | null; box_price?: number | null }) => {
+  const addProduct = async (product: { name: string; barcode: string; price: number; stock: { gudang: number; toko: number }; image_url?: string; has_multi_unit?: boolean; pcs_per_box?: number | null; box_price?: number | null; sell_by_quantity?: boolean; sell_unit?: string }) => {
     const { data: inserted, error } = await supabase
       .from('products')
       .insert({
@@ -763,6 +765,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         has_multi_unit: product.has_multi_unit ?? false,
         pcs_per_box: product.pcs_per_box ?? null,
         box_price: product.box_price ?? null,
+        sell_by_quantity: product.sell_by_quantity ?? false,
+        sell_unit: product.sell_unit ?? 'pcs',
       })
       .select()
       .single();
@@ -805,6 +809,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (updates.has_multi_unit !== undefined) updateData.has_multi_unit = updates.has_multi_unit;
     if (updates.pcs_per_box !== undefined) updateData.pcs_per_box = updates.pcs_per_box;
     if (updates.box_price !== undefined) updateData.box_price = updates.box_price;
+    if (updates.sell_by_quantity !== undefined) updateData.sell_by_quantity = updates.sell_by_quantity;
+    if (updates.sell_unit !== undefined) updateData.sell_unit = updates.sell_unit;
 
     const { error } = await supabase.from('products').update(updateData).eq('id', id);
     if (error) {

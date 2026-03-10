@@ -65,8 +65,8 @@ export default function EditProductDialog({
     const [editProductImageFile, setEditProductImageFile] = useState<File | null>(null);
     const [editProductImagePreviewUrl, setEditProductImagePreviewUrl] = useState<string | null>(null);
 
-    const canEditStock = userRole === 'admin' || userRole === 'auditor' || userRole === 'cashier' || userRole === 'warehouse';
-    const canEditAllLocations = userRole === 'admin' || userRole === 'auditor';
+    const canEditStock = userRole === 'admin' || userRole === 'auditor' || userRole === 'cashier' || userRole === 'warehouse' || userRole === 'main_office';
+    const canEditAllLocations = userRole === 'admin' || userRole === 'auditor' || userRole === 'main_office';
     const canEditGudang = canEditAllLocations || userRole === 'warehouse';
     const canEditToko = canEditAllLocations || userRole === 'cashier';
 
