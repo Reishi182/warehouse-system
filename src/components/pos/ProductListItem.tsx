@@ -52,24 +52,41 @@ export const ProductListItem = memo(function ProductListItem({
             </div>
 
             {/* Stock Badge */}
-            <div
-                className={cn(
-                    "px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1",
-                    isOutOfStock
-                        ? "bg-destructive text-white"
-                        : isLowStock
-                            ? "bg-amber-500 text-white"
-                            : "bg-emerald-600 text-white"
+            <div className="flex flex-col gap-1 items-end">
+                <div
+                    className={cn(
+                        "px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1",
+                        isOutOfStock
+                            ? "bg-destructive text-white"
+                            : isLowStock
+                                ? "bg-amber-500 text-white"
+                                : "bg-emerald-600 text-white"
+                    )}
+                >
+                    {isLowStock && <AlertTriangle className="w-3 h-3" />}
+                    {stock}
+                </div>
+                {product.has_multi_unit && (
+                    <span className="text-[9px] font-medium text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30 px-1.5 rounded">
+                        📦 Box/Pcs
+                    </span>
                 )}
-            >
-                {isLowStock && <AlertTriangle className="w-3 h-3" />}
-                {stock}
+                {product.sell_by_quantity && (
+                    <span className="text-[9px] font-medium text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 px-1.5 rounded">
+                        📏 per {product.sell_unit}
+                    </span>
+                )}
             </div>
 
             {/* Price */}
-            <p className="font-bold text-sm text-primary shrink-0 w-24 text-right">
-                Rp {product.price.toLocaleString('id-ID')}
-            </p>
+            <div className="shrink-0 w-24 text-right">
+                <p className="font-bold text-sm text-primary">
+                    Rp {product.price.toLocaleString('id-ID')}
+                </p>
+                {product.sell_by_quantity && (
+                    <p className="text-[9px] text-muted-foreground mt-0.5">/{product.sell_unit}</p>
+                )}
+            </div>
 
             {/* Add Button */}
             {!isOutOfStock && (

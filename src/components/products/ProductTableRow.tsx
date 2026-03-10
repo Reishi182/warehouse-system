@@ -41,10 +41,24 @@ export default function ProductTableRow({ product, canManage, onEdit, onDelete }
                         </div>
                     )}
                     <div>
-                        <p className="font-medium">{product.name}</p>
-                        {lowStock && (
-                            <span className="text-xs text-warning">Stok Rendah</span>
-                        )}
+                        <div className="flex flex-col gap-1 items-start mt-1">
+                            <p className="font-medium text-sm leading-none">{product.name}</p>
+                            <div className="flex gap-2 items-center flex-wrap mt-1">
+                                {lowStock && (
+                                    <span className="text-[10px] font-semibold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded">Stok Rendah</span>
+                                )}
+                                {product.has_multi_unit && (
+                                    <span className="text-[10px] font-semibold text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                        📦 Box/Pcs
+                                    </span>
+                                )}
+                                {product.sell_by_quantity && (
+                                    <span className="text-[10px] font-semibold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                        📏 per {product.sell_unit}
+                                    </span>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </td>
@@ -54,7 +68,12 @@ export default function ProductTableRow({ product, canManage, onEdit, onDelete }
                 </code>
             </td>
             <td className="text-right font-semibold">
-                Rp {product.price.toLocaleString('id-ID')}
+                <div className="flex flex-col items-end">
+                    <span>Rp {product.price.toLocaleString('id-ID')}</span>
+                    {product.sell_by_quantity && (
+                        <span className="text-[10px] font-normal text-muted-foreground mt-0.5">/{product.sell_unit}</span>
+                    )}
+                </div>
             </td>
             <td className="text-center">
                 <span className={cn(

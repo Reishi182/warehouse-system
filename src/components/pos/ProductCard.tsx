@@ -58,6 +58,20 @@ export const ProductCard = memo(function ProductCard({
                     </div>
                 )}
 
+                {/* Unit/Multi-unit Badge - Top Left */}
+                <div className="absolute top-2 left-2 flex flex-col gap-1">
+                    {product.has_multi_unit && (
+                        <span className="bg-blue-500/90 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm border border-blue-400/50">
+                            📦 Box/Pcs
+                        </span>
+                    )}
+                    {product.sell_by_quantity && (
+                        <span className="bg-amber-500/90 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm border border-amber-400/50">
+                            📏 per {product.sell_unit}
+                        </span>
+                    )}
+                </div>
+
                 {/* Stock Badge - Bottom Right */}
                 <div
                     className={cn(
@@ -85,6 +99,9 @@ export const ProductCard = memo(function ProductCard({
                 <div className="mt-auto">
                     <p className="font-bold text-sm sm:text-base text-primary">
                         Rp {product.price.toLocaleString('id-ID')}
+                        {product.sell_by_quantity && (
+                            <span className="text-xs font-normal text-muted-foreground ml-1">/{product.sell_unit}</span>
+                        )}
                     </p>
                 </div>
             </div>

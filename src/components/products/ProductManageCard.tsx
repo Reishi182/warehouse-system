@@ -136,6 +136,23 @@ export const ProductManageCard = memo(function ProductManageCard({
                         </Badge>
                     </div>
                 )}
+
+                {/* Unit/Multi-unit Badge */}
+                <div className="absolute top-2 right-2 flex flex-col gap-1 items-end sm:hidden sm:group-hover:flex">
+                    {/* Only show these when the MoreHorizontal menu is not showing, or shift them. For simplicity, placing them below the menu button. */}
+                </div>
+                <div className="absolute bottom-2 left-2 flex flex-col gap-1">
+                    {product.has_multi_unit && (
+                        <span className="bg-blue-500/90 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm border border-blue-400/50">
+                            📦 Box/Pcs
+                        </span>
+                    )}
+                    {product.sell_by_quantity && (
+                        <span className="bg-amber-500/90 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm border border-amber-400/50">
+                            📏 per {product.sell_unit}
+                        </span>
+                    )}
+                </div>
             </div>
 
             {/* Product Info */}
@@ -153,6 +170,9 @@ export const ProductManageCard = memo(function ProductManageCard({
                 {/* Price */}
                 <p className="font-bold text-base sm:text-lg text-primary mb-3">
                     Rp {product.price.toLocaleString('id-ID')}
+                    {product.sell_by_quantity && (
+                        <span className="text-xs font-normal text-muted-foreground ml-1">/{product.sell_unit}</span>
+                    )}
                 </p>
 
                 {/* Stock Info */}

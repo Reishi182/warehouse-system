@@ -8,6 +8,13 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Product, UserRole } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
@@ -44,6 +51,8 @@ export default function EditProductDialog({
         has_multi_unit: false,
         pcs_per_box: 0,
         box_price: 0,
+        sell_by_quantity: false,
+        sell_unit: 'pcs',
     });
     const [stockForm, setStockForm] = useState({
         gudang: 0,
@@ -70,6 +79,8 @@ export default function EditProductDialog({
                 has_multi_unit: product.has_multi_unit || false,
                 pcs_per_box: product.pcs_per_box || 0,
                 box_price: product.box_price || 0,
+                sell_by_quantity: product.sell_by_quantity || false,
+                sell_unit: product.sell_unit || 'pcs',
             });
             const pcsPerBox = product.pcs_per_box || 0;
             const isMulti = product.has_multi_unit && pcsPerBox > 0;
@@ -205,6 +216,8 @@ export default function EditProductDialog({
             barcode: finalBarcode,
             price: editForm.price,
             image_url: imageUrl === undefined ? product.image_url : imageUrl,
+            sell_by_quantity: editForm.sell_by_quantity,
+            sell_unit: editForm.sell_by_quantity ? editForm.sell_unit : 'pcs',
             has_multi_unit: editForm.has_multi_unit,
             pcs_per_box: editForm.has_multi_unit && editForm.pcs_per_box > 0 ? editForm.pcs_per_box : null,
             box_price: editForm.has_multi_unit && editForm.box_price > 0 ? editForm.box_price : null,
@@ -287,7 +300,7 @@ export default function EditProductDialog({
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label>Harga</Label>
+                        <Label>{editForm.sell_by_quantity ? `Harga per ${editForm.sell_unit}` : 'Harga'}</Label>
                         <Input
                             type="number"
                             min={0}
@@ -295,6 +308,47 @@ export default function EditProductDialog({
                             onChange={(e) => setEditForm({ ...editForm, price: parseInt(e.target.value) || 0 })}
                             className="rounded-xl"
                         />
+                    </div>
+
+                    {/* Variable unit toggle */}
+                    <div className="space-y-3 p-3 bg-amber-50 dark:bg-amber-950/30 rounded-xl border border-amber-200 dark:border-amber-800">
+                        <div className="flex items-center gap-3">
+                            <input
+                                type="checkbox"
+                                id="edit-sell-by-quantity"
+                                checked={editForm.sell_by_quantity}
+                                onChange={(e) => setEditForm({ ...editForm, sell_by_quantity: e.target.checked })}
+                                className="w-4 h-4 rounded border-gray-300"
+                            />
+                            <Label htmlFor="edit-sell-by-quantity" className="cursor-pointer text-amber-800 dark:text-amber-200">
+                                📏 Jual per Satuan (meter/kg/gram)
+                            </Label>
+                        </div>
+                        {editForm.sell_by_quantity && (
+                            <div className="space-y-2 pl-7">
+                                <Label className="text-sm">Satuan</Label>
+                                <Select
+                                    value={editForm.sell_unit}
+                                    onValueChange={(value) => setEditForm({ ...editForm, sell_unit: value })}
+                                >
+                                    <SelectTrigger className="rounded-xl h-10 border-amber-200">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent className="rounded-xl">
+                                        <SelectItem value="meter" className="cursor-pointer rounded-lg my-1">Meter</SelectItem>
+                                        <SelectItem value="cm" className="cursor-pointer rounded-lg my-1">Centimeter</SelectItem>
+                                        <SelectItem value="kg" className="cursor-pointer rounded-lg my-1">Kilogram</SelectItem>
+                                        <SelectItem value="gram" className="cursor-pointer rounded-lg my-1">Gram</SelectItem>
+                                        <SelectItem value="ons" className="cursor-pointer rounded-lg my-1">Ons</SelectItem>
+                                        <SelectItem value="liter" className="cursor-pointer rounded-lg my-1">Liter</SelectItem>
+                                        <SelectItem value="pcs" className="cursor-pointer rounded-lg my-1">Pcs</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-xs text-amber-700 dark:text-amber-300">
+                                    💡 Stok dan penjualan dalam {editForm.sell_unit}
+                                </p>
+                            </div>
+                        )}
                     </div>
 
                     {/* Multi-unit toggle (Box + Pcs) */}
