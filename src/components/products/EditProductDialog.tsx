@@ -302,7 +302,7 @@ export default function EditProductDialog({
                     <div className="space-y-2">
                         <Label>{editForm.sell_by_quantity ? `Harga per ${editForm.sell_unit}` : 'Harga'}</Label>
                         <Input
-                            type="number"
+                            type="number" step="any"
                             min={0}
                             value={editForm.price}
                             onChange={(e) => setEditForm({ ...editForm, price: parseInt(e.target.value) || 0 })}
@@ -370,7 +370,7 @@ export default function EditProductDialog({
                                 <div className="space-y-1">
                                     <Label className="text-sm">Isi per Box (pcs)</Label>
                                     <Input
-                                        type="number"
+                                        type="number" step="any"
                                         value={editForm.pcs_per_box || ''}
                                         onChange={(e) => setEditForm({ ...editForm, pcs_per_box: parseInt(e.target.value) || 0 })}
                                         placeholder="Misal: 70"
@@ -381,7 +381,7 @@ export default function EditProductDialog({
                                 <div className="space-y-1">
                                     <Label className="text-sm">Harga per Box (Rp)</Label>
                                     <Input
-                                        type="number"
+                                        type="number" step="any"
                                         value={editForm.box_price || ''}
                                         onChange={(e) => setEditForm({ ...editForm, box_price: parseInt(e.target.value) || 0 })}
                                         placeholder="Misal: 50000"
@@ -418,7 +418,7 @@ export default function EditProductDialog({
                                                         <div>
                                                             <Label className="text-[10px] text-blue-600">📦 Box</Label>
                                                             <Input
-                                                                type="number"
+                                                                type="number" step="any"
                                                                 min={0}
                                                                 value={stockForm.gudangBox || ''}
                                                                 onChange={(e) => {
@@ -433,7 +433,7 @@ export default function EditProductDialog({
                                                         <div>
                                                             <Label className="text-[10px] text-blue-600">🔢 Pcs (lepasan)</Label>
                                                             <Input
-                                                                type="number"
+                                                                type="number" step="any"
                                                                 min={0}
                                                                 value={stockForm.gudangPcs || ''}
                                                                 onChange={(e) => {
@@ -450,7 +450,7 @@ export default function EditProductDialog({
                                                 </>
                                             ) : (
                                                 <Input
-                                                    type="number"
+                                                    type="number" step="any"
                                                     min={0}
                                                     value={stockForm.gudang || ''}
                                                     onChange={(e) => {
@@ -473,7 +473,7 @@ export default function EditProductDialog({
                                                         <div>
                                                             <Label className="text-[10px] text-blue-600">📦 Box</Label>
                                                             <Input
-                                                                type="number"
+                                                                type="number" step="any"
                                                                 min={0}
                                                                 value={stockForm.tokoBox || ''}
                                                                 onChange={(e) => {
@@ -488,7 +488,7 @@ export default function EditProductDialog({
                                                         <div>
                                                             <Label className="text-[10px] text-blue-600">🔢 Pcs (lepasan)</Label>
                                                             <Input
-                                                                type="number"
+                                                                type="number" step="any"
                                                                 min={0}
                                                                 value={stockForm.tokoPcs || ''}
                                                                 onChange={(e) => {
@@ -505,7 +505,7 @@ export default function EditProductDialog({
                                                 </>
                                             ) : (
                                                 <Input
-                                                    type="number"
+                                                    type="number" step="any"
                                                     min={0}
                                                     value={stockForm.toko || ''}
                                                     onChange={(e) => {
@@ -525,7 +525,7 @@ export default function EditProductDialog({
                                         <div className="space-y-1">
                                             <Label className="text-xs text-muted-foreground">Gudang</Label>
                                             <Input
-                                                type="number"
+                                                type="number" step="any"
                                                 min={0}
                                                 value={stockForm.gudang}
                                                 onChange={(e) => setStockForm({ ...stockForm, gudang: parseFloat(e.target.value) || 0 })}
@@ -537,7 +537,7 @@ export default function EditProductDialog({
                                         <div className="space-y-1">
                                             <Label className="text-xs text-muted-foreground">Toko</Label>
                                             <Input
-                                                type="number"
+                                                type="number" step="any"
                                                 min={0}
                                                 value={stockForm.toko}
                                                 onChange={(e) => setStockForm({ ...stockForm, toko: parseFloat(e.target.value) || 0 })}

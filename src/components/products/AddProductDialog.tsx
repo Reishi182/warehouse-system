@@ -277,7 +277,7 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
                         <div className="space-y-2">
                             <Label>{newProduct.sell_by_quantity ? `Harga per ${newProduct.sell_unit}` : 'Harga'}</Label>
                             <Input
-                                type="number"
+                                type="number" step="any"
                                 value={newProduct.price}
                                 onChange={(e) => setNewProduct({ ...newProduct, price: parseInt(e.target.value) || 0 })}
                                 min={0}
@@ -342,7 +342,7 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
                                     <div className="space-y-1">
                                         <Label className="text-sm">Isi per Box (pcs)</Label>
                                         <Input
-                                            type="number"
+                                            type="number" step="any"
                                             value={newProduct.pcs_per_box || ''}
                                             onChange={(e) => setNewProduct({ ...newProduct, pcs_per_box: parseInt(e.target.value) || 0 })}
                                             placeholder="Misal: 70"
@@ -356,7 +356,7 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
                                     <div className="space-y-1">
                                         <Label className="text-sm">Harga per Box (Rp)</Label>
                                         <Input
-                                            type="number"
+                                            type="number" step="any"
                                             value={newProduct.box_price || ''}
                                             onChange={(e) => setNewProduct({ ...newProduct, box_price: parseInt(e.target.value) || 0 })}
                                             placeholder="Misal: 50000"
@@ -392,7 +392,7 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
                             <div className="space-y-2">
                                 <Label>📦 Stok Gudang</Label>
                                 <Input
-                                    type="number"
+                                    type="number" step="any"
                                     value={newProduct.stockGudang}
                                     onChange={(e) => setNewProduct({ ...newProduct, stockGudang: parseFloat(e.target.value) || 0 })}
                                     min={0}
@@ -403,7 +403,7 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
                             <div className="space-y-2">
                                 <Label>🏪 Stok Toko</Label>
                                 <Input
-                                    type="number"
+                                    type="number" step="any"
                                     value={newProduct.stockToko}
                                     onChange={(e) => setNewProduct({ ...newProduct, stockToko: parseFloat(e.target.value) || 0 })}
                                     min={0}

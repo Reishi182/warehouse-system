@@ -88,7 +88,7 @@ export function StockAdjustDialog({
                                     <Minus className="w-4 h-4" />
                                 </Button>
                                 <Input
-                                    type="number"
+                                    type="number" step="any"
                                     value={adjustments.gudang}
                                     onChange={(e) => setAdjustments(prev => ({ ...prev, gudang: parseFloat(e.target.value) || 0 }))}
                                     className="w-20 text-center h-8 rounded-lg"
@@ -122,7 +122,7 @@ export function StockAdjustDialog({
                                     <Minus className="w-4 h-4" />
                                 </Button>
                                 <Input
-                                    type="number"
+                                    type="number" step="any"
                                     value={adjustments.toko}
                                     onChange={(e) => setAdjustments(prev => ({ ...prev, toko: parseFloat(e.target.value) || 0 }))}
                                     className="w-20 text-center h-8 rounded-lg"

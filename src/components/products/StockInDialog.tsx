@@ -175,7 +175,7 @@ export function StockInDialog({
                                         <div className="space-y-2">
                                             <Label>📦 Jumlah Box</Label>
                                             <Input
-                                                type="number"
+                                                type="number" step="any"
                                                 value={boxQuantity || ''}
                                                 onChange={(e) => setBoxQuantity(parseFloat(e.target.value) || 0)}
                                                 min={0}
@@ -186,7 +186,7 @@ export function StockInDialog({
                                         <div className="space-y-2">
                                             <Label>🔢 Pcs (lepasan)</Label>
                                             <Input
-                                                type="number"
+                                                type="number" step="any"
                                                 value={pcsQuantity || ''}
                                                 onChange={(e) => setPcsQuantity(parseFloat(e.target.value) || 0)}
                                                 min={0}
@@ -226,7 +226,7 @@ export function StockInDialog({
                                     <div className="space-y-2">
                                         <Label>Jumlah Masuk</Label>
                                         <Input
-                                            type="number"
+                                            type="number" step="any"
                                             value={pcsQuantity || ''}
                                             onChange={(e) => setPcsQuantity(parseFloat(e.target.value) || 0)}
                                             min={1}
