@@ -162,7 +162,7 @@ export function RoleCharts({
         switch (role) {
             case 'admin':
                 return (
-                    <div className="space-y-6 mb-6">
+                    <div className="space-y-6">
                         {/* Revenue Summary Cards */}
                         <RevenueSummaryCards sales={validSales} />
 

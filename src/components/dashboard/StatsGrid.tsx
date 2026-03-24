@@ -37,22 +37,17 @@ export default function StatsGrid({
     const lowStockCount = products.filter(p => p.stock.gudang < 20 || p.stock.toko < 10).length;
     const pendingRequests = requests.filter(r => r.status === 'pending').length;
 
-    // Today's stats - exclude cancelled and exchanged sales
-    const todayIso = new Date().toISOString().slice(0, 10);
-    const salesToday = sales.filter(s =>
-        s.created_at.slice(0, 10) === todayIso &&
-        !s.is_cancelled &&
-        !s.is_exchanged
-    );
-    const transfersToday = cashTransfers.filter(t => t.transfer_date === todayIso);
+    // Sales data - already filtered by date range from Dashboard
+    // Exclude cancelled and exchanged
+    const validSales = sales.filter(s => !s.is_cancelled && !s.is_exchanged);
 
-    const totalSalesToday = salesToday.length;
-    const totalSalesAmount = salesToday.reduce((acc, s) => acc + s.total_amount, 0);
-    const cashSalesAmount = salesToday.filter(s => s.payment_method === 'cash').reduce((acc, s) => acc + s.total_amount, 0);
-    const totalCashTransfer = transfersToday.reduce((acc, t) => acc + t.amount, 0);
+    const totalSalesToday = validSales.length;
+    const totalSalesAmount = validSales.reduce((acc, s) => acc + s.total_amount, 0);
+    const cashSalesAmount = validSales.filter(s => s.payment_method === 'cash').reduce((acc, s) => acc + s.total_amount, 0);
+    const totalCashTransfer = cashTransfers.reduce((acc, t) => acc + t.amount, 0);
     const saldoBelumDisetor = Math.max(0, cashSalesAmount - totalCashTransfer);
 
-    // Piutang aktif (credit sales belum lunas)
+    // Piutang aktif (credit sales belum lunas) - always show total, not filtered by date
     const activeCreditSales = sales.filter(s =>
         s.is_credit &&
         !s.credit_settled_at &&
@@ -60,17 +55,8 @@ export default function StatsGrid({
     );
     const totalPiutang = activeCreditSales.reduce((acc, s) => acc + s.total_amount, 0);
 
-    // Yesterday's stats for comparison - also exclude cancelled/exchanged
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayIso = yesterday.toISOString().slice(0, 10);
-    const salesYesterday = sales.filter(s =>
-        s.created_at.slice(0, 10) === yesterdayIso &&
-        !s.is_cancelled &&
-        !s.is_exchanged
-    );
-    const yesterdayAmount = salesYesterday.reduce((acc, s) => acc + s.total_amount, 0);
-    const salesChange = yesterdayAmount > 0 ? ((totalSalesAmount - yesterdayAmount) / yesterdayAmount * 100) : 0;
+    // No comparison needed — the date range picker handles context
+    const salesChange = 0;
 
     // Surat Jalan stats
     const pendingSuratJalan = suratJalans.filter(s => s.status === 'pending').length;
@@ -88,7 +74,7 @@ export default function StatsGrid({
     // Render based on role
     if (role === 'warehouse') {
         return (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4">
                 <StatCard
                     title="Total Produk"
                     value={totalProducts.toLocaleString('id-ID')}
@@ -127,7 +113,7 @@ export default function StatsGrid({
 
     if (role === 'cashier') {
         return (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4">
                 <StatCard
                     title="Transaksi Hari Ini"
                     value={totalSalesToday}
@@ -139,7 +125,7 @@ export default function StatsGrid({
                 <StatCard
                     title="Cash Masuk"
                     value={formatCurrency(cashSalesAmount)}
-                    subtitle={`${salesToday.filter(s => s.payment_method === 'cash').length} transaksi`}
+                    subtitle={`${validSales.filter(s => s.payment_method === 'cash').length} transaksi`}
                     icon={Banknote}
                     gradient="emerald"
                     animationDelay={100}
@@ -166,7 +152,7 @@ export default function StatsGrid({
 
     if (role === 'auditor') {
         return (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <StatCard
                     title="Penjualan Hari Ini"
                     value={formatCurrency(totalSalesAmount)}
@@ -198,7 +184,7 @@ export default function StatsGrid({
 
     if (role === 'main_office') {
         return (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4">
                 <StatCard
                     title="Cash Masuk"
                     value={formatCurrency(cashSalesAmount)}
@@ -237,7 +223,7 @@ export default function StatsGrid({
 
     // Admin - show overview of everything
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
             <StatCard
                 title="Total Produk"
                 value={totalProducts.toLocaleString('id-ID')}

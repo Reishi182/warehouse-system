@@ -29,6 +29,7 @@ import {
   ClipboardList,
   AlertTriangle,
   ArrowLeftRight,
+  ShoppingBag,
 } from 'lucide-react';
 import { useAuth, useRole } from '@/contexts/AuthContext';
 import { usePendingCounts } from '@/hooks/usePendingCounts';
@@ -110,6 +111,9 @@ const navGroups: NavItem[] = [
       { label: 'Pesanan', icon: FileText, href: '/marketplace', roles: ['main_office', 'admin'] },
       { label: 'Penerimaan', icon: ArrowDownToLine, href: '/marketplace/receipt', roles: ['warehouse', 'cashier', 'admin'] },
       { label: 'Return', icon: RotateCcw, href: '/marketplace/returns', roles: ['warehouse', 'cashier', 'main_office', 'admin'] },
+      { label: 'Order Tokopedia', icon: ShoppingBag, href: '/tokopedia', roles: ['cashier', 'admin'] },
+      { label: 'Kirim Tokopedia', icon: Truck, href: '/tokopedia/shipping', roles: ['warehouse', 'admin'] },
+      { label: 'Laporan Tokopedia', icon: BarChart3, href: '/tokopedia/report', roles: ['cashier', 'main_office', 'admin'] },
     ],
   },
 

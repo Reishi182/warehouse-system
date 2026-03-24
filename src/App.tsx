@@ -62,6 +62,10 @@ const StockReturnCreate = React.lazy(() => import('@/pages/stock-return/StockRet
 const StockReturnApproval = React.lazy(() => import('@/pages/stock-return/StockReturnApproval'));
 const StockHistory = React.lazy(() => import('@/pages/stock/StockHistory'));
 const NotificationHistory = React.lazy(() => import('@/pages/NotificationHistory'));
+const TokopediaOrders = React.lazy(() => import('@/pages/tokopedia/TokopediaOrders'));
+const TokopediaOrderDetail = React.lazy(() => import('@/pages/tokopedia/TokopediaOrderDetail'));
+const TokopediaShipping = React.lazy(() => import('@/pages/tokopedia/TokopediaShipping'));
+const TokopediaSalesReport = React.lazy(() => import('@/pages/tokopedia/TokopediaSalesReport'));
 const NotFound = React.lazy(() => import("./pages/NotFound"));
 const Guide = React.lazy(() => import("./pages/Guide"));
 
@@ -351,6 +355,12 @@ function AppRoutes() {
 
         {/* Notification History - All roles */}
         <Route path="/notifications" element={<ProtectedRoute allowedRoles={ALL_ROLES}><NotificationHistory /></ProtectedRoute>} />
+
+        {/* Tokopedia Outbound Orders */}
+        <Route path="/tokopedia" element={<ProtectedRoute allowedRoles={['cashier', 'admin']}><TokopediaOrders /></ProtectedRoute>} />
+        <Route path="/tokopedia/shipping" element={<ProtectedRoute allowedRoles={['warehouse', 'admin']}><TokopediaShipping /></ProtectedRoute>} />
+        <Route path="/tokopedia/report" element={<ProtectedRoute allowedRoles={['cashier', 'main_office', 'admin']}><TokopediaSalesReport /></ProtectedRoute>} />
+        <Route path="/tokopedia/:id" element={<ProtectedRoute allowedRoles={['cashier', 'warehouse', 'admin']}><TokopediaOrderDetail /></ProtectedRoute>} />
 
         <Route path="*" element={<NotFound />} />
       </Routes>

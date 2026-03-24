@@ -811,3 +811,72 @@ export interface CustomerTab {
   updated_at: string;
   transactions?: TabTransaction[];
 }
+
+// ==================================================
+// TOKOPEDIA OUTBOUND ORDER TYPES (Penjualan via Tokopedia)
+// ==================================================
+
+export type TokopediaOrderStatus =
+  | 'order_received'   // Kasir terima order dari Tokopedia
+  | 'packing'          // Gudang sedang mengemas
+  | 'shipped'          // Sudah dikirim (ada resi)
+  | 'delivered'        // Sampai ke customer
+  | 'completed'        // Selesai (stok sudah dikurangi)
+  | 'cancelled';       // Dibatalkan
+
+export type TokopediaCourier = 'jne' | 'jnt' | 'sicepat' | 'anteraja' | 'pos' | 'grab' | 'gojek' | 'other';
+
+export interface TokopediaOrderItem {
+  id: string;
+  order_id: string;
+  product_id?: string | null;
+  product?: Product; // joined
+  product_name: string;
+  barcode?: string | null;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+  created_at: string;
+}
+
+export interface TokopediaOrderLog {
+  id: string;
+  order_id: string;
+  status: TokopediaOrderStatus;
+  note?: string | null;
+  created_by?: string | null;
+  created_by_name?: string | null;
+  created_at: string;
+}
+
+export interface TokopediaOrder {
+  id: string;
+  order_number: string;               // Internal: TKP-YYYYMMDD-XXXX
+  tokopedia_order_id?: string | null;  // ID order dari Tokopedia
+  tokopedia_invoice?: string | null;   // Nomor invoice Tokopedia
+  buyer_name: string;
+  buyer_phone?: string | null;
+  buyer_address?: string | null;
+  courier?: TokopediaCourier | null;
+  tracking_number?: string | null;
+  stock_location: Location;            // gudang / toko — selectable
+  status: TokopediaOrderStatus;
+  total_amount: number;
+  shipping_cost: number;
+  notes?: string | null;
+  received_by?: string | null;         // Kasir yang menerima order
+  received_by_name?: string | null;
+  packed_by?: string | null;           // Gudang yang mengemas
+  packed_by_name?: string | null;
+  packed_at?: string | null;
+  shipped_at?: string | null;
+  delivered_at?: string | null;
+  completed_at?: string | null;
+  cancelled_at?: string | null;
+  cancel_reason?: string | null;
+  created_at: string;
+  updated_at: string;
+  items?: TokopediaOrderItem[];
+  logs?: TokopediaOrderLog[];
+}
+

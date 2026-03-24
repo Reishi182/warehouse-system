@@ -27,3 +27,7 @@ export { default as PODiscrepancyWidget } from './PODiscrepancyWidget';
 
 // Low Stock Alert Widget
 export { LowStockAlertWidget } from './LowStockAlertWidget';
+
+// New Dashboard Widgets
+export { default as DashboardDateRangePicker } from './DashboardDateRangePicker';
+export { default as QuickActionBar } from './QuickActionBar';
