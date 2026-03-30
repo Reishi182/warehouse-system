@@ -44,7 +44,7 @@ async function loadXLSXLibrary() {
     return XLSX;
 }
 
-// Generic PDF export function (now async)
+// Generic PDF export function - PREMIUM DESIGN
 export async function exportToPDF<T extends object>(
     data: T[],
     columns: ExportColumn[],
@@ -52,29 +52,41 @@ export async function exportToPDF<T extends object>(
     config?: { title?: string; subtitle?: string }
 ) {
     const { jsPDF, autoTable } = await loadPDFLibraries();
-    const doc = new jsPDF();
+    const doc = new jsPDF('landscape');
+    const pageWidth = doc.internal.pageSize.width;
+    const now = new Date();
 
-    // Add title if provided
-    let yPosition = 15;
-    if (config?.title) {
-        doc.setFontSize(16);
-        doc.setFont('helvetica', 'bold');
-        doc.text(config.title, 14, yPosition);
-        yPosition += 8;
-    }
+    // === HEADER BANNER ===
+    doc.setFillColor(41, 128, 185);
+    doc.rect(0, 0, pageWidth, 28, 'F');
+    doc.setFillColor(30, 100, 160);
+    doc.rect(0, 26, pageWidth, 3, 'F');
 
-    if (config?.subtitle) {
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(100);
-        doc.text(config.subtitle, 14, yPosition);
-        yPosition += 5;
-    }
+    // Title
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text(config?.title || filename.toUpperCase(), 14, 14);
 
-    // Reset text color
-    doc.setTextColor(0);
+    // Subtitle / date
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(
+        config?.subtitle || `Tanggal cetak: ${now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`,
+        14, 22
+    );
 
-    // Prepare table data
+    // Data count badge (right side)
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    const totalText = `${data.length} Data`;
+    const tw = doc.getTextWidth(totalText) + 12;
+    doc.setFillColor(255, 255, 255, 0.25);
+    doc.roundedRect(pageWidth - tw - 14, 7, tw, 14, 3, 3, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.text(totalText, pageWidth - tw - 8, 17);
+
+    // === DATA TABLE ===
     const headers = columns.map(col => col.header);
     const rows = data.map(item =>
         columns.map(col => {
@@ -86,60 +98,126 @@ export async function exportToPDF<T extends object>(
         })
     );
 
-    // Generate table
     autoTable(doc, {
         head: [headers],
         body: rows,
-        startY: yPosition + 5,
+        startY: 34,
         styles: {
-            fontSize: 9,
+            fontSize: 8,
             cellPadding: 3,
+            lineWidth: 0.1,
+            lineColor: [220, 220, 220],
         },
         headStyles: {
-            fillColor: [41, 128, 185],
-            textColor: 255,
+            fillColor: [44, 62, 80],
+            textColor: [255, 255, 255],
             fontStyle: 'bold',
+            fontSize: 8,
+            halign: 'center',
+        },
+        bodyStyles: {
+            textColor: [50, 50, 50],
         },
         alternateRowStyles: {
-            fillColor: [245, 245, 245],
+            fillColor: [245, 247, 250],
         },
         margin: { left: 14, right: 14 },
     });
 
-    // Add footer with date
+    // === FOOTER ===
     const pageCount = doc.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
-        doc.setFontSize(8);
-        doc.setTextColor(150);
-        doc.text(
-            `Generated: ${new Date().toLocaleString('id-ID')} - Page ${i} of ${pageCount}`,
-            14,
-            doc.internal.pageSize.height - 10
-        );
+        const pageH = doc.internal.pageSize.height;
+
+        doc.setDrawColor(200, 200, 200);
+        doc.setLineWidth(0.5);
+        doc.line(14, pageH - 14, pageWidth - 14, pageH - 14);
+
+        doc.setFontSize(7);
+        doc.setTextColor(130, 130, 130);
+        doc.setFont('helvetica', 'italic');
+        doc.text(`Dicetak: ${now.toLocaleString('id-ID')}`, 14, pageH - 8);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Halaman ${i} dari ${pageCount}`, pageWidth - 14, pageH - 8, { align: 'right' });
     }
 
-    // Save the PDF
     doc.save(`${filename}.pdf`);
 }
 
-// Generic Excel export function with column definitions (now async)
+
+// Generic Excel export function with column definitions - PREMIUM DESIGN
 export async function exportToExcelWithColumns<T extends object>(
     data: T[],
     columns: ExportColumn[],
     filename: string,
     sheetName = 'Data'
 ) {
-    const formattedData = data.map(item => {
-        const row: Record<string, any> = {};
-        columns.forEach(col => {
+    const XLSX = await loadXLSXLibrary();
+    const now = new Date();
+
+    // Build rows with title header
+    const wsData: any[][] = [];
+
+    // Row 0: Title (derive from filename)
+    const title = filename.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).toUpperCase();
+    wsData.push([title]);
+
+    // Row 1: Date
+    wsData.push([`Tanggal: ${now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}  |  Total: ${data.length} data`]);
+
+    // Row 2: Empty spacer
+    wsData.push([]);
+
+    // Row 3: Column headers
+    const headers = columns.map(col => col.header);
+    wsData.push(headers);
+
+    // Data rows
+    data.forEach(item => {
+        const row = columns.map(col => {
             const value = (item as any)[col.accessorKey];
-            row[col.header] = col.format ? col.format(value, item) : (value ?? '-');
+            return col.format ? col.format(value, item) : (value ?? '-');
         });
-        return row;
+        wsData.push(row);
     });
-    await exportToExcel(formattedData, filename, sheetName);
+
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    // Merge title and date rows across all columns
+    const colCount = columns.length;
+    ws['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: colCount - 1 } },
+        { s: { r: 1, c: 0 }, e: { r: 1, c: colCount - 1 } },
+    ];
+
+    // Auto-fit column widths
+    const maxWidths: number[] = headers.map(h => h.length);
+    data.forEach(item => {
+        columns.forEach((col, i) => {
+            const value = (item as any)[col.accessorKey];
+            const formatted = col.format ? col.format(value, item) : String(value ?? '-');
+            maxWidths[i] = Math.max(maxWidths[i], formatted.length);
+        });
+    });
+    ws['!cols'] = maxWidths.map(w => ({ wch: Math.min(w + 3, 50) }));
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+    const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${filename}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 }
+
 
 // Generic export function (legacy support - now async)
 export async function exportToExcel<T extends object>(
