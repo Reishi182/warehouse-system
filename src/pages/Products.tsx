@@ -1,11 +1,18 @@
 import { useState, useMemo, useCallback, useEffect, useRef, memo } from 'react';
-import { Package, AlertTriangle, Warehouse, Store, ArrowDownToLine, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, X, ArrowUpDown } from 'lucide-react';
+import { Package, AlertTriangle, Warehouse, Store, ArrowDownToLine, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, X, ArrowUpDown, Download, FileText, FileSpreadsheet, ChevronDown } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import BarcodeScanner from '@/components/common/BarcodeScanner';
 import PageSkeleton from '@/components/common/PageSkeleton';
 import { AddProductDialog, EditProductDialog, StockAdjustDialog, StockInDialog } from '@/components/products';
 import { ProductManageCard } from '@/components/products/ProductManageCard';
 import { ProductFilterSidebar, StockFilter, LocationFilter, DataFilter } from '@/components/products/ProductFilterSidebar';
+import { exportProductStockPDF, exportProductStockExcel } from '@/lib/export';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useData } from '@/contexts/DataContext';
 import { useRole } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -329,6 +336,31 @@ export default function Products() {
             subtitle="Kelola inventaris produk, pantau stok, dan atur harga"
             actions={
                 <div className="flex gap-2 flex-wrap">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" className="rounded-xl text-xs sm:text-sm" disabled={filteredProducts.length === 0}>
+                                <Download className="h-4 w-4 sm:mr-2" />
+                                <span className="hidden sm:inline">Export</span>
+                                <ChevronDown className="w-3 h-3 ml-1" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48 rounded-xl">
+                            <DropdownMenuItem
+                                onClick={() => exportProductStockPDF(filteredProducts)}
+                                className="rounded-lg cursor-pointer"
+                            >
+                                <FileText className="w-4 h-4 mr-2 text-red-500" />
+                                Export as PDF
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                onClick={() => exportProductStockExcel(filteredProducts)}
+                                className="rounded-lg cursor-pointer"
+                            >
+                                <FileSpreadsheet className="w-4 h-4 mr-2 text-green-600" />
+                                Export as Excel
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                     {(role === 'warehouse' || role === 'admin' || role === 'cashier') && (
                         <Button variant="outline" className="rounded-xl text-xs sm:text-sm" onClick={() => setStockInDialog(true)}>
                             <ArrowDownToLine className="h-4 w-4 sm:mr-2" />

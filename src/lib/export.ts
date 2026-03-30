@@ -250,3 +250,304 @@ export async function exportCashTransfers(transfers: any[]) {
     }));
     await exportToExcel(data, `setoran_${formatDate(new Date())}`, 'Setoran');
 }
+
+// ==================================================
+// PREMIUM PRODUCT STOCK EXPORT (PDF & Excel)
+// ==================================================
+
+const STOCK_LOW_THRESHOLD_GUDANG = 10;
+const STOCK_LOW_THRESHOLD_TOKO = 5;
+
+function getStockStatus(gudang: number, toko: number): string {
+    if (gudang <= 0 && toko <= 0) return 'Habis';
+    if (gudang < STOCK_LOW_THRESHOLD_GUDANG || toko < STOCK_LOW_THRESHOLD_TOKO) return 'Rendah';
+    return 'Aman';
+}
+
+function getStatusColor(status: string): [number, number, number] {
+    switch (status) {
+        case 'Aman': return [39, 174, 96];    // green
+        case 'Rendah': return [243, 156, 18];  // orange
+        case 'Habis': return [231, 76, 60];    // red
+        default: return [100, 100, 100];
+    }
+}
+
+/**
+ * Premium PDF Export for Product Stock
+ * Features: Styled header, summary stats, color-coded status, professional table
+ */
+export async function exportProductStockPDF(products: any[]) {
+    const { jsPDF, autoTable } = await loadPDFLibraries();
+    const doc = new jsPDF('landscape');
+    const pageWidth = doc.internal.pageSize.width;
+    const now = new Date();
+
+    // === HEADER BANNER ===
+    // Blue gradient header background
+    doc.setFillColor(41, 128, 185);
+    doc.rect(0, 0, pageWidth, 32, 'F');
+    // Darker accent stripe
+    doc.setFillColor(30, 100, 160);
+    doc.rect(0, 30, pageWidth, 3, 'F');
+
+    // Title text
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.text('LAPORAN STOK PRODUK', 14, 16);
+
+    // Subtitle with date
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Tanggal cetak: ${now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`, 14, 25);
+
+    // Total products badge (right side)
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    const totalText = `${products.length} Produk`;
+    const tw = doc.getTextWidth(totalText) + 12;
+    doc.setFillColor(255, 255, 255, 0.3);
+    doc.roundedRect(pageWidth - tw - 14, 9, tw, 14, 3, 3, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.text(totalText, pageWidth - tw - 8, 19);
+
+    // === SUMMARY STATS BOXES ===
+    const totalGudang = products.reduce((acc: number, p: any) => acc + (p.stock?.gudang ?? 0), 0);
+    const totalToko = products.reduce((acc: number, p: any) => acc + (p.stock?.toko ?? 0), 0);
+    const lowCount = products.filter((p: any) => getStockStatus(p.stock?.gudang ?? 0, p.stock?.toko ?? 0) === 'Rendah').length;
+    const emptyCount = products.filter((p: any) => getStockStatus(p.stock?.gudang ?? 0, p.stock?.toko ?? 0) === 'Habis').length;
+
+    const boxY = 38;
+    const boxH = 18;
+    const boxGap = 6;
+    const boxCount = 4;
+    const totalBoxWidth = pageWidth - 28;
+    const boxW = (totalBoxWidth - (boxCount - 1) * boxGap) / boxCount;
+
+    const statsData = [
+        { label: 'Total Produk', value: products.length.toString(), color: [41, 128, 185] as [number, number, number] },
+        { label: 'Total Stok Gudang', value: totalGudang.toLocaleString('id-ID'), color: [52, 152, 219] as [number, number, number] },
+        { label: 'Total Stok Toko', value: totalToko.toLocaleString('id-ID'), color: [46, 204, 113] as [number, number, number] },
+        { label: `Stok Rendah / Habis`, value: `${lowCount} / ${emptyCount}`, color: [231, 76, 60] as [number, number, number] },
+    ];
+
+    statsData.forEach((stat, i) => {
+        const x = 14 + i * (boxW + boxGap);
+        // Box background
+        doc.setFillColor(stat.color[0], stat.color[1], stat.color[2]);
+        doc.roundedRect(x, boxY, boxW, boxH, 2, 2, 'F');
+        // Value
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text(stat.value, x + boxW / 2, boxY + 9, { align: 'center' });
+        // Label
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'normal');
+        doc.text(stat.label, x + boxW / 2, boxY + 15, { align: 'center' });
+    });
+
+    // === DATA TABLE ===
+    const headers = ['No', 'Nama Produk', 'Barcode', 'Harga (Rp)', 'Stok Gudang', 'Stok Toko', 'Total Stok', 'Status'];
+    const rows = products.map((p: any, i: number) => {
+        const gudang = p.stock?.gudang ?? 0;
+        const toko = p.stock?.toko ?? 0;
+        return [
+            (i + 1).toString(),
+            p.name || '-',
+            p.barcode || '-',
+            (p.price ?? 0).toLocaleString('id-ID'),
+            gudang.toString(),
+            toko.toString(),
+            (gudang + toko).toString(),
+            getStockStatus(gudang, toko),
+        ];
+    });
+
+    autoTable(doc, {
+        head: [headers],
+        body: rows,
+        startY: boxY + boxH + 8,
+        styles: {
+            fontSize: 8,
+            cellPadding: 3,
+            lineWidth: 0.1,
+            lineColor: [220, 220, 220],
+        },
+        headStyles: {
+            fillColor: [44, 62, 80],
+            textColor: [255, 255, 255],
+            fontStyle: 'bold',
+            fontSize: 8,
+            halign: 'center',
+        },
+        bodyStyles: {
+            textColor: [50, 50, 50],
+        },
+        alternateRowStyles: {
+            fillColor: [245, 247, 250],
+        },
+        columnStyles: {
+            0: { halign: 'center', cellWidth: 12 },  // No
+            1: { cellWidth: 'auto' },                  // Nama
+            2: { cellWidth: 35, halign: 'center' },    // Barcode
+            3: { halign: 'right', cellWidth: 28 },     // Harga
+            4: { halign: 'center', cellWidth: 24 },    // Gudang
+            5: { halign: 'center', cellWidth: 22 },    // Toko
+            6: { halign: 'center', cellWidth: 22, fontStyle: 'bold' }, // Total
+            7: { halign: 'center', cellWidth: 22 },    // Status
+        },
+        didParseCell: function (data: any) {
+            // Color code the status column
+            if (data.section === 'body' && data.column.index === 7) {
+                const status = data.cell.raw as string;
+                const color = getStatusColor(status);
+                data.cell.styles.textColor = [255, 255, 255];
+                data.cell.styles.fillColor = color;
+                data.cell.styles.fontStyle = 'bold';
+                data.cell.styles.fontSize = 7;
+            }
+            // Highlight zero stock in red
+            if (data.section === 'body' && (data.column.index === 4 || data.column.index === 5)) {
+                const val = parseInt(data.cell.raw as string);
+                if (val <= 0) {
+                    data.cell.styles.textColor = [231, 76, 60];
+                    data.cell.styles.fontStyle = 'bold';
+                }
+            }
+        },
+        margin: { left: 14, right: 14 },
+    });
+
+    // === FOOTER ===
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        const pageH = doc.internal.pageSize.height;
+
+        // Footer line
+        doc.setDrawColor(200, 200, 200);
+        doc.setLineWidth(0.5);
+        doc.line(14, pageH - 14, pageWidth - 14, pageH - 14);
+
+        // Footer text
+        doc.setFontSize(7);
+        doc.setTextColor(130, 130, 130);
+        doc.setFont('helvetica', 'italic');
+        doc.text(
+            `Dicetak: ${now.toLocaleString('id-ID')}`,
+            14,
+            pageH - 8
+        );
+        doc.setFont('helvetica', 'normal');
+        doc.text(
+            `Halaman ${i} dari ${pageCount}`,
+            pageWidth - 14,
+            pageH - 8,
+            { align: 'right' }
+        );
+    }
+
+    doc.save(`laporan_stok_produk_${formatDate(now)}.pdf`);
+}
+
+/**
+ * Premium Excel Export for Product Stock
+ * Features: Styled header, summary row, conditional status colors, auto-fit columns
+ */
+export async function exportProductStockExcel(products: any[]) {
+    const XLSX = await loadXLSXLibrary();
+    const now = new Date();
+
+    const totalGudang = products.reduce((acc: number, p: any) => acc + (p.stock?.gudang ?? 0), 0);
+    const totalToko = products.reduce((acc: number, p: any) => acc + (p.stock?.toko ?? 0), 0);
+
+    // Build rows
+    const wsData: any[][] = [];
+
+    // Row 0: Title
+    wsData.push(['LAPORAN STOK PRODUK']);
+    // Row 1: Date
+    wsData.push([`Tanggal: ${now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`]);
+    // Row 2: Empty spacer
+    wsData.push([]);
+    // Row 3: Summary
+    wsData.push([
+        `Total Produk: ${products.length}`,
+        '',
+        `Total Stok Gudang: ${totalGudang.toLocaleString('id-ID')}`,
+        '',
+        `Total Stok Toko: ${totalToko.toLocaleString('id-ID')}`,
+        '',
+        `Total Seluruh Stok: ${(totalGudang + totalToko).toLocaleString('id-ID')}`,
+    ]);
+    // Row 4: Empty spacer
+    wsData.push([]);
+    // Row 5: Column headers
+    wsData.push(['No', 'Nama Produk', 'Barcode', 'Harga (Rp)', 'Stok Gudang', 'Stok Toko', 'Total Stok', 'Status']);
+
+    // Data rows
+    products.forEach((p: any, i: number) => {
+        const gudang = p.stock?.gudang ?? 0;
+        const toko = p.stock?.toko ?? 0;
+        wsData.push([
+            i + 1,
+            p.name || '-',
+            p.barcode || '-',
+            p.price ?? 0,
+            gudang,
+            toko,
+            gudang + toko,
+            getStockStatus(gudang, toko),
+        ]);
+    });
+
+    // Summary footer
+    wsData.push([]);
+    wsData.push([
+        '',
+        'TOTAL',
+        '',
+        '',
+        totalGudang,
+        totalToko,
+        totalGudang + totalToko,
+        '',
+    ]);
+
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    // Merge title cell
+    ws['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }, // Title
+        { s: { r: 1, c: 0 }, e: { r: 1, c: 7 } }, // Date
+    ];
+
+    // Column widths
+    ws['!cols'] = [
+        { wch: 5 },   // No
+        { wch: 35 },  // Nama
+        { wch: 18 },  // Barcode
+        { wch: 15 },  // Harga
+        { wch: 14 },  // Gudang
+        { wch: 12 },  // Toko
+        { wch: 12 },  // Total
+        { wch: 10 },  // Status
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Stok Produk');
+
+    const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `laporan_stok_produk_${formatDate(now)}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
