@@ -38,13 +38,94 @@ async function loadPDFLibraries() {
     return { jsPDF, autoTable };
 }
 
-// Lazy load XLSX
+// Lazy load ExcelJS
+async function loadExcelJS() {
+    const ExcelJS = await import('exceljs');
+    return ExcelJS;
+}
+
+// Lazy load XLSX (legacy support only)
 async function loadXLSXLibrary() {
     const XLSX = await import('xlsx');
     return XLSX;
 }
 
-// Generic PDF export function - PREMIUM DESIGN
+// ==========================================
+// SHARED EXCEL STYLING HELPERS
+// ==========================================
+
+const BRAND_BLUE = 'FF2980B9';
+const DARK_BLUE = 'FF2C3E50';
+const LIGHT_BG = 'FFF5F7FA';
+const WHITE = 'FFFFFFFF';
+
+function applyTitleRow(ws: any, row: any, colCount: number) {
+    ws.mergeCells(row.number, 1, row.number, colCount);
+    const cell = row.getCell(1);
+    cell.font = { name: 'Calibri', size: 16, bold: true, color: { argb: WHITE } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND_BLUE } };
+    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    row.height = 36;
+}
+
+function applySubtitleRow(ws: any, row: any, colCount: number) {
+    ws.mergeCells(row.number, 1, row.number, colCount);
+    const cell = row.getCell(1);
+    cell.font = { name: 'Calibri', size: 10, italic: true, color: { argb: WHITE } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF3498DB' } };
+    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    row.height = 22;
+}
+
+function applyHeaderRow(row: any, colCount: number) {
+    row.height = 24;
+    for (let c = 1; c <= colCount; c++) {
+        const cell = row.getCell(c);
+        cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: WHITE } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: DARK_BLUE } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        cell.border = {
+            top: { style: 'thin', color: { argb: 'FF1A252F' } },
+            bottom: { style: 'thin', color: { argb: 'FF1A252F' } },
+            left: { style: 'thin', color: { argb: 'FF1A252F' } },
+            right: { style: 'thin', color: { argb: 'FF1A252F' } },
+        };
+    }
+}
+
+function applyDataRow(row: any, colCount: number, isAlternate: boolean) {
+    const bgColor = isAlternate ? LIGHT_BG : WHITE;
+    for (let c = 1; c <= colCount; c++) {
+        const cell = row.getCell(c);
+        cell.font = { name: 'Calibri', size: 9 };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
+        cell.alignment = { vertical: 'middle' };
+        cell.border = {
+            top: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+            bottom: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+            left: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+            right: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+        };
+    }
+}
+
+async function downloadExcelWorkbook(wb: any, filename: string) {
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${filename}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+// ==========================================
+// GENERIC PDF EXPORT - PREMIUM DESIGN
+// ==========================================
+
 export async function exportToPDF<T extends object>(
     data: T[],
     columns: ExportColumn[],
@@ -62,13 +143,11 @@ export async function exportToPDF<T extends object>(
     doc.setFillColor(30, 100, 160);
     doc.rect(0, 26, pageWidth, 3, 'F');
 
-    // Title
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
     doc.text(config?.title || filename.toUpperCase(), 14, 14);
 
-    // Subtitle / date
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.text(
@@ -76,7 +155,6 @@ export async function exportToPDF<T extends object>(
         14, 22
     );
 
-    // Data count badge (right side)
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     const totalText = `${data.length} Data`;
@@ -91,9 +169,7 @@ export async function exportToPDF<T extends object>(
     const rows = data.map(item =>
         columns.map(col => {
             const value = (item as any)[col.accessorKey];
-            if (col.format) {
-                return col.format(value, item);
-            }
+            if (col.format) return col.format(value, item);
             return value != null ? String(value) : '-';
         })
     );
@@ -102,25 +178,10 @@ export async function exportToPDF<T extends object>(
         head: [headers],
         body: rows,
         startY: 34,
-        styles: {
-            fontSize: 8,
-            cellPadding: 3,
-            lineWidth: 0.1,
-            lineColor: [220, 220, 220],
-        },
-        headStyles: {
-            fillColor: [44, 62, 80],
-            textColor: [255, 255, 255],
-            fontStyle: 'bold',
-            fontSize: 8,
-            halign: 'center',
-        },
-        bodyStyles: {
-            textColor: [50, 50, 50],
-        },
-        alternateRowStyles: {
-            fillColor: [245, 247, 250],
-        },
+        styles: { fontSize: 8, cellPadding: 3, lineWidth: 0.1, lineColor: [220, 220, 220] },
+        headStyles: { fillColor: [44, 62, 80], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8, halign: 'center' },
+        bodyStyles: { textColor: [50, 50, 50] },
+        alternateRowStyles: { fillColor: [245, 247, 250] },
         margin: { left: 14, right: 14 },
     });
 
@@ -129,11 +190,9 @@ export async function exportToPDF<T extends object>(
     for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
         const pageH = doc.internal.pageSize.height;
-
         doc.setDrawColor(200, 200, 200);
         doc.setLineWidth(0.5);
         doc.line(14, pageH - 14, pageWidth - 14, pageH - 14);
-
         doc.setFontSize(7);
         doc.setTextColor(130, 130, 130);
         doc.setFont('helvetica', 'italic');
@@ -145,51 +204,49 @@ export async function exportToPDF<T extends object>(
     doc.save(`${filename}.pdf`);
 }
 
+// ==========================================
+// GENERIC EXCEL EXPORT - PREMIUM DESIGN (ExcelJS)
+// ==========================================
 
-// Generic Excel export function with column definitions - PREMIUM DESIGN
 export async function exportToExcelWithColumns<T extends object>(
     data: T[],
     columns: ExportColumn[],
     filename: string,
     sheetName = 'Data'
 ) {
-    const XLSX = await loadXLSXLibrary();
+    const ExcelJS = await loadExcelJS();
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet(sheetName);
     const now = new Date();
+    const colCount = columns.length;
 
-    // Build rows with title header
-    const wsData: any[][] = [];
+    // Title row
+    const titleText = filename.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).toUpperCase();
+    const titleRow = ws.addRow([titleText]);
+    applyTitleRow(ws, titleRow, colCount);
 
-    // Row 0: Title (derive from filename)
-    const title = filename.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).toUpperCase();
-    wsData.push([title]);
+    // Subtitle row
+    const subText = `Tanggal: ${now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}  |  Total: ${data.length} data`;
+    const subRow = ws.addRow([subText]);
+    applySubtitleRow(ws, subRow, colCount);
 
-    // Row 1: Date
-    wsData.push([`Tanggal: ${now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}  |  Total: ${data.length} data`]);
+    // Empty spacer
+    ws.addRow([]);
 
-    // Row 2: Empty spacer
-    wsData.push([]);
-
-    // Row 3: Column headers
+    // Column headers
     const headers = columns.map(col => col.header);
-    wsData.push(headers);
+    const headerRow = ws.addRow(headers);
+    applyHeaderRow(headerRow, colCount);
 
     // Data rows
-    data.forEach(item => {
-        const row = columns.map(col => {
+    data.forEach((item, idx) => {
+        const rowData = columns.map(col => {
             const value = (item as any)[col.accessorKey];
             return col.format ? col.format(value, item) : (value ?? '-');
         });
-        wsData.push(row);
+        const row = ws.addRow(rowData);
+        applyDataRow(row, colCount, idx % 2 === 1);
     });
-
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-    // Merge title and date rows across all columns
-    const colCount = columns.length;
-    ws['!merges'] = [
-        { s: { r: 0, c: 0 }, e: { r: 0, c: colCount - 1 } },
-        { s: { r: 1, c: 0 }, e: { r: 1, c: colCount - 1 } },
-    ];
 
     // Auto-fit column widths
     const maxWidths: number[] = headers.map(h => h.length);
@@ -200,26 +257,19 @@ export async function exportToExcelWithColumns<T extends object>(
             maxWidths[i] = Math.max(maxWidths[i], formatted.length);
         });
     });
-    ws['!cols'] = maxWidths.map(w => ({ wch: Math.min(w + 3, 50) }));
+    ws.columns.forEach((col, i) => {
+        if (i < maxWidths.length) {
+            col.width = Math.min(maxWidths[i] + 4, 50);
+        }
+    });
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, sheetName);
-
-    const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${filename}.xlsx`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    await downloadExcelWorkbook(wb, filename);
 }
 
+// ==========================================
+// LEGACY EXCEL EXPORT (basic, for old functions)
+// ==========================================
 
-// Generic export function (legacy support - now async)
 export async function exportToExcel<T extends object>(
     data: T[],
     filename: string,
@@ -231,7 +281,6 @@ export async function exportToExcel<T extends object>(
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 
-    // Auto-fit columns
     const maxWidths: number[] = [];
     data.forEach(row => {
         Object.values(row).forEach((val, i) => {
@@ -244,7 +293,6 @@ export async function exportToExcel<T extends object>(
     const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
     const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 
-    // Use native download
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -255,7 +303,10 @@ export async function exportToExcel<T extends object>(
     URL.revokeObjectURL(url);
 }
 
-// Export products (now async)
+// ==========================================
+// LEGACY EXPORT FUNCTIONS (unchanged)
+// ==========================================
+
 export async function exportProducts(products: any[]) {
     const data = products.map(p => ({
         'Nama Produk': p.name,
@@ -268,7 +319,6 @@ export async function exportProducts(products: any[]) {
     await exportToExcel(data, `produk_${formatDate(new Date())}`, 'Produk');
 }
 
-// Export stock logs (now async)
 export async function exportStockLogs(logs: any[]) {
     const data = logs.map(l => ({
         'Tanggal': formatDateTime(l.timestamp),
@@ -281,7 +331,6 @@ export async function exportStockLogs(logs: any[]) {
     await exportToExcel(data, `stok_log_${formatDate(new Date())}`, 'Stock Logs');
 }
 
-// Export sales (now async)
 export async function exportSales(sales: any[]) {
     const data = sales.map(s => ({
         'No. Transaksi': s.sale_number,
@@ -293,7 +342,6 @@ export async function exportSales(sales: any[]) {
     await exportToExcel(data, `penjualan_${formatDate(new Date())}`, 'Penjualan');
 }
 
-// Export requests (now async)
 export async function exportRequests(requests: any[]) {
     const data = requests.map(r => ({
         'ID': r.id.slice(0, 8),
@@ -307,7 +355,6 @@ export async function exportRequests(requests: any[]) {
     await exportToExcel(data, `permintaan_stok_${formatDate(new Date())}`, 'Permintaan');
 }
 
-// Export surat jalan (now async)
 export async function exportSuratJalan(suratJalans: any[]) {
     const data = suratJalans.map(s => ({
         'Nomor': s.number,
@@ -318,7 +365,6 @@ export async function exportSuratJalan(suratJalans: any[]) {
     await exportToExcel(data, `surat_jalan_${formatDate(new Date())}`, 'Surat Jalan');
 }
 
-// Export cash transfers (now async)
 export async function exportCashTransfers(transfers: any[]) {
     const data = transfers.map(t => ({
         'Tanggal': formatDateTime(t.created_at),
@@ -344,16 +390,24 @@ function getStockStatus(gudang: number, toko: number): string {
 
 function getStatusColor(status: string): [number, number, number] {
     switch (status) {
-        case 'Aman': return [39, 174, 96];    // green
-        case 'Rendah': return [243, 156, 18];  // orange
-        case 'Habis': return [231, 76, 60];    // red
+        case 'Aman': return [39, 174, 96];
+        case 'Rendah': return [243, 156, 18];
+        case 'Habis': return [231, 76, 60];
         default: return [100, 100, 100];
+    }
+}
+
+function getStatusARGB(status: string): string {
+    switch (status) {
+        case 'Aman': return 'FF27AE60';
+        case 'Rendah': return 'FFF39C12';
+        case 'Habis': return 'FFE74C3C';
+        default: return 'FF646464';
     }
 }
 
 /**
  * Premium PDF Export for Product Stock
- * Features: Styled header, summary stats, color-coded status, professional table
  */
 export async function exportProductStockPDF(products: any[]) {
     const { jsPDF, autoTable } = await loadPDFLibraries();
@@ -362,33 +416,28 @@ export async function exportProductStockPDF(products: any[]) {
     const now = new Date();
 
     // === HEADER BANNER ===
-    // Blue gradient header background
     doc.setFillColor(41, 128, 185);
     doc.rect(0, 0, pageWidth, 32, 'F');
-    // Darker accent stripe
     doc.setFillColor(30, 100, 160);
     doc.rect(0, 30, pageWidth, 3, 'F');
 
-    // Title text
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(20);
     doc.setFont('helvetica', 'bold');
     doc.text('LAPORAN STOK PRODUK', 14, 16);
 
-    // Subtitle with date
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     doc.text(`Tanggal cetak: ${now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`, 14, 25);
 
-    // Total products badge (right side)
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     const totalText = `${products.length} Produk`;
-    const tw = doc.getTextWidth(totalText) + 12;
+    const tw2 = doc.getTextWidth(totalText) + 12;
     doc.setFillColor(255, 255, 255, 0.3);
-    doc.roundedRect(pageWidth - tw - 14, 9, tw, 14, 3, 3, 'F');
+    doc.roundedRect(pageWidth - tw2 - 14, 9, tw2, 14, 3, 3, 'F');
     doc.setTextColor(255, 255, 255);
-    doc.text(totalText, pageWidth - tw - 8, 19);
+    doc.text(totalText, pageWidth - tw2 - 8, 19);
 
     // === SUMMARY STATS BOXES ===
     const totalGudang = products.reduce((acc: number, p: any) => acc + (p.stock?.gudang ?? 0), 0);
@@ -412,15 +461,12 @@ export async function exportProductStockPDF(products: any[]) {
 
     statsData.forEach((stat, i) => {
         const x = 14 + i * (boxW + boxGap);
-        // Box background
         doc.setFillColor(stat.color[0], stat.color[1], stat.color[2]);
         doc.roundedRect(x, boxY, boxW, boxH, 2, 2, 'F');
-        // Value
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(14);
         doc.setFont('helvetica', 'bold');
         doc.text(stat.value, x + boxW / 2, boxY + 9, { align: 'center' });
-        // Label
         doc.setFontSize(7);
         doc.setFont('helvetica', 'normal');
         doc.text(stat.label, x + boxW / 2, boxY + 15, { align: 'center' });
@@ -432,13 +478,9 @@ export async function exportProductStockPDF(products: any[]) {
         const gudang = p.stock?.gudang ?? 0;
         const toko = p.stock?.toko ?? 0;
         return [
-            (i + 1).toString(),
-            p.name || '-',
-            p.barcode || '-',
+            (i + 1).toString(), p.name || '-', p.barcode || '-',
             (p.price ?? 0).toLocaleString('id-ID'),
-            gudang.toString(),
-            toko.toString(),
-            (gudang + toko).toString(),
+            gudang.toString(), toko.toString(), (gudang + toko).toString(),
             getStockStatus(gudang, toko),
         ];
     });
@@ -447,37 +489,20 @@ export async function exportProductStockPDF(products: any[]) {
         head: [headers],
         body: rows,
         startY: boxY + boxH + 8,
-        styles: {
-            fontSize: 8,
-            cellPadding: 3,
-            lineWidth: 0.1,
-            lineColor: [220, 220, 220],
-        },
-        headStyles: {
-            fillColor: [44, 62, 80],
-            textColor: [255, 255, 255],
-            fontStyle: 'bold',
-            fontSize: 8,
-            halign: 'center',
-        },
-        bodyStyles: {
-            textColor: [50, 50, 50],
-        },
-        alternateRowStyles: {
-            fillColor: [245, 247, 250],
-        },
+        styles: { fontSize: 8, cellPadding: 3, lineWidth: 0.1, lineColor: [220, 220, 220] },
+        headStyles: { fillColor: [44, 62, 80], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8, halign: 'center' },
+        bodyStyles: { textColor: [50, 50, 50] },
+        alternateRowStyles: { fillColor: [245, 247, 250] },
         columnStyles: {
-            0: { halign: 'center', cellWidth: 12 },  // No
-            1: { cellWidth: 'auto' },                  // Nama
-            2: { cellWidth: 35, halign: 'center' },    // Barcode
-            3: { halign: 'right', cellWidth: 28 },     // Harga
-            4: { halign: 'center', cellWidth: 24 },    // Gudang
-            5: { halign: 'center', cellWidth: 22 },    // Toko
-            6: { halign: 'center', cellWidth: 22, fontStyle: 'bold' }, // Total
-            7: { halign: 'center', cellWidth: 22 },    // Status
+            0: { halign: 'center', cellWidth: 12 },
+            2: { cellWidth: 35, halign: 'center' },
+            3: { halign: 'right', cellWidth: 28 },
+            4: { halign: 'center', cellWidth: 24 },
+            5: { halign: 'center', cellWidth: 22 },
+            6: { halign: 'center', cellWidth: 22, fontStyle: 'bold' },
+            7: { halign: 'center', cellWidth: 22 },
         },
         didParseCell: function (data: any) {
-            // Color code the status column
             if (data.section === 'body' && data.column.index === 7) {
                 const status = data.cell.raw as string;
                 const color = getStatusColor(status);
@@ -486,7 +511,6 @@ export async function exportProductStockPDF(products: any[]) {
                 data.cell.styles.fontStyle = 'bold';
                 data.cell.styles.fontSize = 7;
             }
-            // Highlight zero stock in red
             if (data.section === 'body' && (data.column.index === 4 || data.column.index === 5)) {
                 const val = parseInt(data.cell.raw as string);
                 if (val <= 0) {
@@ -503,129 +527,126 @@ export async function exportProductStockPDF(products: any[]) {
     for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
         const pageH = doc.internal.pageSize.height;
-
-        // Footer line
         doc.setDrawColor(200, 200, 200);
         doc.setLineWidth(0.5);
         doc.line(14, pageH - 14, pageWidth - 14, pageH - 14);
-
-        // Footer text
         doc.setFontSize(7);
         doc.setTextColor(130, 130, 130);
         doc.setFont('helvetica', 'italic');
-        doc.text(
-            `Dicetak: ${now.toLocaleString('id-ID')}`,
-            14,
-            pageH - 8
-        );
+        doc.text(`Dicetak: ${now.toLocaleString('id-ID')}`, 14, pageH - 8);
         doc.setFont('helvetica', 'normal');
-        doc.text(
-            `Halaman ${i} dari ${pageCount}`,
-            pageWidth - 14,
-            pageH - 8,
-            { align: 'right' }
-        );
+        doc.text(`Halaman ${i} dari ${pageCount}`, pageWidth - 14, pageH - 8, { align: 'right' });
     }
 
     doc.save(`laporan_stok_produk_${formatDate(now)}.pdf`);
 }
 
 /**
- * Premium Excel Export for Product Stock
- * Features: Styled header, summary row, conditional status colors, auto-fit columns
+ * Premium Excel Export for Product Stock - STYLED WITH EXCELJS
  */
 export async function exportProductStockExcel(products: any[]) {
-    const XLSX = await loadXLSXLibrary();
+    const ExcelJS = await loadExcelJS();
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Stok Produk');
     const now = new Date();
+    const colCount = 8;
 
     const totalGudang = products.reduce((acc: number, p: any) => acc + (p.stock?.gudang ?? 0), 0);
     const totalToko = products.reduce((acc: number, p: any) => acc + (p.stock?.toko ?? 0), 0);
 
-    // Build rows
-    const wsData: any[][] = [];
+    // Row 1: Title
+    const titleRow = ws.addRow(['LAPORAN STOK PRODUK']);
+    applyTitleRow(ws, titleRow, colCount);
 
-    // Row 0: Title
-    wsData.push(['LAPORAN STOK PRODUK']);
-    // Row 1: Date
-    wsData.push([`Tanggal: ${now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`]);
-    // Row 2: Empty spacer
-    wsData.push([]);
-    // Row 3: Summary
-    wsData.push([
-        `Total Produk: ${products.length}`,
-        '',
-        `Total Stok Gudang: ${totalGudang.toLocaleString('id-ID')}`,
-        '',
-        `Total Stok Toko: ${totalToko.toLocaleString('id-ID')}`,
-        '',
-        `Total Seluruh Stok: ${(totalGudang + totalToko).toLocaleString('id-ID')}`,
+    // Row 2: Date
+    const subRow = ws.addRow([`Tanggal: ${now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`]);
+    applySubtitleRow(ws, subRow, colCount);
+
+    // Row 3: Empty
+    ws.addRow([]);
+
+    // Row 4: Summary stats
+    const summaryRow = ws.addRow([
+        `Total Produk: ${products.length}`, '', '',
+        `Stok Gudang: ${totalGudang.toLocaleString('id-ID')}`, '',
+        `Stok Toko: ${totalToko.toLocaleString('id-ID')}`, '',
+        `Total: ${(totalGudang + totalToko).toLocaleString('id-ID')}`,
     ]);
-    // Row 4: Empty spacer
-    wsData.push([]);
-    // Row 5: Column headers
-    wsData.push(['No', 'Nama Produk', 'Barcode', 'Harga (Rp)', 'Stok Gudang', 'Stok Toko', 'Total Stok', 'Status']);
+    for (let c = 1; c <= colCount; c++) {
+        const cell = summaryRow.getCell(c);
+        cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF2C3E50' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEAF2F8' } };
+        cell.border = {
+            top: { style: 'thin', color: { argb: 'FFB0C4DE' } },
+            bottom: { style: 'thin', color: { argb: 'FFB0C4DE' } },
+            left: { style: 'thin', color: { argb: 'FFB0C4DE' } },
+            right: { style: 'thin', color: { argb: 'FFB0C4DE' } },
+        };
+    }
+    summaryRow.height = 22;
+
+    // Row 5: Empty
+    ws.addRow([]);
+
+    // Row 6: Column headers
+    const headers = ['No', 'Nama Produk', 'Barcode', 'Harga (Rp)', 'Stok Gudang', 'Stok Toko', 'Total Stok', 'Status'];
+    const headerRow = ws.addRow(headers);
+    applyHeaderRow(headerRow, colCount);
 
     // Data rows
-    products.forEach((p: any, i: number) => {
+    products.forEach((p: any, idx: number) => {
         const gudang = p.stock?.gudang ?? 0;
         const toko = p.stock?.toko ?? 0;
-        wsData.push([
-            i + 1,
-            p.name || '-',
-            p.barcode || '-',
-            p.price ?? 0,
-            gudang,
-            toko,
-            gudang + toko,
-            getStockStatus(gudang, toko),
+        const status = getStockStatus(gudang, toko);
+        const row = ws.addRow([
+            idx + 1, p.name || '-', p.barcode || '-', p.price ?? 0,
+            gudang, toko, gudang + toko, status,
         ]);
+        applyDataRow(row, colCount, idx % 2 === 1);
+
+        // Color-code status cell
+        const statusCell = row.getCell(8);
+        statusCell.font = { name: 'Calibri', size: 9, bold: true, color: { argb: WHITE } };
+        statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: getStatusARGB(status) } };
+        statusCell.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        // Highlight zero stock
+        if (gudang <= 0) {
+            row.getCell(5).font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FFE74C3C' } };
+        }
+        if (toko <= 0) {
+            row.getCell(6).font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FFE74C3C' } };
+        }
     });
 
-    // Summary footer
-    wsData.push([]);
-    wsData.push([
-        '',
-        'TOTAL',
-        '',
-        '',
-        totalGudang,
-        totalToko,
-        totalGudang + totalToko,
-        '',
-    ]);
-
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-    // Merge title cell
-    ws['!merges'] = [
-        { s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }, // Title
-        { s: { r: 1, c: 0 }, e: { r: 1, c: 7 } }, // Date
-    ];
+    // Total row
+    ws.addRow([]);
+    const totalRow = ws.addRow(['', 'TOTAL', '', '', totalGudang, totalToko, totalGudang + totalToko, '']);
+    for (let c = 1; c <= colCount; c++) {
+        const cell = totalRow.getCell(c);
+        cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: WHITE } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: DARK_BLUE } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        cell.border = {
+            top: { style: 'medium', color: { argb: 'FF1A252F' } },
+            bottom: { style: 'medium', color: { argb: 'FF1A252F' } },
+            left: { style: 'thin', color: { argb: 'FF1A252F' } },
+            right: { style: 'thin', color: { argb: 'FF1A252F' } },
+        };
+    }
+    totalRow.height = 24;
 
     // Column widths
-    ws['!cols'] = [
-        { wch: 5 },   // No
-        { wch: 35 },  // Nama
-        { wch: 18 },  // Barcode
-        { wch: 15 },  // Harga
-        { wch: 14 },  // Gudang
-        { wch: 12 },  // Toko
-        { wch: 12 },  // Total
-        { wch: 10 },  // Status
+    ws.columns = [
+        { width: 6 },   // No
+        { width: 38 },  // Nama
+        { width: 20 },  // Barcode
+        { width: 16 },  // Harga
+        { width: 14 },  // Gudang
+        { width: 13 },  // Toko
+        { width: 13 },  // Total
+        { width: 12 },  // Status
     ];
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Stok Produk');
-
-    const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `laporan_stok_produk_${formatDate(now)}.xlsx`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    await downloadExcelWorkbook(wb, `laporan_stok_produk_${formatDate(now)}`);
 }
