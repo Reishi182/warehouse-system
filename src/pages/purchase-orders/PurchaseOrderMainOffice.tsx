@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef } from 'react';
-import { Plus, FileText, Printer, Eye, Trash2, Package, Check, X, Ban } from 'lucide-react';
+import { Plus, FileText, Printer, Eye, Trash2, Package, Check, X, Ban, Calendar, Camera, User, CalendarCheck, AlertTriangle, Image } from 'lucide-react';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import MainLayout from '@/components/layout/MainLayout';
 import PageSkeleton from '@/components/common/PageSkeleton';
@@ -42,6 +42,7 @@ import {
     usePurchaseOrder,
     useCreatePurchaseOrder,
     useCancelPurchaseOrder,
+    usePOReceipt,
 } from '@/hooks/usePurchaseOrders';
 import { useStoreSettings } from '@/hooks/useStoreSettings';
 import PrintPurchaseOrder from '@/components/print/PrintPurchaseOrder';
@@ -88,6 +89,7 @@ export default function PurchaseOrderMainOffice() {
     const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
     const [cancelReason, setCancelReason] = useState('');
     const [poToCancel, setPOToCancel] = useState<PurchaseOrder | null>(null);
+    const [photoModalUrl, setPhotoModalUrl] = useState<string | null>(null);
     const printRef = useRef<HTMLDivElement>(null);
 
     // Print handler using react-to-print
@@ -104,7 +106,11 @@ export default function PurchaseOrderMainOffice() {
     const [destination, setDestination] = useState<PODestination>('gudang');
     const [notes, setNotes] = useState('');
     const [items, setItems] = useState<POItem[]>([]);
-    const [customPONumber, setCustomPONumber] = useState(''); // Custom PO number
+    const [poDate, setPODate] = useState(() => {
+        // Default to today in YYYY-MM-DD format (local timezone)
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    });
 
     // Add item state
     const [selectedProductId, setSelectedProductId] = useState('');
@@ -118,6 +124,7 @@ export default function PurchaseOrderMainOffice() {
     const [newProductUnit, setNewProductUnit] = useState('pcs');
 
     const { data: selectedPO, isLoading: selectedPOLoading } = usePurchaseOrder(selectedPOId || '');
+    const { data: poReceipt, isLoading: receiptLoading } = usePOReceipt(selectedPOId || '');
 
     const loading = productsLoading || suppliersLoading || posLoading;
 
@@ -188,7 +195,7 @@ export default function PurchaseOrderMainOffice() {
             notes: notes || undefined,
             createdBy: user?.id || '',
             createdByName: profile?.name || '',
-            customNumber: customPONumber.trim() || undefined, // Custom PO number
+            poDate,
             items: items.map(item => ({
                 productId: item.productId,
                 productName: item.productName,
@@ -205,7 +212,10 @@ export default function PurchaseOrderMainOffice() {
         setDestination('gudang');
         setNotes('');
         setItems([]);
-        setCustomPONumber('');
+        setPODate(() => {
+            const now = new Date();
+            return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        });
         setIsCreateOpen(false);
     };
 
@@ -428,16 +438,21 @@ export default function PurchaseOrderMainOffice() {
                                 </div>
                             </div>
 
-                            {/* Custom PO Number */}
+                            {/* Tanggal PO */}
                             <div className="space-y-2">
-                                <Label>Nomor PO</Label>
+                                <Label className="flex items-center gap-2">
+                                    <Calendar className="w-4 h-4" />
+                                    Tanggal PO *
+                                </Label>
                                 <Input
-                                    value={customPONumber}
-                                    onChange={(e) => setCustomPONumber(e.target.value)}
-                                    placeholder="PO-001 (kosongkan untuk auto)"
+                                    type="date"
+                                    value={poDate}
+                                    onChange={(e) => setPODate(e.target.value)}
                                     className="max-w-xs"
                                 />
-                                <p className="text-xs text-muted-foreground">Kosongkan jika ingin nomor otomatis</p>
+                                <p className="text-xs text-muted-foreground">
+                                    Nomor PO akan di-generate otomatis berdasarkan tanggal ini (format: PO-DDMMYYYY-XXXX)
+                                </p>
                             </div>
 
                             {/* Add Item */}
@@ -630,7 +645,7 @@ export default function PurchaseOrderMainOffice() {
 
                 {/* View PO Dialog */}
                 <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
-                    <DialogContent className="max-w-2xl">
+                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                         <DialogHeader>
                             <DialogTitle>Detail Purchase Order</DialogTitle>
                         </DialogHeader>
@@ -699,16 +714,137 @@ export default function PurchaseOrderMainOffice() {
 
                                 {selectedPO.notes && (
                                     <div>
-                                        <p className="text-sm text-muted-foreground">Catatan</p>
+                                        <p className="text-sm text-muted-foreground">Catatan PO</p>
                                         <p>{selectedPO.notes}</p>
                                     </div>
                                 )}
 
                                 {selectedPO.rejected_reason && (
-                                    <div className="p-3 bg-red-50 rounded-lg border border-red-200">
-                                        <p className="text-sm text-red-600">Alasan Ditolak</p>
-                                        <p className="text-red-700">{selectedPO.rejected_reason}</p>
+                                    <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                                        <p className="text-sm text-red-600 dark:text-red-400">Alasan Ditolak</p>
+                                        <p className="text-red-700 dark:text-red-300">{selectedPO.rejected_reason}</p>
                                     </div>
+                                )}
+
+                                {/* ===== RECEIPT INFO SECTION ===== */}
+                                {(selectedPO.status === 'completed' || selectedPO.status === 'completed_with_discrepancy') && (
+                                    <Card className="border-green-200 dark:border-green-800">
+                                        <CardHeader className="pb-3">
+                                            <CardTitle className="text-base flex items-center gap-2 text-green-700 dark:text-green-400">
+                                                <Check className="w-4 h-4" />
+                                                Informasi Penerimaan
+                                            </CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            {receiptLoading ? (
+                                                <div className="py-4 text-center text-muted-foreground text-sm">Memuat data penerimaan...</div>
+                                            ) : poReceipt ? (
+                                                <div className="space-y-4">
+                                                    {/* Receiver info */}
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        <div className="flex items-start gap-2">
+                                                            <User className="w-4 h-4 text-muted-foreground mt-0.5" />
+                                                            <div>
+                                                                <p className="text-xs text-muted-foreground">Diterima Oleh</p>
+                                                                <p className="font-medium">{poReceipt.received_by_name || '-'}</p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-start gap-2">
+                                                            <CalendarCheck className="w-4 h-4 text-muted-foreground mt-0.5" />
+                                                            <div>
+                                                                <p className="text-xs text-muted-foreground">Tanggal Penerimaan</p>
+                                                                <p className="font-medium">
+                                                                    {poReceipt.received_at
+                                                                        ? format(new Date(poReceipt.received_at), 'dd MMMM yyyy, HH:mm', { locale: localeId })
+                                                                        : format(new Date(poReceipt.created_at), 'dd MMMM yyyy, HH:mm', { locale: localeId })
+                                                                    }
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Discrepancy details */}
+                                                    {poReceipt.has_discrepancy && (
+                                                        <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                                                            <div className="flex items-start gap-2">
+                                                                <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                                                                <div>
+                                                                    <p className="font-medium text-amber-800 dark:text-amber-200">Terdapat Selisih Penerimaan</p>
+                                                                    <div className="grid grid-cols-3 gap-2 mt-2 text-sm">
+                                                                        <div>
+                                                                            <p className="text-amber-600 dark:text-amber-400">Dipesan</p>
+                                                                            <p className="font-bold text-amber-800 dark:text-amber-200">{poReceipt.total_ordered} unit</p>
+                                                                        </div>
+                                                                        <div>
+                                                                            <p className="text-amber-600 dark:text-amber-400">Diterima</p>
+                                                                            <p className="font-bold text-amber-800 dark:text-amber-200">{poReceipt.total_received} unit</p>
+                                                                        </div>
+                                                                        {(poReceipt.total_damaged ?? 0) > 0 && (
+                                                                            <div>
+                                                                                <p className="text-red-600 dark:text-red-400">Rusak</p>
+                                                                                <p className="font-bold text-red-700 dark:text-red-300">{poReceipt.total_damaged} unit</p>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Receipt notes */}
+                                                    {poReceipt.notes && (
+                                                        <div>
+                                                            <p className="text-xs text-muted-foreground mb-1">Catatan Penerimaan</p>
+                                                            <p className="text-sm bg-muted/40 p-2 rounded">{poReceipt.notes}</p>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Photo & Signature Evidence */}
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        {/* Photo evidence */}
+                                                        <div>
+                                                            <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                                                                <Camera className="w-3 h-3" />
+                                                                Foto Bukti Penerimaan
+                                                            </p>
+                                                            {poReceipt.photo_url ? (
+                                                                <img
+                                                                    src={poReceipt.photo_url}
+                                                                    alt="Bukti penerimaan"
+                                                                    className="rounded-lg border cursor-pointer hover:opacity-80 transition-opacity max-h-40 w-full object-cover"
+                                                                    onClick={() => setPhotoModalUrl(poReceipt.photo_url!)}
+                                                                />
+                                                            ) : (
+                                                                <div className="flex items-center justify-center h-24 bg-muted/30 rounded-lg border border-dashed text-muted-foreground text-xs">
+                                                                    <Image className="w-4 h-4 mr-1" />
+                                                                    Tidak ada foto
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Signature */}
+                                                        <div>
+                                                            <p className="text-xs text-muted-foreground mb-2">✍️ Tanda Tangan</p>
+                                                            {poReceipt.signature_url ? (
+                                                                <img
+                                                                    src={poReceipt.signature_url}
+                                                                    alt="Tanda tangan penerima"
+                                                                    className="rounded-lg border bg-white p-2 max-h-40 w-full object-contain cursor-pointer hover:opacity-80 transition-opacity"
+                                                                    onClick={() => setPhotoModalUrl(poReceipt.signature_url!)}
+                                                                />
+                                                            ) : (
+                                                                <div className="flex items-center justify-center h-24 bg-muted/30 rounded-lg border border-dashed text-muted-foreground text-xs">
+                                                                    Tidak ada tanda tangan
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <p className="text-sm text-muted-foreground py-2">Data penerimaan tidak ditemukan</p>
+                                            )}
+                                        </CardContent>
+                                    </Card>
                                 )}
                             </div>
                         ) : null}
@@ -789,6 +925,21 @@ export default function PurchaseOrderMainOffice() {
                             </Button>
                         </div>
                     </div>
+                </DialogContent>
+            </Dialog>
+            {/* Photo/Signature Fullscreen Modal */}
+            <Dialog open={!!photoModalUrl} onOpenChange={() => setPhotoModalUrl(null)}>
+                <DialogContent className="max-w-3xl p-2">
+                    <DialogHeader>
+                        <DialogTitle>Bukti Penerimaan</DialogTitle>
+                    </DialogHeader>
+                    {photoModalUrl && (
+                        <img
+                            src={photoModalUrl}
+                            alt="Bukti penerimaan fullsize"
+                            className="w-full rounded-lg"
+                        />
+                    )}
                 </DialogContent>
             </Dialog>
         </MainLayout>

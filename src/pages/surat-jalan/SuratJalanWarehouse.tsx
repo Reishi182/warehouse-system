@@ -423,7 +423,7 @@ export default function SuratJalanWarehouse() {
                                         ref={senderSignatureRef}
                                         width={400}
                                         height={150}
-                                        onSignatureChange={setHasSenderSignature}
+                                        onSignatureChange={(v: string | null) => setHasSenderSignature(!!v)}
                                     />
                                 </div>
                             </div>
@@ -452,7 +452,7 @@ export default function SuratJalanWarehouse() {
                                         ref={receiverSignatureRef}
                                         width={400}
                                         height={150}
-                                        onSignatureChange={setHasReceiverSignature}
+                                        onSignatureChange={(v: string | null) => setHasReceiverSignature(!!v)}
                                     />
                                 </div>
                             </div>

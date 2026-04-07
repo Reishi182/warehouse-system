@@ -409,11 +409,17 @@ function getStatusARGB(status: string): string {
 /**
  * Premium PDF Export for Product Stock
  */
-export async function exportProductStockPDF(products: any[]) {
+export async function exportProductStockPDF(products: any[], asOfDate?: string) {
     const { jsPDF, autoTable } = await loadPDFLibraries();
     const doc = new jsPDF('landscape');
     const pageWidth = doc.internal.pageSize.width;
     const now = new Date();
+
+    // Format the historical date for display
+    const isHistorical = !!asOfDate;
+    const displayDate = isHistorical
+        ? new Date(asOfDate + 'T00:00:00').toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+        : now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
     // === HEADER BANNER ===
     doc.setFillColor(41, 128, 185);
@@ -424,11 +430,16 @@ export async function exportProductStockPDF(products: any[]) {
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(20);
     doc.setFont('helvetica', 'bold');
-    doc.text('LAPORAN STOK PRODUK', 14, 16);
+    doc.text(isHistorical ? 'LAPORAN STOK PRODUK (HISTORIS)' : 'LAPORAN STOK PRODUK', 14, 16);
 
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Tanggal cetak: ${now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`, 14, 25);
+    doc.text(
+        isHistorical
+            ? `Stok per tanggal: ${displayDate}  |  Dicetak: ${now.toLocaleDateString('id-ID')}`
+            : `Tanggal cetak: ${displayDate}`,
+        14, 25
+    );
 
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
@@ -538,28 +549,36 @@ export async function exportProductStockPDF(products: any[]) {
         doc.text(`Halaman ${i} dari ${pageCount}`, pageWidth - 14, pageH - 8, { align: 'right' });
     }
 
-    doc.save(`laporan_stok_produk_${formatDate(now)}.pdf`);
+    doc.save(`laporan_stok_produk_${isHistorical ? asOfDate : formatDate(now)}.pdf`);
 }
 
 /**
  * Premium Excel Export for Product Stock - STYLED WITH EXCELJS
  */
-export async function exportProductStockExcel(products: any[]) {
+export async function exportProductStockExcel(products: any[], asOfDate?: string) {
     const ExcelJS = await loadExcelJS();
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet('Stok Produk');
     const now = new Date();
     const colCount = 8;
 
+    const isHistorical = !!asOfDate;
+    const displayDate = isHistorical
+        ? new Date(asOfDate + 'T00:00:00').toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+        : now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
     const totalGudang = products.reduce((acc: number, p: any) => acc + (p.stock?.gudang ?? 0), 0);
     const totalToko = products.reduce((acc: number, p: any) => acc + (p.stock?.toko ?? 0), 0);
 
     // Row 1: Title
-    const titleRow = ws.addRow(['LAPORAN STOK PRODUK']);
+    const titleRow = ws.addRow([isHistorical ? 'LAPORAN STOK PRODUK (HISTORIS)' : 'LAPORAN STOK PRODUK']);
     applyTitleRow(ws, titleRow, colCount);
 
     // Row 2: Date
-    const subRow = ws.addRow([`Tanggal: ${now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`]);
+    const subText = isHistorical
+        ? `Stok per tanggal: ${displayDate}  |  Dicetak: ${now.toLocaleDateString('id-ID')}`
+        : `Tanggal: ${displayDate}`;
+    const subRow = ws.addRow([subText]);
     applySubtitleRow(ws, subRow, colCount);
 
     // Row 3: Empty
@@ -648,5 +667,5 @@ export async function exportProductStockExcel(products: any[]) {
         { width: 12 },  // Status
     ];
 
-    await downloadExcelWorkbook(wb, `laporan_stok_produk_${formatDate(now)}`);
+    await downloadExcelWorkbook(wb, `laporan_stok_produk_${isHistorical ? asOfDate : formatDate(now)}`);
 }

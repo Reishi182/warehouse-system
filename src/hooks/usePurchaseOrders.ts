@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { PurchaseOrder, PurchaseOrderItem, POStatus } from '@/types';
+import { PurchaseOrder, PurchaseOrderItem, POStatus, POReceiptWithDetails } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { sendNotificationToRole, sendNotificationToUser } from '@/hooks/useRealtimeNotifications';
 
@@ -133,7 +133,7 @@ interface CreatePOInput {
     notes?: string;
     createdBy: string;
     createdByName: string;
-    customNumber?: string; // Custom PO number (optional)
+    poDate: string; // PO date in YYYY-MM-DD format
     items: Array<{
         productId: string;
         productName: string;
@@ -151,22 +151,21 @@ export function useCreatePurchaseOrder() {
 
     return useMutation({
         mutationFn: async (input: CreatePOInput) => {
-            // Use custom number if provided, otherwise generate
-            let poNumber = input.customNumber?.trim();
+            // Generate PO number based on selected date
+            const poDate = input.poDate; // YYYY-MM-DD format
+            let poNumber: string;
 
-            if (!poNumber) {
-                const { data: poNumberData, error: poNumError } = await supabase
-                    .rpc('generate_po_number');
+            const { data: poNumberData, error: poNumError } = await supabase
+                .rpc('generate_po_number', { p_date: poDate });
 
-                if (poNumError) {
-                    // Fallback: generate simple PO number
-                    const now = new Date();
-                    const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
-                    const randomNum = Math.floor(Math.random() * 9999).toString().padStart(4, '0');
-                    poNumber = `PO-${dateStr}-${randomNum}`;
-                } else {
-                    poNumber = poNumberData;
-                }
+            if (poNumError) {
+                // Fallback: generate PO number client-side with DDMMYYYY format
+                const [year, month, day] = poDate.split('-');
+                const dateStr = `${day}${month}${year}`;
+                const randomNum = Math.floor(Math.random() * 9999).toString().padStart(4, '0');
+                poNumber = `PO-${dateStr}-${randomNum}`;
+            } else {
+                poNumber = poNumberData;
             }
 
             // Calculate total
@@ -177,12 +176,13 @@ export function useCreatePurchaseOrder() {
                 .from('purchase_orders')
                 .insert([{
                     po_number: poNumber,
-                    supplier_id: input.supplierId || null, // Handle empty supplier_id
+                    po_date: poDate,
+                    supplier_id: input.supplierId || null,
                     destination: input.destination,
-                    status: 'pending_receipt', // Skip auditor approval - PO created by main_office goes directly to receipt
+                    status: 'pending_receipt',
                     total_amount: totalAmount,
                     notes: input.notes || null,
-                    created_by: input.createdBy || null, // Handle empty created_by
+                    created_by: input.createdBy || null,
                     created_by_name: input.createdByName,
                 }])
                 .select()
@@ -218,8 +218,13 @@ export function useCreatePurchaseOrder() {
                 description: 'Purchase Order berhasil dibuat',
             });
 
-            // Note: Warehouse will be notified after PO is approved, not on creation
-            // PO needs auditor approval first
+            // Notify cashier & warehouse that a new PO has been created
+            sendNotificationToRole(['cashier', 'warehouse'], {
+                title: '📦 PO Baru Dibuat',
+                message: `Purchase Order ${po.po_number} telah dibuat, menunggu penerimaan barang`,
+                type: 'info',
+                link: '/purchase-orders/receipt',
+            });
         },
         onError: (error: Error) => {
             toast({
@@ -512,6 +517,10 @@ export function useConfirmPOReceipt() {
                     location: destination,
                     user_id: input.receivedBy,
                     note: noteDetails,
+                    stock_before: currentStock,
+                    stock_after: newStock,
+                    reference_type: 'purchase_order',
+                    reference_id: input.poId,
                 }]);
             }
 
@@ -546,9 +555,10 @@ export function useConfirmPOReceipt() {
         onSuccess: async (result) => {
             queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
             queryClient.invalidateQueries({ queryKey: ['products'] });
+            queryClient.invalidateQueries({ queryKey: ['po_receipt'] });
 
-            // Always notify main_office about PO receipt completion
-            await supabase.from('notifications').insert({
+            // Notify main_office about PO receipt completion
+            sendNotificationToRole('main_office', {
                 title: result.hasDiscrepancy ? '⚠️ PO Diterima dengan Selisih' : '✅ PO Diterima Lengkap',
                 message: `PO ${result.po.po_number} telah diterima${result.hasDiscrepancy ? ' dengan selisih, perlu follow-up' : ' dengan lengkap'}`,
                 type: result.hasDiscrepancy ? 'warning' : 'success',
@@ -648,5 +658,25 @@ export function useCancelPurchaseOrder() {
                 variant: 'destructive',
             });
         },
+    });
+}
+
+// Fetch PO receipt data (receiver info, photo, signature, discrepancy)
+export function usePOReceipt(purchaseOrderId: string) {
+    return useQuery({
+        queryKey: ['po_receipt', purchaseOrderId],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('po_receipts')
+                .select('*')
+                .eq('purchase_order_id', purchaseOrderId)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+            if (error) throw error;
+            return data as POReceiptWithDetails | null;
+        },
+        enabled: !!purchaseOrderId,
     });
 }

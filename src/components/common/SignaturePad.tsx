@@ -9,8 +9,8 @@ interface SignaturePadProps {
     strokeColor?: string;
     strokeWidth?: number;
     className?: string;
-    // Support both boolean (original) and string (SignatureCanvas) callbacks
-    onSignatureChange?: ((hasSignature: boolean) => void) | ((signatureData: string | null) => void);
+    // Callback receives the data URL string when signature exists, or null when cleared
+    onSignatureChange?: (signatureData: string | null) => void;
 }
 
 export interface SignaturePadRef {
@@ -102,14 +102,23 @@ const SignaturePad = forwardRef<SignaturePadRef, SignaturePadProps>(({
 
         if (!hasSignature) {
             setHasSignature(true);
-            // Call with both boolean and string for compatibility
-            (onSignatureChange as (v: boolean | string | null) => void)?.(true);
         }
     };
 
     const stopDrawing = () => {
-        setIsDrawing(false);
-        lastPoint.current = null;
+        if (isDrawing) {
+            setIsDrawing(false);
+            lastPoint.current = null;
+            // Send the actual data URL string to the callback after drawing ends
+            const canvas = canvasRef.current;
+            if (canvas) {
+                const dataUrl = canvas.toDataURL('image/png');
+                onSignatureChange?.(dataUrl);
+            }
+        } else {
+            setIsDrawing(false);
+            lastPoint.current = null;
+        }
     };
 
     const clear = () => {
@@ -120,7 +129,7 @@ const SignaturePad = forwardRef<SignaturePadRef, SignaturePadProps>(({
         ctx.fillStyle = backgroundColor;
         ctx.fillRect(0, 0, width, height);
         setHasSignature(false);
-        (onSignatureChange as (v: boolean | string | null) => void)?.(null);
+        onSignatureChange?.(null);
     };
 
     const isEmpty = () => !hasSignature;

@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef, memo } from 'react';
-import { Package, AlertTriangle, Warehouse, Store, ArrowDownToLine, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, X, ArrowUpDown, Download, FileText, FileSpreadsheet, ChevronDown } from 'lucide-react';
+import { Package, AlertTriangle, Warehouse, Store, ArrowDownToLine, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, X, ArrowUpDown, Download, FileText, FileSpreadsheet, ChevronDown, Calendar, Clock, Loader2 } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import BarcodeScanner from '@/components/common/BarcodeScanner';
 import PageSkeleton from '@/components/common/PageSkeleton';
@@ -13,6 +13,14 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useData } from '@/contexts/DataContext';
 import { useRole } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -32,6 +40,7 @@ import {
 } from '@/components/ui/select';
 import { STOCK_THRESHOLDS } from '@/constants';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
 
 type SortOption = 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc' | 'stock-asc' | 'stock-desc' | 'newest' | 'oldest';
 
@@ -62,6 +71,10 @@ export default function Products() {
     const [stockInDialog, setStockInDialog] = useState(false);
     const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
     const [highlightedProductId, setHighlightedProductId] = useState<string | null>(null);
+    const [exportDialogOpen, setExportDialogOpen] = useState(false);
+    const [exportDate, setExportDate] = useState('');
+    const [exportMode, setExportMode] = useState<'current' | 'historical'>('current');
+    const [exportLoading, setExportLoading] = useState(false);
     const location = useLocation();
 
     // Role permissions
@@ -272,6 +285,8 @@ export default function Products() {
         has_multi_unit?: boolean;
         pcs_per_box?: number | null;
         box_price?: number | null;
+        sell_by_quantity?: boolean;
+        sell_unit?: string;
     }): Promise<boolean> => {
         const success = await addProduct(product);
         return success;
@@ -318,6 +333,101 @@ export default function Products() {
         setCurrentPage(1);
     }, []);
 
+    // Historical stock calculation
+    const calculateHistoricalStock = useCallback(async (targetDate: string) => {
+        // targetDate is YYYY-MM-DD, we want end of that day
+        const endOfDay = `${targetDate}T23:59:59.999Z`;
+
+        // Fetch all stock_logs AFTER the target date
+        const { data: logsAfter, error } = await supabase
+            .from('stock_logs')
+            .select('product_id, type, quantity, location')
+            .gt('timestamp', endOfDay);
+
+        if (error) {
+            console.error('Error fetching stock logs:', error);
+            return null;
+        }
+
+        // Build a map of adjustments per product
+        const adjustments: Record<string, { gudang: number; toko: number }> = {};
+
+        for (const log of (logsAfter || [])) {
+            if (!log.product_id) continue;
+            if (!adjustments[log.product_id]) {
+                adjustments[log.product_id] = { gudang: 0, toko: 0 };
+            }
+
+            const loc = log.location as 'gudang' | 'toko';
+            const qty = log.quantity || 0;
+
+            if (log.type === 'in') {
+                // Stock went IN after target date, so reverse = subtract
+                adjustments[log.product_id][loc] -= qty;
+            } else if (log.type === 'out') {
+                // Stock went OUT after target date, so reverse = add back
+                adjustments[log.product_id][loc] += qty;
+            } else if (log.type === 'adjustment') {
+                // Adjustment could be positive or negative
+                // qty is the delta, reverse it
+                adjustments[log.product_id][loc] -= qty;
+            }
+        }
+
+        // Apply adjustments to current stock to get historical stock
+        return filteredProducts.map(p => {
+            const adj = adjustments[p.id] || { gudang: 0, toko: 0 };
+            return {
+                ...p,
+                stock: {
+                    gudang: Math.max(0, (p.stock.gudang || 0) + adj.gudang),
+                    toko: Math.max(0, (p.stock.toko || 0) + adj.toko),
+                },
+            };
+        });
+    }, [filteredProducts]);
+
+    const handleExport = useCallback(async (format: 'pdf' | 'excel') => {
+        setExportLoading(true);
+        try {
+            let dataToExport = filteredProducts;
+
+            if (exportMode === 'historical' && exportDate) {
+                const historicalData = await calculateHistoricalStock(exportDate);
+                if (historicalData) {
+                    dataToExport = historicalData;
+                } else {
+                    toast({
+                        title: 'Gagal',
+                        description: 'Gagal menghitung stok historis',
+                        variant: 'destructive',
+                    });
+                    return;
+                }
+            }
+
+            if (format === 'pdf') {
+                await exportProductStockPDF(dataToExport, exportMode === 'historical' ? exportDate : undefined);
+            } else {
+                await exportProductStockExcel(dataToExport, exportMode === 'historical' ? exportDate : undefined);
+            }
+
+            setExportDialogOpen(false);
+            toast({
+                title: 'Berhasil',
+                description: `Export ${format.toUpperCase()} berhasil`,
+            });
+        } catch (err) {
+            toast({
+                title: 'Gagal Export',
+                description: String(err),
+                variant: 'destructive',
+            });
+        } finally {
+            setExportLoading(false);
+        }
+    }, [filteredProducts, exportMode, exportDate, calculateHistoricalStock, toast]);
+
     const editProduct = editProductId ? products.find(p => p.id === editProductId) || null : null;
 
     if (loading) {
@@ -336,31 +446,19 @@ export default function Products() {
             subtitle="Kelola inventaris produk, pantau stok, dan atur harga"
             actions={
                 <div className="flex gap-2 flex-wrap">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline" className="rounded-xl text-xs sm:text-sm" disabled={filteredProducts.length === 0}>
-                                <Download className="h-4 w-4 sm:mr-2" />
-                                <span className="hidden sm:inline">Export</span>
-                                <ChevronDown className="w-3 h-3 ml-1" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48 rounded-xl">
-                            <DropdownMenuItem
-                                onClick={() => exportProductStockPDF(filteredProducts)}
-                                className="rounded-lg cursor-pointer"
-                            >
-                                <FileText className="w-4 h-4 mr-2 text-red-500" />
-                                Export as PDF
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                                onClick={() => exportProductStockExcel(filteredProducts)}
-                                className="rounded-lg cursor-pointer"
-                            >
-                                <FileSpreadsheet className="w-4 h-4 mr-2 text-green-600" />
-                                Export as Excel
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                    <Button
+                        variant="outline"
+                        className="rounded-xl text-xs sm:text-sm"
+                        disabled={filteredProducts.length === 0}
+                        onClick={() => {
+                            setExportMode('current');
+                            setExportDate('');
+                            setExportDialogOpen(true);
+                        }}
+                    >
+                        <Download className="h-4 w-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Export</span>
+                    </Button>
                     {(role === 'warehouse' || role === 'admin' || role === 'cashier') && (
                         <Button variant="outline" className="rounded-xl text-xs sm:text-sm" onClick={() => setStockInDialog(true)}>
                             <ArrowDownToLine className="h-4 w-4 sm:mr-2" />
@@ -700,6 +798,108 @@ export default function Products() {
                 onAddStock={addStock}
                 getProductByBarcode={getProductByBarcode}
             />
+
+            {/* Export Dialog with Date Selection */}
+            <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Download className="w-5 h-5" />
+                            Export Stok Produk
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 mt-2">
+                        {/* Mode Selection */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <button
+                                type="button"
+                                onClick={() => { setExportMode('current'); setExportDate(''); }}
+                                className={cn(
+                                    "p-3 rounded-xl border-2 text-left transition-all",
+                                    exportMode === 'current'
+                                        ? "border-primary bg-primary/5"
+                                        : "border-muted hover:border-muted-foreground/30"
+                                )}
+                            >
+                                <Clock className="w-5 h-5 mb-1 text-primary" />
+                                <p className="font-medium text-sm">Stok Saat Ini</p>
+                                <p className="text-xs text-muted-foreground">Data stok terkini</p>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setExportMode('historical')}
+                                className={cn(
+                                    "p-3 rounded-xl border-2 text-left transition-all",
+                                    exportMode === 'historical'
+                                        ? "border-primary bg-primary/5"
+                                        : "border-muted hover:border-muted-foreground/30"
+                                )}
+                            >
+                                <Calendar className="w-5 h-5 mb-1 text-primary" />
+                                <p className="font-medium text-sm">Stok Per Tanggal</p>
+                                <p className="text-xs text-muted-foreground">Stok di tanggal tertentu</p>
+                            </button>
+                        </div>
+
+                        {/* Date Picker (only for historical) */}
+                        {exportMode === 'historical' && (
+                            <div className="space-y-2 p-3 bg-muted/30 rounded-xl border">
+                                <Label className="flex items-center gap-2 text-sm">
+                                    <Calendar className="w-4 h-4" />
+                                    Pilih Tanggal
+                                </Label>
+                                <Input
+                                    type="date"
+                                    value={exportDate}
+                                    onChange={(e) => setExportDate(e.target.value)}
+                                    max={new Date().toISOString().split('T')[0]}
+                                    className="bg-background"
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    Stok akan dihitung mundur berdasarkan log perubahan stok. Hasil menunjukkan jumlah stok pada akhir tanggal yang dipilih.
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Export Format Buttons */}
+                        <div className="space-y-2">
+                            <Label className="text-sm">Pilih Format</Label>
+                            <div className="grid grid-cols-2 gap-3">
+                                <Button
+                                    variant="outline"
+                                    className="h-auto py-3 rounded-xl flex flex-col items-center gap-1"
+                                    disabled={exportLoading || (exportMode === 'historical' && !exportDate)}
+                                    onClick={() => handleExport('pdf')}
+                                >
+                                    {exportLoading ? (
+                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                    ) : (
+                                        <FileText className="w-5 h-5 text-red-500" />
+                                    )}
+                                    <span className="text-xs font-medium">Export PDF</span>
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    className="h-auto py-3 rounded-xl flex flex-col items-center gap-1"
+                                    disabled={exportLoading || (exportMode === 'historical' && !exportDate)}
+                                    onClick={() => handleExport('excel')}
+                                >
+                                    {exportLoading ? (
+                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                    ) : (
+                                        <FileSpreadsheet className="w-5 h-5 text-green-600" />
+                                    )}
+                                    <span className="text-xs font-medium">Export Excel</span>
+                                </Button>
+                            </div>
+                        </div>
+
+                        <p className="text-xs text-muted-foreground text-center">
+                            {filteredProducts.length} produk akan di-export
+                        </p>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </MainLayout>
     );
 }

@@ -430,6 +430,7 @@ export interface PurchaseOrderItem {
 export interface PurchaseOrder {
   id: string;
   po_number: string;
+  po_date?: string | null; // Date of the PO (YYYY-MM-DD)
   supplier_id?: string | null;
   supplier?: Supplier; // joined
   destination: PODestination;

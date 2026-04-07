@@ -9,7 +9,7 @@ interface CreatePOInput {
     notes?: string;
     createdBy: string;
     createdByName: string;
-    customNumber?: string;
+    poDate: string; // PO date in YYYY-MM-DD format
     items: Array<{
         productId: string;
         productName: string;
@@ -27,20 +27,21 @@ export function useCreatePurchaseOrder() {
 
     return useMutation({
         mutationFn: async (input: CreatePOInput) => {
-            let poNumber = input.customNumber?.trim();
+            // Generate PO number based on selected date
+            const poDate = input.poDate; // YYYY-MM-DD format
+            let poNumber: string;
 
-            if (!poNumber) {
-                const { data: poNumberData, error: poNumError } = await supabase
-                    .rpc('generate_po_number');
+            const { data: poNumberData, error: poNumError } = await supabase
+                .rpc('generate_po_number', { p_date: poDate });
 
-                if (poNumError) {
-                    const now = new Date();
-                    const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
-                    const randomNum = Math.floor(Math.random() * 9999).toString().padStart(4, '0');
-                    poNumber = `PO-${dateStr}-${randomNum}`;
-                } else {
-                    poNumber = poNumberData;
-                }
+            if (poNumError) {
+                // Fallback: generate PO number client-side with DDMMYYYY format
+                const [year, month, day] = poDate.split('-');
+                const dateStr = `${day}${month}${year}`;
+                const randomNum = Math.floor(Math.random() * 9999).toString().padStart(4, '0');
+                poNumber = `PO-${dateStr}-${randomNum}`;
+            } else {
+                poNumber = poNumberData;
             }
 
             const totalAmount = input.items.reduce((acc, item) => acc + (item.quantity * item.unitPrice), 0);
@@ -49,6 +50,7 @@ export function useCreatePurchaseOrder() {
                 .from('purchase_orders')
                 .insert([{
                     po_number: poNumber,
+                    po_date: poDate,
                     supplier_id: input.supplierId,
                     destination: input.destination,
                     status: 'pending_receipt',

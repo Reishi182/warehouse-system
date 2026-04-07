@@ -168,29 +168,43 @@ export default function PurchaseOrderReceipt() {
                     .from('uploads')
                     .upload(fileName, photoFile);
 
-                if (!uploadError) {
+                if (uploadError) {
+                    console.error('Photo upload error:', uploadError);
+                } else {
                     const { data: urlData } = supabase.storage
                         .from('uploads')
                         .getPublicUrl(fileName);
                     photoUrl = urlData.publicUrl;
+                    console.log('Photo uploaded successfully:', photoUrl);
                 }
             }
 
-            // Upload signature if provided
-            if (signatureData) {
-                const blob = await fetch(signatureData).then(r => r.blob());
-                const signatureFileName = `po_receipts/sig_${selectedPOId}_${Date.now()}.png`;
+            // Upload signature if provided - ensure signatureData is a valid data URL
+            if (signatureData && typeof signatureData === 'string' && signatureData.startsWith('data:')) {
+                try {
+                    const blob = await fetch(signatureData).then(r => r.blob());
+                    const signatureFileName = `po_receipts/sig_${selectedPOId}_${Date.now()}.png`;
 
-                const { error: sigError } = await supabase.storage
-                    .from('uploads')
-                    .upload(signatureFileName, blob);
-
-                if (!sigError) {
-                    const { data: sigUrlData } = supabase.storage
+                    const { error: sigError } = await supabase.storage
                         .from('uploads')
-                        .getPublicUrl(signatureFileName);
-                    signatureUrl = sigUrlData.publicUrl;
+                        .upload(signatureFileName, blob, {
+                            contentType: 'image/png',
+                        });
+
+                    if (sigError) {
+                        console.error('Signature upload error:', sigError);
+                    } else {
+                        const { data: sigUrlData } = supabase.storage
+                            .from('uploads')
+                            .getPublicUrl(signatureFileName);
+                        signatureUrl = sigUrlData.publicUrl;
+                        console.log('Signature uploaded successfully:', signatureUrl);
+                    }
+                } catch (sigFetchError) {
+                    console.error('Signature conversion error:', sigFetchError);
                 }
+            } else if (signatureData) {
+                console.warn('Invalid signature data format, expected data URL but got:', typeof signatureData, signatureData?.substring?.(0, 50));
             }
 
             await confirmReceipt.mutateAsync({
@@ -455,7 +469,7 @@ export default function PurchaseOrderReceipt() {
 
                             {/* Photo Upload */}
                             <div className="space-y-2">
-                                <Label>Foto Bukti Penerimaan {hasDiscrepancy && <span className="text-red-500">*</span>}</Label>
+                                <Label>Foto Bukti Penerimaan <span className="text-red-500">*</span></Label>
                                 <div className="border-2 border-dashed rounded-lg p-4 text-center">
                                     {photoPreview ? (
                                         <div className="space-y-2">
@@ -486,7 +500,7 @@ export default function PurchaseOrderReceipt() {
 
                             {/* Digital Signature */}
                             <div className="space-y-2">
-                                <Label>Tanda Tangan Digital {hasDiscrepancy && <span className="text-red-500">*</span>}</Label>
+                                <Label>Tanda Tangan Digital <span className="text-red-500">*</span></Label>
                                 <SignaturePad
                                     ref={signatureRef}
                                     onSignatureChange={setSignatureData}
@@ -512,7 +526,7 @@ export default function PurchaseOrderReceipt() {
                                 </Button>
                                 <Button
                                     onClick={handleConfirm}
-                                    disabled={confirmReceipt.isPending || uploading || (hasDiscrepancy && (!photoFile || !signatureData))}
+                                    disabled={confirmReceipt.isPending || uploading || !photoFile || !signatureData}
                                     className="gap-1"
                                 >
                                     {confirmReceipt.isPending || uploading ? 'Memproses...' : (
