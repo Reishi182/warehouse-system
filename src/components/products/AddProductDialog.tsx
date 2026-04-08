@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Plus, Package, ImagePlus, X, Upload } from 'lucide-react';
+import { Plus, Package, X, Upload, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,28 +22,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Product, UserRole } from '@/types';
 
 // All available sell units matching the database seed
-const SELL_UNITS = [
-    { value: 'pcs', label: 'PCS' },
-    { value: 'pail', label: 'PAIL' },
-    { value: 'set', label: 'SET' },
-    { value: 'meter', label: 'METER' },
-    { value: 'bks', label: 'BKS (Bungkus)' },
-    { value: 'btg', label: 'BTG (Batang)' },
-    { value: 'roll', label: 'ROLL' },
-    { value: 'kg', label: 'KG' },
-    { value: 'pack', label: 'PACK' },
-    { value: 'psg', label: 'PSG (Pasang)' },
-    { value: 'gram', label: 'GRAM' },
-    { value: 'sak', label: 'SAK' },
-    { value: 'krg', label: 'KRG (Karung)' },
-    { value: 'ikat', label: 'IKAT' },
-    { value: 'kubik', label: 'KUBIK' },
-    { value: 'lusin', label: 'LUSIN' },
-    { value: 'box', label: 'BOX' },
-    { value: 'cm', label: 'CM' },
-    { value: 'ons', label: 'ONS' },
-    { value: 'liter', label: 'LITER' },
-];
+import { useProductUnits, unitsToSelectOptions } from '@/hooks/useProductUnits';
 
 interface AddProductDialogProps {
     onAdd: (product: {
@@ -53,6 +32,7 @@ interface AddProductDialogProps {
         stock: { gudang: number; toko: number };
         image_url?: string;
         has_multi_unit?: boolean;
+        main_unit?: string | null;
         pcs_per_box?: number | null;
         box_price?: number | null;
         sell_by_quantity?: boolean;
@@ -77,16 +57,30 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
 
+    const { data: unitsData } = useProductUnits();
+    const SELL_UNITS = unitsToSelectOptions(unitsData || []);
+
     // Unit fields
     const [sellUnit, setSellUnit] = useState('pcs');
     const [sellByQuantity, setSellByQuantity] = useState(false);
 
-    // Multi-unit fields
     const [hasMultiUnit, setHasMultiUnit] = useState(false);
-    const [pcsPerBox, setPcsPerBox] = useState<number | null>(null);
-    const [boxPrice, setBoxPrice] = useState<number | null>(null);
+    const [mainUnit, setMainUnit] = useState('box');   // the LARGER unit
+    const [pcsPerBox, setPcsPerBox] = useState<number | null>(null);   // qty of sub-unit per main-unit
+    const [boxPrice, setBoxPrice] = useState<number | null>(null);     // price per main-unit
+
+    // Visual Stock Helpers for Multi-Unit
+    const [mainStockGudang, setMainStockGudang] = useState(0);
+    const [subStockGudang, setSubStockGudang] = useState(0);
+    const [mainStockToko, setMainStockToko] = useState(0);
+    const [subStockToko, setSubStockToko] = useState(0);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Auto-suggest main unit label
+    const mainUnitLabel = SELL_UNITS.find(u => u.value === mainUnit)?.label ?? (mainUnit || '').toUpperCase();
+    const subUnitLabel = SELL_UNITS.find(u => u.value === sellUnit)?.label ?? (sellUnit || '').toUpperCase();
+    const computedBoxPrice = pcsPerBox && price ? price * pcsPerBox : null;
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -111,14 +105,35 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
         setSellUnit('pcs');
         setSellByQuantity(false);
         setHasMultiUnit(false);
+        setMainUnit('box');
         setPcsPerBox(null);
         setBoxPrice(null);
+        setMainStockGudang(0);
+        setSubStockGudang(0);
+        setMainStockToko(0);
+        setSubStockToko(0);
     };
 
     const handleSubmit = async () => {
         if (!name.trim()) {
             toast({ title: 'Nama produk wajib diisi', variant: 'destructive' });
             return;
+        }
+
+        // Validate multi-unit
+        if (hasMultiUnit) {
+            if (!mainUnit) {
+                toast({ title: 'Unit besar wajib dipilih', variant: 'destructive' });
+                return;
+            }
+            if (mainUnit === sellUnit) {
+                toast({ title: 'Unit besar harus berbeda dengan sub-unit', variant: 'destructive' });
+                return;
+            }
+            if (!pcsPerBox || pcsPerBox <= 0) {
+                toast({ title: `Isi per ${mainUnitLabel} harus diisi`, variant: 'destructive' });
+                return;
+            }
         }
 
         // Generate temp barcode if empty
@@ -137,7 +152,6 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
 
         let uploadedImageUrl = imageUrl || undefined;
 
-        // Upload image if selected
         if (imageFile) {
             const fileExt = imageFile.name.split('.').pop();
             const filePath = `products/${Date.now()}.${fileExt}`;
@@ -153,6 +167,8 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
             }
         }
 
+        const finalBoxPrice = hasMultiUnit ? (boxPrice ?? computedBoxPrice) : null;
+
         const success = await onAdd({
             name: name.trim(),
             barcode: finalBarcode,
@@ -162,8 +178,9 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
             sell_unit: sellUnit,
             sell_by_quantity: sellByQuantity,
             has_multi_unit: hasMultiUnit,
+            main_unit: hasMultiUnit ? mainUnit : null,
             pcs_per_box: hasMultiUnit ? pcsPerBox : null,
-            box_price: hasMultiUnit ? boxPrice : null,
+            box_price: hasMultiUnit ? finalBoxPrice : null,
         });
 
         setSaving(false);
@@ -213,21 +230,22 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
 
                     {/* Price */}
                     <div className="space-y-2">
-                        <Label>Harga Jual (Rp)</Label>
+                        <Label>Harga Jual (Rp) per Sub-Unit</Label>
                         <Input
                             type="number"
                             min={0}
                             value={price}
                             onChange={(e) => setPrice(parseInt(e.target.value) || 0)}
                         />
+                        <p className="text-xs text-muted-foreground">Ini adalah harga jual per {subUnitLabel}</p>
                     </div>
 
-                    {/* Sell Unit */}
+                    {/* Sub Unit (sell_unit) */}
                     <div className="space-y-2">
-                        <Label>Jual Satuan</Label>
+                        <Label>Sub-Unit (Satuan Dasar)</Label>
                         <Select value={sellUnit} onValueChange={setSellUnit}>
                             <SelectTrigger>
-                                <SelectValue placeholder="Pilih satuan" />
+                                <SelectValue placeholder="Pilih satuan dasar" />
                             </SelectTrigger>
                             <SelectContent>
                                 {SELL_UNITS.map(u => (
@@ -235,14 +253,15 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
                                 ))}
                             </SelectContent>
                         </Select>
+                        <p className="text-xs text-muted-foreground">Satuan terkecil produk ini (misal: PCS, KG, METER)</p>
                     </div>
 
                     {/* Sell by quantity toggle */}
                     <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border">
                         <div>
-                            <p className="text-sm font-medium">Jual per {sellUnit.toUpperCase()}</p>
+                            <p className="text-sm font-medium">Jual per {sellUnit.toUpperCase()} (desimal)</p>
                             <p className="text-xs text-muted-foreground">
-                                Customer bisa beli desimal (misal 0.5 {sellUnit})
+                                Customer bisa beli pecahan (misal 0.5 {sellUnit})
                             </p>
                         </div>
                         <button
@@ -255,66 +274,226 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
                     </div>
 
                     {/* Stock */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label>Stok Gudang</Label>
-                            <Input
-                                type="number"
-                                min={0}
-                                value={stockGudang}
-                                onChange={(e) => setStockGudang(parseInt(e.target.value) || 0)}
-                            />
+                    <div className="space-y-4">
+                        <div className="flex items-center gap-2 mb-1">
+                            <Package className="w-4 h-4 text-primary" />
+                            <Label className="font-bold">Input Stock Awal</Label>
                         </div>
-                        <div className="space-y-2">
-                            <Label>Stok Toko</Label>
-                            <Input
-                                type="number"
-                                min={0}
-                                value={stockToko}
-                                onChange={(e) => setStockToko(parseInt(e.target.value) || 0)}
-                            />
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {/* Stock Gudang */}
+                            <div className="space-y-2 p-3 rounded-xl bg-muted/20 border border-muted-foreground/10">
+                                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Stok Gudang</Label>
+                                {hasMultiUnit ? (
+                                    <div className="flex gap-2 items-center">
+                                        <div className="flex-1 space-y-1">
+                                            <Input
+                                                type="number"
+                                                min={0}
+                                                value={mainStockGudang || ''}
+                                                onChange={(e) => {
+                                                    const val = parseFloat(e.target.value) || 0;
+                                                    setMainStockGudang(val);
+                                                    setStockGudang((val * (pcsPerBox || 1)) + subStockGudang);
+                                                }}
+                                                className="h-9 text-center font-bold"
+                                                placeholder="0"
+                                            />
+                                            <p className="text-[10px] text-center text-muted-foreground uppercase">{mainUnitLabel}</p>
+                                        </div>
+                                        <Plus className="w-3 h-3 text-muted-foreground" />
+                                        <div className="flex-1 space-y-1">
+                                            <Input
+                                                type="number"
+                                                min={0}
+                                                value={subStockGudang || ''}
+                                                onChange={(e) => {
+                                                    const val = parseFloat(e.target.value) || 0;
+                                                    setSubStockGudang(val);
+                                                    setStockGudang((mainStockGudang * (pcsPerBox || 1)) + val);
+                                                }}
+                                                className="h-9 text-center"
+                                                placeholder="0"
+                                            />
+                                            <p className="text-[10px] text-center text-muted-foreground uppercase">{subUnitLabel}</p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <Input
+                                        type="number"
+                                        min={0}
+                                        value={stockGudang}
+                                        onChange={(e) => setStockGudang(parseFloat(e.target.value) || 0)}
+                                    />
+                                )}
+                            </div>
+
+                            {/* Stock Toko */}
+                            <div className="space-y-2 p-3 rounded-xl bg-muted/20 border border-muted-foreground/10">
+                                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Stok Toko</Label>
+                                {hasMultiUnit ? (
+                                    <div className="flex gap-2 items-center">
+                                        <div className="flex-1 space-y-1">
+                                            <Input
+                                                type="number"
+                                                min={0}
+                                                value={mainStockToko || ''}
+                                                onChange={(e) => {
+                                                    const val = parseFloat(e.target.value) || 0;
+                                                    setMainStockToko(val);
+                                                    setStockToko((val * (pcsPerBox || 1)) + subStockToko);
+                                                }}
+                                                className="h-9 text-center font-bold"
+                                                placeholder="0"
+                                            />
+                                            <p className="text-[10px] text-center text-muted-foreground uppercase">{mainUnitLabel}</p>
+                                        </div>
+                                        <Plus className="w-3 h-3 text-muted-foreground" />
+                                        <div className="flex-1 space-y-1">
+                                            <Input
+                                                type="number"
+                                                min={0}
+                                                value={subStockToko || ''}
+                                                onChange={(e) => {
+                                                    const val = parseFloat(e.target.value) || 0;
+                                                    setSubStockToko(val);
+                                                    setStockToko((mainStockToko * (pcsPerBox || 1)) + val);
+                                                }}
+                                                className="h-9 text-center"
+                                                placeholder="0"
+                                            />
+                                            <p className="text-[10px] text-center text-muted-foreground uppercase">{subUnitLabel}</p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <Input
+                                        type="number"
+                                        min={0}
+                                        value={stockToko}
+                                        onChange={(e) => setStockToko(parseFloat(e.target.value) || 0)}
+                                    />
+                                )}
+                            </div>
                         </div>
+                        
+                        {hasMultiUnit && (
+                            <div className="p-2 px-3 bg-indigo-50 dark:bg-indigo-950/20 rounded-lg border border-indigo-100 dark:border-indigo-900 flex justify-between items-center text-xs">
+                                <span className="text-indigo-600 dark:text-indigo-400 font-medium italic">Total Konversi:</span>
+                                <div className="flex gap-4">
+                                    <span>Gudang: <strong>{stockGudang} {subUnitLabel}</strong></span>
+                                    <span>Toko: <strong>{stockToko} {subUnitLabel}</strong></span>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
-                    {/* Multi-unit toggle */}
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border">
-                        <div>
-                            <p className="text-sm font-medium">Multi-Unit (Box/Pcs)</p>
-                            <p className="text-xs text-muted-foreground">Produk bisa dijual per box & per pcs</p>
+                    {/* ── MULTI-UNIT SECTION ── */}
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between p-3 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
+                            <div className="flex items-center gap-2">
+                                <Layers className="w-4 h-4 text-blue-600" />
+                                <div>
+                                    <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Multi-Unit</p>
+                                    <p className="text-xs text-blue-600 dark:text-blue-400">
+                                        Aktifkan jika produk bisa dijual di 2 satuan berbeda
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setHasMultiUnit(!hasMultiUnit)}
+                                className={`relative w-11 h-6 rounded-full transition-colors ${hasMultiUnit ? 'bg-blue-600' : 'bg-muted'}`}
+                            >
+                                <span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${hasMultiUnit ? 'translate-x-5' : 'translate-x-0'}`} />
+                            </button>
                         </div>
-                        <button
-                            type="button"
-                            onClick={() => setHasMultiUnit(!hasMultiUnit)}
-                            className={`relative w-11 h-6 rounded-full transition-colors ${hasMultiUnit ? 'bg-primary' : 'bg-muted'}`}
-                        >
-                            <span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${hasMultiUnit ? 'translate-x-5' : 'translate-x-0'}`} />
-                        </button>
-                    </div>
 
-                    {hasMultiUnit && (
-                        <div className="grid grid-cols-2 gap-4 pl-4 border-l-2 border-primary/20">
-                            <div className="space-y-2">
-                                <Label>Isi per Box</Label>
-                                <Input
-                                    type="number"
-                                    min={1}
-                                    value={pcsPerBox ?? ''}
-                                    onChange={(e) => setPcsPerBox(parseInt(e.target.value) || null)}
-                                    placeholder="Jumlah pcs"
-                                />
+                        {hasMultiUnit && (
+                            <div className="p-4 rounded-xl border-2 border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20 space-y-4">
+                                {/* Flow diagram */}
+                                <div className="flex items-center gap-2 text-sm">
+                                    <span className="px-2 py-1 bg-blue-600 text-white rounded-md font-medium text-xs">
+                                        {mainUnitLabel || 'Unit Besar'}
+                                    </span>
+                                    <span className="text-muted-foreground">→ berisi</span>
+                                    <span className="px-2 py-1 bg-emerald-600 text-white rounded-md font-medium text-xs">
+                                        {pcsPerBox ?? '?'} {subUnitLabel}
+                                    </span>
+                                    {boxPrice || computedBoxPrice ? (
+                                        <>
+                                            <span className="text-muted-foreground">→ Rp</span>
+                                            <span className="font-semibold text-blue-700 dark:text-blue-300 text-xs">
+                                                {(boxPrice ?? computedBoxPrice ?? 0).toLocaleString('id-ID')}
+                                            </span>
+                                        </>
+                                    ) : null}
+                                </div>
+
+                                {/* Main unit selector */}
+                                <div className="space-y-2">
+                                    <Label className="text-blue-900 dark:text-blue-100">Unit Besar (Kemasan)</Label>
+                                    <Select value={mainUnit} onValueChange={setMainUnit}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Pilih unit besar" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {SELL_UNITS.filter(u => u.value !== sellUnit).map(u => (
+                                                <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <p className="text-xs text-muted-foreground">
+                                        Misal: jika sub-unit = KG, unit besar bisa SAK / KRG / PACK
+                                    </p>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    {/* Qty per main unit */}
+                                    <div className="space-y-2">
+                                        <Label className="text-blue-900 dark:text-blue-100">
+                                            Isi per {mainUnitLabel} ({subUnitLabel})
+                                        </Label>
+                                        <Input
+                                            type="number"
+                                            min={1}
+                                            value={pcsPerBox ?? ''}
+                                            onChange={(e) => setPcsPerBox(parseInt(e.target.value) || null)}
+                                            placeholder={`Jumlah ${subUnitLabel}`}
+                                        />
+                                    </div>
+
+                                    {/* Price per main unit */}
+                                    <div className="space-y-2">
+                                        <Label className="text-blue-900 dark:text-blue-100">
+                                            Harga per {mainUnitLabel} (Rp)
+                                        </Label>
+                                        <Input
+                                            type="number"
+                                            min={0}
+                                            value={boxPrice ?? ''}
+                                            onChange={(e) => setBoxPrice(parseInt(e.target.value) || null)}
+                                            placeholder={computedBoxPrice ? `Auto: ${computedBoxPrice.toLocaleString('id-ID')}` : 'Opsional'}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Auto-price hint */}
+                                {computedBoxPrice && !boxPrice && (
+                                    <p className="text-xs text-blue-600 dark:text-blue-400">
+                                        💡 Harga per {mainUnitLabel} akan otomatis = {price.toLocaleString('id-ID')} × {pcsPerBox} = <strong>Rp {computedBoxPrice.toLocaleString('id-ID')}</strong>
+                                    </p>
+                                )}
+
+                                {/* Example */}
+                                {pcsPerBox && (
+                                    <div className="p-2 bg-white dark:bg-background/50 rounded-lg text-xs text-muted-foreground border">
+                                        <strong>Contoh:</strong> Beli 1 {mainUnitLabel} → kurangi stok {pcsPerBox} {subUnitLabel}  •  
+                                        Harga 1 {mainUnitLabel} = Rp {(boxPrice ?? computedBoxPrice ?? 0).toLocaleString('id-ID')}
+                                    </div>
+                                )}
                             </div>
-                            <div className="space-y-2">
-                                <Label>Harga per Box (Rp)</Label>
-                                <Input
-                                    type="number"
-                                    min={0}
-                                    value={boxPrice ?? ''}
-                                    onChange={(e) => setBoxPrice(parseInt(e.target.value) || null)}
-                                    placeholder="Harga box"
-                                />
-                            </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
 
                     {/* Image Upload */}
                     <div className="space-y-2">

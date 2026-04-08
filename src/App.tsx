@@ -66,6 +66,7 @@ const TokopediaOrders = React.lazy(() => import('@/pages/tokopedia/TokopediaOrde
 const TokopediaOrderDetail = React.lazy(() => import('@/pages/tokopedia/TokopediaOrderDetail'));
 const TokopediaShipping = React.lazy(() => import('@/pages/tokopedia/TokopediaShipping'));
 const TokopediaSalesReport = React.lazy(() => import('@/pages/tokopedia/TokopediaSalesReport'));
+const SiteBuilder = React.lazy(() => import("./pages/SiteBuilder"));
 const NotFound = React.lazy(() => import("./pages/NotFound"));
 const Guide = React.lazy(() => import("./pages/Guide"));
 
@@ -282,6 +283,13 @@ function AppRoutes() {
         <Route path="/users" element={
           <ProtectedRoute allowedRoles={['admin']}>
             <Users />
+          </ProtectedRoute>
+        } />
+
+        {/* Site Builder - Admin only */}
+        <Route path="/site-builder" element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <SiteBuilder />
           </ProtectedRoute>
         } />
 

@@ -62,7 +62,7 @@ export const ProductCard = memo(function ProductCard({
                 <div className="absolute top-2 left-2 flex flex-col gap-1">
                     {product.has_multi_unit && (
                         <span className="bg-blue-500/90 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm border border-blue-400/50">
-                            📦 Box/Pcs
+                            📦 {(product.main_unit || 'box').toUpperCase()}/{(product.sell_unit || 'pcs').toUpperCase()}
                         </span>
                     )}
                     {product.sell_by_quantity && (

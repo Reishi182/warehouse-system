@@ -49,7 +49,7 @@ export default function ProductTableRow({ product, canManage, onEdit, onDelete }
                                 )}
                                 {product.has_multi_unit && (
                                     <span className="text-[10px] font-semibold text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded flex items-center gap-1">
-                                        📦 Box/Pcs
+                                        📦 {(product.main_unit || 'box').toUpperCase()}/{(product.sell_unit || 'pcs').toUpperCase()}
                                     </span>
                                 )}
                                 {product.sell_by_quantity && (

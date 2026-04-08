@@ -118,6 +118,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         toko: p.stock_toko
       },
       has_multi_unit: p.has_multi_unit ?? false,
+      main_unit: p.main_unit ?? null,
       pcs_per_box: p.pcs_per_box ?? null,
       box_price: p.box_price ?? null,
       sell_by_quantity: p.sell_by_quantity ?? false,
@@ -752,7 +753,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
 
-  const addProduct = async (product: { name: string; barcode: string; price: number; stock: { gudang: number; toko: number }; image_url?: string; has_multi_unit?: boolean; pcs_per_box?: number | null; box_price?: number | null; sell_by_quantity?: boolean; sell_unit?: string }) => {
+  const addProduct = async (product: { name: string; barcode: string; price: number; stock: { gudang: number; toko: number }; image_url?: string; has_multi_unit?: boolean; main_unit?: string | null; pcs_per_box?: number | null; box_price?: number | null; sell_by_quantity?: boolean; sell_unit?: string }) => {
     const { data: inserted, error } = await supabase
       .from('products')
       .insert({
@@ -763,6 +764,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         stock_toko: product.stock.toko,
         image_url: product.image_url,
         has_multi_unit: product.has_multi_unit ?? false,
+        main_unit: product.main_unit ?? null,
         pcs_per_box: product.pcs_per_box ?? null,
         box_price: product.box_price ?? null,
         sell_by_quantity: product.sell_by_quantity ?? false,
@@ -807,6 +809,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       updateData.stock_toko = updates.stock.toko;
     }
     if (updates.has_multi_unit !== undefined) updateData.has_multi_unit = updates.has_multi_unit;
+    if (updates.main_unit !== undefined) updateData.main_unit = updates.main_unit;
     if (updates.pcs_per_box !== undefined) updateData.pcs_per_box = updates.pcs_per_box;
     if (updates.box_price !== undefined) updateData.box_price = updates.box_price;
     if (updates.sell_by_quantity !== undefined) updateData.sell_by_quantity = updates.sell_by_quantity;

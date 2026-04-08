@@ -249,41 +249,42 @@ export const POSCartPanel = memo(function POSCartPanel({
                                         {/* Bottom: Qty Controls + Delete */}
                                         <div className="flex items-center justify-between mt-1.5 pl-10">
                                             {/* Qty Controls */}
-                                            {isVariableUnit && !isManualEntry ? (
-                                                <span className="text-[10px] font-semibold text-amber-700 dark:text-amber-300">
-                                                    {qtyDisplay}
-                                                </span>
-                                            ) : isManualEntry && it.quantity % 1 !== 0 ? (
-                                                <span className="text-[10px] font-semibold text-amber-700 dark:text-amber-300">
-                                                    {it.quantity}
-                                                </span>
-                                            ) : (
-                                                <div className="flex items-center shrink-0 bg-muted/50 rounded-md border">
-                                                    <button
-                                                        onClick={() => onUpdateQuantity(it.product.id, it.quantity - 1)}
-                                                        className="h-7 w-7 flex items-center justify-center hover:bg-background rounded-l-md transition-colors"
-                                                    >
-                                                        <Minus className="w-3 h-3" />
-                                                    </button>
-                                                    <span className="w-6 text-center text-xs font-bold">{it.quantity}</span>
-                                                    <button
-                                                        onClick={() => {
-                                                            if (isManualEntry) {
+                                            <div className="flex items-center shrink-0 bg-muted/20 rounded-lg border shadow-sm overflow-hidden h-8">
+                                                <button
+                                                    onClick={() => onUpdateQuantity(it.product.id, Math.max(0, it.quantity - 1))}
+                                                    className="h-full w-8 flex items-center justify-center hover:bg-muted transition-colors border-r"
+                                                >
+                                                    <Minus className="w-3 h-3" />
+                                                </button>
+                                                <input
+                                                    type="number"
+                                                    value={it.quantity}
+                                                    onChange={(e) => {
+                                                        const val = parseFloat(e.target.value);
+                                                        if (!isNaN(val)) onUpdateQuantity(it.product.id, val);
+                                                        else if (e.target.value === '') onUpdateQuantity(it.product.id, 0);
+                                                    }}
+                                                    step="any"
+                                                    min="0"
+                                                    className="w-12 bg-transparent text-center text-xs font-bold focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                />
+                                                <button
+                                                    onClick={() => {
+                                                        if (isManualEntry) {
+                                                            onUpdateQuantity(it.product.id, it.quantity + 1);
+                                                        } else {
+                                                            const availableStock = it.product.stock[stockLocation];
+                                                            if (it.quantity < availableStock) {
                                                                 onUpdateQuantity(it.product.id, it.quantity + 1);
-                                                            } else {
-                                                                const availableStock = it.product.stock[stockLocation];
-                                                                if (it.quantity < availableStock) {
-                                                                    onUpdateQuantity(it.product.id, it.quantity + 1);
-                                                                }
                                                             }
-                                                        }}
-                                                        disabled={!isManualEntry && it.quantity >= it.product.stock[stockLocation]}
-                                                        className="h-7 w-7 flex items-center justify-center hover:bg-background rounded-r-md transition-colors disabled:opacity-30"
-                                                    >
-                                                        <Plus className="w-3 h-3" />
-                                                    </button>
-                                                </div>
-                                            )}
+                                                        }
+                                                    }}
+                                                    disabled={!isManualEntry && it.quantity >= it.product.stock[stockLocation]}
+                                                    className="h-full w-8 flex items-center justify-center hover:bg-muted transition-colors border-l disabled:opacity-30"
+                                                >
+                                                    <Plus className="w-3 h-3" />
+                                                </button>
+                                            </div>
 
                                             {/* Delete Button */}
                                             <button

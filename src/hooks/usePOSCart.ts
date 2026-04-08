@@ -3,14 +3,14 @@ import { Product, Location, Sale } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { useData } from '@/contexts/DataContext';
 import { SellUnit } from '@/components/pos/UnitPickerDialog';
-import { getUnitPrice, getUnitMultiplier } from '@/lib/multiUnit';
+import { getUnitPrice, getUnitMultiplier, getUnitLabel } from '@/lib/multiUnit';
 
 export type CartItem = {
     product: Product;
     quantity: number;
     discount: number;
     isManualEntry?: boolean; // true for quick sale items (no product_id)
-    sellUnit?: SellUnit; // 'box' or 'pcs' for multi-unit products
+    sellUnit?: SellUnit; // 'main' or 'sub' for multi-unit products
     unitMultiplier?: number; // how many base units per sell unit (e.g. 70 for box)
     unitPrice?: number; // effective price per sell unit
 };
@@ -115,11 +115,14 @@ export function usePOSCart(initialLocation: Location = 'toko'): UsePOSCartReturn
         const price = getUnitPrice(product, unit);
         const availableStock = product.stock[stockLocation];
         const cartKey = `${product.id}_${unit}`;
+        const mainLabel = getUnitLabel(product, 'main');
+        const subLabel = getUnitLabel(product, 'sub');
+        const unitLabel = unit === 'main' ? mainLabel : subLabel;
 
         if (availableStock < multiplier) {
             toast({
                 title: 'Stok tidak cukup',
-                description: `Stok ${stockLocation}: ${availableStock} pcs, dibutuhkan ${multiplier} pcs untuk 1 ${unit}`,
+                description: `Stok ${stockLocation}: ${availableStock} ${subLabel.toLowerCase()}, dibutuhkan ${multiplier} ${subLabel.toLowerCase()} untuk 1 ${unitLabel.toLowerCase()}`,
                 variant: 'destructive'
             });
             return;
@@ -128,7 +131,7 @@ export function usePOSCart(initialLocation: Location = 'toko'): UsePOSCartReturn
         setItems((prev) => {
             // Find existing item with same product AND same unit
             const idx = prev.findIndex((it) =>
-                it.product.id === product.id && (it.sellUnit || 'pcs') === unit
+                it.product.id === product.id && (it.sellUnit || 'sub') === unit
             );
             if (idx >= 0) {
                 const next = [...prev];
@@ -141,7 +144,7 @@ export function usePOSCart(initialLocation: Location = 'toko'): UsePOSCartReturn
                 if (totalBaseUnitsNeeded + otherUnitsStock > availableStock) {
                     toast({
                         title: 'Stok tidak cukup',
-                        description: `Stok tersedia: ${availableStock} pcs`,
+                        description: `Stok tersedia: ${availableStock} ${subLabel.toLowerCase()}`,
                         variant: 'destructive'
                     });
                     return prev;

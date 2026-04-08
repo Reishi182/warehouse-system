@@ -30,6 +30,7 @@ import {
   AlertTriangle,
   ArrowLeftRight,
   ShoppingBag,
+  Zap,
 } from 'lucide-react';
 import { useAuth, useRole } from '@/contexts/AuthContext';
 import { usePendingCounts } from '@/hooks/usePendingCounts';
@@ -66,24 +67,29 @@ interface NavItem {
 const navGroups: NavItem[] = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/', roles: ['warehouse', 'cashier', 'auditor', 'admin', 'main_office'] },
   { label: 'Panduan', icon: BookOpen, href: '/guide', roles: ['warehouse', 'cashier', 'auditor', 'admin', 'main_office'] },
-  { label: 'Kasir (POS)', icon: ShoppingCart, href: '/pos', roles: ['cashier', 'admin'] },
-  { label: 'Produk', icon: Package, href: '/products', roles: ['warehouse', 'cashier', 'auditor', 'admin', 'main_office'] },
+  
+  // Superadmin Exclusive Tools (Site Builder & User Management)
+  { label: 'Site Builder', icon: Zap, href: '/site-builder', roles: ['admin'] },
+  { label: 'Pengguna', icon: Users, href: '/users', roles: ['admin'] },
+
+  { label: 'Kasir (POS)', icon: ShoppingCart, href: '/pos', roles: ['cashier'] },
+  { label: 'Produk', icon: Package, href: '/products', roles: ['warehouse', 'cashier', 'auditor', 'main_office'] },
 
   // Stok submenu
   {
     label: 'Stok',
     icon: Boxes,
-    roles: ['warehouse', 'cashier', 'auditor', 'admin', 'main_office'],
+    roles: ['warehouse', 'cashier', 'auditor', 'main_office'],
     children: [
-      { label: 'Stok Masuk', icon: ArrowDownToLine, href: '/stock-in', roles: ['warehouse', 'admin'] },
-      { label: 'Stok Opname', icon: ClipboardCheck, href: '/stock-opname', roles: ['auditor', 'admin'] },
-      { label: 'Permintaan Stok', icon: ArrowUpFromLine, href: '/requests', roles: ['cashier', 'admin'] },
-      { label: 'Retur ke Gudang', icon: RotateCcw, href: '/stock-return', roles: ['cashier', 'admin'] },
-      { label: 'Proses Permintaan', icon: Package, href: '/requests/shipments', roles: ['warehouse', 'admin'] },
-      { label: 'Persetujuan Stok', icon: ClipboardCheck, href: '/requests/approval', roles: ['main_office', 'admin'], badgeKey: 'stockRequests' },
-      { label: 'Approval Retur', icon: ClipboardCheck, href: '/stock-return/approval', roles: ['main_office', 'admin'], badgeKey: 'stockReturns' },
-      { label: 'Penerimaan Barang', icon: ArrowDownToLine, href: '/requests/receipt', roles: ['cashier', 'admin'] },
-      { label: 'History Stok', icon: BarChart3, href: '/stock/history', roles: ['warehouse', 'cashier', 'auditor', 'admin', 'main_office'] },
+      { label: 'Stok Masuk', icon: ArrowDownToLine, href: '/stock-in', roles: ['warehouse'] },
+      { label: 'Stok Opname', icon: ClipboardCheck, href: '/stock-opname', roles: ['auditor'] },
+      { label: 'Permintaan Stok', icon: ArrowUpFromLine, href: '/requests', roles: ['cashier'] },
+      { label: 'Retur ke Gudang', icon: RotateCcw, href: '/stock-return', roles: ['cashier'] },
+      { label: 'Proses Permintaan', icon: Package, href: '/requests/shipments', roles: ['warehouse'] },
+      { label: 'Persetujuan Stok', icon: ClipboardCheck, href: '/requests/approval', roles: ['main_office'], badgeKey: 'stockRequests' },
+      { label: 'Approval Retur', icon: ClipboardCheck, href: '/stock-return/approval', roles: ['main_office'], badgeKey: 'stockReturns' },
+      { label: 'Penerimaan Barang', icon: ArrowDownToLine, href: '/requests/receipt', roles: ['cashier'] },
+      { label: 'History Stok', icon: BarChart3, href: '/stock/history', roles: ['warehouse', 'cashier', 'auditor', 'main_office'] },
     ],
   },
 
@@ -91,14 +97,14 @@ const navGroups: NavItem[] = [
   {
     label: 'Purchase Order',
     icon: FileStack,
-    roles: ['warehouse', 'cashier', 'auditor', 'admin', 'main_office'],
+    roles: ['warehouse', 'cashier', 'auditor', 'main_office'],
     children: [
-      { label: 'Supplier', icon: Building2, href: '/suppliers', roles: ['main_office', 'admin'] },
-      { label: 'Buat PO', icon: FileText, href: '/purchase-orders', roles: ['main_office', 'admin'] },
-      { label: 'Approval PO', icon: ClipboardCheck, href: '/purchase-orders/approval', roles: ['main_office', 'admin'] }, // Changed from auditor to main_office
-      { label: 'Penerimaan PO', icon: ArrowDownToLine, href: '/purchase-orders/receipt', roles: ['warehouse', 'cashier', 'admin'] },
-      { label: 'Selisih & Klaim', icon: AlertTriangle, href: '/purchase-orders/discrepancy', roles: ['main_office', 'auditor', 'admin'] },
-      { label: 'Direct Order', icon: Truck, href: '/direct-orders', roles: ['main_office', 'admin'] },
+      { label: 'Supplier', icon: Building2, href: '/suppliers', roles: ['main_office'] },
+      { label: 'Buat PO', icon: FileText, href: '/purchase-orders', roles: ['main_office'] },
+      { label: 'Approval PO', icon: ClipboardCheck, href: '/purchase-orders/approval', roles: ['main_office'] },
+      { label: 'Penerimaan PO', icon: ArrowDownToLine, href: '/purchase-orders/receipt', roles: ['warehouse', 'cashier'] },
+      { label: 'Selisih & Klaim', icon: AlertTriangle, href: '/purchase-orders/discrepancy', roles: ['main_office', 'auditor'] },
+      { label: 'Direct Order', icon: Truck, href: '/direct-orders', roles: ['main_office'] },
     ],
   },
 
@@ -106,14 +112,14 @@ const navGroups: NavItem[] = [
   {
     label: 'Marketplace',
     icon: ShoppingCart,
-    roles: ['warehouse', 'cashier', 'admin', 'main_office'],
+    roles: ['warehouse', 'cashier', 'main_office'],
     children: [
-      { label: 'Pesanan', icon: FileText, href: '/marketplace', roles: ['main_office', 'admin'] },
-      { label: 'Penerimaan', icon: ArrowDownToLine, href: '/marketplace/receipt', roles: ['warehouse', 'cashier', 'admin'] },
-      { label: 'Return', icon: RotateCcw, href: '/marketplace/returns', roles: ['warehouse', 'cashier', 'main_office', 'admin'] },
-      { label: 'Order Tokopedia', icon: ShoppingBag, href: '/tokopedia', roles: ['cashier', 'admin'] },
-      { label: 'Kirim Tokopedia', icon: Truck, href: '/tokopedia/shipping', roles: ['warehouse', 'admin'] },
-      { label: 'Laporan Tokopedia', icon: BarChart3, href: '/tokopedia/report', roles: ['cashier', 'main_office', 'admin'] },
+      { label: 'Pesanan', icon: FileText, href: '/marketplace', roles: ['main_office'] },
+      { label: 'Penerimaan', icon: ArrowDownToLine, href: '/marketplace/receipt', roles: ['warehouse', 'cashier'] },
+      { label: 'Return', icon: RotateCcw, href: '/marketplace/returns', roles: ['warehouse', 'cashier', 'main_office'] },
+      { label: 'Order Tokopedia', icon: ShoppingBag, href: '/tokopedia', roles: ['cashier'] },
+      { label: 'Kirim Tokopedia', icon: Truck, href: '/tokopedia/shipping', roles: ['warehouse'] },
+      { label: 'Laporan Tokopedia', icon: BarChart3, href: '/tokopedia/report', roles: ['cashier', 'main_office'] },
     ],
   },
 
@@ -121,13 +127,13 @@ const navGroups: NavItem[] = [
   {
     label: 'B2B / Surat Jalan',
     icon: Truck,
-    roles: ['warehouse', 'cashier', 'auditor', 'admin', 'main_office'],
+    roles: ['warehouse', 'cashier', 'auditor', 'main_office'],
     children: [
-      { label: 'Pelanggan', icon: Users, href: '/customers', roles: ['cashier', 'main_office', 'admin'] },
-      { label: 'Surat Jalan', icon: FileText, href: '/surat-jalan', roles: ['main_office', 'admin'] },
-      { label: 'Pengiriman B2B', icon: Truck, href: '/surat-jalan/warehouse', roles: ['warehouse', 'admin'] },
-      { label: 'Pengiriman Toko', icon: Store, href: '/surat-jalan/cashier', roles: ['cashier', 'admin'] },
-      { label: 'Invoice', icon: FileText, href: '/invoices', roles: ['main_office', 'admin'] },
+      { label: 'Pelanggan', icon: Users, href: '/customers', roles: ['cashier', 'main_office'] },
+      { label: 'Surat Jalan', icon: FileText, href: '/surat-jalan', roles: ['main_office'] },
+      { label: 'Pengiriman B2B', icon: Truck, href: '/surat-jalan/warehouse', roles: ['warehouse'] },
+      { label: 'Pengiriman Toko', icon: Store, href: '/surat-jalan/cashier', roles: ['cashier'] },
+      { label: 'Invoice', icon: FileText, href: '/invoices', roles: ['main_office'] },
     ],
   },
 
@@ -135,31 +141,30 @@ const navGroups: NavItem[] = [
   {
     label: 'Keuangan',
     icon: CreditCard,
-    roles: ['cashier', 'auditor', 'admin', 'main_office'],
+    roles: ['cashier', 'auditor', 'main_office'],
     children: [
-      { label: 'Setoran Cash', icon: Wallet, href: '/cash-transfer', roles: ['cashier', 'main_office', 'admin'] },
-      { label: 'Riwayat Setoran', icon: Receipt, href: '/cash-history', roles: ['main_office', 'admin'] },
-      { label: 'Transaksi Umum', icon: Banknote, href: '/finance/transactions', roles: ['main_office', 'admin'] },
-      { label: 'Riwayat Penjualan', icon: Receipt, href: '/finance/sales-history', roles: ['main_office', 'admin'] },
-      { label: 'Backorder', icon: ClipboardList, href: '/finance/backorders', roles: ['cashier', 'main_office', 'admin'] },
+      { label: 'Setoran Cash', icon: Wallet, href: '/cash-transfer', roles: ['cashier', 'main_office'] },
+      { label: 'Riwayat Setoran', icon: Receipt, href: '/cash-history', roles: ['main_office'] },
+      { label: 'Transaksi Umum', icon: Banknote, href: '/finance/transactions', roles: ['main_office'] },
+      { label: 'Riwayat Penjualan', icon: Receipt, href: '/finance/sales-history', roles: ['main_office'] },
+      { label: 'Backorder', icon: ClipboardList, href: '/finance/backorders', roles: ['cashier', 'main_office'] },
     ],
   },
 
-  { label: 'Persetujuan', icon: ClipboardCheck, href: '/approval', roles: ['main_office', 'admin'], badgeKey: 'suratJalan' }, // Surat Jalan approval
+  { label: 'Persetujuan', icon: ClipboardCheck, href: '/approval', roles: ['main_office'], badgeKey: 'suratJalan' },
 
   // Laporan submenu
   {
     label: 'Laporan',
     icon: BarChart3,
-    roles: ['cashier', 'main_office', 'auditor', 'admin'],
+    roles: ['cashier', 'main_office', 'auditor'],
     children: [
-      { label: 'Laporan Penjualan', icon: Receipt, href: '/reports/sales', roles: ['cashier', 'main_office', 'auditor', 'admin'] },
-      { label: 'Laporan Stok Harian', icon: Package, href: '/reports/daily-stock', roles: ['cashier', 'admin'] },
-      { label: 'Laporan Umum', icon: BarChart3, href: '/reports', roles: ['cashier', 'main_office', 'auditor', 'admin'] },
+      { label: 'Laporan Penjualan', icon: Receipt, href: '/reports/sales', roles: ['cashier', 'main_office', 'auditor'] },
+      { label: 'Laporan Stok Harian', icon: Package, href: '/reports/daily-stock', roles: ['cashier'] },
+      { label: 'Laporan Umum', icon: BarChart3, href: '/reports', roles: ['cashier', 'main_office', 'auditor'] },
     ],
   },
 
-  { label: 'Pengguna', icon: Users, href: '/users', roles: ['admin'] },
   { label: 'Pengaturan', icon: Settings, href: '/settings', roles: ['warehouse', 'cashier', 'auditor', 'admin', 'main_office'] },
 ];
 

@@ -536,7 +536,7 @@ export default function POS() {
                 onConfirm={handleQuantityConfirm}
             />
 
-            {/* Multi-Unit Picker Dialog (Box/Pcs) */}
+            {/* Multi-Unit Picker Dialog (Dynamic: SAK/KG, BOX/PCS, ROLL/METER, etc.) */}
             <UnitPickerDialog
                 open={unitPickerOpen}
                 onClose={() => { setUnitPickerOpen(false); setUnitPickerProduct(null); }}

@@ -25,11 +25,12 @@ export interface Product {
   };
   // Variable unit products (sold by meter/kg/gram)
   sell_by_quantity?: boolean;
-  sell_unit?: string; // 'pcs' | 'meter' | 'cm' | 'kg' | 'gram' | 'ons' | 'liter'
-  // Multi-unit support (e.g. box + pcs)
+  sell_unit?: string; // sub-unit: 'pcs' | 'kg' | 'meter' | etc (the smaller unit)
+  // Multi-unit support — flexible unit pairs (e.g. BOX→PCS, SAK→KG, ROLL→METER, LUSIN→PCS)
   has_multi_unit?: boolean;
-  pcs_per_box?: number | null; // how many pcs in one box (null = unknown/sealed)
-  box_price?: number | null; // price per box (null = use price × pcs_per_box)
+  main_unit?: string | null;   // the larger unit name (e.g. 'box', 'sak', 'roll', 'lusin')
+  pcs_per_box?: number | null; // qty of sell_unit per main_unit (e.g. 70 kg per sak)
+  box_price?: number | null;   // price per main_unit (null = price × pcs_per_box)
   created_at: string;
   updated_at: string;
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, type ChangeEvent } from 'react';
-import { Settings as SettingsIcon, Building2, Bell, Shield, Database, Save, User as UserIcon, Upload, Sun, Moon, Monitor, Store, Loader2, Zap, ZapOff } from 'lucide-react';
+import { Settings as SettingsIcon, Building2, Bell, Shield, Database, Save, User as UserIcon, Upload, Sun, Moon, Monitor, Store, Loader2, Zap, ZapOff, Plus, Trash2, Edit2, Check, X as XIcon, Layers } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import MainLayout from '@/components/layout/MainLayout';
 import PageSkeleton from '@/components/common/PageSkeleton';
@@ -18,9 +18,8 @@ import {
 } from '@/components/ui/dialog';
 import { useAuth, useRole } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { useStoreSettings, useUpdateStoreSettings } from '@/hooks/useStoreSettings';
-import { compressImageToFile, formatFileSize } from '@/lib/imageCompression';
-import { BackupRestoreDialog } from '@/components/settings/BackupRestoreDialog';
+import { useAuth, useRole } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Settings() {
   const { profile, updateProfile, loading: authLoading } = useAuth();
@@ -28,43 +27,10 @@ export default function Settings() {
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
 
-  // Store settings
-  const { data: storeSettings, isLoading: storeLoading } = useStoreSettings();
-  const updateStoreSettings = useUpdateStoreSettings();
-
-  // ALL HOOKS MUST BE BEFORE ANY EARLY RETURNS
-  const [storeName, setStoreName] = useState('');
-  const [storeAddress, setStoreAddress] = useState('');
-  const [storePhone, setStorePhone] = useState('');
-  const [storeEmail, setStoreEmail] = useState('');
-
-  const [emailNotifications, setEmailNotifications] = useState(true);
   const [lowStockAlert, setLowStockAlert] = useState(true);
   const [lowStockThreshold, setLowStockThreshold] = useState(20);
 
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
-  const [newName, setNewName] = useState(profile?.name || '');
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
-  const [savingProfile, setSavingProfile] = useState(false);
-
-  // Low performance mode
-  const [lowPerformanceMode, setLowPerformanceMode] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('low-performance-mode') === 'true';
-    }
-    return false;
-  });
-
-  // Load store settings into state
-  useEffect(() => {
-    if (storeSettings) {
-      setStoreName(storeSettings.store_name);
-      setStoreAddress(storeSettings.store_address);
-      setStorePhone(storeSettings.store_phone);
-      setStoreEmail(storeSettings.store_email);
-    }
-  }, [storeSettings]);
 
   if (authLoading || !profile) {
     return (
@@ -337,215 +303,7 @@ export default function Settings() {
 
         {role !== 'admin' && (
           <div className="glass-card rounded-3xl p-4 text-sm text-muted-foreground animate-slide-up">
-            Pengaturan sistem hanya bisa diubah oleh Admin. Kamu tetap bisa mengubah Profil (nama & avatar) dan Tampilan.
-          </div>
-        )}
-
-        {/* Store/Company Settings - untuk struk */}
-        {role === 'admin' && (
-          <div className="glass-card rounded-3xl p-6 animate-slide-up">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Store className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <h3 className="font-semibold">Pengaturan Toko</h3>
-                <p className="text-sm text-muted-foreground">Informasi yang akan muncul di struk</p>
-              </div>
-            </div>
-            <Separator className="my-4" />
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Nama Toko</Label>
-                <Input
-                  value={storeName}
-                  onChange={(e) => setStoreName(e.target.value)}
-                  placeholder="Nama toko Anda"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Alamat</Label>
-                <Input
-                  value={storeAddress}
-                  onChange={(e) => setStoreAddress(e.target.value)}
-                  placeholder="Alamat lengkap toko"
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Telepon</Label>
-                  <Input
-                    value={storePhone}
-                    onChange={(e) => setStorePhone(e.target.value)}
-                    placeholder="021-1234567"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Email</Label>
-                  <Input
-                    type="email"
-                    value={storeEmail}
-                    onChange={(e) => setStoreEmail(e.target.value)}
-                    placeholder="email@toko.com"
-                  />
-                </div>
-              </div>
-              <Button
-                onClick={() => updateStoreSettings.mutate({
-                  store_name: storeName,
-                  store_address: storeAddress,
-                  store_phone: storePhone,
-                  store_email: storeEmail,
-                })}
-                disabled={updateStoreSettings.isPending}
-                className="w-full"
-              >
-                {updateStoreSettings.isPending ? (
-                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Menyimpan...</>
-                ) : (
-                  <><Save className="w-4 h-4 mr-2" />Simpan Pengaturan Toko</>
-                )}
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Notification Settings */}
-        {role === 'admin' && (
-          <div className="glass-card rounded-3xl p-6 animate-slide-up">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center">
-                <Bell className="w-5 h-5 text-warning" />
-              </div>
-              <div>
-                <h3 className="font-semibold">Notifikasi</h3>
-                <p className="text-sm text-muted-foreground">Pengaturan notifikasi sistem</p>
-              </div>
-            </div>
-            <Separator className="my-4" />
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Notifikasi Email</p>
-                  <p className="text-sm text-muted-foreground">
-                    Kirim notifikasi penting via email
-                  </p>
-                </div>
-                <Switch
-                  checked={emailNotifications}
-                  onCheckedChange={setEmailNotifications}
-                />
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Peringatan Stok Rendah</p>
-                  <p className="text-sm text-muted-foreground">
-                    Notifikasi saat stok mencapai batas minimum
-                  </p>
-                </div>
-                <Switch
-                  checked={lowStockAlert}
-                  onCheckedChange={setLowStockAlert}
-                />
-              </div>
-              {lowStockAlert && (
-                <div className="space-y-2">
-                  <Label>Batas Minimum Stok</Label>
-                  <Input
-                    type="number"
-                    value={lowStockThreshold}
-                    onChange={(e) => setLowStockThreshold(parseInt(e.target.value) || 0)}
-                    min={1}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-
-        )}
-
-        {/* Security Settings */}
-        {role === 'admin' && (
-          <div className="glass-card rounded-3xl p-6 animate-slide-up">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-lg bg-info/10 flex items-center justify-center">
-                <Shield className="w-5 h-5 text-info" />
-              </div>
-              <div>
-                <h3 className="font-semibold">Keamanan</h3>
-                <p className="text-sm text-muted-foreground">Pengaturan keamanan akun</p>
-              </div>
-            </div>
-            <Separator className="my-4" />
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Two-Factor Authentication</p>
-                  <p className="text-sm text-muted-foreground">
-                    Tambahkan lapisan keamanan ekstra
-                  </p>
-                </div>
-                <Switch />
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Session Timeout</p>
-                  <p className="text-sm text-muted-foreground">
-                    Logout otomatis setelah tidak aktif
-                  </p>
-                </div>
-                <Switch defaultChecked />
-              </div>
-            </div>
-          </div>
-
-        )}
-
-        {/* Database Settings */}
-        {role === 'admin' && (
-          <div className="glass-card rounded-3xl p-6 animate-slide-up">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
-                <Database className="w-5 h-5 text-accent" />
-              </div>
-              <div>
-                <h3 className="font-semibold">Data & Backup</h3>
-                <p className="text-sm text-muted-foreground">Pengaturan database dan backup</p>
-              </div>
-            </div>
-            <Separator className="my-4" />
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Auto Snapshot</p>
-                  <p className="text-sm text-muted-foreground">
-                    Snapshot otomatis setiap 30 menit ke localStorage
-                  </p>
-                </div>
-                <Switch defaultChecked />
-              </div>
-              <Separator />
-              <div className="bg-muted/50 rounded-xl p-4">
-                <p className="text-sm font-medium mb-2">Backup & Restore</p>
-                <p className="text-xs text-muted-foreground mb-3">
-                  Buat snapshot manual, restore data, atau export/import file backup JSON.
-                </p>
-                <BackupRestoreDialog />
-              </div>
-            </div>
-          </div>
-
-        )}
-
-        {/* Save Button */}
-        {role === 'admin' && (
-          <div className="flex justify-end">
-            <Button onClick={handleSave} size="lg">
-              <Save className="w-4 h-4 mr-2" />
-              Simpan Pengaturan
-            </Button>
+            Beberapa pengaturan sistem hanya dapat diakses oleh Admin melalui Site Builder.
           </div>
         )}
       </div>

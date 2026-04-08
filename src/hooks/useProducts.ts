@@ -18,6 +18,10 @@ function transformProduct(row: any): Product {
         },
         sell_by_quantity: row.sell_by_quantity || false,
         sell_unit: row.sell_unit || 'pcs',
+        has_multi_unit: row.has_multi_unit || false,
+        main_unit: row.main_unit ?? null,
+        pcs_per_box: row.pcs_per_box ?? null,
+        box_price: row.box_price ?? null,
         created_at: row.created_at,
         updated_at: row.updated_at,
     };
@@ -123,6 +127,10 @@ export function useAddProduct() {
             image_url?: string;
             sell_by_quantity?: boolean;
             sell_unit?: string;
+            has_multi_unit?: boolean;
+            main_unit?: string | null;
+            pcs_per_box?: number | null;
+            box_price?: number | null;
         }) => {
             const { data, error } = await supabase
                 .from('products')
@@ -135,6 +143,10 @@ export function useAddProduct() {
                     image_url: product.image_url,
                     sell_by_quantity: product.sell_by_quantity || false,
                     sell_unit: product.sell_unit || 'pcs',
+                    has_multi_unit: product.has_multi_unit || false,
+                    main_unit: product.main_unit ?? null,
+                    pcs_per_box: product.pcs_per_box ?? null,
+                    box_price: product.box_price ?? null,
                 })
                 .select()
                 .single();
@@ -171,6 +183,10 @@ export function useUpdateProduct() {
             if (updates.image_url !== undefined) updateData.image_url = updates.image_url;
             if (updates.sell_by_quantity !== undefined) updateData.sell_by_quantity = updates.sell_by_quantity;
             if (updates.sell_unit !== undefined) updateData.sell_unit = updates.sell_unit;
+            if (updates.has_multi_unit !== undefined) updateData.has_multi_unit = updates.has_multi_unit;
+            if (updates.main_unit !== undefined) updateData.main_unit = updates.main_unit;
+            if (updates.pcs_per_box !== undefined) updateData.pcs_per_box = updates.pcs_per_box;
+            if (updates.box_price !== undefined) updateData.box_price = updates.box_price;
             if (updates.stock) {
                 if (updates.stock.gudang !== undefined) updateData.stock_gudang = updates.stock.gudang;
                 if (updates.stock.toko !== undefined) updateData.stock_toko = updates.stock.toko;

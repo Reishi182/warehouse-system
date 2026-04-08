@@ -68,7 +68,7 @@ export const ProductListItem = memo(function ProductListItem({
                 </div>
                 {product.has_multi_unit && (
                     <span className="text-[9px] font-medium text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30 px-1.5 rounded">
-                        📦 Box/Pcs
+                        📦 {(product.main_unit || 'box').toUpperCase()}/{(product.sell_unit || 'pcs').toUpperCase()}
                     </span>
                 )}
                 {product.sell_by_quantity && (

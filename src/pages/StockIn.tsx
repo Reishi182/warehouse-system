@@ -34,6 +34,10 @@ export default function StockIn() {
   const [location, setLocation] = useState<Location>('gudang');
   const [confirmed, setConfirmed] = useState(false);
 
+  // Multi-unit helpers
+  const [mainQty, setMainQty] = useState(0);
+  const [subQty, setSubQty] = useState(0);
+
   if (loading) {
     return (
       <MainLayout title="Stok Masuk" subtitle="Tambah stok produk ke inventaris">
@@ -47,6 +51,9 @@ export default function StockIn() {
     if (product) {
       setSelectedProduct(product);
       setConfirmed(false);
+      setQuantity(1);
+      setMainQty(0);
+      setSubQty(0);
       toast({
         title: 'Produk ditemukan',
         description: product.name,
@@ -136,26 +143,70 @@ export default function StockIn() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Jumlah Masuk</Label>
-                    <Input
-                      type="number"
-                      value={quantity}
-                      onChange={(e) => setQuantity(parseFloat(e.target.value) || 0)}
-                      min={1}
-                      className="rounded-xl h-11"
-                    />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <Label className="text-gray-700 font-semibold">Jumlah Masuk</Label>
+                    
+                    {selectedProduct.has_multi_unit ? (
+                      <div className="space-y-3">
+                        <div className="flex gap-2 items-center">
+                          <div className="flex-1 space-y-1">
+                            <Input
+                              type="number"
+                              min={0}
+                              value={mainQty || ''}
+                              onChange={(e) => {
+                                const val = parseFloat(e.target.value) || 0;
+                                setMainQty(val);
+                                setQuantity((val * (selectedProduct.pcs_per_box || 1)) + subQty);
+                              }}
+                              className="h-11 text-center font-bold rounded-xl"
+                              placeholder="0"
+                            />
+                            <p className="text-[10px] text-center text-muted-foreground uppercase">{selectedProduct.main_unit || 'UNIT'}</p>
+                          </div>
+                          <Plus className="w-4 h-4 text-muted-foreground mt-[-15px]" />
+                          <div className="flex-1 space-y-1">
+                            <Input
+                              type="number"
+                              min={0}
+                              value={subQty || ''}
+                              onChange={(e) => {
+                                const val = parseFloat(e.target.value) || 0;
+                                setSubQty(val);
+                                setQuantity((mainQty * (selectedProduct.pcs_per_box || 1)) + val);
+                              }}
+                              className="h-11 text-center rounded-xl"
+                              placeholder="0"
+                            />
+                            <p className="text-[10px] text-center text-muted-foreground uppercase">{selectedProduct.sell_unit || 'UNIT'}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100/50 flex justify-between items-center text-xs">
+                          <span className="text-indigo-600 font-medium">Total (Ecer):</span>
+                          <span className="font-bold text-indigo-700">{quantity} {selectedProduct.sell_unit?.toUpperCase()}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <Input
+                        type="number"
+                        value={quantity}
+                        onChange={(e) => setQuantity(parseFloat(e.target.value) || 0)}
+                        min={1}
+                        className="rounded-xl h-11"
+                      />
+                    )}
                   </div>
-                  <div className="space-y-2">
-                    <Label>Lokasi</Label>
+                  <div className="space-y-3">
+                    <Label className="text-gray-700 font-semibold">Lokasi Tujuan</Label>
                     <Select value={location} onValueChange={(v: Location) => setLocation(v)}>
-                      <SelectTrigger className="rounded-xl h-11">
+                      <SelectTrigger className="rounded-xl h-11 bg-white border-gray-200">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl">
-                        <SelectItem value="gudang" className="cursor-pointer rounded-lg my-1">Gudang</SelectItem>
-                        <SelectItem value="toko" className="cursor-pointer rounded-lg my-1">Toko</SelectItem>
+                        <SelectItem value="gudang" className="cursor-pointer rounded-lg my-1">Gudang Utama</SelectItem>
+                        <SelectItem value="toko" className="cursor-pointer rounded-lg my-1">Display Toko</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -171,8 +222,9 @@ export default function StockIn() {
                       className="w-5 h-5 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500"
                     />
                     <span className="text-sm text-indigo-900">
-                      Saya konfirmasi menambahkan <strong>{quantity}</strong> unit{' '}
-                      <strong>{selectedProduct.name}</strong> ke <strong className="capitalize">{location}</strong>
+                      Saya konfirmasi menambahkan <strong>{quantity} {selectedProduct.sell_unit?.toUpperCase()}</strong>{' '}
+                      {selectedProduct.has_multi_unit && `(${mainQty} ${selectedProduct.main_unit?.toUpperCase()} + ${subQty} ${selectedProduct.sell_unit?.toUpperCase()}) `}
+                      produk <strong>{selectedProduct.name}</strong> ke <strong className="capitalize">{location}</strong>
                     </span>
                   </label>
                 </div>

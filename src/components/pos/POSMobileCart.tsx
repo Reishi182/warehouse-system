@@ -243,49 +243,46 @@ export function POSMobileCart({
                                                 {/* Bottom Row: Qty Controls + Remove */}
                                                 <div className="flex items-center justify-between">
                                                     {/* Quantity Controls */}
-                                                    {isVariableUnit && !isManualEntry ? (
-                                                        <div className="px-3 py-1.5 bg-amber-100 dark:bg-amber-900/50 rounded-lg">
-                                                            <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">
-                                                                {qtyDisplay}
-                                                            </span>
-                                                        </div>
-                                                    ) : isManualEntry && it.quantity % 1 !== 0 ? (
-                                                        <div className="px-3 py-1.5 bg-amber-100 dark:bg-amber-900/50 rounded-lg">
-                                                            <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">
-                                                                {it.quantity}
-                                                            </span>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="flex items-center gap-1 bg-muted/50 rounded-xl border p-0.5">
-                                                            <Button
-                                                                size="icon"
-                                                                variant="ghost"
-                                                                onClick={() => onUpdateQuantity(it.product.id, it.quantity - 1)}
-                                                                className="h-8 w-8 rounded-lg hover:bg-background"
-                                                            >
-                                                                <Minus className="w-3.5 h-3.5" />
-                                                            </Button>
-                                                            <span className="w-8 text-center text-sm font-bold">{it.quantity}</span>
-                                                            <Button
-                                                                size="icon"
-                                                                variant="ghost"
-                                                                onClick={() => {
-                                                                    if (isManualEntry) {
+                                                    <div className="flex items-center gap-1 bg-muted/50 rounded-xl border p-0.5">
+                                                        <Button
+                                                            size="icon"
+                                                            variant="ghost"
+                                                            onClick={() => onUpdateQuantity(it.product.id, Math.max(0, it.quantity - 1))}
+                                                            className="h-8 w-8 rounded-lg hover:bg-background"
+                                                        >
+                                                            <Minus className="w-3.5 h-3.5" />
+                                                        </Button>
+                                                        <input
+                                                            type="number"
+                                                            value={it.quantity}
+                                                            onChange={(e) => {
+                                                                const val = parseFloat(e.target.value);
+                                                                if (!isNaN(val)) onUpdateQuantity(it.product.id, val);
+                                                                else if (e.target.value === '') onUpdateQuantity(it.product.id, 0);
+                                                            }}
+                                                            step="any"
+                                                            min="0"
+                                                            className="w-10 bg-transparent text-center text-sm font-bold focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                        />
+                                                        <Button
+                                                            size="icon"
+                                                            variant="ghost"
+                                                            onClick={() => {
+                                                                if (isManualEntry) {
+                                                                    onUpdateQuantity(it.product.id, it.quantity + 1);
+                                                                } else {
+                                                                    const availableStock = it.product.stock[stockLocation];
+                                                                    if (it.quantity < availableStock) {
                                                                         onUpdateQuantity(it.product.id, it.quantity + 1);
-                                                                    } else {
-                                                                        const availableStock = it.product.stock[stockLocation];
-                                                                        if (it.quantity < availableStock) {
-                                                                            onUpdateQuantity(it.product.id, it.quantity + 1);
-                                                                        }
                                                                     }
-                                                                }}
-                                                                disabled={!isManualEntry && it.quantity >= it.product.stock[stockLocation]}
-                                                                className="h-8 w-8 rounded-lg hover:bg-background disabled:opacity-30"
-                                                            >
-                                                                <Plus className="w-3.5 h-3.5" />
-                                                            </Button>
-                                                        </div>
-                                                    )}
+                                                                }
+                                                            }}
+                                                            disabled={!isManualEntry && it.quantity >= it.product.stock[stockLocation]}
+                                                            className="h-8 w-8 rounded-lg hover:bg-background disabled:opacity-30"
+                                                        >
+                                                            <Plus className="w-3.5 h-3.5" />
+                                                        </Button>
+                                                    </div>
 
                                                     {/* Remove Button */}
                                                     <Button

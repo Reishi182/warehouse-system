@@ -20,6 +20,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { formatStockDisplay } from '@/lib/multiUnit';
 
 interface StockInDialogProps {
     open: boolean;
@@ -36,25 +37,27 @@ export function StockInDialog({
 }: StockInDialogProps) {
     const { toast } = useToast();
     const [product, setProduct] = useState<Product | null>(null);
-    const [boxQuantity, setBoxQuantity] = useState(0);
-    const [pcsQuantity, setPcsQuantity] = useState(0);
+    const [mainQty, setMainQty] = useState(0);
+    const [subQty, setSubQty] = useState(0);
     const [location, setLocation] = useState<Location>('gudang');
     const [confirmed, setConfirmed] = useState(false);
 
     const isMultiUnit = product?.has_multi_unit || false;
-    const pcsPerBox = product?.pcs_per_box || 0;
+    const conversionRate = product?.pcs_per_box || 0;
+    const mainLabel = (product?.main_unit || 'box').toUpperCase();
+    const subLabel = (product?.sell_unit || 'pcs').toUpperCase();
 
-    // Calculate total quantity for multi-unit
+    // Calculate total quantity in base units
     const totalQuantity = isMultiUnit
-        ? (pcsPerBox > 0 ? boxQuantity * pcsPerBox : 0) + pcsQuantity
-        : pcsQuantity; // For non-multi-unit, pcsQuantity IS the quantity
+        ? (conversionRate > 0 ? mainQty * conversionRate : 0) + subQty
+        : subQty; // For non-multi-unit, subQty IS the quantity
 
     const handleOpenChange = (newOpen: boolean) => {
         if (!newOpen) {
             // Reset state when closing
             setProduct(null);
-            setBoxQuantity(0);
-            setPcsQuantity(0);
+            setMainQty(0);
+            setSubQty(0);
             setConfirmed(false);
         }
         onOpenChange(newOpen);
@@ -65,8 +68,8 @@ export function StockInDialog({
         if (foundProduct) {
             setProduct(foundProduct);
             setConfirmed(false);
-            setBoxQuantity(0);
-            setPcsQuantity(0);
+            setMainQty(0);
+            setSubQty(0);
             toast({
                 title: 'Produk ditemukan',
                 description: foundProduct.name,
@@ -93,8 +96,8 @@ export function StockInDialog({
 
         onAddStock(product.id, totalQuantity, location);
 
-        const desc = isMultiUnit && pcsPerBox > 0
-            ? `${boxQuantity} box (${boxQuantity * pcsPerBox} pcs) + ${pcsQuantity} pcs = ${totalQuantity} pcs ke ${location}`
+        const desc = isMultiUnit && conversionRate > 0
+            ? `${mainQty} ${mainLabel} (${mainQty * conversionRate} ${subLabel}) + ${subQty} ${subLabel} = ${totalQuantity} ${subLabel} ke ${location}`
             : `${totalQuantity} ${product.name} ditambahkan ke ${location}`;
 
         toast({
@@ -103,14 +106,6 @@ export function StockInDialog({
         });
 
         handleOpenChange(false);
-    };
-
-    // Helper to display stock in box + pcs format
-    const formatStockDisplay = (stockCount: number) => {
-        if (!isMultiUnit || !pcsPerBox || pcsPerBox <= 0) return null;
-        const boxes = Math.floor(stockCount / pcsPerBox);
-        const loose = stockCount % pcsPerBox;
-        return `${boxes} box + ${loose} pcs`;
     };
 
     return (
@@ -144,7 +139,7 @@ export function StockInDialog({
                                     <p className="text-xs text-muted-foreground">{product.barcode}</p>
                                     {isMultiUnit && (
                                         <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">
-                                            📦 Multi-Unit{pcsPerBox > 0 ? ` · ${pcsPerBox} pcs/box` : ' · Box segel'}
+                                            📦 Multi-Unit{conversionRate > 0 ? ` · ${conversionRate} ${subLabel}/${mainLabel}` : ` · ${mainLabel} segel`}
                                         </p>
                                     )}
                                 </div>
@@ -155,15 +150,19 @@ export function StockInDialog({
                                 <div className="p-2 bg-muted/30 rounded-lg">
                                     <p className="text-lg font-bold">{product.stock.gudang}</p>
                                     <p className="text-xs text-muted-foreground">Gudang</p>
-                                    {formatStockDisplay(product.stock.gudang) && (
-                                        <p className="text-xs text-blue-600 dark:text-blue-400">{formatStockDisplay(product.stock.gudang)}</p>
+                                    {isMultiUnit && conversionRate > 0 && (
+                                        <p className="text-xs text-blue-600 dark:text-blue-400">
+                                            {formatStockDisplay(product.stock.gudang, product)}
+                                        </p>
                                     )}
                                 </div>
                                 <div className="p-2 bg-muted/30 rounded-lg">
                                     <p className="text-lg font-bold">{product.stock.toko}</p>
                                     <p className="text-xs text-muted-foreground">Toko</p>
-                                    {formatStockDisplay(product.stock.toko) && (
-                                        <p className="text-xs text-blue-600 dark:text-blue-400">{formatStockDisplay(product.stock.toko)}</p>
+                                    {isMultiUnit && conversionRate > 0 && (
+                                        <p className="text-xs text-blue-600 dark:text-blue-400">
+                                            {formatStockDisplay(product.stock.toko, product)}
+                                        </p>
                                     )}
                                 </div>
                             </div>
@@ -173,39 +172,39 @@ export function StockInDialog({
                                 <div className="space-y-3">
                                     <div className="grid grid-cols-2 gap-3">
                                         <div className="space-y-2">
-                                            <Label>📦 Jumlah Box</Label>
+                                            <Label>📦 Jumlah {mainLabel}</Label>
                                             <Input
                                                 type="number" step="any"
-                                                value={boxQuantity || ''}
-                                                onChange={(e) => setBoxQuantity(parseFloat(e.target.value) || 0)}
+                                                value={mainQty || ''}
+                                                onChange={(e) => setMainQty(parseFloat(e.target.value) || 0)}
                                                 min={0}
                                                 placeholder="0"
                                                 className="rounded-xl"
                                             />
                                         </div>
                                         <div className="space-y-2">
-                                            <Label>🔢 Pcs (lepasan)</Label>
+                                            <Label>🔢 {subLabel} (lepasan)</Label>
                                             <Input
                                                 type="number" step="any"
-                                                value={pcsQuantity || ''}
-                                                onChange={(e) => setPcsQuantity(parseFloat(e.target.value) || 0)}
+                                                value={subQty || ''}
+                                                onChange={(e) => setSubQty(parseFloat(e.target.value) || 0)}
                                                 min={0}
                                                 placeholder="0"
                                                 className="rounded-xl"
                                             />
                                         </div>
                                     </div>
-                                    {pcsPerBox > 0 && (boxQuantity > 0 || pcsQuantity > 0) && (
+                                    {conversionRate > 0 && (mainQty > 0 || subQty > 0) && (
                                         <div className="p-2 bg-blue-50 dark:bg-blue-950/30 rounded-lg text-sm text-blue-700 dark:text-blue-300 text-center">
-                                            {boxQuantity > 0 && <span>{boxQuantity} box × {pcsPerBox} = {boxQuantity * pcsPerBox} pcs</span>}
-                                            {boxQuantity > 0 && pcsQuantity > 0 && <span> + {pcsQuantity} pcs</span>}
-                                            {boxQuantity === 0 && pcsQuantity > 0 && <span>{pcsQuantity} pcs</span>}
-                                            <span className="font-bold"> = Total {totalQuantity} pcs</span>
+                                            {mainQty > 0 && <span>{mainQty} {mainLabel} × {conversionRate} = {mainQty * conversionRate} {subLabel}</span>}
+                                            {mainQty > 0 && subQty > 0 && <span> + {subQty} {subLabel}</span>}
+                                            {mainQty === 0 && subQty > 0 && <span>{subQty} {subLabel}</span>}
+                                            <span className="font-bold"> = Total {totalQuantity} {subLabel}</span>
                                         </div>
                                     )}
-                                    {!pcsPerBox && boxQuantity > 0 && (
+                                    {!conversionRate && mainQty > 0 && (
                                         <div className="p-2 bg-amber-50 dark:bg-amber-950/30 rounded-lg text-xs text-amber-700 dark:text-amber-300 text-center">
-                                            ⚠️ Isi per box belum diatur. Hanya pcs lepasan yang terhitung.
+                                            ⚠️ Isi per {mainLabel} belum diatur. Hanya {subLabel} lepasan yang terhitung.
                                         </div>
                                     )}
                                     <div className="space-y-2">
@@ -227,8 +226,8 @@ export function StockInDialog({
                                         <Label>Jumlah Masuk</Label>
                                         <Input
                                             type="number" step="any"
-                                            value={pcsQuantity || ''}
-                                            onChange={(e) => setPcsQuantity(parseFloat(e.target.value) || 0)}
+                                            value={subQty || ''}
+                                            onChange={(e) => setSubQty(parseFloat(e.target.value) || 0)}
                                             min={1}
                                             className="rounded-xl"
                                         />
