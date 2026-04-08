@@ -82,15 +82,55 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
     const subUnitLabel = SELL_UNITS.find(u => u.value === sellUnit)?.label ?? (sellUnit || '').toUpperCase();
     const computedBoxPrice = pcsPerBox && price ? price * pcsPerBox : null;
 
-    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-        if (file.size > 2 * 1024 * 1024) {
-            toast({ title: 'File terlalu besar', description: 'Maksimal 2MB', variant: 'destructive' });
-            return;
+        
+        // Show loading state for compression if needed, but it's usually fast
+        try {
+            const { compressImageToFile, formatFileSize } = await import('@/lib/imageCompression');
+            
+            const originalSize = file.size;
+            const compressedFile = await compressImageToFile(file, {
+                maxWidth: 800,
+                maxHeight: 800,
+                quality: 0.7, // Slightly lower quality for better compression
+                format: 'image/webp'
+            });
+            
+            const compressedSize = compressedFile.size;
+            const reduction = ((originalSize - compressedSize) / originalSize * 100).toFixed(0);
+            
+            console.log(`[ImageCompression] ${formatFileSize(originalSize)} -> ${formatFileSize(compressedSize)} (${reduction}% reduction)`);
+            
+            if (compressedSize > 2 * 1024 * 1024) {
+                toast({ 
+                    title: 'File masih terlalu besar', 
+                    description: `Setelah dikompres ukuran masih ${formatFileSize(compressedSize)}. Gunakan gambar yang lebih kecil.`, 
+                    variant: 'destructive' 
+                });
+                return;
+            }
+
+            setImageFile(compressedFile);
+            setImagePreview(URL.createObjectURL(compressedFile));
+            
+            if (originalSize > 500 * 1024) { // Only show toast if original was > 500KB
+                toast({ 
+                    title: 'Gambar dikompres', 
+                    description: `Ukuran dikurangi ${reduction}% (${formatFileSize(compressedSize)})`,
+                });
+            }
+        } catch (error) {
+            console.error('Compression failed:', error);
+            // Fallback to original file if compression fails but it's under limit
+            if (file.size > 2 * 1024 * 1024) {
+                toast({ title: 'File terlalu besar', description: 'Maksimal 2MB', variant: 'destructive' });
+                return;
+            }
+            setImageFile(file);
+            setImagePreview(URL.createObjectURL(file));
         }
-        setImageFile(file);
-        setImagePreview(URL.createObjectURL(file));
     };
 
     const resetForm = () => {

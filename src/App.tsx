@@ -274,7 +274,7 @@ function AppRoutes() {
         } />
 
         <Route path="/stock-opname" element={
-          <ProtectedRoute allowedRoles={['auditor', 'admin']}>
+          <ProtectedRoute allowedRoles={['warehouse', 'cashier', 'auditor', 'admin']}>
             <StockOpname />
           </ProtectedRoute>
         } />

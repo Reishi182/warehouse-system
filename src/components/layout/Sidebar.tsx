@@ -82,7 +82,7 @@ const navGroups: NavItem[] = [
     roles: ['warehouse', 'cashier', 'auditor', 'main_office'],
     children: [
       { label: 'Stok Masuk', icon: ArrowDownToLine, href: '/stock-in', roles: ['warehouse'] },
-      { label: 'Stok Opname', icon: ClipboardCheck, href: '/stock-opname', roles: ['auditor'] },
+      { label: 'Stok Opname', icon: ClipboardCheck, href: '/stock-opname', roles: ['warehouse', 'cashier', 'auditor'] },
       { label: 'Permintaan Stok', icon: ArrowUpFromLine, href: '/requests', roles: ['cashier'] },
       { label: 'Retur ke Gudang', icon: RotateCcw, href: '/stock-return', roles: ['cashier'] },
       { label: 'Proses Permintaan', icon: Package, href: '/requests/shipments', roles: ['warehouse'] },
