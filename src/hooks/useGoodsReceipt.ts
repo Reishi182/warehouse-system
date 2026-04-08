@@ -92,6 +92,15 @@ export function useGoodsReceipt() {
                 // Add only received qty (good condition) to stock
                 const goodQty = item.quantityReceived - item.quantityDamaged;
                 if (goodQty > 0) {
+                    // Get current stock safely before atomic increment
+                    const { data: prodData } = await supabase
+                        .from('products')
+                        .select('stock_toko')
+                        .eq('id', item.productId)
+                        .single();
+                        
+                    const stockBefore = prodData?.stock_toko || 0;
+
                     // Atomic increment — no race condition
                     const { error: incrementError } = await supabase.rpc('atomic_increment_stock', {
                         p_product_id: item.productId,
@@ -104,14 +113,22 @@ export function useGoodsReceipt() {
                     stockUpdated.push({ productId: item.productId, goodQty });
 
                     // Log stock-in to stock_logs for stock history tracking
-                    await supabase.from('stock_logs').insert({
+                    const { error: stockLogError } = await supabase.from('stock_logs').insert({
                         product_id: item.productId,
                         type: 'in',
                         quantity: goodQty,
                         location: 'toko',
                         user_id: data.receivedBy,
                         note: `Terima barang dari gudang - ${item.productName}`,
+                        reference_type: 'stock_request',
+                        reference_id: data.requestId,
+                        stock_before: stockBefore,
+                        stock_after: stockBefore + goodQty
                     });
+                    
+                    if (stockLogError) {
+                        console.error('Failed to insert stock log for goods receipt:', stockLogError);
+                    }
                 }
             }
 

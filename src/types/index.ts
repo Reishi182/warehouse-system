@@ -882,3 +882,64 @@ export interface TokopediaOrder {
   logs?: TokopediaOrderLog[];
 }
 
+
+// ==================================================
+// STOCK OPNAME SESSION SYSTEM TYPES
+// ==================================================
+
+export type StockOpnameSessionStatus = 
+  | 'draft' 
+  | 'pending_approval' 
+  | 'approved' 
+  | 'rejected' 
+  | 'completed';
+
+export type StockOpnameItemStatus = 
+  | 'pending' 
+  | 'approved' 
+  | 'rejected';
+
+export interface StockOpnameSession {
+  id: string;
+  session_number: string;
+  location: Location;
+  status: StockOpnameSessionStatus;
+  
+  created_by: string | null;
+  created_by_name: string;
+  
+  approved_by?: string | null;
+  approved_by_name?: string | null;
+  approved_at?: string | null;
+  rejected_reason?: string | null;
+  
+  submitted_at?: string | null;
+  created_at: string;
+  updated_at: string;
+  
+  items?: StockOpnameItem[];
+}
+
+export interface StockOpnameItem {
+  id: string;
+  session_id: string;
+  product_id: string;
+  product?: Product;
+  
+  system_stock: number;
+  actual_stock: number;
+  difference: number;
+  
+  unit_used?: string | null;
+  main_unit_count?: number | null;
+  sub_unit_count?: number | null;
+  
+  note?: string | null;
+  
+  status: StockOpnameItemStatus;
+  approved_by?: string | null;
+  approved_by_name?: string | null;
+  approved_at?: string | null;
+  
+  created_at: string;
+}

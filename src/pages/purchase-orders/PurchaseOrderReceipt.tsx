@@ -165,14 +165,14 @@ export default function PurchaseOrderReceipt() {
                 const fileName = `po_receipts/${selectedPOId}_${Date.now()}.${fileExt}`;
 
                 const { error: uploadError } = await supabase.storage
-                    .from('uploads')
+                    .from('receipts')
                     .upload(fileName, photoFile);
 
                 if (uploadError) {
                     console.error('Photo upload error:', uploadError);
                 } else {
                     const { data: urlData } = supabase.storage
-                        .from('uploads')
+                        .from('receipts')
                         .getPublicUrl(fileName);
                     photoUrl = urlData.publicUrl;
                     console.log('Photo uploaded successfully:', photoUrl);
@@ -186,7 +186,7 @@ export default function PurchaseOrderReceipt() {
                     const signatureFileName = `po_receipts/sig_${selectedPOId}_${Date.now()}.png`;
 
                     const { error: sigError } = await supabase.storage
-                        .from('uploads')
+                        .from('receipts')
                         .upload(signatureFileName, blob, {
                             contentType: 'image/png',
                         });
@@ -195,7 +195,7 @@ export default function PurchaseOrderReceipt() {
                         console.error('Signature upload error:', sigError);
                     } else {
                         const { data: sigUrlData } = supabase.storage
-                            .from('uploads')
+                            .from('receipts')
                             .getPublicUrl(signatureFileName);
                         signatureUrl = sigUrlData.publicUrl;
                         console.log('Signature uploaded successfully:', signatureUrl);

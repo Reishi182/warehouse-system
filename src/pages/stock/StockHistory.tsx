@@ -122,17 +122,42 @@ export default function StockHistory() {
         {
             header: 'Qty',
             accessorKey: 'quantity',
-            cell: (log: StockLog) => (
-                <span className={cn(
-                    "font-bold",
-                    log.type === 'in' ? 'text-green-600' :
-                        log.type === 'out' ? 'text-red-600' :
-                            'text-blue-600'
-                )}>
-                    {log.type === 'in' ? '+' : log.type === 'out' ? '-' : '±'}
-                    {log.quantity}
-                </span>
-            )
+            cell: (log: StockLog) => {
+                const isMultiUnit = log.product?.has_multi_unit && log.product?.pcs_per_box;
+                let displayQty = log.quantity.toString();
+                
+                if (isMultiUnit && log.product) {
+                    const pcsPerBox = log.product.pcs_per_box!;
+                    const mainUnit = (log.product.main_unit || 'box').toUpperCase();
+                    const subUnit = (log.product.sell_unit || 'pcs').toUpperCase();
+                    
+                    const qtyAbs = Math.abs(log.quantity);
+                    const mainCount = Math.floor(qtyAbs / pcsPerBox);
+                    const remainder = parseFloat((qtyAbs % pcsPerBox).toFixed(2));
+                    
+                    if (mainCount === 0) {
+                        displayQty = `${remainder} ${subUnit}`;
+                    } else if (remainder === 0) {
+                        displayQty = `${mainCount} ${mainUnit}`;
+                    } else {
+                        displayQty = `${mainCount} ${mainUnit} ${remainder} ${subUnit}`;
+                    }
+                } else if (log.product && log.product.sell_unit) {
+                    displayQty = `${Math.abs(log.quantity)} ${log.product.sell_unit.toUpperCase()}`;
+                }
+
+                return (
+                    <span className={cn(
+                        "font-bold",
+                        log.type === 'in' ? 'text-green-600' :
+                            log.type === 'out' ? 'text-red-600' :
+                                'text-blue-600'
+                    )}>
+                        {log.type === 'in' ? '+' : log.type === 'out' ? '-' : '±'}
+                        {displayQty}
+                    </span>
+                );
+            }
         },
         {
             header: 'Lokasi',

@@ -349,33 +349,60 @@ export function useConfirmPOReceipt() {
                 // Get current stock
                 const { data: product, error: prodError } = await supabase
                     .from('products')
-                    .select('stock_gudang, stock_toko')
+                    .select('stock_gudang, stock_toko, has_multi_unit, main_unit, sell_unit, pcs_per_box')
                     .eq('id', productId)
                     .single();
 
                 if (prodError) continue;
 
+                let multiplier = 1;
+                if (product.has_multi_unit && product.main_unit && product.pcs_per_box) {
+                    const receivedUnitStr = (item.unit || 'pcs').toLowerCase().trim();
+                    const mainUnitStr = product.main_unit.toLowerCase().trim();
+                    if (receivedUnitStr === mainUnitStr) {
+                        multiplier = product.pcs_per_box;
+                    }
+                }
+
                 const stockField = destination === 'gudang' ? 'stock_gudang' : 'stock_toko';
                 const currentStock = destination === 'gudang' ? (product.stock_gudang || 0) : (product.stock_toko || 0);
-                const newStock = currentStock + item.receivedQty;
+                
+                const actualAddedQty = item.receivedQty * multiplier;
+                const newStock = currentStock + actualAddedQty;
+
+                const updatePayload: any = { [stockField]: newStock };
+
+                // Auto-update sell_unit for standard products if it was changed in PO
+                if (!product.has_multi_unit && item.unit && item.unit !== (product.sell_unit || 'pcs')) {
+                    updatePayload.sell_unit = item.unit;
+                }
 
                 await supabase
                     .from('products')
-                    .update({ [stockField]: newStock })
+                    .update(updatePayload)
                     .eq('id', productId);
 
+                const unitText = multiplier > 1 ? ` (${item.receivedQty} ${item.unit} x ${multiplier})` : '';
                 const noteDetails = item.receivedQty < item.orderedQty
-                    ? `Penerimaan PO: ${po.po_number} (Selisih: ${item.orderedQty - item.receivedQty})`
-                    : `Penerimaan PO: ${po.po_number}`;
+                    ? `Penerimaan PO: ${po.po_number} (Selisih: ${item.orderedQty - item.receivedQty})${unitText}`
+                    : `Penerimaan PO: ${po.po_number}${unitText}`;
 
-                await supabase.from('stock_logs').insert([{
+                const { error: stockLogError } = await supabase.from('stock_logs').insert([{
                     product_id: productId,
                     type: 'in',
-                    quantity: item.receivedQty,
+                    quantity: actualAddedQty,
                     location: destination,
                     user_id: input.receivedBy,
                     note: noteDetails,
+                    reference_type: 'purchase_order',
+                    reference_id: input.poId,
+                    stock_before: currentStock,
+                    stock_after: newStock
                 }]);
+                
+                if (stockLogError) {
+                    console.error('Failed to insert stock log:', stockLogError);
+                }
             }
 
             const { error: updateError } = await supabase

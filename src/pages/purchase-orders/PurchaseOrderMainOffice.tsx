@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { Plus, FileText, Printer, Eye, Trash2, Package, Check, X, Ban, Calendar, Camera, User, CalendarCheck, AlertTriangle, Image } from 'lucide-react';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import MainLayout from '@/components/layout/MainLayout';
@@ -45,6 +45,7 @@ import {
     usePOReceipt,
 } from '@/hooks/usePurchaseOrders';
 import { useStoreSettings } from '@/hooks/useStoreSettings';
+import { useProductUnits } from '@/hooks/useProductUnits';
 import PrintPurchaseOrder from '@/components/print/PrintPurchaseOrder';
 import { PurchaseOrder, PODestination, Product } from '@/types';
 import { format } from 'date-fns';
@@ -78,6 +79,7 @@ export default function PurchaseOrderMainOffice() {
     const { data: suppliers = [], isLoading: suppliersLoading } = useSuppliers();
     const { data: purchaseOrders = [], isLoading: posLoading } = usePurchaseOrders();
     const { data: storeSettings } = useStoreSettings();
+    const { data: globalUnits = [] } = useProductUnits();
     const createPO = useCreatePurchaseOrder();
     const cancelPO = useCancelPurchaseOrder();
 
@@ -116,6 +118,39 @@ export default function PurchaseOrderMainOffice() {
     const [selectedProductId, setSelectedProductId] = useState('');
     const [itemQty, setItemQty] = useState(1);
     const [itemPrice, setItemPrice] = useState(0);
+    const [selectedUnit, setSelectedUnit] = useState<string>('');
+
+    const selectedProduct = useMemo(() => products.find(p => p.id === selectedProductId), [products, selectedProductId]);
+
+    // Auto-populate unit and price when a product is selected
+    useEffect(() => {
+        if (selectedProduct) {
+            const defaultUnit = selectedProduct.has_multi_unit && selectedProduct.main_unit 
+                ? selectedProduct.main_unit 
+                : (selectedProduct.sell_unit || 'pcs');
+            setSelectedUnit(defaultUnit);
+            
+            const defaultPrice = selectedProduct.has_multi_unit && selectedProduct.main_unit && defaultUnit === selectedProduct.main_unit && selectedProduct.box_price != null 
+                ? selectedProduct.box_price 
+                : selectedProduct.price;
+            setItemPrice(defaultPrice);
+        } else {
+            setSelectedUnit('');
+            setItemPrice(0);
+        }
+    }, [selectedProduct]);
+
+    // Update price if unit changes manually
+    const handleUnitChange = (unit: string) => {
+        setSelectedUnit(unit);
+        if (selectedProduct && selectedProduct.has_multi_unit && selectedProduct.main_unit) {
+             if (unit === selectedProduct.main_unit && selectedProduct.box_price != null) {
+                 setItemPrice(selectedProduct.box_price);
+             } else {
+                 setItemPrice(selectedProduct.price);
+             }
+        }
+    };
 
     // New product mode state
     const [isNewProductMode, setIsNewProductMode] = useState(false);
@@ -169,6 +204,7 @@ export default function PurchaseOrderMainOffice() {
                 id: crypto.randomUUID(),
                 productId: product.id,
                 productName: product.name,
+                unit: selectedUnit || product.sell_unit || 'pcs',
                 quantity: itemQty,
                 unitPrice: itemPrice,
                 isNewProduct: false,
@@ -401,7 +437,7 @@ export default function PurchaseOrderMainOffice() {
 
                 {/* Create PO Dialog */}
                 <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-                    <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                         <DialogHeader>
                             <DialogTitle className="flex items-center gap-2">
                                 <FileText className="w-5 h-5" />
@@ -540,7 +576,7 @@ export default function PurchaseOrderMainOffice() {
                                     ) : (
                                         /* Existing Product Mode - Dropdown with Search */
                                         <div className="flex gap-3 items-end">
-                                            <div className="flex-1 space-y-2">
+                                            <div className="flex-1 min-w-0 space-y-2">
                                                 <Label>Produk</Label>
                                                 <ProductSearchSelect
                                                     products={products}
@@ -550,6 +586,47 @@ export default function PurchaseOrderMainOffice() {
                                                     excludeIds={items.map(i => i.productId || '')}
                                                 />
                                             </div>
+                                            {selectedProduct?.has_multi_unit && (
+                                                <div className="w-24 space-y-2">
+                                                    <Label>Unit</Label>
+                                                    <Select value={selectedUnit} onValueChange={handleUnitChange}>
+                                                        <SelectTrigger>
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value={selectedProduct.main_unit || 'box'}>
+                                                                {selectedProduct.main_unit || 'box'}
+                                                            </SelectItem>
+                                                            <SelectItem value={selectedProduct.sell_unit || 'pcs'}>
+                                                                {selectedProduct.sell_unit || 'pcs'}
+                                                            </SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            )}
+                                            {!selectedProduct?.has_multi_unit && selectedProduct && (
+                                                <div className="w-32 space-y-2">
+                                                    <Label>Unit</Label>
+                                                    <Select value={selectedUnit} onValueChange={handleUnitChange}>
+                                                        <SelectTrigger>
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {globalUnits.map((u) => (
+                                                                <SelectItem key={u.id} value={u.code}>
+                                                                    {u.label}
+                                                                </SelectItem>
+                                                            ))}
+                                                            {/* Gagal fetch satuan dari DB? tetap tampilkan unit yang ter-default */}
+                                                            {!globalUnits.find(u => u.code === (selectedUnit || selectedProduct.sell_unit || 'pcs')) && (
+                                                                <SelectItem value={selectedUnit || selectedProduct.sell_unit || 'pcs'}>
+                                                                    {String(selectedUnit || selectedProduct.sell_unit || 'pcs').toUpperCase()}
+                                                                </SelectItem>
+                                                            )}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            )}
                                             <div className="w-24 space-y-2">
                                                 <Label>Qty</Label>
                                                 <Input
