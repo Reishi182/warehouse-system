@@ -25,6 +25,40 @@ interface ProductManageCardProps {
     isHighlighted?: boolean;
 }
 
+/**
+ * Format stock for multi-unit products into "X [unit besar] Y [sub-unit]"
+ * e.g. 78.5 KG with 40 KG/SAK → "1 SAK 38.5 KG"
+ * e.g. 80 KG with 40 KG/SAK → "2 SAK"
+ * e.g. 0.5 KG with 40 KG/SAK → "0.5 KG"
+ */
+function formatMultiUnitStock(
+    stock: number,
+    pcsPerBox: number | null | undefined,
+    mainUnit: string | null | undefined,
+    subUnit: string | null | undefined,
+): string {
+    const mainLabel = (mainUnit || 'box').toUpperCase();
+    const subLabel = (subUnit || 'pcs').toUpperCase();
+
+    if (!pcsPerBox || pcsPerBox <= 0) {
+        return `${stock} ${subLabel}`;
+    }
+
+    const mainCount = Math.floor(stock / pcsPerBox);
+    // Round to avoid floating point artifacts like 38.500000001
+    const remainder = parseFloat((stock % pcsPerBox).toFixed(2));
+
+    if (mainCount === 0) {
+        return `${remainder} ${subLabel}`;
+    }
+
+    if (remainder === 0) {
+        return `${mainCount} ${mainLabel}`;
+    }
+
+    return `${mainCount} ${mainLabel} ${remainder} ${subLabel}`;
+}
+
 export const ProductManageCard = memo(function ProductManageCard({
     product,
     onEdit,
@@ -44,6 +78,16 @@ export const ProductManageCard = memo(function ProductManageCard({
     const isLowStockToko = stockToko < STOCK_THRESHOLDS.LOW_STOCK_TOKO && stockToko > 0;
     const isOutOfStock = totalStock <= 0;
     const hasLowStock = isLowStockGudang || isLowStockToko;
+
+    const isMultiUnit = product.has_multi_unit && product.pcs_per_box;
+
+    // Format stock display: multi-unit → "X SAK Y KG", single-unit → "78.5"
+    const stockGudangDisplay = isMultiUnit
+        ? formatMultiUnitStock(stockGudang, product.pcs_per_box, product.main_unit, product.sell_unit)
+        : `${stockGudang}`;
+    const stockTokoDisplay = isMultiUnit
+        ? formatMultiUnitStock(stockToko, product.pcs_per_box, product.main_unit, product.sell_unit)
+        : `${stockToko}`;
 
     return (
         <div
@@ -139,7 +183,6 @@ export const ProductManageCard = memo(function ProductManageCard({
 
                 {/* Unit/Multi-unit Badge */}
                 <div className="absolute top-2 right-2 flex flex-col gap-1 items-end sm:hidden sm:group-hover:flex">
-                    {/* Only show these when the MoreHorizontal menu is not showing, or shift them. For simplicity, placing them below the menu button. */}
                 </div>
                 <div className="absolute bottom-2 left-2 flex flex-col gap-1">
                     {product.has_multi_unit && (
@@ -185,8 +228,10 @@ export const ProductManageCard = memo(function ProductManageCard({
                                 ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
                                 : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
                     )}>
-                        <Warehouse className="w-3.5 h-3.5" />
-                        <span>{stockGudang}</span>
+                        <Warehouse className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate text-[10px] sm:text-xs leading-tight" title={stockGudangDisplay}>
+                            {stockGudangDisplay}
+                        </span>
                     </div>
                     <div className={cn(
                         "flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium",
@@ -196,8 +241,10 @@ export const ProductManageCard = memo(function ProductManageCard({
                                 ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
                                 : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
                     )}>
-                        <Store className="w-3.5 h-3.5" />
-                        <span>{stockToko}</span>
+                        <Store className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate text-[10px] sm:text-xs leading-tight" title={stockTokoDisplay}>
+                            {stockTokoDisplay}
+                        </span>
                     </div>
                 </div>
             </div>
