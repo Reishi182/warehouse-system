@@ -17,7 +17,7 @@ interface DataContextType {
 
   // Product actions
   addProduct: (product: { name: string; barcode: string; price: number; stock: { gudang: number; toko: number }; image_url?: string }) => Promise<boolean>;
-  updateProduct: (id: string, updates: Partial<Product>) => Promise<void>;
+  updateProduct: (id: string, updates: Partial<Product>) => Promise<boolean>;
   deleteProduct: (id: string) => Promise<boolean>;
   getProductByBarcode: (barcode: string) => Product | undefined;
 
@@ -797,7 +797,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     return true;
   };
 
-  const updateProduct = async (id: string, updates: Partial<Product>) => {
+  const updateProduct = async (id: string, updates: Partial<Product>): Promise<boolean> => {
     const updateData: any = {};
     // Bug fix #10: Use !== undefined instead of truthy check
     if (updates.name !== undefined) updateData.name = updates.name;
@@ -815,11 +815,32 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (updates.sell_by_quantity !== undefined) updateData.sell_by_quantity = updates.sell_by_quantity;
     if (updates.sell_unit !== undefined) updateData.sell_unit = updates.sell_unit;
 
-    const { error } = await supabase.from('products').update(updateData).eq('id', id);
+    console.log('[updateProduct] Sending update:', { id, updateData });
+
+    const { error, count } = await supabase
+      .from('products')
+      .update(updateData)
+      .eq('id', id)
+      .select('id', { count: 'exact', head: true });
+
     if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-      return;
+      console.error('[updateProduct] Supabase error:', error);
+      toast({ title: 'Gagal update produk', description: error.message, variant: 'destructive' });
+      return false;
     }
+
+    // Check if any rows were actually updated (RLS may silently block)
+    if (count === 0) {
+      console.error('[updateProduct] No rows updated — likely blocked by RLS policy');
+      toast({
+        title: 'Gagal update produk',
+        description: 'Anda tidak memiliki izin untuk mengubah produk ini. Hubungi admin.',
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    console.log('[updateProduct] Success, rows updated:', count);
 
     const prev = products.find(p => p.id === id);
     await addActivityLog({
@@ -838,6 +859,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {
       console.log('[DataContext] Broadcast not available');
     }
+
+    return true;
   };
 
   const deleteProduct = async (id: string) => {

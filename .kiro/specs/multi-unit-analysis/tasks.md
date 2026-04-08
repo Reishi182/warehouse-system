@@ -1,6 +1,6 @@
 # Implementation Plan
 
-- [-] 1. Write bug condition exploration tests
+- [x] 1. Write bug condition exploration tests
   - **Property 1: Bug Condition** - Multi-Unit Bugs (Reactive Stock, Cart Key, Validation, Hardcoded Labels)
   - **CRITICAL**: These tests MUST FAIL on unfixed code — failure confirms the bugs exist
   - **DO NOT attempt to fix the tests or the code when they fail**
@@ -17,7 +17,7 @@
   - Mark task complete when tests are written, run, and failures are documented
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
 
-- [~] 2. Write preservation property tests (BEFORE implementing fix)
+- [ ] 2. Write preservation property tests (BEFORE implementing fix)
   - **Property 2: Preservation** - Non-Multi-Unit Products and Single-Unit Cart Operations
   - **IMPORTANT**: Follow observation-first methodology
   - Observe: produk dengan `has_multi_unit=false` tidak menampilkan badge unit pada kode unfixed
@@ -29,9 +29,9 @@
   - Verify tests PASS on UNFIXED code
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6_
 
-- [~] 3. Fix all multi-unit bugs
+- [ ] 3. Fix all multi-unit bugs
 
-  - [~] 3.1 Bug 1 — Tambahkan useEffect reactive recalculation di EditProductDialog
+  - [ ] 3.1 Bug 1 — Tambahkan useEffect reactive recalculation di EditProductDialog
     - File: `src/components/products/EditProductDialog.tsx`
     - Tambahkan `useEffect` yang watch `pcsPerBox` dan merecalculate `stockGudang`/`stockToko`
     - Formula: `setStockGudang(mainStockGudang * pcsPerBox + subStockGudang)` dan `setStockToko(mainStockToko * pcsPerBox + subStockToko)`
@@ -41,7 +41,7 @@
     - _Preservation: produk non-multi-unit tidak terpengaruh; useEffect hanya aktif saat hasMultiUnit=true_
     - _Requirements: 2.1, 2.2_
 
-  - [~] 3.2 Bug 2 — Update signature dan implementasi updateQuantity/removeItem di usePOSCart
+  - [ ] 3.2 Bug 2 — Update signature dan implementasi updateQuantity/removeItem di usePOSCart
     - File: `src/hooks/usePOSCart.ts`
     - Update signature: `updateQuantity(productId: string, quantity: number, sellUnit?: SellUnit)` dan `removeItem(productId: string, sellUnit?: SellUnit)`
     - Update pencarian item: `it.product.id === productId && (sellUnit === undefined || (it.sellUnit || 'sub') === sellUnit)`
@@ -51,13 +51,13 @@
     - _Preservation: operasi tanpa sellUnit (undefined) tetap bekerja identik untuk produk single-unit_
     - _Requirements: 2.3, 3.2, 3.3_
 
-  - [~] 3.3 Bug 2 — Update call site di POSCartPanel dan POSMobileCart
+  - [ ] 3.3 Bug 2 — Update call site di POSCartPanel dan POSMobileCart
     - File: `src/components/pos/POSCartPanel.tsx`, `src/components/pos/POSMobileCart.tsx`
     - Update semua pemanggilan `removeItem(it.product.id)` → `removeItem(it.product.id, it.sellUnit)`
     - Update semua pemanggilan `updateQuantity(it.product.id, qty)` → `updateQuantity(it.product.id, qty, it.sellUnit)`
     - _Requirements: 2.3_
 
-  - [~] 3.4 Bug 3 — Tambahkan disabled state pada input stok multi-unit di AddProductDialog dan EditProductDialog
+  - [ ] 3.4 Bug 3 — Tambahkan disabled state pada input stok multi-unit di AddProductDialog dan EditProductDialog
     - File: `src/components/products/AddProductDialog.tsx`, `src/components/products/EditProductDialog.tsx`
     - Tambahkan `disabled={!pcsPerBox || pcsPerBox <= 0}` pada input `mainStockGudang`, `subStockGudang`, `mainStockToko`, `subStockToko`
     - Tambahkan helper text: "Isi jumlah per [mainUnit] terlebih dahulu" saat input disabled
@@ -66,7 +66,7 @@
     - _Preservation: input stok tetap berfungsi normal saat pcsPerBox sudah diisi dengan nilai valid_
     - _Requirements: 2.4_
 
-  - [~] 3.5 Bug 4 — Ganti hardcoded fallback unit labels dengan conditional rendering di empat komponen
+  - [ ] 3.5 Bug 4 — Ganti hardcoded fallback unit labels dengan conditional rendering di empat komponen
     - File: `src/components/products/ProductManageCard.tsx`, `src/components/products/ProductTableRow.tsx`, `src/components/pos/ProductCard.tsx`, `src/components/pos/ProductListItem.tsx`
     - Ganti pola `(product.main_unit || 'box').toUpperCase()` dengan conditional: `{product.has_multi_unit && product.main_unit && product.sell_unit && (<span>📦 {product.main_unit.toUpperCase()}/{product.sell_unit.toUpperCase()}</span>)}`
     - _Bug_Condition: isBugCondition_4 — has_multi_unit=true AND (main_unit=null OR sell_unit=null) AND badge menampilkan 'BOX'/'PCS'_
@@ -74,20 +74,20 @@
     - _Preservation: produk dengan main_unit dan sell_unit valid tetap menampilkan badge dengan benar_
     - _Requirements: 2.5, 3.6_
 
-  - [~] 3.6 Verify bug condition exploration tests now pass
+  - [ ] 3.6 Verify bug condition exploration tests now pass
     - **Property 1: Expected Behavior** - Multi-Unit Bugs Fixed
     - **IMPORTANT**: Re-run the SAME tests from task 1 — do NOT write new tests
     - Run all four bug condition exploration tests from step 1
     - **EXPECTED OUTCOME**: All tests PASS (confirms all bugs are fixed)
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
 
-  - [~] 3.7 Verify preservation tests still pass
+  - [ ] 3.7 Verify preservation tests still pass
     - **Property 2: Preservation** - No Regressions
     - **IMPORTANT**: Re-run the SAME tests from task 2 — do NOT write new tests
     - Run all preservation property tests from step 2
     - **EXPECTED OUTCOME**: Tests PASS (confirms no regressions)
     - Confirm non-multi-unit products, single-unit cart operations, and valid unit labels all behave identically
 
-- [~] 4. Checkpoint — Ensure all tests pass
+- [ ] 4. Checkpoint — Ensure all tests pass
   - Pastikan semua test dari task 1, 2, dan sub-task 3.6, 3.7 lulus
   - Tanya user jika ada pertanyaan atau ambiguitas yang muncul selama implementasi

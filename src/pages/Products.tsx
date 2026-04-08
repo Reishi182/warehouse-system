@@ -307,8 +307,8 @@ export default function Products() {
         setEditDialogOpen(true);
     }, []);
 
-    const handleUpdateProduct = async (id: string, updates: Partial<Product>) => {
-        await updateProduct(id, updates);
+    const handleUpdateProduct = async (id: string, updates: Partial<Product>): Promise<boolean> => {
+        return await updateProduct(id, updates);
     };
 
     const openStockAdjustDialog = useCallback((product: Product) => {

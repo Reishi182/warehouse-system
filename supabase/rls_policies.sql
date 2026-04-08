@@ -65,7 +65,7 @@ WITH CHECK (
   )
 );
 
--- Only admin, warehouse, auditor can update products
+-- Only admin, warehouse, auditor, cashier, main_office can update products
 CREATE POLICY "Authorized users can update products"
 ON products FOR UPDATE
 TO authenticated
@@ -73,7 +73,7 @@ USING (
   EXISTS (
     SELECT 1 FROM profiles 
     WHERE user_id = auth.uid() 
-    AND role IN ('admin', 'warehouse', 'auditor')
+    AND role IN ('admin', 'warehouse', 'auditor', 'cashier', 'main_office')
   )
 );
 

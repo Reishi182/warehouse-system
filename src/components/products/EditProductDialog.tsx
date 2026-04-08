@@ -26,7 +26,7 @@ interface EditProductDialogProps {
     product: Product | null;
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onUpdate: (id: string, updates: Partial<Product>) => Promise<void>;
+    onUpdate: (id: string, updates: Partial<Product>) => Promise<boolean>;
     products: Product[];
     userRole: UserRole;
 }
@@ -192,11 +192,15 @@ export default function EditProductDialog({
             stock: { gudang: stockGudang, toko: stockToko }
         };
 
-        await onUpdate(product.id, updates);
+        const success = await onUpdate(product.id, updates);
 
         setSaving(false);
-        onOpenChange(false);
-        toast({ title: 'Berhasil', description: `Produk ${name.trim()} berhasil diperbarui` });
+
+        if (success) {
+            onOpenChange(false);
+            toast({ title: 'Berhasil', description: `Produk ${name.trim()} berhasil diperbarui` });
+        }
+        // If !success, updateProduct already showed an error toast — keep dialog open
     };
 
     if (!product) return null;

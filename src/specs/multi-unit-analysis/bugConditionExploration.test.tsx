@@ -344,4 +344,7 @@ describe('Bug 4 — Hardcoded Unit Labels (EXPECTED TO FAIL on unfixed code)', (
       </table>
     );
 
-    // Test ini AKAN GAGAL karena badge tampil
+    // Test ini AKAN GAGAL karena badge tampil dengan teks "BOX/PCS"
+    expect(screen.queryByText(/BOX\/PCS/i)).not.toBeInTheDocument();
+  });
+});
