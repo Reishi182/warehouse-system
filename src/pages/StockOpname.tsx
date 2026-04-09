@@ -35,6 +35,7 @@ import {
     OpnameSessionPayload,
 } from '@/hooks/useStockOpnameSessions';
 import { StockOpnameProductPicker } from '@/components/products/StockOpnameProductPicker';
+import { QuickImageUpload } from '@/components/products/QuickImageUpload';
 import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
@@ -657,12 +658,14 @@ export default function StockOpname() {
                                         >
                                             {/* Product header */}
                                             <div className="flex items-start gap-3 mb-4">
-                                                <div className="w-12 h-12 rounded-xl bg-muted/50 overflow-hidden shrink-0 border">
-                                                    {product.image_url
-                                                        ? <img src={product.image_url} alt="" className="w-full h-full object-cover" />
-                                                        : <div className="w-full h-full flex items-center justify-center"><Package className="w-6 h-6 text-muted-foreground/20" /></div>
-                                                    }
-                                                </div>
+                                                <QuickImageUpload 
+                                                    productId={product.id} 
+                                                    currentUrl={product.image_url} 
+                                                    className="w-12 h-12 shrink-0 rounded-xl border" 
+                                                    onUploadSuccess={(url) => {
+                                                        updateItem(product.id, 'product', { ...product, image_url: url });
+                                                    }}
+                                                />
                                                 <div className="flex-1 min-w-0">
                                                     <h4 className="font-semibold text-sm truncate">{product.name}</h4>
                                                     <p className="text-xs text-muted-foreground font-mono mb-1">{product.barcode}</p>
