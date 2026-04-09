@@ -3,6 +3,7 @@ import { Wallet, Plus } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
+import { DateInput } from '@/components/common/DatePicker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -97,12 +98,11 @@ export default function CashierOpeningCash() {
             subtitle="Catat uang kembalian yang disediakan sebelum shift kasir"
             actions={
                 <div className="flex items-center gap-3">
-                    <Input
-                        type="date"
+                    <DateInput
                         value={dateFilter}
-                        onChange={(e) => setDateFilter(e.target.value)}
-                        className="w-40 rounded-xl"
+                        onChange={setDateFilter}
                         placeholder="Filter tanggal"
+                        className="w-40"
                     />
                     {dateFilter && (
                         <Button variant="ghost" size="sm" onClick={() => setDateFilter('')} className="rounded-xl text-xs">
@@ -142,11 +142,9 @@ export default function CashierOpeningCash() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Tanggal</Label>
-                                    <Input
-                                        type="date"
+                                    <DateInput
                                         value={form.session_date}
-                                        onChange={(e) => setForm({ ...form, session_date: e.target.value })}
-                                        className="rounded-xl"
+                                        onChange={(v) => setForm({ ...form, session_date: v })}
                                     />
                                 </div>
                                 <div className="space-y-2">

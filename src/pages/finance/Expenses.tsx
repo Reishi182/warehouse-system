@@ -3,6 +3,7 @@ import { Receipt, Trash2, Plus, Zap, Users, Package, Home, Truck, MoreHorizontal
 import MainLayout from '@/components/layout/MainLayout';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
+import { DateInput, MonthInput } from '@/components/common/DatePicker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -145,11 +146,11 @@ export default function Expenses() {
             subtitle="Catat dan kelola semua pengeluaran operasional"
             actions={
                 <div className="flex items-center gap-3">
-                    <Input
-                        type="month"
-                        value={monthDate}
-                        onChange={(e) => setMonthDate(e.target.value)}
-                        className="w-40 rounded-xl"
+                    <MonthInput
+                        value={monthDate + '-01'}
+                        onChange={(v) => setMonthDate(v.slice(0, 7))}
+                        placeholder="Pilih bulan"
+                        className="w-44"
                     />
                     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                         <DialogTrigger asChild>
@@ -188,11 +189,9 @@ export default function Expenses() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Tanggal</Label>
-                                    <Input
-                                        type="date"
+                                    <DateInput
                                         value={form.expense_date}
-                                        onChange={(e) => setForm({ ...form, expense_date: e.target.value })}
-                                        className="rounded-xl"
+                                        onChange={(v) => setForm({ ...form, expense_date: v })}
                                     />
                                 </div>
                                 <div className="space-y-2">

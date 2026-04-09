@@ -7,7 +7,7 @@ import MainLayout from '@/components/layout/MainLayout';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { DateInput } from '@/components/common/DatePicker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useCashFlow, CashFlowDay } from '@/hooks/useCashFlow';
@@ -165,9 +165,9 @@ export default function FinancialReport() {
                     </Select>
                     {period === 'custom' && (
                         <>
-                            <Input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} className="w-36 rounded-xl" />
+                            <DateInput value={customStart} onChange={setCustomStart} className="w-44" />
                             <span className="text-muted-foreground">—</span>
-                            <Input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} className="w-36 rounded-xl" />
+                            <DateInput value={customEnd} onChange={setCustomEnd} className="w-44" />
                         </>
                     )}
                     <Button variant="outline" className="rounded-xl" onClick={() => handlePrint()}>

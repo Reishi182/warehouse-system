@@ -235,7 +235,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       location: l.location as Location,
       user_id: l.user_id,
       timestamp: l.timestamp,
-      note: l.note
+      note: l.note,
+      actor_name: l.actor_name,
+      reference_type: l.reference_type,
+      reference_id: l.reference_id,
+      stock_before: l.stock_before,
+      stock_after: l.stock_after
     })));
   };
 

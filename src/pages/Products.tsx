@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { DateInput } from '@/components/common/DatePicker';
 import { useData } from '@/contexts/DataContext';
 import { useRole } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -848,12 +849,10 @@ export default function Products() {
                                     <Calendar className="w-4 h-4" />
                                     Pilih Tanggal
                                 </Label>
-                                <Input
-                                    type="date"
+                                <DateInput
                                     value={exportDate}
-                                    onChange={(e) => setExportDate(e.target.value)}
-                                    max={new Date().toISOString().split('T')[0]}
-                                    className="bg-background"
+                                    onChange={setExportDate}
+                                    disableFuture
                                 />
                                 <p className="text-xs text-muted-foreground">
                                     Stok akan dihitung mundur berdasarkan log perubahan stok. Hasil menunjukkan jumlah stok pada akhir tanggal yang dipilih.

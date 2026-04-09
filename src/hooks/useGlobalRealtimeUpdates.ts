@@ -30,6 +30,7 @@ const REALTIME_TABLES = [
     { table: 'suppliers', queryKeys: ['suppliers'] },
     { table: 'store_settings', queryKeys: ['store-settings'] },
     { table: 'stock_opname', queryKeys: ['stock-opname'] },
+    { table: 'stock_opname_sessions', queryKeys: ['stock-opname-sessions'] },
 ] as const;
 
 /**

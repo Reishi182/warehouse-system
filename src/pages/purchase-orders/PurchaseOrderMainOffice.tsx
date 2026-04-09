@@ -1,10 +1,12 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { Plus, FileText, Printer, Eye, Trash2, Package, Check, X, Ban, Calendar, Camera, User, CalendarCheck, AlertTriangle, Image } from 'lucide-react';
+import { Plus, FileText, Printer, Eye, Trash2, Package, Check, X, Ban, Calendar, Camera, User, CalendarCheck, AlertTriangle, Image, Pencil } from 'lucide-react';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import MainLayout from '@/components/layout/MainLayout';
 import PageSkeleton from '@/components/common/PageSkeleton';
 import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
 import ProductSearchSelect from '@/components/common/ProductSearchSelect';
+import { SearchableSelect } from '@/components/common/SearchableSelect';
+import { DateInput } from '@/components/common/DatePicker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -41,6 +43,7 @@ import {
     usePurchaseOrders,
     usePurchaseOrder,
     useCreatePurchaseOrder,
+    useUpdatePurchaseOrder,
     useCancelPurchaseOrder,
     usePOReceipt,
 } from '@/hooks/usePurchaseOrders';
@@ -51,6 +54,7 @@ import { PurchaseOrder, PODestination, Product } from '@/types';
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import { useReactToPrint } from 'react-to-print';
+import { supabase } from '@/integrations/supabase/client';
 
 interface POItem {
     id: string;
@@ -81,9 +85,11 @@ export default function PurchaseOrderMainOffice() {
     const { data: storeSettings } = useStoreSettings();
     const { data: globalUnits = [] } = useProductUnits();
     const createPO = useCreatePurchaseOrder();
+    const updatePO = useUpdatePurchaseOrder();
     const cancelPO = useCancelPurchaseOrder();
 
     const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [editPOId, setEditPOId] = useState<string | null>(null);
     const [isViewOpen, setIsViewOpen] = useState(false);
     const [selectedPOId, setSelectedPOId] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState('all');
@@ -105,7 +111,7 @@ export default function PurchaseOrderMainOffice() {
 
     // Form state
     const [supplierId, setSupplierId] = useState('');
-    const [destination, setDestination] = useState<PODestination>('gudang');
+    const [destination, setDestination] = useState<PODestination>('toko');
     const [notes, setNotes] = useState('');
     const [items, setItems] = useState<POItem[]>([]);
     const [poDate, setPODate] = useState(() => {
@@ -225,34 +231,104 @@ export default function PurchaseOrderMainOffice() {
     const handleCreatePO = async () => {
         if (!supplierId || items.length === 0) return;
 
-        await createPO.mutateAsync({
-            supplierId,
-            destination,
-            notes: notes || undefined,
-            createdBy: user?.id || '',
-            createdByName: profile?.name || '',
-            poDate,
-            items: items.map(item => ({
-                productId: item.productId,
-                productName: item.productName,
-                quantity: item.quantity,
-                unitPrice: item.unitPrice,
-                isNewProduct: item.isNewProduct,
-                barcode: item.barcode,
-                unit: item.unit,
-            })),
-        });
+        if (editPOId) {
+            await updatePO.mutateAsync({
+                poId: editPOId,
+                supplierId,
+                destination,
+                notes: notes || undefined,
+                createdBy: user?.id || '',
+                createdByName: profile?.name || '',
+                poDate,
+                items: items.map(item => ({
+                    productId: item.productId,
+                    productName: item.productName,
+                    quantity: item.quantity,
+                    unitPrice: item.unitPrice,
+                    isNewProduct: item.isNewProduct,
+                    barcode: item.barcode,
+                    unit: item.unit,
+                })),
+            });
+        } else {
+            await createPO.mutateAsync({
+                supplierId,
+                destination,
+                notes: notes || undefined,
+                createdBy: user?.id || '',
+                createdByName: profile?.name || '',
+                poDate,
+                items: items.map(item => ({
+                    productId: item.productId,
+                    productName: item.productName,
+                    quantity: item.quantity,
+                    unitPrice: item.unitPrice,
+                    isNewProduct: item.isNewProduct,
+                    barcode: item.barcode,
+                    unit: item.unit,
+                })),
+            });
+        }
 
         // Reset form
         setSupplierId('');
-        setDestination('gudang');
+        setDestination('toko');
+        setNotes('');
+        setItems([]);
+        setEditPOId(null);
+        setPODate(() => {
+            const now = new Date();
+            return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        });
+        setIsCreateOpen(false);
+    };
+
+    const openCreateDialog = () => {
+        setEditPOId(null);
+        setSupplierId('');
+        setDestination('toko');
         setNotes('');
         setItems([]);
         setPODate(() => {
             const now = new Date();
             return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
         });
-        setIsCreateOpen(false);
+        setIsCreateOpen(true);
+    };
+
+    const handleEditPO = async (po: PurchaseOrder) => {
+        setEditPOId(po.id);
+        setSupplierId(po.supplier_id || '');
+        setDestination(po.destination);
+        setNotes(po.notes || '');
+        setPODate(po.po_date || po.created_at.split('T')[0]);
+        // we need to set items, but we need items array not yet loaded?
+        // Ah, if we open edit, we better fetch items if they are not in the current `po` object.
+        // Wait, does `purchaseOrders` query include items? No, it only includes `supplier:suppliers(*)`.
+        // We will just do a quick supabase query to fetch items. Or `usePurchaseOrder` will fetch it.
+        // For immediate UI, let's fetch it manually here since it's a one-off.
+        try {
+            const { data: poItems } = await supabase
+                .from('purchase_order_items')
+                .select('*')
+                .eq('purchase_order_id', po.id);
+                
+            if (poItems) {
+                setItems(poItems.map((item: any) => ({
+                    id: crypto.randomUUID(), // local UI id
+                    productId: item.product_id || '',
+                    productName: item.product_name,
+                    barcode: item.barcode,
+                    unit: item.unit,
+                    quantity: item.quantity,
+                    unitPrice: item.unit_price,
+                    isNewProduct: item.is_new_product,
+                })));
+            }
+        } catch (err) {
+            console.error('Failed to load items for editing', err);
+        }
+        setIsCreateOpen(true);
     };
 
     const handleViewPO = (po: PurchaseOrder) => {
@@ -338,6 +414,11 @@ export default function PurchaseOrderMainOffice() {
                     <Button size="sm" variant="outline" onClick={() => handleViewPO(item)}>
                         <Eye className="w-4 h-4" />
                     </Button>
+                    {['pending_receipt', 'pending_auditor', 'rejected'].includes(item.status) && (
+                        <Button size="sm" variant="outline" onClick={() => handleEditPO(item)}>
+                            <Pencil className="w-4 h-4" />
+                        </Button>
+                    )}
                     {(item.status === 'pending_receipt' || item.status === 'completed') && (
                         <Button size="sm" variant="outline" onClick={() => handlePrint(item)}>
                             <Printer className="w-4 h-4" />
@@ -373,7 +454,7 @@ export default function PurchaseOrderMainOffice() {
             subtitle="Kelola pembelian barang dari supplier"
             actions={
                 <Button
-                    onClick={() => setIsCreateOpen(true)}
+                    onClick={openCreateDialog}
                     className="rounded-xl text-xs sm:text-sm"
                 >
                     <Plus className="h-4 w-4 sm:mr-2" />
@@ -431,17 +512,20 @@ export default function PurchaseOrderMainOffice() {
                         title: "Belum Ada Purchase Order",
                         description: "Buat PO pertama untuk mulai pemesanan ke supplier.",
                         actionLabel: "Buat PO Baru",
-                        onAction: () => setIsCreateOpen(true)
+                        onAction: openCreateDialog
                     }}
                 />
 
-                {/* Create PO Dialog */}
-                <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+                {/* Create/Edit PO Dialog */}
+                <Dialog open={isCreateOpen} onOpenChange={(open) => {
+                    if (!open) setEditPOId(null);
+                    setIsCreateOpen(open);
+                }}>
                     <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                         <DialogHeader>
                             <DialogTitle className="flex items-center gap-2">
                                 <FileText className="w-5 h-5" />
-                                Buat Purchase Order Baru
+                                {editPOId ? 'Edit Purchase Order' : 'Buat Purchase Order Baru'}
                             </DialogTitle>
                         </DialogHeader>
                         <div className="space-y-6 mt-4">
@@ -449,16 +533,14 @@ export default function PurchaseOrderMainOffice() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label>Supplier *</Label>
-                                    <Select value={supplierId} onValueChange={setSupplierId}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Pilih supplier" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {suppliers.map(s => (
-                                                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <SearchableSelect
+                                        options={suppliers.map(s => ({ value: s.id, label: s.name }))}
+                                        value={supplierId}
+                                        onValueChange={setSupplierId}
+                                        placeholder="Pilih supplier..."
+                                        searchPlaceholder="Cari supplier..."
+                                        emptyMessage="Supplier tidak ditemukan."
+                                    />
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Tujuan Pengiriman *</Label>
@@ -480,10 +562,9 @@ export default function PurchaseOrderMainOffice() {
                                     <Calendar className="w-4 h-4" />
                                     Tanggal PO *
                                 </Label>
-                                <Input
-                                    type="date"
+                                <DateInput
                                     value={poDate}
-                                    onChange={(e) => setPODate(e.target.value)}
+                                    onChange={setPODate}
                                     className="max-w-xs"
                                 />
                                 <p className="text-xs text-muted-foreground">
@@ -657,29 +738,80 @@ export default function PurchaseOrderMainOffice() {
                             {items.length > 0 && (
                                 <Card>
                                     <CardHeader className="pb-3">
-                                        <CardTitle className="text-base">Item PO ({items.length})</CardTitle>
+                                        <CardTitle className="text-base flex items-center gap-2">
+                                            Item PO ({items.length})
+                                            {editPOId && (
+                                                <span className="text-xs font-normal text-muted-foreground ml-1">
+                                                    — klik qty/harga untuk edit
+                                                </span>
+                                            )}
+                                        </CardTitle>
                                     </CardHeader>
                                     <CardContent>
                                         <div className="space-y-2">
                                             {items.map((item, idx) => (
-                                                <div key={item.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                                                    <div className="flex-1">
+                                                <div key={item.id} className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
+                                                    {/* Product name */}
+                                                    <div className="flex-1 min-w-0">
                                                         <div className="flex items-center gap-2">
-                                                            <p className="font-medium">{item.productName}</p>
+                                                            <p className="font-medium truncate">{item.productName}</p>
                                                             {item.isNewProduct && (
-                                                                <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full">
+                                                                <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full shrink-0">
                                                                     Produk Baru
                                                                 </span>
                                                             )}
                                                         </div>
-                                                        <p className="text-sm text-muted-foreground">
-                                                            {item.quantity} {item.unit || 'pcs'} x Rp {item.unitPrice.toLocaleString('id-ID')} = Rp {(item.quantity * item.unitPrice).toLocaleString('id-ID')}
-                                                        </p>
                                                         {item.barcode && (
-                                                            <p className="text-xs text-muted-foreground font-mono">Barcode: {item.barcode}</p>
+                                                            <p className="text-xs text-muted-foreground font-mono">{item.barcode}</p>
                                                         )}
                                                     </div>
-                                                    <Button size="sm" variant="ghost" onClick={() => handleRemoveItem(item.id)}>
+
+                                                    {/* Unit (read-only) */}
+                                                    <span className="text-xs uppercase font-semibold text-muted-foreground w-10 text-center shrink-0">
+                                                        {item.unit || 'pcs'}
+                                                    </span>
+
+                                                    {/* Qty — editable */}
+                                                    <div className="flex items-center gap-1 shrink-0">
+                                                        <span className="text-xs text-muted-foreground">Qty</span>
+                                                        <Input
+                                                            type="number"
+                                                            min={1}
+                                                            value={item.quantity}
+                                                            onChange={(e) => {
+                                                                const qty = parseInt(e.target.value) || 1;
+                                                                setItems(prev => prev.map(it =>
+                                                                    it.id === item.id ? { ...it, quantity: qty } : it
+                                                                ));
+                                                            }}
+                                                            className="w-16 h-8 text-center text-sm px-1"
+                                                        />
+                                                    </div>
+
+                                                    {/* Unit price — editable */}
+                                                    <div className="flex items-center gap-1 shrink-0">
+                                                        <span className="text-xs text-muted-foreground">Rp</span>
+                                                        <Input
+                                                            type="number"
+                                                            min={0}
+                                                            value={item.unitPrice}
+                                                            onChange={(e) => {
+                                                                const price = parseInt(e.target.value) || 0;
+                                                                setItems(prev => prev.map(it =>
+                                                                    it.id === item.id ? { ...it, unitPrice: price } : it
+                                                                ));
+                                                            }}
+                                                            className="w-28 h-8 text-sm px-2"
+                                                        />
+                                                    </div>
+
+                                                    {/* Subtotal */}
+                                                    <span className="text-sm font-semibold text-right shrink-0 w-28 tabular-nums">
+                                                        Rp {(item.quantity * item.unitPrice).toLocaleString('id-ID')}
+                                                    </span>
+
+                                                    {/* Remove */}
+                                                    <Button size="sm" variant="ghost" onClick={() => handleRemoveItem(item.id)} className="shrink-0 h-8 w-8 p-0">
                                                         <Trash2 className="w-4 h-4 text-destructive" />
                                                     </Button>
                                                 </div>
@@ -692,6 +824,7 @@ export default function PurchaseOrderMainOffice() {
                                     </CardContent>
                                 </Card>
                             )}
+
 
                             {/* Notes */}
                             <div className="space-y-2">
@@ -706,14 +839,17 @@ export default function PurchaseOrderMainOffice() {
 
                             {/* Actions */}
                             <div className="flex gap-3 justify-end pt-4">
-                                <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
+                                <Button variant="outline" onClick={() => {
+                                    setIsCreateOpen(false);
+                                    setEditPOId(null);
+                                }}>
                                     Batal
                                 </Button>
                                 <Button
                                     onClick={handleCreatePO}
-                                    disabled={!supplierId || items.length === 0 || createPO.isPending}
+                                    disabled={!supplierId || items.length === 0 || createPO.isPending || updatePO.isPending}
                                 >
-                                    {createPO.isPending ? 'Menyimpan...' : 'Buat Purchase Order'}
+                                    {createPO.isPending || updatePO.isPending ? 'Menyimpan...' : (editPOId ? 'Simpan Perubahan' : 'Buat Purchase Order')}
                                 </Button>
                             </div>
                         </div>

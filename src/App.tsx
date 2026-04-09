@@ -26,6 +26,7 @@ const Sales = React.lazy(() => import("./pages/Sales"));
 const CashTransfer = React.lazy(() => import("./pages/CashTransfer"));
 const CashHistory = React.lazy(() => import("./pages/CashHistory"));
 const StockOpname = React.lazy(() => import("./pages/StockOpname"));
+const StockOpnameApproval = React.lazy(() => import("./pages/StockOpnameApproval"));
 const Users = React.lazy(() => import("./pages/Users"));
 const Customers = React.lazy(() => import("./pages/customers/Customers"));
 const Settings = React.lazy(() => import("./pages/Settings"));
@@ -276,6 +277,12 @@ function AppRoutes() {
         <Route path="/stock-opname" element={
           <ProtectedRoute allowedRoles={['warehouse', 'cashier', 'auditor', 'admin']}>
             <StockOpname />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/stock-opname/approval" element={
+          <ProtectedRoute allowedRoles={['main_office', 'auditor', 'admin']}>
+            <StockOpnameApproval />
           </ProtectedRoute>
         } />
 

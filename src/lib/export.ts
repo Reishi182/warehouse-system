@@ -375,6 +375,48 @@ export async function exportCashTransfers(transfers: any[]) {
     await exportToExcel(data, `setoran_${formatDate(new Date())}`, 'Setoran');
 }
 
+export async function exportStockOpname(sessions: any[], filters?: { location?: string }) {
+    const data: any[] = [];
+    sessions.forEach(session => {
+        if (session.items && session.items.length > 0) {
+            session.items.forEach((item: any) => {
+                data.push({
+                    'No. Sesi': session.session_number,
+                    'Tanggal': formatDateTime(session.created_at),
+                    'Pegawai': session.created_by_name,
+                    'Lokasi Sesi': capitalize(session.location),
+                    'Lokasi Item': capitalize(item.location || session.location),
+                    'Nama Produk': item.product?.name || item.product_id,
+                    'Barcode': item.product?.barcode || '-',
+                    'Stok Sistem': item.system_stock,
+                    'Stok Fisik': item.actual_stock,
+                    'Selisih': item.difference + (item.unit_used ? ` ${item.unit_used}` : ''),
+                    'Status': statusLabel(session.status),
+                    'Catatan': item.note || '-',
+                });
+            });
+        } else {
+             data.push({
+                'No. Sesi': session.session_number,
+                'Tanggal': formatDateTime(session.created_at),
+                'Pegawai': session.created_by_name,
+                'Lokasi Sesi': capitalize(session.location),
+                'Lokasi Item': '-',
+                'Nama Produk': '-',
+                'Barcode': '-',
+                'Stok Sistem': '-',
+                'Stok Fisik': '-',
+                'Selisih': '-',
+                'Status': statusLabel(session.status),
+                'Catatan': 'Sesi tanpa item/Draft',
+            });
+        }
+    });
+    
+    const locStr = filters?.location ? filters.location : 'all';
+    await exportToExcel(data, `stok_opname_${formatDate(new Date())}_${locStr}`, 'Stok Opname');
+}
+
 // ==================================================
 // PREMIUM PRODUCT STOCK EXPORT (PDF & Excel)
 // ==================================================

@@ -230,6 +230,8 @@ export interface StockLog {
   } | null;
   timestamp: string;
   note?: string | null;
+  // Immutable copy of the actor's name at the time of log creation
+  actor_name?: string | null;
   // Additional context fields
   reference_type?: string | null; // 'stock_request', 'purchase_order', 'sale', etc.
   reference_id?: string | null;

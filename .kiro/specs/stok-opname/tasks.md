@@ -74,14 +74,14 @@ This implementation plan transforms the current single-record stock opname appro
     - Invalidate sessions query cache
     - _Requirements: 4.1, 4.3_
   
-  - [~] 2.5 Implement useRemoveProductFromSession hook
+  - [x] 2.5 Implement useRemoveProductFromSession hook
     - Validate session is in 'draft' status
     - Delete item from database
     - Invalidate sessions query cache
     - _Requirements: 4.2_
 
-- [ ] 3. Backend Logic - Submission and Approval
-  - [~] 3.1 Implement useSubmitSession hook
+- [x] 3. Backend Logic - Submission and Approval
+  - [x] 3.1 Implement useSubmitSession hook
     - Validate session has at least one item
     - Validate session is in 'draft' status
     - Update session status to 'pending_approval'

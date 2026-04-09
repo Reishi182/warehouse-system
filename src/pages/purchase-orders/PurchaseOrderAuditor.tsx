@@ -7,6 +7,7 @@ import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import LocationBadge from '@/components/common/LocationBadge';
 import {
     Dialog,
     DialogContent,
@@ -83,11 +84,7 @@ export default function PurchaseOrderAuditor() {
         {
             header: 'Tujuan',
             accessorKey: 'destination',
-            cell: (item) => (
-                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${item.destination === 'gudang' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
-                    {item.destination === 'gudang' ? 'Gudang' : 'Toko'}
-                </span>
-            ),
+            cell: (item) => <LocationBadge location={item.destination} />,
         },
         {
             header: 'Total',

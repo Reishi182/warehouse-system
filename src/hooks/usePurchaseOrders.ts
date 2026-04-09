@@ -236,6 +236,117 @@ export function useCreatePurchaseOrder() {
     });
 }
 
+export interface UpdatePOInput extends CreatePOInput {
+    poId: string;
+}
+
+export function useUpdatePurchaseOrder() {
+    const queryClient = useQueryClient();
+    const { toast } = useToast();
+
+    return useMutation({
+        mutationFn: async (input: UpdatePOInput) => {
+            // Check if PO exists and is editable
+            const { data: existingPo, error: fetchError } = await supabase
+                .from('purchase_orders')
+                .select('status, po_number')
+                .eq('id', input.poId)
+                .single();
+
+            if (fetchError) throw fetchError;
+
+            // Only allow edit if in allowed statuses
+            const allowedStatuses = ['pending_auditor', 'pending_receipt', 'rejected'];
+            if (!allowedStatuses.includes(existingPo.status)) {
+                throw new Error('PO dengan status ini tidak dapat diedit');
+            }
+
+            // Check if we need to regenerate PO number because date changed
+            // We can just regenerate anyway to match the new date, or only if date is different
+            let poNumber = existingPo.po_number;
+            const poDate = input.poDate;
+            
+            // Re-generate PO number
+            const { data: poNumberData, error: poNumError } = await supabase
+                .rpc('generate_po_number', { p_date: poDate });
+
+            if (poNumError) {
+                const [year, month, day] = poDate.split('-');
+                const dateStr = `${day}${month}${year}`;
+                const randomNum = Math.floor(Math.random() * 9999).toString().padStart(4, '0');
+                poNumber = `PO-${dateStr}-${randomNum}`;
+            } else {
+                poNumber = poNumberData;
+            }
+
+            // Calculate total
+            const totalAmount = input.items.reduce((acc, item) => acc + (item.quantity * item.unitPrice), 0);
+
+            // Update PO
+            const { data: po, error: poError } = await supabase
+                .from('purchase_orders')
+                .update({
+                    po_number: poNumber,
+                    po_date: poDate,
+                    supplier_id: input.supplierId || null,
+                    destination: input.destination,
+                    total_amount: totalAmount,
+                    notes: input.notes || null,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', input.poId)
+                .select()
+                .single();
+
+            if (poError) throw poError;
+
+            // Delete old items
+            const { error: deleteError } = await supabase
+                .from('purchase_order_items')
+                .delete()
+                .eq('purchase_order_id', input.poId);
+
+            if (deleteError) throw deleteError;
+
+            // Insert new items
+            const itemsToInsert = input.items.map(item => ({
+                purchase_order_id: input.poId,
+                product_id: item.productId || null,
+                product_name: item.productName,
+                quantity: item.quantity,
+                unit_price: item.unitPrice,
+                total_price: item.quantity * item.unitPrice,
+                barcode: item.barcode || null,
+                unit: item.unit || 'pcs',
+                is_new_product: item.isNewProduct || false,
+            }));
+
+            const { error: itemsError } = await supabase
+                .from('purchase_order_items')
+                .insert(itemsToInsert);
+
+            if (itemsError) throw itemsError;
+
+            return po;
+        },
+        onSuccess: (po) => {
+            queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
+            queryClient.invalidateQueries({ queryKey: ['purchase_order', po.id] });
+            toast({
+                title: 'Berhasil',
+                description: 'Purchase Order berhasil diperbarui',
+            });
+        },
+        onError: (error: Error) => {
+            toast({
+                title: 'Gagal',
+                description: error.message,
+                variant: 'destructive',
+            });
+        },
+    });
+}
+
 interface ApprovePOInput {
     poId: string;
     auditorId: string;
