@@ -56,7 +56,7 @@ export function useSuratJalanB2B() {
                 docNum = autoNum as string;
             }
 
-            // 2. Create Header - status is pending_review (waiting for Main Office approval)
+            // 2. Create Header - status is approved (no longer needs Main Office review)
             const insertData: Record<string, unknown> = {
                 number: docNum,
                 recipient_name: data.recipientName,
@@ -64,9 +64,11 @@ export function useSuratJalanB2B() {
                 recipient_phone: data.recipientPhone || null,
                 recipient_email: data.recipientEmail || null,
                 type: 'B2B',
-                status: 'pending_review', // NEW: Waiting for Main Office review
+                status: 'approved', // Bypass Main Office review
                 created_by: data.userId,
                 source_location: location,
+                reviewed_by: data.userId, // auto review by creator
+                reviewed_at: new Date().toISOString(),
             };
 
             if (data.customerPoUrl) {
@@ -122,19 +124,23 @@ export function useSuratJalanB2B() {
 
             if (itemsError) throw itemsError;
 
+            // Auto-reserve stock for 'gudang' since it's already approved
+            if (location === 'gudang') {
+                for (const item of itemsToInsert) {
+                    const { error: reserveError } = await supabase.rpc('reserve_stock', {
+                        p_product_id: item.product_id,
+                        p_quantity: item.quantity
+                    });
+                    if (reserveError) throw new Error(`Gagal reservasi stok: ${reserveError.message}`);
+                }
+            }
+
             return sj;
         },
         onSuccess: async () => {
             queryClient.invalidateQueries({ queryKey: ['surat-jalan-b2b'] });
-            toast({ title: 'Surat Jalan Dibuat', description: 'Menunggu review dari Main Office' });
-
-            // Notify main office
-            sendNotificationToRole('main_office', {
-                title: 'Surat Jalan B2B Baru',
-                message: 'Ada surat jalan B2B baru yang perlu direview',
-                type: 'info',
-                link: '/surat-jalan-b2b',
-            });
+            queryClient.invalidateQueries({ queryKey: ['products'] });
+            toast({ title: 'Surat Jalan Dibuat', description: 'Surat jalan siap diproses' });
         }
     });
 

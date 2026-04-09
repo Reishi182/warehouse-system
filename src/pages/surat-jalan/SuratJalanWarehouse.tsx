@@ -25,10 +25,12 @@ import { useToast } from '@/hooks/use-toast';
 
 export default function SuratJalanWarehouse() {
     const { user } = useAuth();
-    const { suratJalans, completeOrder, isLoading } = useSuratJalanB2B();
+    const { suratJalans, completeOrder, processOrder, isLoading } = useSuratJalanB2B();
     const { toast } = useToast();
     const [selectedSj, setSelectedSj] = useState<any | null>(null);
     const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
+    const [processDialogOpen, setProcessDialogOpen] = useState(false);
+    const [sjToProcess, setSjToProcess] = useState<any | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Form State
@@ -52,9 +54,23 @@ export default function SuratJalanWarehouse() {
     }
 
     // Filter for processing orders (waiting for warehouse to complete)
+    const approvedOrders = suratJalans.filter((sj: any) => sj.status === 'approved');
     const processingOrders = suratJalans.filter((sj: any) => sj.status === 'processing');
     const completedOrders = suratJalans.filter((sj: any) => sj.status === 'completed');
-    const pendingCount = suratJalans.filter((sj: any) => ['pending_review', 'approved'].includes(sj.status)).length;
+    const pendingCount = suratJalans.filter((sj: any) => sj.status === 'pending_review').length; // old feature legacy
+
+    const handleProcessOrder = () => {
+        if (!sjToProcess || !user) return;
+        processOrder.mutate({
+            suratJalanId: sjToProcess.id,
+            processedBy: user.id,
+        }, {
+            onSuccess: () => {
+                setProcessDialogOpen(false);
+                setSjToProcess(null);
+            }
+        });
+    };
 
     const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -186,6 +202,8 @@ export default function SuratJalanWarehouse() {
 
     const getStatusBadge = (status: string) => {
         switch (status) {
+            case 'approved':
+                return <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full flex items-center gap-1"><Clock className="h-3 w-3" /> Siap Diproses</span>;
             case 'processing':
                 return <span className="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full flex items-center gap-1"><Truck className="h-3 w-3" /> Dalam Pengiriman</span>;
             case 'completed':
@@ -200,17 +218,18 @@ export default function SuratJalanWarehouse() {
             <div className="space-y-6">
                 <StatsGrid columns={4}>
                     <StatsCard
-                        title="Perlu Diselesaikan"
-                        value={processingOrders.length}
-                        icon={<Truck className="w-5 h-5" />}
-                        subtitle={processingOrders.length > 0 ? "siap kirim" : undefined}
+                        title="Pesanan Baru"
+                        value={approvedOrders.length}
+                        icon={<Package className="w-5 h-5" />}
+                        subtitle={approvedOrders.length > 0 ? "siap diproses" : undefined}
                         subtitleType="warning"
                     />
                     <StatsCard
-                        title="Menunggu"
-                        value={pendingCount}
-                        icon={<Clock className="w-5 h-5" />}
-                        subtitle="review/proses kasir"
+                        title="Perlu Dikirim"
+                        value={processingOrders.length}
+                        icon={<Truck className="w-5 h-5" />}
+                        subtitle="dalam pengiriman"
+                        subtitleType="info"
                     />
                     <StatsCard
                         title="Selesai"
@@ -224,6 +243,64 @@ export default function SuratJalanWarehouse() {
                         icon={<List className="w-5 h-5" />}
                     />
                 </StatsGrid>
+
+                {/* Approved Orders - Need to Process (New Step for Warehouse) */}
+                {approvedOrders.length > 0 && (
+                    <div>
+                        <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                            <Clock className="h-5 w-5 text-blue-500" />
+                            Pesanan Baru (Siap Diproses) ({approvedOrders.length})
+                        </h3>
+                        <div className="grid gap-4">
+                            {approvedOrders.map((sj: any) => (
+                                <div key={sj.id} className="bg-card border-2 border-blue-200 rounded-xl p-6 shadow-md hover:shadow-lg transition-shadow">
+                                    <div className="flex flex-col lg:flex-row justify-between gap-4">
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                                <span className="font-bold text-xl">{sj.number}</span>
+                                                {getStatusBadge(sj.status)}
+                                                {sj.source_location === 'toko' ? (
+                                                    <span className="bg-green-50 text-green-700 text-xs px-2 py-1 rounded-full flex items-center gap-1">
+                                                        <Store className="h-3 w-3" /> Dari Toko
+                                                    </span>
+                                                ) : (
+                                                    <span className="bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded-full flex items-center gap-1">
+                                                        <Warehouse className="h-3 w-3" /> Dari Gudang
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                                                <div>
+                                                    <p className="text-sm text-muted-foreground">Penerima</p>
+                                                    <p className="font-semibold">{sj.recipient_name}</p>
+                                                    <p className="text-sm text-muted-foreground">{sj.recipient_address}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm text-muted-foreground">Dibuat</p>
+                                                    <p className="font-semibold">
+                                                        {sj.created_at && format(new Date(sj.created_at), 'dd MMM yyyy, HH:mm', { locale: idLocale })}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex flex-col gap-2 justify-center">
+                                            <Button
+                                                size="lg"
+                                                onClick={() => { setSjToProcess(sj); setProcessDialogOpen(true); }}
+                                                className="bg-blue-600 hover:bg-blue-700"
+                                            >
+                                                <Package className="mr-2 h-4 w-4" />
+                                                Proses Pesanan
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 {/* Processing Orders - Need to Complete */}
                 {processingOrders.length > 0 && (
@@ -300,11 +377,11 @@ export default function SuratJalanWarehouse() {
                 )}
 
                 {/* Empty State */}
-                {processingOrders.length === 0 && (
+                {processingOrders.length === 0 && approvedOrders.length === 0 && (
                     <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6 text-center">
                         <Package className="h-12 w-12 text-blue-600 mx-auto mb-3" />
-                        <h3 className="font-bold text-blue-800 dark:text-blue-200">Tidak Ada Pengiriman Aktif</h3>
-                        <p className="text-sm text-blue-600 dark:text-blue-400">Pesanan yang diproses kasir akan muncul di sini</p>
+                        <h3 className="font-bold text-blue-800 dark:text-blue-200">Tidak Ada Pesanan Aktif</h3>
+                        <p className="text-sm text-blue-600 dark:text-blue-400">Pesanan yang dibuat oleh kasir akan muncul di sini</p>
                     </div>
                 )}
 
@@ -477,6 +554,38 @@ export default function SuratJalanWarehouse() {
                             className="bg-green-600 hover:bg-green-700"
                         >
                             {isSubmitting ? 'Menyimpan...' : 'Selesaikan Pengiriman'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Process Confirmation Dialog */}
+            <Dialog open={processDialogOpen} onOpenChange={setProcessDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Proses Pesanan</DialogTitle>
+                        <DialogDescription>
+                            Pesanan akan disiapkan untuk pengiriman. Status pesanan akan berubah menjadi 'Dalam Pengiriman'.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {sjToProcess && (
+                        <div className="bg-muted p-4 rounded-md my-2 text-sm space-y-1">
+                            <p><b>No. Surat Jalan:</b> {sjToProcess.number}</p>
+                            <p><b>Penerima:</b> {sjToProcess.recipient_name}</p>
+                            <p><b>Lokasi Barang:</b> {sjToProcess.source_location === 'toko' ? '🏪 Toko' : '📦 Gudang'}</p>
+                            <p><b>Total Item:</b> {sjToProcess.items?.length} jenis barang</p>
+                        </div>
+                    )}
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setProcessDialogOpen(false)}>Batal</Button>
+                        <Button
+                            onClick={handleProcessOrder}
+                            disabled={processOrder.isPending}
+                            className="bg-blue-600 hover:bg-blue-700"
+                        >
+                            {processOrder.isPending ? 'Memproses...' : 'Ya, Proses Pesanan'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

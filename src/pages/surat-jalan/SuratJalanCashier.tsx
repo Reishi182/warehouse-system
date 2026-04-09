@@ -36,9 +36,8 @@ import { id as idLocale } from 'date-fns/locale';
 export default function SuratJalanCashier() {
     const { user } = useAuth();
     const { toast } = useToast();
-    const { suratJalans, createSuratJalan, processOrder, cancelSuratJalan, isLoading } = useSuratJalanB2B();
+    const { suratJalans, createSuratJalan, cancelSuratJalan, isLoading } = useSuratJalanB2B();
     const [dialogOpen, setDialogOpen] = useState(false);
-    const [processDialogOpen, setProcessDialogOpen] = useState(false);
     const [selectedSj, setSelectedSj] = useState<any | null>(null);
 
     // Form State
@@ -203,19 +202,6 @@ export default function SuratJalanCashier() {
         setSourceLocation('toko');
         setCustomNumber('');
         setCustomerPoFile(null);
-    };
-
-    const handleProcessOrder = () => {
-        if (!selectedSj || !user) return;
-        processOrder.mutate({
-            suratJalanId: selectedSj.id,
-            processedBy: user.id,
-        }, {
-            onSuccess: () => {
-                setProcessDialogOpen(false);
-                setSelectedSj(null);
-            }
-        });
     };
 
     const getStatusBadge = (status: string) => {
@@ -455,16 +441,16 @@ export default function SuratJalanCashier() {
                     />
                 </StatsGrid>
 
-                {/* Approved - Need to Process */}
+                {/* Approved - Waiting for Warehouse to Process */}
                 {approved.length > 0 && (
                     <div>
                         <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                            <PlayCircle className="h-5 w-5 text-blue-500" />
-                            Siap Diproses ({approved.length})
+                            <Clock className="h-5 w-5 text-blue-500" />
+                            Menunggu Diproses Gudang ({approved.length})
                         </h3>
                         <div className="grid gap-4">
                             {approved.map((sj: any) => (
-                                <div key={sj.id} className="bg-card border-2 border-blue-200 rounded-lg p-6 shadow-sm">
+                                <div key={sj.id} className="bg-card border border-blue-200 rounded-lg p-4 shadow-sm opacity-90">
                                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                                         <div>
                                             <div className="flex items-center gap-2 mb-2 flex-wrap">
@@ -482,18 +468,7 @@ export default function SuratJalanCashier() {
                                             </div>
                                             <p className="text-muted-foreground font-medium">{sj.recipient_name}</p>
                                             <p className="text-sm text-muted-foreground">{sj.recipient_address}</p>
-                                            {sj.review_notes && (
-                                                <p className="text-sm text-blue-600 mt-2">📝 {sj.review_notes}</p>
-                                            )}
                                         </div>
-                                        <Button
-                                            size="lg"
-                                            onClick={() => { setSelectedSj(sj); setProcessDialogOpen(true); }}
-                                            className="bg-blue-600 hover:bg-blue-700"
-                                        >
-                                            <PlayCircle className="mr-2 h-4 w-4" />
-                                            Proses Pesanan
-                                        </Button>
                                     </div>
                                 </div>
                             ))}
@@ -625,38 +600,6 @@ export default function SuratJalanCashier() {
                 )}
             </div>
 
-            {/* Process Confirmation Dialog */}
-            <Dialog open={processDialogOpen} onOpenChange={setProcessDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Proses Pesanan</DialogTitle>
-                        <DialogDescription>
-                            Pesanan akan dikirim ke gudang untuk proses pengiriman. Pastikan semua data sudah benar.
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    {selectedSj && (
-                        <div className="bg-muted p-4 rounded-md my-2 text-sm space-y-1">
-                            <p><b>No. Surat Jalan:</b> {selectedSj.number}</p>
-                            <p><b>Penerima:</b> {selectedSj.recipient_name}</p>
-                            <p><b>Alamat:</b> {selectedSj.recipient_address}</p>
-                            <p><b>Lokasi Barang:</b> {selectedSj.source_location === 'toko' ? '🏪 Toko' : '📦 Gudang'}</p>
-                            <p><b>Total Item:</b> {selectedSj.items?.length} jenis barang</p>
-                        </div>
-                    )}
-
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setProcessDialogOpen(false)}>Batal</Button>
-                        <Button
-                            onClick={handleProcessOrder}
-                            disabled={processOrder.isPending}
-                            className="bg-blue-600 hover:bg-blue-700"
-                        >
-                            {processOrder.isPending ? 'Memproses...' : 'Ya, Proses Pesanan'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
         </MainLayout>
     );
 }
