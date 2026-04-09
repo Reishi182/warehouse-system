@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
-import { supabase } from '@/lib/supabase';
+import imageCompression from 'browser-image-compression';
+import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/components/ui/use-toast';
 import { Package, Upload, Loader2, ImagePlus } from 'lucide-react';
@@ -30,13 +31,20 @@ export function QuickImageUpload({ productId, currentUrl, className, onUploadSuc
         try {
             setIsUploading(true);
 
-            const fileExt = file.name.split('.').pop();
-            const fileName = `${Math.random()}.${fileExt}`;
+            const options = {
+                maxSizeMB: 0.5,
+                maxWidthOrHeight: 1200,
+                useWebWorker: true,
+                fileType: 'image/webp' as any,
+            };
+            
+            const compressedFile = await imageCompression(file, options);
+            const fileName = `${Math.random()}_${Date.now()}.webp`;
             const filePath = `products/${fileName}`;
 
             const { error: uploadError } = await supabase.storage
                 .from('product-images')
-                .upload(filePath, file);
+                .upload(filePath, compressedFile);
 
             if (uploadError) throw uploadError;
 
