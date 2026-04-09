@@ -194,7 +194,7 @@ export default function EditProductDialog({
 
         setSaving(true);
 
-        let uploadedImageUrl: string | undefined = imageUrl || product.image_url || undefined;
+        let uploadedImageUrl: string | null = imageUrl || null;
 
         // Upload new image if selected
         if (imageFile) {
