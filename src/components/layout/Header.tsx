@@ -103,7 +103,7 @@ export default function Header({ title, actions }: HeaderProps) {
   }, [location.pathname, title]);
 
   return (
-    <header className="sticky top-0 z-30 min-h-16 sm:h-20 flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-8 py-3 sm:py-0 border-b border-border bg-background gap-2 sm:gap-0">
+    <header className="sticky top-0 z-30 min-h-16 sm:h-20 flex flex-wrap sm:flex-nowrap items-center justify-between px-4 sm:px-8 py-3 sm:py-0 border-b border-border bg-background gap-4">
       {/* Title Section */}
       <div className="flex-1 min-w-0">
         {/* Breadcrumb - Desktop */}
@@ -145,7 +145,7 @@ export default function Header({ title, actions }: HeaderProps) {
       </div>
 
       {/* Action Buttons & Notifications - Responsive */}
-      <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-end sm:justify-start">
+      <div className="flex items-center gap-2 shrink-0">
         <NotificationBell />
         {actions}
       </div>

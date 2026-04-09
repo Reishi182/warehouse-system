@@ -126,7 +126,7 @@ export function StockOpnameProductPicker({
             if (!val) handleClose();
             else onOpenChange(val);
         }}>
-            <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col p-0 overflow-hidden gap-0 bg-gray-50/50 dark:bg-gray-950/50">
+            <DialogContent className="max-w-4xl w-[100vw] sm:w-full h-[100dvh] sm:h-auto sm:max-h-[85vh] !rounded-none sm:!rounded-xl p-0 flex flex-col overflow-hidden gap-0 bg-gray-50/50 dark:bg-gray-950/50 border-0 sm:border">
                 <DialogHeader className="p-5 pb-4 bg-white dark:bg-card border-b">
                     <DialogTitle className="flex items-center gap-2 text-xl">
                         <CheckSquare className="w-5 h-5 text-primary" />
