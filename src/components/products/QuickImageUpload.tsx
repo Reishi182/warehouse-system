@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import imageCompression from 'browser-image-compression';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { Package, Upload, Loader2, ImagePlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
