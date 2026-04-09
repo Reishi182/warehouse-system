@@ -150,95 +150,111 @@ export function StockOpnameProductPicker({
                     </div>
 
                     <div className="flex-1 overflow-y-auto rounded-xl border bg-white dark:bg-card relative">
-                        <table className="w-full text-sm text-left">
-                            <thead className="text-xs text-muted-foreground uppercase bg-muted/50 sticky top-0 z-10 backdrop-blur-md">
-                                <tr>
-                                    <th className="px-4 py-3 w-[50px] text-center border-b border-muted">
-                                        <Checkbox
-                                            checked={isAllSelected}
-                                            onCheckedChange={toggleAll}
-                                            className="rounded"
-                                        />
-                                    </th>
-                                    <th className="px-4 py-3 font-semibold border-b border-muted w-14">Gambar</th>
-                                    <th className="px-4 py-3 font-semibold border-b border-muted">Detail Produk</th>
-                                    <th className="px-4 py-3 font-semibold border-b border-muted text-right">Stok Gudang</th>
-                                    <th className="px-4 py-3 font-semibold border-b border-muted text-right">Stok Toko</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y relative">
-                                {filteredProducts.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={5} className="py-12 text-center text-muted-foreground">
-                                            <Package className="w-8 h-8 opacity-20 mx-auto mb-2" />
-                                            {searchQuery ? "Tidak ada produk yang cocok dengan pencarian" : "Semua produk sudah ditambahkan"}
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    paginatedProducts.map(product => {
-                                        const isSelected = selectedIds.has(product.id);
-                                        const isMulti = product.has_multi_unit && product.pcs_per_box;
+                        {/* Desktop Header */}
+                        <div className="hidden md:grid grid-cols-[40px_60px_1fr_100px_100px] gap-2 p-3 text-xs font-bold text-muted-foreground uppercase bg-muted/50 sticky top-0 z-10 backdrop-blur-md border-b">
+                            <div className="flex justify-center content-center items-center">
+                                <Checkbox
+                                    checked={isAllSelected}
+                                    onCheckedChange={toggleAll}
+                                    className="rounded"
+                                />
+                            </div>
+                            <div>Gambar</div>
+                            <div>Detail Produk</div>
+                            <div className="text-right">Stok Gudang</div>
+                            <div className="text-right">Stok Toko</div>
+                        </div>
 
-                                        return (
-                                            <tr
-                                                key={product.id}
-                                                onClick={() => toggleSelection(product.id)}
-                                                className={`cursor-pointer transition-colors hover:bg-muted/30 ${
-                                                    isSelected ? 'bg-primary/5 dark:bg-primary/10' : ''
-                                                }`}
-                                            >
-                                                <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                        {/* Mobile Select All */}
+                        <div className="md:hidden flex items-center justify-between p-3 bg-muted/50 sticky top-0 z-10 backdrop-blur-md border-b">
+                            <div className="flex items-center gap-3">
+                                <Checkbox
+                                    checked={isAllSelected}
+                                    onCheckedChange={toggleAll}
+                                    className="rounded"
+                                    id="select-all-mobile"
+                                />
+                                <label htmlFor="select-all-mobile" className="text-sm font-semibold">Pilih Semua Produk</label>
+                            </div>
+                        </div>
+
+                        <div className="divide-y relative">
+                            {filteredProducts.length === 0 ? (
+                                <div className="py-12 flex flex-col items-center justify-center text-muted-foreground">
+                                    <Package className="w-10 h-10 opacity-20 mb-3" />
+                                    <span>{searchQuery ? "Tidak ada produk yang cocok dengan pencarian" : "Semua produk sudah ditambahkan"}</span>
+                                </div>
+                            ) : (
+                                paginatedProducts.map(product => {
+                                    const isSelected = selectedIds.has(product.id);
+                                    const isMulti = product.has_multi_unit && product.pcs_per_box;
+
+                                    return (
+                                        <div
+                                            key={product.id}
+                                            onClick={() => toggleSelection(product.id)}
+                                            className={`cursor-pointer transition-colors hover:bg-muted/30 p-3 md:p-3 flex flex-col md:grid md:grid-cols-[40px_60px_1fr_100px_100px] gap-3 md:gap-2 md:items-center ${
+                                                isSelected ? 'bg-primary/5 dark:bg-primary/10' : ''
+                                            }`}
+                                        >
+                                            {/* Top section on mobile: Checkbox, Image, Info */}
+                                            <div className="flex items-start md:contents gap-3">
+                                                <div className="pt-0.5 md:pt-0 w-[24px] md:w-[40px] flex justify-center shrink-0">
                                                     <Checkbox
                                                         checked={isSelected}
                                                         onCheckedChange={() => toggleSelection(product.id)}
                                                         className="rounded"
+                                                        onClick={(e) => e.stopPropagation()}
                                                     />
-                                                </td>
-                                                <td className="px-4 py-2" onClick={(e) => {
-                                                    // Allow clicking cell to toggle checkbox
-                                                    e.stopPropagation();
-                                                    toggleSelection(product.id);
-                                                }}>
-                                                    <div className="w-10 h-10 rounded-lg overflow-hidden bg-muted/50 flex items-center justify-center border">
-                                                        {product.image_url ? (
-                                                            <img src={product.image_url} alt="" className="w-full h-full object-cover" />
-                                                        ) : (
-                                                            <Package className="w-5 h-5 text-muted-foreground/30" />
-                                                        )}
-                                                    </div>
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <div className="font-medium">{product.name}</div>
-                                                    <div className="flex items-center gap-2 mt-0.5">
+                                                </div>
+                                                
+                                                <div className="w-12 h-12 md:w-10 md:h-10 rounded-lg overflow-hidden bg-muted/50 flex items-center justify-center border shrink-0">
+                                                    {product.image_url ? (
+                                                        <img src={product.image_url} alt="" className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <Package className="w-6 h-6 md:w-5 md:h-5 text-muted-foreground/30" />
+                                                    )}
+                                                </div>
+
+                                                <div className="flex-1 min-w-0 md:col-start-3">
+                                                    <div className="font-medium text-sm md:text-sm line-clamp-2 leading-tight md:truncate md:line-clamp-none">{product.name}</div>
+                                                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
                                                         <span className="text-xs text-muted-foreground font-mono">{product.barcode}</span>
                                                         {isMulti && (
-                                                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-blue-50 text-blue-600 border-blue-200 uppercase">
-                                                                Multi-Unit
+                                                            <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 bg-blue-50 text-blue-600 border-blue-200 uppercase">
+                                                                Multi
                                                             </Badge>
                                                         )}
                                                         {(product.stock.gudang + product.stock.toko) === 0 && (
-                                                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-red-50 text-red-600 border-red-200">
+                                                            <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 bg-red-50 text-red-600 border-red-200">
                                                                 Kosong
                                                             </Badge>
                                                         )}
                                                     </div>
-                                                </td>
-                                                <td className="px-4 py-3 text-right font-medium">
-                                                    <span className={product.stock.gudang === 0 ? "text-muted-foreground" : ""}>
+                                                </div>
+                                            </div>
+
+                                            {/* Stocks section: Bottom on mobile, columns on desktop */}
+                                            <div className="grid grid-cols-2 md:contents text-xs md:text-sm mt-1 md:mt-0 pl-11 md:pl-0">
+                                                <div className="md:text-right">
+                                                    <div className="text-muted-foreground md:hidden mb-0.5 text-[10px] uppercase font-semibold">Stok Gudang</div>
+                                                    <div className={`font-medium ${product.stock.gudang === 0 ? "text-muted-foreground" : ""}`}>
                                                         {formatStock(product, product.stock.gudang)}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-3 text-right font-medium">
-                                                    <span className={product.stock.toko === 0 ? "text-muted-foreground" : ""}>
+                                                    </div>
+                                                </div>
+                                                <div className="md:text-right">
+                                                    <div className="text-muted-foreground md:hidden mb-0.5 text-[10px] uppercase font-semibold">Stok Toko</div>
+                                                    <div className={`font-medium ${product.stock.toko === 0 ? "text-muted-foreground" : ""}`}>
                                                         {formatStock(product, product.stock.toko)}
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })
-                                )}
-                            </tbody>
-                        </table>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
                     </div>
                     {totalPages > 1 && (
                         <div className="flex items-center justify-between px-2 pt-2 text-sm">
@@ -253,23 +269,25 @@ export function StockOpnameProductPicker({
                     )}
                 </div>
 
-                <DialogFooter className="p-4 px-5 bg-white dark:bg-card border-t flex items-center justify-between sm:justify-between">
-                    <div className="text-sm font-medium text-muted-foreground">
+                <DialogFooter className="p-4 px-5 bg-white dark:bg-card border-t flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-0 mt-auto">
+                    <div className="text-sm font-medium text-muted-foreground w-full sm:w-auto text-center sm:text-left">
                         {selectedIds.size > 0 ? (
                             <span className="text-primary font-bold">{selectedIds.size} produk terpilih</span>
                         ) : (
                             "Belum ada produk yang dipilih"
                         )}
                     </div>
-                    <div className="flex gap-2">
-                        <Button variant="outline" onClick={handleClose}>
+                    <div className="flex gap-2 w-full sm:w-auto">
+                        <Button variant="outline" onClick={handleClose} className="flex-1 sm:flex-none">
                             Batal
                         </Button>
                         <Button 
                             onClick={handleConfirm} 
                             disabled={selectedIds.size === 0}
+                            className="flex-1 sm:flex-none"
                         >
-                            Tambahkan ke Opname
+                            <span className="hidden sm:inline">Tambahkan ke Opname</span>
+                            <span className="sm:hidden">Tambah ({selectedIds.size})</span>
                         </Button>
                     </div>
                 </DialogFooter>
