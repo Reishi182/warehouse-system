@@ -132,10 +132,14 @@ export default function SuratJalanCashier() {
             ? (product as any).stock_gudang
             : (product as any).stock_toko;
 
-        if (quantity > availableStock) {
+        const actualQuantity = (product.has_multi_unit && unit === product.main_unit) 
+            ? quantity * (product.pcs_per_box || 1) 
+            : quantity;
+
+        if (actualQuantity > availableStock) {
             toast({
                 title: 'Stok tidak cukup!',
-                description: `Stok tersedia: ${availableStock}`,
+                description: `Stok tersedia: ${Math.floor(availableStock / (product.has_multi_unit && unit === product.main_unit ? (product.pcs_per_box || 1) : 1))} ${unit} (${availableStock} ${product.sell_unit || 'pcs'})`,
                 variant: 'destructive'
             });
             return;

@@ -108,15 +108,23 @@ export function useSuratJalanB2B() {
 
                 // Validate stock is available
                 const stockField = location === 'gudang' ? 'stock_gudang' : 'stock_toko';
-                const { data: prodStock } = await supabase
+                const { data: prodData } = await supabase
                     .from('products')
-                    .select(stockField)
+                    .select(`${stockField}, has_multi_unit, main_unit, pcs_per_box, sell_unit`)
                     .eq('id', itemsToInsert[i].product_id)
                     .single();
 
-                if (prodStock && ((prodStock as any)[stockField] || 0) < itemsToInsert[i].quantity) {
+                const itemUnit = itemsToInsert[i].unit;
+                const actualQty = (prodData?.has_multi_unit && itemUnit === prodData?.main_unit) 
+                    ? itemsToInsert[i].quantity * (prodData?.pcs_per_box || 1) 
+                    : itemsToInsert[i].quantity;
+
+                if (prodData && ((prodData as any)[stockField] || 0) < actualQty) {
                     throw new Error(`Stok ${location} tidak cukup untuk ${itemsToInsert[i].product_name}`);
                 }
+                
+                // Temp store actualQty in the item object so we can use it for reservation later below
+                (itemsToInsert[i] as any)._actualQty = actualQty;
             }
 
             const { error: itemsError } = await supabase
@@ -130,7 +138,7 @@ export function useSuratJalanB2B() {
                 for (const item of itemsToInsert) {
                     const { error: reserveError } = await supabase.rpc('reserve_stock', {
                         p_product_id: item.product_id,
-                        p_quantity: item.quantity
+                        p_quantity: (item as any)._actualQty || item.quantity
                     });
                     if (reserveError) throw new Error(`Gagal reservasi stok: ${reserveError.message}`);
                 }
@@ -176,11 +184,18 @@ export function useSuratJalanB2B() {
             if (approved) {
                 const { data: sj } = await supabase.from('surat_jalan').select('source_location').eq('id', suratJalanId).single();
                 if (sj?.source_location === 'gudang') {
-                    const { data: items } = await supabase.from('surat_jalan_items').select('*').eq('surat_jalan_id', suratJalanId);
+                    const { data: items } = await supabase.from('surat_jalan_items')
+                        .select('*, product:products(has_multi_unit, main_unit, pcs_per_box)')
+                        .eq('surat_jalan_id', suratJalanId);
+                        
                     for (const item of items || []) {
+                        const actualQty = (item.product?.has_multi_unit && item.unit === item.product?.main_unit) 
+                            ? item.quantity * (item.product?.pcs_per_box || 1) 
+                            : item.quantity;
+                            
                         const { error: reserveError } = await supabase.rpc('reserve_stock', {
                             p_product_id: item.product_id,
-                            p_quantity: item.quantity
+                            p_quantity: actualQty
                         });
                         // Bug fix #6: Throw on reserve failure instead of ignoring
                         if (reserveError) throw new Error(`Gagal reservasi stok: ${reserveError.message}`);
@@ -305,14 +320,20 @@ export function useSuratJalanB2B() {
             }).eq('id', suratJalanId);
 
             // 4. Commit Stock and log to stock_logs
-            const { data: items } = await supabase.from('surat_jalan_items').select('*').eq('surat_jalan_id', suratJalanId);
+            const { data: items } = await supabase.from('surat_jalan_items')
+                .select('*, product:products(has_multi_unit, main_unit, pcs_per_box)')
+                .eq('surat_jalan_id', suratJalanId);
 
             for (const item of items || []) {
+                const actualQty = (item.product?.has_multi_unit && item.unit === item.product?.main_unit) 
+                    ? item.quantity * (item.product?.pcs_per_box || 1) 
+                    : item.quantity;
+
                 if (sourceLocation === 'gudang') {
                     // Gudang: use RPC to commit stock
                     const { error: commitError } = await supabase.rpc('commit_stock_issue', {
                         p_product_id: item.product_id,
-                        p_quantity: item.quantity
+                        p_quantity: actualQty
                     });
                     if (commitError) throw commitError;
 
@@ -320,10 +341,10 @@ export function useSuratJalanB2B() {
                     await supabase.from('stock_logs').insert({
                         product_id: item.product_id,
                         type: 'out',
-                        quantity: item.quantity,
+                        quantity: actualQty,
                         location: 'gudang',
                         user_id: completedBy,
-                        note: `Surat Jalan B2B - ${item.product_name || 'Produk'}`,
+                        note: `Surat Jalan B2B - ${item.product_name || 'Produk'} (Input: ${item.quantity} ${item.unit || 'pcs'})`,
                     });
                 } else {
                     // Toko: directly deduct stock_toko
@@ -336,10 +357,10 @@ export function useSuratJalanB2B() {
                     if (prod) {
                         // Bug fix #5: Validate stock before deducting
                         const currentStock = prod.stock_toko || 0;
-                        if (currentStock < item.quantity) {
-                            throw new Error(`Stok toko tidak cukup untuk ${item.product_name || 'produk'}: tersedia ${currentStock}, dibutuhkan ${item.quantity}`);
+                        if (currentStock < actualQty) {
+                            throw new Error(`Stok toko tidak cukup untuk ${item.product_name || 'produk'}: tersedia ${currentStock}, dibutuhkan ${actualQty}`);
                         }
-                        const newStock = currentStock - item.quantity;
+                        const newStock = currentStock - actualQty;
                         await supabase.from('products')
                             .update({ stock_toko: newStock })
                             .eq('id', item.product_id);
@@ -348,10 +369,10 @@ export function useSuratJalanB2B() {
                         await supabase.from('stock_logs').insert({
                             product_id: item.product_id,
                             type: 'out',
-                            quantity: item.quantity,
+                            quantity: actualQty,
                             location: 'toko',
                             user_id: completedBy,
-                            note: `Surat Jalan B2B - ${item.product_name || 'Produk'}`,
+                            note: `Surat Jalan B2B - ${item.product_name || 'Produk'} (Input: ${item.quantity} ${item.unit || 'pcs'})`,
                         });
                     }
                 }
@@ -380,11 +401,18 @@ export function useSuratJalanB2B() {
 
             // Only release if approved and from gudang
             if (sj?.status === 'approved' && sj?.source_location === 'gudang') {
-                const { data: items } = await supabase.from('surat_jalan_items').select('*').eq('surat_jalan_id', suratJalanId);
+                const { data: items } = await supabase.from('surat_jalan_items')
+                    .select('*, product:products(has_multi_unit, main_unit, pcs_per_box)')
+                    .eq('surat_jalan_id', suratJalanId);
+                    
                 for (const item of items || []) {
+                    const actualQty = (item.product?.has_multi_unit && item.unit === item.product?.main_unit) 
+                        ? item.quantity * (item.product?.pcs_per_box || 1) 
+                        : item.quantity;
+                        
                     await supabase.rpc('release_stock_reservation', {
                         p_product_id: item.product_id,
-                        p_quantity: item.quantity
+                        p_quantity: actualQty
                     });
                 }
             }
