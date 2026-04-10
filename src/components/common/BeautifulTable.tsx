@@ -440,7 +440,12 @@ export function BeautifulTable<T extends { id: string }>({
     // Use serialized values for stable comparison
     const prevDataLenRef = useRef(data.length);
     const serializedFilters = JSON.stringify(columnFilters);
+    const isFirstFilterMountRef = React.useRef(true);
     React.useEffect(() => {
+        if (isFirstFilterMountRef.current) {
+            isFirstFilterMountRef.current = false;
+            return;
+        }
         setPageIndex(0);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [globalFilter, serializedFilters]);
