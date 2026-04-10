@@ -1,6 +1,7 @@
 import { forwardRef } from 'react';
 import { PaymentMethod } from '@/types';
 import Barcode from 'react-barcode';
+import { formatRupiah } from '@/lib/format';
 
 interface ReceiptItem {
     name: string;
@@ -55,7 +56,7 @@ const POSReceipt = forwardRef<HTMLDivElement, POSReceiptProps>(({
     tabInfo,
     returnRef,
 }, ref) => {
-    const formatCurrency = (amount: number) => `Rp ${amount.toLocaleString('id-ID')}`;
+
     const formatDate = (d: Date) => d.toLocaleDateString('id-ID', {
         day: '2-digit',
         month: '2-digit',
@@ -160,12 +161,12 @@ const POSReceipt = forwardRef<HTMLDivElement, POSReceiptProps>(({
                         <div key={idx} className="text-xs">
                             <div className="flex justify-between">
                                 <span className="flex-1 truncate pr-2 font-semibold">{item.name}</span>
-                                <span className="font-bold">{formatCurrency(item.subtotal)}</span>
+                                <span className="font-bold">{formatRupiah(item.subtotal)}</span>
                             </div>
                             <div className="text-black text-xs pl-2 font-medium">
-                                {item.quantity} x {formatCurrency(item.price)}
+                                {item.quantity} x {formatRupiah(item.price)}
                                 {item.discount > 0 && (
-                                    <span className="font-bold ml-1">(-{formatCurrency(item.discount)})</span>
+                                    <span className="font-bold ml-1">(-{formatRupiah(item.discount)})</span>
                                 )}
                             </div>
                         </div>
@@ -176,17 +177,17 @@ const POSReceipt = forwardRef<HTMLDivElement, POSReceiptProps>(({
                 <div className="border-t-2 border-dashed border-black pt-3 space-y-1 text-xs">
                     <div className="flex justify-between font-semibold">
                         <span>Subtotal</span>
-                        <span>{formatCurrency(subtotal)}</span>
+                        <span>{formatRupiah(subtotal)}</span>
                     </div>
                     {orderDiscount > 0 && (
                         <div className="flex justify-between font-bold">
                             <span>Diskon</span>
-                            <span>-{formatCurrency(orderDiscount)}</span>
+                            <span>-{formatRupiah(orderDiscount)}</span>
                         </div>
                     )}
                     <div className="flex justify-between font-black text-base pt-1 border-t-2 border-black">
                         <span>TOTAL</span>
-                        <span>{formatCurrency(total)}</span>
+                        <span>{formatRupiah(total)}</span>
                     </div>
                 </div>
 
@@ -202,11 +203,11 @@ const POSReceipt = forwardRef<HTMLDivElement, POSReceiptProps>(({
                         <>
                             <div className="flex justify-between font-semibold">
                                 <span>Bayar</span>
-                                <span>{formatCurrency(amountPaid)}</span>
+                                <span>{formatRupiah(amountPaid)}</span>
                             </div>
                             <div className="flex justify-between font-black">
                                 <span>Kembalian</span>
-                                <span>{formatCurrency(change)}</span>
+                                <span>{formatRupiah(change)}</span>
                             </div>
                         </>
                     )}
@@ -217,7 +218,7 @@ const POSReceipt = forwardRef<HTMLDivElement, POSReceiptProps>(({
                     <div className="border-t-2 border-dashed border-black pt-3 bg-orange-50 -mx-4 px-4 py-2">
                         <div className="flex justify-between text-xs font-bold">
                             <span>TOTAL TAB (Akumulasi):</span>
-                            <span className="text-orange-700">{formatCurrency(tabInfo.runningTotal)}</span>
+                            <span className="text-orange-700">{formatRupiah(tabInfo.runningTotal)}</span>
                         </div>
                         <p className="text-[10px] text-orange-600 mt-1 text-center font-semibold">
                             *Belum lunas - bayar saat tab ditutup

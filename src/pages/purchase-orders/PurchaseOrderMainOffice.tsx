@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import UnitSelector from '@/components/common/UnitSelector';
 import {
     Select,
     SelectContent,
@@ -622,10 +623,10 @@ export default function PurchaseOrderMainOffice() {
                                             <div className="flex gap-3 items-end">
                                                 <div className="w-24 space-y-2">
                                                     <Label>Unit</Label>
-                                                    <Input
+                                                    <UnitSelector
                                                         value={newProductUnit}
-                                                        onChange={(e) => setNewProductUnit(e.target.value)}
-                                                        placeholder="pcs"
+                                                        onChange={setNewProductUnit}
+                                                        className="h-10"
                                                     />
                                                 </div>
                                                 <div className="w-24 space-y-2">
@@ -667,47 +668,16 @@ export default function PurchaseOrderMainOffice() {
                                                     excludeIds={items.map(i => i.productId || '')}
                                                 />
                                             </div>
-                                            {selectedProduct?.has_multi_unit && (
-                                                <div className="w-24 space-y-2">
-                                                    <Label>Unit</Label>
-                                                    <Select value={selectedUnit} onValueChange={handleUnitChange}>
-                                                        <SelectTrigger>
-                                                            <SelectValue />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value={selectedProduct.main_unit || 'box'}>
-                                                                {selectedProduct.main_unit || 'box'}
-                                                            </SelectItem>
-                                                            <SelectItem value={selectedProduct.sell_unit || 'pcs'}>
-                                                                {selectedProduct.sell_unit || 'pcs'}
-                                                            </SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                            )}
-                                            {!selectedProduct?.has_multi_unit && selectedProduct && (
-                                                <div className="w-32 space-y-2">
-                                                    <Label>Unit</Label>
-                                                    <Select value={selectedUnit} onValueChange={handleUnitChange}>
-                                                        <SelectTrigger>
-                                                            <SelectValue />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            {globalUnits.map((u) => (
-                                                                <SelectItem key={u.id} value={u.code}>
-                                                                    {u.label}
-                                                                </SelectItem>
-                                                            ))}
-                                                            {/* Gagal fetch satuan dari DB? tetap tampilkan unit yang ter-default */}
-                                                            {!globalUnits.find(u => u.code === (selectedUnit || selectedProduct.sell_unit || 'pcs')) && (
-                                                                <SelectItem value={selectedUnit || selectedProduct.sell_unit || 'pcs'}>
-                                                                    {String(selectedUnit || selectedProduct.sell_unit || 'pcs').toUpperCase()}
-                                                                </SelectItem>
-                                                            )}
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                            )}
+                                            <div className="w-32 space-y-2">
+                                                <Label>Unit</Label>
+                                                <UnitSelector
+                                                    product={products.find(p => p.id === selectedProductId)}
+                                                    value={selectedUnit}
+                                                    onChange={handleUnitChange}
+                                                    disabled={!selectedProductId}
+                                                    className="h-10"
+                                                />
+                                            </div>
                                             <div className="w-24 space-y-2">
                                                 <Label>Qty</Label>
                                                 <Input
@@ -910,7 +880,7 @@ export default function PurchaseOrderMainOffice() {
                                             {selectedPO.items?.map(item => (
                                                 <tr key={item.id} className="border-t">
                                                     <td className="p-3">{item.product_name}</td>
-                                                    <td className="text-right p-3">{item.quantity}</td>
+                                                    <td className="text-right p-3">{item.quantity} <span className="text-xs text-muted-foreground uppercase">{item.unit || 'pcs'}</span></td>
                                                     <td className="text-right p-3">Rp {item.unit_price.toLocaleString('id-ID')}</td>
                                                     <td className="text-right p-3 font-medium">Rp {item.total_price.toLocaleString('id-ID')}</td>
                                                 </tr>

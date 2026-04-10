@@ -25,11 +25,19 @@ export function formatPercent(num: number, decimals: number = 1): string {
 }
 
 /**
- * Format compact number (e.g., 1.5K, 2.3M)
+ * Format compact number without currency (e.g., 1,5jt, 200rb)
+ * Used in stat cards that prepend "Rp " manually
  */
 export function formatCompact(num: number): string {
     return new Intl.NumberFormat('id-ID', {
         notation: 'compact',
         compactDisplay: 'short',
     }).format(num);
+}
+
+/**
+ * Format as compact Rupiah including "Rp" prefix (e.g., "Rp 1,5jt")
+ */
+export function formatCompactRupiah(num: number): string {
+    return `Rp ${formatCompact(num)}`;
 }

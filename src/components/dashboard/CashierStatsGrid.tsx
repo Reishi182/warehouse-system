@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Sale } from '@/types';
 import { Link } from 'react-router-dom';
+import { formatCompact } from '@/lib/format';
 
 interface CashierStatsGridProps {
     salesToday: Sale[];
@@ -27,14 +28,6 @@ export default function CashierStatsGrid({ salesToday, totalCashTransfer }: Cash
         };
     }, [salesToday, totalCashTransfer]);
 
-    const formatCurrency = (value: number) => {
-        if (value >= 1000000) {
-            return `Rp ${(value / 1000000).toFixed(1)}jt`;
-        } else if (value >= 1000) {
-            return `Rp ${(value / 1000).toFixed(0)}rb`;
-        }
-        return `Rp ${value.toLocaleString('id-ID')}`;
-    };
 
     const cards = [
         {
@@ -50,7 +43,7 @@ export default function CashierStatsGrid({ salesToday, totalCashTransfer }: Cash
         },
         {
             title: 'Total Penjualan',
-            value: formatCurrency(stats.totalAmount),
+            value: formatCompact(stats.totalAmount),
             subtitle: 'pendapatan hari ini',
             icon: TrendingUp,
             gradient: 'from-emerald-500/20 via-emerald-500/10 to-transparent',
@@ -61,7 +54,7 @@ export default function CashierStatsGrid({ salesToday, totalCashTransfer }: Cash
         },
         {
             title: 'Cash Masuk',
-            value: formatCurrency(stats.cashAmount),
+            value: formatCompact(stats.cashAmount),
             subtitle: `${stats.cashCount} transaksi tunai`,
             icon: Banknote,
             gradient: 'from-violet-500/20 via-violet-500/10 to-transparent',
@@ -72,7 +65,7 @@ export default function CashierStatsGrid({ salesToday, totalCashTransfer }: Cash
         },
         {
             title: 'Belum Disetor',
-            value: formatCurrency(stats.saldoBelumDisetor),
+            value: formatCompact(stats.saldoBelumDisetor),
             subtitle: 'perlu setor',
             icon: Wallet,
             gradient: 'from-amber-500/20 via-amber-500/10 to-transparent',

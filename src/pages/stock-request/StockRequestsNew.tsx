@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStockRequests } from '@/hooks/useStockRequests';
@@ -8,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import UnitSelector from '@/components/common/UnitSelector';
 import { Plus, Trash2, Send, ShoppingCart, Search, CheckCircle, Clock, Package, RefreshCw, XCircle, Eye, Sparkles, FileText, Calendar, User, Ban } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useData } from '@/contexts/DataContext';
@@ -496,11 +496,12 @@ export default function StockRequestsNew() {
                                                             className="h-8 text-sm rounded-lg"
                                                         />
                                                     </div>
-                                                    <div>
+                                                    <div className="w-28">
                                                         <Label className="text-xs text-muted-foreground">Satuan</Label>
-                                                        <Input
+                                                        <UnitSelector
+                                                            product={products.find(p => p.id === item.productId)}
                                                             value={item.unit}
-                                                            onChange={e => handeUpdateItem(item.productId, 'unit', e.target.value)}
+                                                            onChange={val => handeUpdateItem(item.productId, 'unit', val)}
                                                             className="h-8 text-sm rounded-lg"
                                                         />
                                                     </div>

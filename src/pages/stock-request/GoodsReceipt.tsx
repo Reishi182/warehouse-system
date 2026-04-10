@@ -30,6 +30,7 @@ interface ReceivedItemState {
     quantityShipped: number;
     quantityReceived: number;
     quantityDamaged: number;
+    unit?: string | null;
 }
 
 export default function GoodsReceipt() {
@@ -69,6 +70,7 @@ export default function GoodsReceipt() {
             quantityShipped: item.quantity_shipped,
             quantityReceived: item.quantity_shipped, // Default to shipped qty
             quantityDamaged: 0,
+            unit: item.unit,
         })) || [];
 
         setReceivedItems(items);
@@ -171,7 +173,7 @@ export default function GoodsReceipt() {
                                             {shipment.items?.slice(0, 3).map((i: any) => (
                                                 <div key={i.id} className="flex justify-between">
                                                     <span>{i.product?.name}</span>
-                                                    <span>{i.quantity_shipped} pcs</span>
+                                                    <span>{i.quantity_shipped} {i.unit || 'pcs'}</span>
                                                 </div>
                                             ))}
                                         </div>
@@ -222,7 +224,7 @@ export default function GoodsReceipt() {
                                             return (
                                                 <tr key={item.productId} className={hasItemDiscrepancy ? 'bg-amber-50 dark:bg-amber-900/20' : ''}>
                                                     <td className="p-3 font-medium">{item.productName}</td>
-                                                    <td className="p-3 text-center font-mono">{item.quantityShipped}</td>
+                                                    <td className="p-3 text-center font-mono">{item.quantityShipped} {item.unit || ''}</td>
                                                     <td className="p-3">
                                                         <Input
                                                             type="number"

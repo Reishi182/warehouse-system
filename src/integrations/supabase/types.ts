@@ -147,6 +147,7 @@ export type Database = {
           product_id: string
           product_name: string
           quantity: number
+          unit?: string | null
           sale_id: string
           subtotal?: number
         }
@@ -157,6 +158,7 @@ export type Database = {
           product_id?: string
           product_name?: string
           quantity?: number
+          unit?: string | null
           sale_id?: string
           subtotal?: number
         }
@@ -501,6 +503,7 @@ export type Database = {
           quantity: number
           surat_jalan_id: string
           to_location: string
+          unit: string | null
         }
         Insert: {
           barcode: string
@@ -511,6 +514,7 @@ export type Database = {
           quantity: number
           surat_jalan_id: string
           to_location: string
+          unit?: string | null
         }
         Update: {
           barcode?: string
@@ -521,6 +525,7 @@ export type Database = {
           quantity?: number
           surat_jalan_id?: string
           to_location?: string
+          unit?: string | null
         }
         Relationships: [
           {
@@ -680,6 +685,7 @@ export type Database = {
           product_id: string
           quantity_shipped: number
           created_at: string
+          unit: string | null
         }
         Insert: {
           id?: string
@@ -687,6 +693,7 @@ export type Database = {
           product_id: string
           quantity_shipped: number
           created_at?: string
+          unit?: string | null
         }
         Update: {
           id?: string
@@ -694,6 +701,7 @@ export type Database = {
           product_id?: string
           quantity_shipped?: number
           created_at?: string
+          unit?: string | null
         }
         Relationships: [
           {

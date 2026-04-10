@@ -2,6 +2,8 @@
 import { useState } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import PageSkeleton from '@/components/common/PageSkeleton';
+import StatusBadge from '@/components/common/StatusBadge';
+import LocationBadge from '@/components/common/LocationBadge';
 import { ClickableImage } from '@/components/common/ImageLightbox';
 import { useSuratJalanB2B } from '@/hooks/useSuratJalanB2B';
 import { useAuth } from '@/contexts/AuthContext';
@@ -18,7 +20,7 @@ import {
     DialogDescription,
     DialogFooter,
 } from '@/components/ui/dialog';
-import { FileText, CheckCircle, Clock, Package, TruckIcon, XCircle, Store, Warehouse, Eye, ThumbsUp, ThumbsDown, Ban } from 'lucide-react';
+import { FileText, CheckCircle, Clock, Package, TruckIcon, XCircle, Eye, ThumbsUp, ThumbsDown, Ban } from 'lucide-react';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 
@@ -102,24 +104,6 @@ export default function SuratJalanMainOffice() {
         });
     };
 
-    const getStatusBadge = (status: string) => {
-        switch (status) {
-            case 'pending_review':
-                return <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full flex items-center gap-1"><Clock className="h-3 w-3" /> Menunggu Review</span>;
-            case 'approved':
-                return <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full flex items-center gap-1"><CheckCircle className="h-3 w-3" /> Disetujui</span>;
-            case 'processing':
-                return <span className="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full flex items-center gap-1"><TruckIcon className="h-3 w-3" /> Diproses</span>;
-            case 'completed':
-                return <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full flex items-center gap-1"><CheckCircle className="h-3 w-3" /> Selesai</span>;
-            case 'rejected':
-                return <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full flex items-center gap-1"><XCircle className="h-3 w-3" /> Ditolak</span>;
-            case 'cancelled':
-                return <span className="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded-full">Dibatalkan</span>;
-            default:
-                return <span className="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded-full">{status}</span>;
-        }
-    };
 
     return (
         <MainLayout title="Review Surat Jalan" subtitle="Review dan approve surat jalan dari Kasir">
@@ -166,16 +150,8 @@ export default function SuratJalanMainOffice() {
                                         <div className="flex-1">
                                             <div className="flex items-center gap-2 mb-2 flex-wrap">
                                                 <span className="font-bold text-xl">{sj.number}</span>
-                                                {getStatusBadge(sj.status)}
-                                                {sj.source_location === 'toko' ? (
-                                                    <span className="bg-green-50 text-green-700 text-xs px-2 py-1 rounded-full flex items-center gap-1">
-                                                        <Store className="h-3 w-3" /> Dari Toko
-                                                    </span>
-                                                ) : (
-                                                    <span className="bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded-full flex items-center gap-1">
-                                                        <Warehouse className="h-3 w-3" /> Dari Gudang
-                                                    </span>
-                                                )}
+                                                <StatusBadge status={sj.status} showIcon />
+                                                <LocationBadge location={sj.source_location} />
                                             </div>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                                                 <div>
@@ -264,7 +240,7 @@ export default function SuratJalanMainOffice() {
                                         <div>
                                             <div className="flex items-center gap-2">
                                                 <span className="font-bold">{sj.number}</span>
-                                                {getStatusBadge(sj.status)}
+                                                <StatusBadge status={sj.status} showIcon />
                                             </div>
                                             <p className="text-sm text-muted-foreground">{sj.recipient_name}</p>
                                         </div>
@@ -342,7 +318,7 @@ export default function SuratJalanMainOffice() {
                         <div className="space-y-4">
                             <div className="flex items-center gap-3">
                                 <span className="text-2xl font-bold">{selectedSj.number}</span>
-                                {getStatusBadge(selectedSj.status)}
+                                <StatusBadge status={selectedSj.status} showIcon />
                             </div>
 
                             <div className="grid grid-cols-2 gap-4 bg-muted p-4 rounded-lg">

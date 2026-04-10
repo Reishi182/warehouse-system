@@ -61,7 +61,8 @@ export default function StockShipments() {
             shippedBy: user?.id || '',
             items: shipmentItems.map(i => ({
                 productId: i.productId,
-                quantity: i.shipQty
+                quantity: i.shipQty,
+                unit: i.unit
             }))
         });
 

@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Check, X, Package, Clock, AlertCircle } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
+import StatusBadge from '@/components/common/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -79,18 +80,6 @@ export default function StockReturnApproval() {
         });
     };
 
-    const getStatusBadge = (status: string) => {
-        switch (status) {
-            case 'pending_main_office':
-                return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Menunggu</Badge>;
-            case 'approved':
-                return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Disetujui</Badge>;
-            case 'rejected':
-                return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Ditolak</Badge>;
-            default:
-                return <Badge variant="outline">{status}</Badge>;
-        }
-    };
 
     // Access control - only main_office and admin
     if (role !== 'main_office' && role !== 'admin') {
@@ -229,7 +218,7 @@ export default function StockReturnApproval() {
                                                 </span>
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                {getStatusBadge(ret.status)}
+                                            <StatusBadge status={ret.status} showIcon />
                                                 <span className="text-xs text-muted-foreground">
                                                     {format(new Date(ret.created_at), 'dd MMM yyyy', { locale: idLocale })}
                                                 </span>

@@ -3,6 +3,7 @@ import StatCard from '@/components/common/StatCard';
 import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
 import { DateInput } from '@/components/common/DatePicker';
 import { Sale, CashTransfer } from '@/types';
+import { formatCompact } from '@/lib/format';
 
 interface FinanceTabProps {
     financeDate: string;
@@ -27,14 +28,6 @@ export default function FinanceTab({
     totalCashTransfer,
     saldoBelumDisetor,
 }: FinanceTabProps) {
-    const formatCurrency = (value: number) => {
-        if (value >= 1000000) {
-            return `Rp ${(value / 1000000).toFixed(1)}jt`;
-        } else if (value >= 1000) {
-            return `Rp ${(value / 1000).toFixed(0)}rb`;
-        }
-        return `Rp ${value.toLocaleString('id-ID')}`;
-    };
 
     // Column definitions for sales table
     const salesColumns: Column<Sale>[] = [
@@ -124,7 +117,7 @@ export default function FinanceTab({
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 <StatCard
                     title="Total Penjualan"
-                    value={formatCurrency(totalSalesAmount)}
+                    value={formatCompact(totalSalesAmount)}
                     subtitle="Total pendapatan"
                     icon={ShoppingCart}
                     gradient="blue"
@@ -132,7 +125,7 @@ export default function FinanceTab({
                 />
                 <StatCard
                     title="Cash Masuk"
-                    value={formatCurrency(totalCashSales)}
+                    value={formatCompact(totalCashSales)}
                     subtitle="Pembayaran tunai"
                     icon={Wallet}
                     gradient="amber"
@@ -140,7 +133,7 @@ export default function FinanceTab({
                 />
                 <StatCard
                     title="Transfer"
-                    value={formatCurrency(totalTransferSales)}
+                    value={formatCompact(totalTransferSales)}
                     subtitle="Pembayaran transfer"
                     icon={ArrowRightLeft}
                     gradient="cyan"
@@ -148,7 +141,7 @@ export default function FinanceTab({
                 />
                 <StatCard
                     title="Setoran Cash"
-                    value={formatCurrency(totalCashTransfer)}
+                    value={formatCompact(totalCashTransfer)}
                     subtitle="Sudah disetor"
                     icon={ArrowDownToLine}
                     gradient="green"
@@ -156,7 +149,7 @@ export default function FinanceTab({
                 />
                 <StatCard
                     title="Saldo Cash"
-                    value={formatCurrency(saldoBelumDisetor)}
+                    value={formatCompact(saldoBelumDisetor)}
                     subtitle="Belum disetor"
                     icon={ArrowUpFromLine}
                     gradient="orange"

@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
+import { formatRupiah } from '@/lib/format';
 import {
     ArrowLeft,
     Printer,
@@ -82,8 +83,6 @@ export default function TabDetail() {
         contentRef: summaryReceiptRef,
     });
 
-    const formatCurrency = (amount: number) =>
-        new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
 
     const changeAmount = useMemo(() => {
         if (!tab) return 0;
@@ -208,7 +207,7 @@ export default function TabDetail() {
                                 <div className="text-right">
                                     <p className="text-sm text-muted-foreground">Total Outstanding</p>
                                     <p className={`text-2xl font-bold ${tab.status === 'open' ? 'text-orange-600' : ''}`}>
-                                        {formatCurrency(tab.total_amount)}
+                                        {formatRupiah(tab.total_amount)}
                                     </p>
                                 </div>
                             </div>
@@ -287,7 +286,7 @@ export default function TabDetail() {
                                                 </p>
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                <span className="font-bold text-lg">{formatCurrency(tx.subtotal)}</span>
+                                                <span className="font-bold text-lg">{formatRupiah(tx.subtotal)}</span>
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
@@ -302,7 +301,7 @@ export default function TabDetail() {
                                             {tx.items?.map(item => (
                                                 <div key={item.id} className="flex justify-between text-sm">
                                                     <span>{item.product_name} x{item.quantity}</span>
-                                                    <span className="text-muted-foreground">{formatCurrency(item.subtotal)}</span>
+                                                    <span className="text-muted-foreground">{formatRupiah(item.subtotal)}</span>
                                                 </div>
                                             ))}
                                         </div>
@@ -323,7 +322,7 @@ export default function TabDetail() {
                     <div className="space-y-4 py-4">
                         <div className="p-4 bg-muted rounded-xl">
                             <p className="text-sm text-muted-foreground">Total yang harus dibayar</p>
-                            <p className="text-3xl font-bold">{formatCurrency(tab.total_amount)}</p>
+                            <p className="text-3xl font-bold">{formatRupiah(tab.total_amount)}</p>
                         </div>
 
                         <div className="space-y-2">
@@ -357,7 +356,7 @@ export default function TabDetail() {
                                 </div>
                                 <div className="flex justify-between items-center p-3 bg-green-50 rounded-xl">
                                     <span className="font-semibold">Kembalian</span>
-                                    <span className="text-xl font-bold text-green-600">{formatCurrency(changeAmount)}</span>
+                                    <span className="text-xl font-bold text-green-600">{formatRupiah(changeAmount)}</span>
                                 </div>
                             </>
                         )}

@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
+import { formatRupiah } from '@/lib/format';
 import {
     Plus,
     Printer,
@@ -101,8 +102,6 @@ export function TabDialog({ open, onOpenChange, stockLocation }: TabDialogProps)
 
     const openCount = useMemo(() => tabs.filter(t => t.status === 'open').length, [tabs]);
 
-    const formatCurrency = (amount: number) =>
-        new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
 
     const changeAmount = useMemo(() => {
         if (!selectedTab) return 0;
@@ -251,7 +250,7 @@ export function TabDialog({ open, onOpenChange, stockLocation }: TabDialogProps)
                                                     </div>
                                                     <div className="text-right">
                                                         <p className={`font-bold ${tab.status === 'open' ? 'text-orange-600' : ''}`}>
-                                                            {formatCurrency(tab.total_amount)}
+                                                            {formatRupiah(tab.total_amount)}
                                                         </p>
                                                         <Badge
                                                             variant={tab.status === 'open' ? 'secondary' : tab.status === 'settled' ? 'default' : 'destructive'}
@@ -317,7 +316,7 @@ export function TabDialog({ open, onOpenChange, stockLocation }: TabDialogProps)
                                         </div>
                                         <div className="text-right">
                                             <p className={`text-xl font-bold ${selectedTab.status === 'open' ? 'text-orange-600' : ''}`}>
-                                                {formatCurrency(selectedTab.total_amount)}
+                                                {formatRupiah(selectedTab.total_amount)}
                                             </p>
                                             <Badge variant={selectedTab.status === 'open' ? 'secondary' : 'default'}>
                                                 {selectedTab.status === 'open' ? 'Aktif' : 'Lunas'}
@@ -383,7 +382,7 @@ export function TabDialog({ open, onOpenChange, stockLocation }: TabDialogProps)
                                                                 </p>
                                                             </div>
                                                             <div className="flex items-center gap-2">
-                                                                <span className="font-bold">{formatCurrency(tx.subtotal)}</span>
+                                                                <span className="font-bold">{formatRupiah(tx.subtotal)}</span>
                                                                 <Button
                                                                     variant="ghost"
                                                                     size="icon"
@@ -411,7 +410,7 @@ export function TabDialog({ open, onOpenChange, stockLocation }: TabDialogProps)
                                                             {tx.items?.map(item => (
                                                                 <div key={item.id} className="flex justify-between">
                                                                     <span>{item.product_name} x{item.quantity}</span>
-                                                                    <span>{formatCurrency(item.subtotal)}</span>
+                                                                    <span>{formatRupiah(item.subtotal)}</span>
                                                                 </div>
                                                             ))}
                                                         </div>
@@ -436,7 +435,7 @@ export function TabDialog({ open, onOpenChange, stockLocation }: TabDialogProps)
                     <div className="space-y-4">
                         <div className="p-4 bg-muted rounded-xl text-center">
                             <p className="text-sm text-muted-foreground">Total</p>
-                            <p className="text-3xl font-bold">{formatCurrency(selectedTab?.total_amount || 0)}</p>
+                            <p className="text-3xl font-bold">{formatRupiah(selectedTab?.total_amount || 0)}</p>
                         </div>
 
                         <div className="space-y-2">
@@ -470,7 +469,7 @@ export function TabDialog({ open, onOpenChange, stockLocation }: TabDialogProps)
                                 </div>
                                 <div className="flex justify-between items-center p-3 bg-green-50 rounded-xl">
                                     <span className="font-semibold">Kembalian</span>
-                                    <span className="text-xl font-bold text-green-600">{formatCurrency(changeAmount)}</span>
+                                    <span className="text-xl font-bold text-green-600">{formatRupiah(changeAmount)}</span>
                                 </div>
                             </>
                         )}
@@ -606,13 +605,13 @@ export function TabDialog({ open, onOpenChange, stockLocation }: TabDialogProps)
                             {txToDelete && (
                                 <div className="mt-3 p-3 bg-muted rounded-xl text-sm">
                                     <p className="font-semibold text-foreground mb-2">
-                                        {formatCurrency(txToDelete.subtotal)}
+                                        {formatRupiah(txToDelete.subtotal)}
                                     </p>
                                     <div className="space-y-1 text-muted-foreground">
                                         {txToDelete.items?.map(item => (
                                             <div key={item.id} className="flex justify-between">
                                                 <span>{item.product_name} x{item.quantity}</span>
-                                                <span>{formatCurrency(item.subtotal)}</span>
+                                                <span>{formatRupiah(item.subtotal)}</span>
                                             </div>
                                         ))}
                                     </div>

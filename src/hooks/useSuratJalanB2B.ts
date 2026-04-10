@@ -91,6 +91,7 @@ export function useSuratJalanB2B() {
                 surat_jalan_id: sj.id,
                 product_id: item.productId,
                 quantity: item.quantity,
+                unit: item.unit || null,
                 from_location: location,
                 to_location: 'customer',
                 product_name: '',

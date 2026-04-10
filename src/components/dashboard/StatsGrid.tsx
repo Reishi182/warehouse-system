@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import StatCard from '@/components/common/StatCard';
 import { UserRole, Product, Sale, CashTransfer, SuratJalan, StockOutRequest } from '@/types';
+import { formatCompact } from '@/lib/format';
 
 interface StatsGridProps {
     role: UserRole | undefined;
@@ -61,15 +62,6 @@ export default function StatsGrid({
     // Surat Jalan stats
     const pendingSuratJalan = suratJalans.filter(s => s.status === 'pending').length;
 
-    // Format currency helper
-    const formatCurrency = (value: number) => {
-        if (value >= 1000000) {
-            return `Rp ${(value / 1000000).toFixed(1)}jt`;
-        } else if (value >= 1000) {
-            return `Rp ${(value / 1000).toFixed(0)}rb`;
-        }
-        return `Rp ${value.toLocaleString('id-ID')}`;
-    };
 
     // Render based on role
     if (role === 'warehouse') {
@@ -124,7 +116,7 @@ export default function StatsGrid({
                 />
                 <StatCard
                     title="Cash Masuk"
-                    value={formatCurrency(cashSalesAmount)}
+                    value={formatCompact(cashSalesAmount)}
                     subtitle={`${validSales.filter(s => s.payment_method === 'cash').length} transaksi`}
                     icon={Banknote}
                     gradient="emerald"
@@ -132,7 +124,7 @@ export default function StatsGrid({
                 />
                 <StatCard
                     title="Belum Disetor"
-                    value={formatCurrency(saldoBelumDisetor)}
+                    value={formatCompact(saldoBelumDisetor)}
                     subtitle="Perlu setor"
                     icon={Wallet}
                     gradient="amber"
@@ -140,7 +132,7 @@ export default function StatsGrid({
                 />
                 <StatCard
                     title="Piutang Aktif"
-                    value={formatCurrency(totalPiutang)}
+                    value={formatCompact(totalPiutang)}
                     subtitle={`${activeCreditSales.length} pelanggan`}
                     icon={CreditCard}
                     gradient="pink"
@@ -155,7 +147,7 @@ export default function StatsGrid({
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <StatCard
                     title="Penjualan Hari Ini"
-                    value={formatCurrency(totalSalesAmount)}
+                    value={formatCompact(totalSalesAmount)}
                     subtitle={`${totalSalesToday} transaksi`}
                     icon={Banknote}
                     gradient="emerald"
@@ -187,7 +179,7 @@ export default function StatsGrid({
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4">
                 <StatCard
                     title="Cash Masuk"
-                    value={formatCurrency(cashSalesAmount)}
+                    value={formatCompact(cashSalesAmount)}
                     subtitle="Pembayaran tunai"
                     icon={Banknote}
                     gradient="emerald"
@@ -195,7 +187,7 @@ export default function StatsGrid({
                 />
                 <StatCard
                     title="Belum Disetor"
-                    value={formatCurrency(saldoBelumDisetor)}
+                    value={formatCompact(saldoBelumDisetor)}
                     subtitle="Perlu verifikasi"
                     icon={Wallet}
                     gradient="amber"
@@ -203,7 +195,7 @@ export default function StatsGrid({
                 />
                 <StatCard
                     title="Setoran Diterima"
-                    value={formatCurrency(totalCashTransfer)}
+                    value={formatCompact(totalCashTransfer)}
                     subtitle="Sudah diverifikasi"
                     icon={ClipboardCheck}
                     gradient="cyan"
@@ -211,7 +203,7 @@ export default function StatsGrid({
                 />
                 <StatCard
                     title="Piutang Aktif"
-                    value={formatCurrency(totalPiutang)}
+                    value={formatCompact(totalPiutang)}
                     subtitle={`${activeCreditSales.length} pelanggan`}
                     icon={CreditCard}
                     gradient="pink"
@@ -242,7 +234,7 @@ export default function StatsGrid({
             />
             <StatCard
                 title="Penjualan Hari Ini"
-                value={formatCurrency(totalSalesAmount)}
+                value={formatCompact(totalSalesAmount)}
                 subtitle={`${totalSalesToday} transaksi`}
                 icon={Banknote}
                 gradient="green"

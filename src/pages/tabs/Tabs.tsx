@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
+import { formatRupiah } from '@/lib/format';
 import {
     ClipboardPenLine,
     Plus,
@@ -75,8 +76,6 @@ export default function TabsPage() {
         });
     };
 
-    const formatCurrency = (amount: number) =>
-        new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
 
     const statusConfig: Record<TabStatus, { label: string; color: string; icon: React.ReactNode }> = {
         open: { label: 'Aktif', color: 'bg-orange-100 text-orange-700', icon: <Clock className="w-3 h-3" /> },
@@ -107,7 +106,7 @@ export default function TabsPage() {
             accessorKey: 'total_amount',
             cell: (item) => (
                 <span className={`font-bold ${item.status === 'open' ? 'text-orange-600' : ''}`}>
-                    {formatCurrency(item.total_amount)}
+                    {formatRupiah(item.total_amount)}
                 </span>
             ),
         },
@@ -184,7 +183,7 @@ export default function TabsPage() {
                     />
                     <StatsCard
                         title="Total Outstanding"
-                        value={formatCurrency(stats.totalOutstanding)}
+                        value={formatRupiah(stats.totalOutstanding)}
                         icon={<Wallet className="w-5 h-5" />}
                         className="border-l-4 border-l-red-500"
                     />

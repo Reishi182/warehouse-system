@@ -35,7 +35,7 @@ export function useStockShipments() {
         mutationFn: async (data: {
             requestId: string;
             shippedBy: string;
-            items: { productId: string; quantity: number }[];
+            items: { productId: string; quantity: number; unit?: string }[];
         }) => {
             // Create shipment header
             const { data: shipment, error: shipError } = await supabase
@@ -54,7 +54,8 @@ export function useStockShipments() {
             const itemsToInsert = data.items.map(item => ({
                 stock_shipment_id: shipment.id,
                 product_id: item.productId,
-                quantity_shipped: item.quantity
+                quantity_shipped: item.quantity,
+                unit: item.unit || null
             }));
 
             const { error: itemsError } = await supabase

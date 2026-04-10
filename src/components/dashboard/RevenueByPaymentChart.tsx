@@ -9,6 +9,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Banknote, CreditCard, Wallet } from 'lucide-react';
 import { Sale } from '@/types';
+import { formatCompact } from '@/lib/format';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -87,14 +88,6 @@ export default function RevenueByPaymentChart({ sales, days = 30 }: RevenueByPay
         },
     };
 
-    const formatCurrency = (value: number) => {
-        if (value >= 1000000) {
-            return `${(value / 1000000).toFixed(1)}jt`;
-        } else if (value >= 1000) {
-            return `${(value / 1000).toFixed(0)}rb`;
-        }
-        return value.toLocaleString('id-ID');
-    };
 
     return (
         <Card className="shadow-lg border-0 bg-gradient-to-br from-background to-muted/20">
@@ -123,7 +116,7 @@ export default function RevenueByPaymentChart({ sales, days = 30 }: RevenueByPay
                         <div className="absolute inset-0 flex flex-col items-center justify-center">
                             <p className="text-xs text-muted-foreground">Total</p>
                             <p className="text-lg font-bold">
-                                Rp {formatCurrency(data.totalAmount)}
+                                Rp {formatCompact(data.totalAmount)}
                             </p>
                         </div>
                     </div>
@@ -147,7 +140,7 @@ export default function RevenueByPaymentChart({ sales, days = 30 }: RevenueByPay
                                         {data.cashCount} transaksi
                                     </span>
                                     <span className="text-xs font-semibold">
-                                        Rp {formatCurrency(data.cashAmount)}
+                                        Rp {formatCompact(data.cashAmount)}
                                     </span>
                                 </div>
                                 {/* Progress bar */}
@@ -177,7 +170,7 @@ export default function RevenueByPaymentChart({ sales, days = 30 }: RevenueByPay
                                         {data.transferCount} transaksi
                                     </span>
                                     <span className="text-xs font-semibold">
-                                        Rp {formatCurrency(data.transferAmount)}
+                                        Rp {formatCompact(data.transferAmount)}
                                     </span>
                                 </div>
                                 {/* Progress bar */}

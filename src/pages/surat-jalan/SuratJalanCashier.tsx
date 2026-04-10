@@ -2,6 +2,9 @@ import { useState } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import PageSkeleton from '@/components/common/PageSkeleton';
 import ProductSearchSelect from '@/components/common/ProductSearchSelect';
+import UnitSelector from '@/components/common/UnitSelector';
+import StatusBadge from '@/components/common/StatusBadge';
+import LocationBadge from '@/components/common/LocationBadge';
 import { useSuratJalanB2B } from '@/hooks/useSuratJalanB2B';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -47,13 +50,14 @@ export default function SuratJalanCashier() {
     const [recipientPhone, setRecipientPhone] = useState('');
     const [recipientEmail, setRecipientEmail] = useState('');
     const [sourceLocation, setSourceLocation] = useState<'gudang' | 'toko'>('toko');
-    const [selectedItems, setSelectedItems] = useState<{ productId: string, quantity: number, productName: string }[]>([]);
+    const [selectedItems, setSelectedItems] = useState<{ productId: string, quantity: number, unit?: string, productName: string }[]>([]);
     const [customNumber, setCustomNumber] = useState('');
     const [customerPoFile, setCustomerPoFile] = useState<File | null>(null);
 
     // Product Selection State
     const [selectedProduct, setSelectedProduct] = useState<string>('');
     const [quantity, setQuantity] = useState<number>(1);
+    const [unit, setUnit] = useState<string>('pcs');
 
     // Fetch Customers
     const { data: customers = [] } = useQuery({
@@ -140,11 +144,13 @@ export default function SuratJalanCashier() {
         setSelectedItems([...selectedItems, {
             productId: selectedProduct,
             quantity: quantity,
+            unit: unit,
             productName: product.name
         }]);
 
         setSelectedProduct('');
         setQuantity(1);
+        setUnit('pcs');
     };
 
     const handleRemoveItem = (index: number) => {
@@ -179,7 +185,7 @@ export default function SuratJalanCashier() {
             recipientAddress,
             recipientPhone,
             recipientEmail,
-            items: selectedItems,
+            items: selectedItems.map(i => ({ productId: i.productId, quantity: i.quantity, unit: i.unit })),
             userId: user.id,
             sourceLocation,
             customNumber: customNumber.trim() || undefined,
@@ -204,24 +210,6 @@ export default function SuratJalanCashier() {
         setCustomerPoFile(null);
     };
 
-    const getStatusBadge = (status: string) => {
-        switch (status) {
-            case 'pending_review':
-                return <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full flex items-center gap-1"><Clock className="h-3 w-3" /> Menunggu Review</span>;
-            case 'approved':
-                return <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full flex items-center gap-1"><CheckCircle className="h-3 w-3" /> Disetujui</span>;
-            case 'processing':
-                return <span className="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full flex items-center gap-1"><Truck className="h-3 w-3" /> Diproses</span>;
-            case 'completed':
-                return <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full flex items-center gap-1"><CheckCircle className="h-3 w-3" /> Selesai</span>;
-            case 'rejected':
-                return <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full flex items-center gap-1"><XCircle className="h-3 w-3" /> Ditolak</span>;
-            case 'cancelled':
-                return <span className="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded-full">Dibatalkan</span>;
-            default:
-                return <span className="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded-full">{status}</span>;
-        }
-    };
 
     return (
         <MainLayout
@@ -362,6 +350,16 @@ export default function SuratJalanCashier() {
                                             min="1"
                                         />
                                     </div>
+                                    <div className="w-32 space-y-2">
+                                        <Label>Satuan</Label>
+                                        <UnitSelector
+                                            product={products.find(p => p.id === selectedProduct)}
+                                            value={unit}
+                                            onChange={setUnit}
+                                            className="rounded-xl h-11"
+                                            disabled={!selectedProduct}
+                                        />
+                                    </div>
                                     <Button onClick={handleAddItem} type="button" className="h-11 rounded-xl px-4">
                                         <Plus className="w-5 h-5" />
                                     </Button>
@@ -381,7 +379,7 @@ export default function SuratJalanCashier() {
                                                 {selectedItems.map((item, idx) => (
                                                     <tr key={idx}>
                                                         <td className="px-4 py-3">{item.productName}</td>
-                                                        <td className="px-4 py-3 text-center font-medium">{item.quantity}</td>
+                                                        <td className="px-4 py-3 text-center font-medium">{item.quantity} {item.unit || ''}</td>
                                                         <td className="px-4 py-3 text-right">
                                                             <button
                                                                 onClick={() => handleRemoveItem(idx)}
@@ -455,16 +453,8 @@ export default function SuratJalanCashier() {
                                         <div>
                                             <div className="flex items-center gap-2 mb-2 flex-wrap">
                                                 <span className="font-bold text-lg">{sj.number}</span>
-                                                {getStatusBadge(sj.status)}
-                                                {sj.source_location === 'toko' ? (
-                                                    <span className="bg-green-50 text-green-700 text-xs px-2 py-1 rounded-full flex items-center gap-1">
-                                                        <Store className="h-3 w-3" /> Toko
-                                                    </span>
-                                                ) : (
-                                                    <span className="bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded-full flex items-center gap-1">
-                                                        <Warehouse className="h-3 w-3" /> Gudang
-                                                    </span>
-                                                )}
+                                                <StatusBadge status={sj.status} showIcon />
+                                                <LocationBadge location={sj.source_location} />
                                             </div>
                                             <p className="text-muted-foreground font-medium">{sj.recipient_name}</p>
                                             <p className="text-sm text-muted-foreground">{sj.recipient_address}</p>
@@ -490,7 +480,7 @@ export default function SuratJalanCashier() {
                                         <div>
                                             <div className="flex items-center gap-2 mb-1">
                                                 <span className="font-bold">{sj.number}</span>
-                                                {getStatusBadge(sj.status)}
+                                            {getStatusBadge && <StatusBadge status={sj.status} showIcon />}
                                             </div>
                                             <p className="text-sm text-muted-foreground">{sj.recipient_name}</p>
                                         </div>
@@ -523,7 +513,7 @@ export default function SuratJalanCashier() {
                                         <div>
                                             <div className="flex items-center gap-2 mb-1">
                                                 <span className="font-bold">{sj.number}</span>
-                                                {getStatusBadge(sj.status)}
+                                                <StatusBadge status={sj.status} showIcon />
                                             </div>
                                             <p className="text-sm text-muted-foreground">{sj.recipient_name}</p>
                                             <p className="text-xs text-purple-600">Menunggu gudang menyelesaikan pengiriman</p>
@@ -549,7 +539,7 @@ export default function SuratJalanCashier() {
                                         <div>
                                             <div className="flex items-center gap-2 mb-1">
                                                 <span className="font-bold">{sj.number}</span>
-                                                {getStatusBadge(sj.status)}
+                                                <StatusBadge status={sj.status} showIcon />
                                             </div>
                                             <p className="text-sm text-muted-foreground">{sj.recipient_name}</p>
                                             {sj.review_notes && (
@@ -573,7 +563,7 @@ export default function SuratJalanCashier() {
                                     <div>
                                         <div className="flex items-center gap-2">
                                             <p className="font-semibold">{sj.number}</p>
-                                            {getStatusBadge(sj.status)}
+                                            <StatusBadge status={sj.status} showIcon />
                                         </div>
                                         <p className="text-sm text-muted-foreground">Ke: {sj.recipient_name}</p>
                                     </div>

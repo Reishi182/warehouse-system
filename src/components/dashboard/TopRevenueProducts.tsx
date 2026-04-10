@@ -3,6 +3,7 @@ import { Trophy, TrendingUp, Package } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Sale, Product } from '@/types';
+import { formatCompact } from '@/lib/format';
 
 interface TopRevenueProductsProps {
     sales: Sale[];
@@ -80,14 +81,6 @@ export default function TopRevenueProducts({
 
     const totalRevenue = topProducts.reduce((acc, p) => acc + p.revenue, 0);
 
-    const formatCurrency = (value: number) => {
-        if (value >= 1000000) {
-            return `${(value / 1000000).toFixed(1)}jt`;
-        } else if (value >= 1000) {
-            return `${(value / 1000).toFixed(0)}rb`;
-        }
-        return value.toLocaleString('id-ID');
-    };
 
     const getRankBadge = (rank: number) => {
         switch (rank) {
@@ -133,7 +126,7 @@ export default function TopRevenueProducts({
                         </div>
                     </div>
                     <Badge variant="secondary" className="text-xs">
-                        Total: Rp {formatCurrency(totalRevenue)}
+                        Total: Rp {formatCompact(totalRevenue)}
                     </Badge>
                 </div>
             </CardHeader>
@@ -176,7 +169,7 @@ export default function TopRevenueProducts({
                                                 )}
                                             </div>
                                             <span className="text-sm font-bold text-primary flex-shrink-0">
-                                                Rp {formatCurrency(item.revenue)}
+                                                Rp {formatCompact(item.revenue)}
                                             </span>
                                         </div>
 

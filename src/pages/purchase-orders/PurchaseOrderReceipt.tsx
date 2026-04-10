@@ -353,7 +353,7 @@ export default function PurchaseOrderReceipt() {
                                                         <p className="font-medium">{item.product_name}</p>
                                                     </div>
                                                     <div className="text-right">
-                                                        <p className="font-bold">{item.quantity} unit</p>
+                                                        <p className="font-bold">{item.quantity} {item.unit?.toUpperCase() || 'PCS'}</p>
                                                     </div>
                                                 </div>
                                             ))}
@@ -422,7 +422,7 @@ export default function PurchaseOrderReceipt() {
                                                 >
                                                     <div className="flex items-center justify-between mb-2">
                                                         <p className="font-medium">{item.productName}</p>
-                                                        <Badge variant="outline">Dipesan: {item.orderedQty}</Badge>
+                                                        <Badge variant="outline">Dipesan: {item.orderedQty} {item.unit?.toUpperCase() || 'PCS'}</Badge>
                                                     </div>
 
                                                     {item.isNewProduct && (

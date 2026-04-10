@@ -70,6 +70,7 @@ export interface InvoiceItem {
   product_id?: string | null;
   product_name: string;
   quantity: number;
+  unit?: string | null;
   price: number;
   total: number;
   created_at: string;
@@ -101,6 +102,7 @@ export interface SaleItem {
   product_name: string;
   barcode: string;
   quantity: number;
+  unit?: string | null;
   price: number;
   subtotal: number;
   discount: number; // fixed amount discount in Rupiah per item
@@ -194,6 +196,7 @@ export interface SuratJalanItem {
   barcode: string;
   image_url?: string | null;
   quantity: number;
+  unit?: string | null;
   from_location: Location;
   to_location: Location;
 }
@@ -353,6 +356,7 @@ export interface StockShipmentItem {
   product_id: string;
   product?: Product;
   quantity_shipped: number;
+  unit?: string | null;
 }
 
 export interface StockShipment {
@@ -425,6 +429,7 @@ export interface PurchaseOrderItem {
   product?: Product; // joined
   product_name: string;
   quantity: number;
+  unit?: string | null;
   unit_price: number;
   total_price: number;
   created_at: string;
@@ -660,6 +665,7 @@ export interface ClaimedItem {
   qty_ordered: number;
   qty_received: number;
   qty_damaged: number;
+  unit?: string | null;
   unit_price: number;
 }
 
@@ -774,6 +780,7 @@ export interface TabTransactionItem {
   product_name: string;
   barcode: string;
   quantity: number;
+  unit?: string | null;
   price: number;
   subtotal: number;
   created_at: string;

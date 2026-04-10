@@ -2,6 +2,7 @@ import { forwardRef } from 'react';
 import { CustomerTab, TabTransaction } from '@/types';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
+import { formatRupiah } from '@/lib/format';
 
 interface TabSummaryReceiptProps {
     tab: CustomerTab;
@@ -21,8 +22,6 @@ const TabSummaryReceipt = forwardRef<HTMLDivElement, TabSummaryReceiptProps>(({
     storeName = 'WAREHOUSE SYSTEM',
     storeAddress = '',
 }, ref) => {
-    const formatCurrency = (amount: number) =>
-        new Intl.NumberFormat('id-ID', { minimumFractionDigits: 0 }).format(amount);
 
     const formatDateTime = (dateStr: string) =>
         format(new Date(dateStr), 'dd/MM/yyyy HH:mm', { locale: idLocale });
@@ -95,7 +94,7 @@ const TabSummaryReceipt = forwardRef<HTMLDivElement, TabSummaryReceiptProps>(({
                                             <span className="truncate max-w-[160px]">
                                                 {item.product_name} x{item.quantity}
                                             </span>
-                                            <span>{formatCurrency(item.subtotal)}</span>
+                                            <span>{formatRupiah(item.subtotal)}</span>
                                         </div>
                                     ))}
                                 </div>
@@ -103,7 +102,7 @@ const TabSummaryReceipt = forwardRef<HTMLDivElement, TabSummaryReceiptProps>(({
                                 {/* Transaction Subtotal */}
                                 <div className="flex justify-between font-bold mt-1 pt-1 border-t border-dotted border-gray-300 text-[10px]">
                                     <span>Subtotal:</span>
-                                    <span>Rp {formatCurrency(tx.subtotal)}</span>
+                                    <span>Rp {formatRupiah(tx.subtotal)}</span>
                                 </div>
                             </div>
                         ))}
@@ -123,7 +122,7 @@ const TabSummaryReceipt = forwardRef<HTMLDivElement, TabSummaryReceiptProps>(({
                 </div>
                 <div className="flex justify-between text-sm font-bold">
                     <span>GRAND TOTAL:</span>
-                    <span>Rp {formatCurrency(tab.total_amount)}</span>
+                    <span>Rp {formatRupiah(tab.total_amount)}</span>
                 </div>
             </div>
 
@@ -145,13 +144,13 @@ const TabSummaryReceipt = forwardRef<HTMLDivElement, TabSummaryReceiptProps>(({
                         {tab.amount_paid !== undefined && (
                             <div className="flex justify-between">
                                 <span>Dibayar:</span>
-                                <span>Rp {formatCurrency(tab.amount_paid)}</span>
+                                <span>Rp {formatRupiah(tab.amount_paid)}</span>
                             </div>
                         )}
                         {tab.change_amount !== undefined && tab.change_amount > 0 && (
                             <div className="flex justify-between">
                                 <span>Kembali:</span>
-                                <span>Rp {formatCurrency(tab.change_amount)}</span>
+                                <span>Rp {formatRupiah(tab.change_amount)}</span>
                             </div>
                         )}
                     </div>

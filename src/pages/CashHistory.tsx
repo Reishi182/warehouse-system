@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/input';
 import { Wallet, TrendingUp, Users, Calendar, Search, Banknote } from 'lucide-react';
 import { format, isToday, isThisMonth, parseISO } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
+import { formatRupiah } from '@/lib/format';
 
 export default function CashHistory() {
     const { data: cashTransfers = [], isLoading } = useCashTransfers();
@@ -58,14 +59,6 @@ export default function CashHistory() {
 
     const totalAll = cashTransfers.reduce((sum, ct) => sum + ct.amount, 0);
 
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('id-ID', {
-            style: 'currency',
-            currency: 'IDR',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0,
-        }).format(amount);
-    };
 
     return (
         <MainLayout title="Riwayat Setoran" subtitle="Riwayat setoran kas dari kasir">
@@ -74,19 +67,19 @@ export default function CashHistory() {
                 <StatsGrid columns={4}>
                     <StatsCard
                         title="Total Hari Ini"
-                        value={formatCurrency(todayTotal)}
+                        value={formatRupiah(todayTotal)}
                         icon={<Calendar className="w-5 h-5" />}
                         subtitleType="success"
                     />
                     <StatsCard
                         title="Total Bulan Ini"
-                        value={formatCurrency(thisMonthTotal)}
+                        value={formatRupiah(thisMonthTotal)}
                         icon={<TrendingUp className="w-5 h-5" />}
                         subtitleType="info"
                     />
                     <StatsCard
                         title="Total Setoran"
-                        value={formatCurrency(totalAll)}
+                        value={formatRupiah(totalAll)}
                         icon={<Wallet className="w-5 h-5" />}
                     />
                     <StatsCard
@@ -190,7 +183,7 @@ export default function CashHistory() {
                                         </TableCell>
                                         <TableCell className="text-right">
                                             <span className="font-bold text-emerald-600 dark:text-emerald-400 text-lg">
-                                                {formatCurrency(transfer.amount)}
+                                                {formatRupiah(transfer.amount)}
                                             </span>
                                         </TableCell>
                                         <TableCell>

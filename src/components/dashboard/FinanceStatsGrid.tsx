@@ -1,5 +1,6 @@
 import { ShoppingCart, Wallet, ArrowRightLeft, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
 import StatCard from '@/components/common/StatCard';
+import { formatCompact } from '@/lib/format';
 
 interface FinanceStatsGridProps {
     totalSalesAmount: number;
@@ -16,20 +17,12 @@ export default function FinanceStatsGrid({
     totalCashTransfer,
     saldoBelumDisetor,
 }: FinanceStatsGridProps) {
-    const formatCurrency = (value: number) => {
-        if (value >= 1000000) {
-            return `Rp ${(value / 1000000).toFixed(1)}jt`;
-        } else if (value >= 1000) {
-            return `Rp ${(value / 1000).toFixed(0)}rb`;
-        }
-        return `Rp ${value.toLocaleString('id-ID')}`;
-    };
 
     return (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
             <StatCard
                 title="Penjualan Hari Ini"
-                value={formatCurrency(totalSalesAmount)}
+                value={formatCompact(totalSalesAmount)}
                 subtitle="Total pendapatan"
                 icon={ShoppingCart}
                 gradient="blue"
@@ -37,7 +30,7 @@ export default function FinanceStatsGrid({
             />
             <StatCard
                 title="Cash Masuk"
-                value={formatCurrency(totalCashSales)}
+                value={formatCompact(totalCashSales)}
                 subtitle="Pembayaran tunai"
                 icon={Wallet}
                 gradient="amber"
@@ -45,7 +38,7 @@ export default function FinanceStatsGrid({
             />
             <StatCard
                 title="Transfer"
-                value={formatCurrency(totalTransferSales)}
+                value={formatCompact(totalTransferSales)}
                 subtitle="Pembayaran transfer"
                 icon={ArrowRightLeft}
                 gradient="cyan"
@@ -53,7 +46,7 @@ export default function FinanceStatsGrid({
             />
             <StatCard
                 title="Setoran Cash"
-                value={formatCurrency(totalCashTransfer)}
+                value={formatCompact(totalCashTransfer)}
                 subtitle="Sudah disetor"
                 icon={ArrowDownToLine}
                 gradient="green"
@@ -61,7 +54,7 @@ export default function FinanceStatsGrid({
             />
             <StatCard
                 title="Saldo Cash"
-                value={formatCurrency(saldoBelumDisetor)}
+                value={formatCompact(saldoBelumDisetor)}
                 subtitle="Belum disetor"
                 icon={ArrowUpFromLine}
                 gradient="orange"

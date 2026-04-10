@@ -39,6 +39,9 @@ export interface BeautifulTableProps<T> {
     exportTitle?: string;
     emptyState?: EmptyStateConfig;
     variant?: 'default' | 'premium';
+    /** Custom global search predicate. When provided, a row is visible if
+     *  this function returns true for the given query string. */
+    globalFilterFn?: (row: T, query: string) => boolean;
 }
 
 export interface TableHeaderProps<T> {

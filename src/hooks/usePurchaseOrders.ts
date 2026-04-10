@@ -600,16 +600,27 @@ export function useConfirmPOReceipt() {
                 // Get current stock
                 const { data: product, error: prodError } = await supabase
                     .from('products')
-                    .select('stock_gudang, stock_toko')
+                    .select('stock_gudang, stock_toko, main_unit, sell_unit, has_multi_unit, pcs_per_box')
                     .eq('id', productId)
                     .single();
 
                 if (prodError) continue;
 
-                // Only add RECEIVED quantity (not ordered)
+                // Calculate multiplier for multi-unit
+                let multiplier = 1;
+                if (product.has_multi_unit && product.pcs_per_box) {
+                    const mainUnitLower = (product.main_unit || 'box').toLowerCase();
+                    const itemUnitLower = (item.unit || '').toLowerCase();
+                    if (itemUnitLower === mainUnitLower) {
+                        multiplier = product.pcs_per_box;
+                    }
+                }
+                
+                // Only add RECEIVED quantity (converted to base unit)
                 const stockField = destination === 'gudang' ? 'stock_gudang' : 'stock_toko';
                 const currentStock = destination === 'gudang' ? (product.stock_gudang || 0) : (product.stock_toko || 0);
-                const newStock = currentStock + item.receivedQty;
+                const actualReceivedQty = item.receivedQty * multiplier;
+                const newStock = currentStock + actualReceivedQty;
 
                 await supabase
                     .from('products')
@@ -624,7 +635,7 @@ export function useConfirmPOReceipt() {
                 await supabase.from('stock_logs').insert([{
                     product_id: productId,
                     type: 'in',
-                    quantity: item.receivedQty,
+                    quantity: actualReceivedQty,
                     location: destination,
                     user_id: input.receivedBy,
                     note: noteDetails,

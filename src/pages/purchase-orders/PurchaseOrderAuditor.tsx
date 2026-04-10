@@ -230,7 +230,7 @@ export default function PurchaseOrderAuditor() {
                                             {selectedPO.items?.map(item => (
                                                 <tr key={item.id} className="border-t">
                                                     <td className="p-3">{item.product_name}</td>
-                                                    <td className="text-right p-3">{item.quantity}</td>
+                                                    <td className="text-right p-3">{item.quantity} <span className="text-xs text-muted-foreground uppercase">{item.unit || 'pcs'}</span></td>
                                                     <td className="text-right p-3">Rp {item.unit_price.toLocaleString('id-ID')}</td>
                                                     <td className="text-right p-3 font-medium">Rp {item.total_price.toLocaleString('id-ID')}</td>
                                                 </tr>

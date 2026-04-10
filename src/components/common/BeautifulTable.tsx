@@ -70,6 +70,7 @@ export function BeautifulTable<T extends { id: string }>({
     exportTitle,
     emptyState,
     variant = 'premium',
+    globalFilterFn: customGlobalFilterFn,
 }: BeautifulTableProps<T>) {
     const [sorting, setSorting] = React.useState<SortingState>([]);
     const [globalFilter, setGlobalFilter] = React.useState('');
@@ -412,6 +413,12 @@ export function BeautifulTable<T extends { id: string }>({
         getFilteredRowModel: getFilteredRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
         enableRowSelection: !hideSelection,
+        // Custom global filter: delegates to caller-provided predicate when available,
+        // otherwise falls back to TanStack's default "includesString" behaviour.
+        globalFilterFn: customGlobalFilterFn
+            ? (row, _columnId, filterValue) =>
+                  customGlobalFilterFn(row.original, String(filterValue))
+            : 'includesString',
     });
 
     // Update table page size when pageSize changes

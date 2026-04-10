@@ -10,6 +10,7 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Sale } from '@/types';
+import { formatCompact } from '@/lib/format';
 
 interface RevenueSummaryCardsProps {
     sales: Sale[];
@@ -121,14 +122,6 @@ export default function RevenueSummaryCards({ sales, compact = false }: RevenueS
         };
     }, [sales]);
 
-    const formatCurrency = (value: number) => {
-        if (value >= 1000000) {
-            return `${(value / 1000000).toFixed(1)}jt`;
-        } else if (value >= 1000) {
-            return `${(value / 1000).toFixed(0)}rb`;
-        }
-        return value.toLocaleString('id-ID');
-    };
 
     const allCards = [
         {
@@ -225,7 +218,7 @@ export default function RevenueSummaryCards({ sales, compact = false }: RevenueS
                             {/* Value */}
                             <div className="space-y-1">
                                 <p className="text-2xl xl:text-3xl font-bold text-white tracking-tight">
-                                    Rp {formatCurrency(card.value)}
+                                    Rp {formatCompact(card.value)}
                                 </p>
                                 <p className="text-sm text-white/80 font-medium">
                                     {card.title}

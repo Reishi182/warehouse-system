@@ -620,6 +620,27 @@ export default function StockHistory() {
                             title: 'Tidak ada data',
                             description: 'Belum ada pergerakan stok yang tercatat.',
                         }}
+                        globalFilterFn={(g, query) => {
+                            const q = query.toLowerCase();
+                            // First check top-level group fields
+                            if (
+                                (g.reference_label?.toLowerCase().includes(q) ?? false) ||
+                                (g.actor_name?.toLowerCase().includes(q) ?? false) ||
+                                (g.user?.name?.toLowerCase().includes(q) ?? false) ||
+                                (g.note?.toLowerCase().includes(q) ?? false) ||
+                                g.type.toLowerCase().includes(q) ||
+                                g.location.toLowerCase().includes(q)
+                            ) {
+                                return true;
+                            }
+                            
+                            // Then check if any log in this group matches the product name/barcode
+                            return g.logs.some(log => 
+                                (log.product?.name?.toLowerCase().includes(q) ?? false) ||
+                                (log.product?.barcode?.toLowerCase().includes(q) ?? false) ||
+                                (log.note?.toLowerCase().includes(q) ?? false)
+                            );
+                        }}
                     />
                 ) : (
                     <BeautifulTable<StockLog>
@@ -635,6 +656,18 @@ export default function StockHistory() {
                             icon: <Package className="w-7 h-7" />,
                             title: 'Tidak ada data',
                             description: 'Belum ada pergerakan stok yang tercatat.',
+                        }}
+                        globalFilterFn={(log, query) => {
+                            const q = query.toLowerCase();
+                            return (
+                                (log.product?.name?.toLowerCase().includes(q) ?? false) ||
+                                (log.product?.barcode?.toLowerCase().includes(q) ?? false) ||
+                                (log.note?.toLowerCase().includes(q) ?? false) ||
+                                (log.actor_name?.toLowerCase().includes(q) ?? false) ||
+                                (log.user?.name?.toLowerCase().includes(q) ?? false) ||
+                                log.type.toLowerCase().includes(q) ||
+                                log.location.toLowerCase().includes(q)
+                            );
                         }}
                     />
                 )}
