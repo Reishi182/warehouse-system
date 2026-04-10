@@ -1,4 +1,5 @@
 import React, { useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
     useReactTable,
     getCoreRowModel,
@@ -71,13 +72,22 @@ export function BeautifulTable<T extends { id: string }>({
     emptyState,
     variant = 'premium',
     globalFilterFn: customGlobalFilterFn,
+    syncPaginationWithUrl = true,
+    paginationUrlParam = 'page',
 }: BeautifulTableProps<T>) {
+    const [searchParams, setSearchParams] = useSearchParams();
+
+    // Initialize page index from URL if enabled
+    const initialPageIndex = syncPaginationWithUrl 
+        ? Math.max(0, parseInt(searchParams.get(paginationUrlParam) || '1', 10) - 1)
+        : 0;
+
     const [sorting, setSorting] = React.useState<SortingState>([]);
     const [globalFilter, setGlobalFilter] = React.useState('');
     const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
     const [rowSelection, setRowSelection] = React.useState({});
     const [pageSize, setPageSize] = React.useState(itemsPerPage);
-    const [pageIndex, setPageIndex] = React.useState(0);
+    const [pageIndex, setPageIndex] = React.useState(initialPageIndex);
     const expandedGroupsRef = React.useRef<Set<string>>(new Set());
     const [, forceRender] = React.useState(0);
     const toggleExpandedGroup = React.useCallback((value: string) => {
@@ -442,6 +452,28 @@ export function BeautifulTable<T extends { id: string }>({
             setPageIndex(0);
         }
     }, [data.length]);
+
+    // Sync pageIndex to URL
+    React.useEffect(() => {
+        if (!syncPaginationWithUrl) return;
+        
+        const newParams = new URLSearchParams(searchParams);
+        const currentPageParam = newParams.get(paginationUrlParam);
+        const targetPageValue = (pageIndex + 1).toString();
+        
+        // Prevent unnecessary state updates to URL if value is the same or if it's page 1 and no param exists
+        if (currentPageParam === targetPageValue || (pageIndex === 0 && !currentPageParam)) {
+            return;
+        }
+
+        if (pageIndex === 0) {
+            newParams.delete(paginationUrlParam); // keep URL clean for page 1
+        } else {
+            newParams.set(paginationUrlParam, targetPageValue);
+        }
+        
+        setSearchParams(newParams, { replace: true });
+    }, [pageIndex, syncPaginationWithUrl, paginationUrlParam, searchParams, setSearchParams]);
 
     // Generate export columns from our column definitions
     const exportColumns: ExportColumn[] = React.useMemo(() => {

@@ -480,7 +480,7 @@ export default function SuratJalanCashier() {
                                         <div>
                                             <div className="flex items-center gap-2 mb-1">
                                                 <span className="font-bold">{sj.number}</span>
-                                            {getStatusBadge && <StatusBadge status={sj.status} showIcon />}
+                                                <StatusBadge status={sj.status} showIcon />
                                             </div>
                                             <p className="text-sm text-muted-foreground">{sj.recipient_name}</p>
                                         </div>

@@ -467,7 +467,7 @@ export default function PurchaseOrderReceipt() {
                                 </CardContent>
                             </Card>
 
-                            {/* Photo Upload */}
+                            {/* Photo Upload (Temporarily Disabled)
                             <div className="space-y-2">
                                 <Label>Foto Bukti Penerimaan <span className="text-red-500">*</span></Label>
                                 <div className="border-2 border-dashed rounded-lg p-4 text-center">
@@ -497,8 +497,9 @@ export default function PurchaseOrderReceipt() {
                                     )}
                                 </div>
                             </div>
+                            */}
 
-                            {/* Digital Signature */}
+                            {/* Digital Signature (Temporarily Disabled)
                             <div className="space-y-2">
                                 <Label>Tanda Tangan Digital <span className="text-red-500">*</span></Label>
                                 <SignaturePad
@@ -508,6 +509,7 @@ export default function PurchaseOrderReceipt() {
                                     height={150}
                                 />
                             </div>
+                            */}
 
                             {/* Notes */}
                             <div className="space-y-2">
@@ -526,7 +528,7 @@ export default function PurchaseOrderReceipt() {
                                 </Button>
                                 <Button
                                     onClick={handleConfirm}
-                                    disabled={confirmReceipt.isPending || uploading || !photoFile || !signatureData}
+                                    disabled={confirmReceipt.isPending || uploading}
                                     className="gap-1"
                                 >
                                     {confirmReceipt.isPending || uploading ? 'Memproses...' : (

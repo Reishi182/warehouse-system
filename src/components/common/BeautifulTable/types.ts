@@ -42,6 +42,10 @@ export interface BeautifulTableProps<T> {
     /** Custom global search predicate. When provided, a row is visible if
      *  this function returns true for the given query string. */
     globalFilterFn?: (row: T, query: string) => boolean;
+    /** If true, the table's current page will be synced with the URL query params. Default is true. */
+    syncPaginationWithUrl?: boolean;
+    /** The URL parameter name to use when syncing. Useful if multiple tables are on the same page. Default is "page". */
+    paginationUrlParam?: string;
 }
 
 export interface TableHeaderProps<T> {
