@@ -280,6 +280,37 @@ export default function StockHistory() {
         );
     }, [stockLogs]);
 
+    // Generate hierarchical time filter options (Month -> Days) based on startsWith matching
+    const timeFilterOptions = useMemo(() => {
+        const groups = new Map<string, Set<string>>(); // "YYYY-MM" -> Set of "YYYY-MM-DD"
+        
+        stockLogs.forEach(log => {
+            if (!log.timestamp) return;
+            const prefixMonth = log.timestamp.substring(0, 7); // "YYYY-MM"
+            const prefixDay = log.timestamp.substring(0, 10);  // "YYYY-MM-DD"
+            
+            if (!groups.has(prefixMonth)) {
+                groups.set(prefixMonth, new Set());
+            }
+            groups.get(prefixMonth)!.add(prefixDay);
+        });
+
+        return Array.from(groups.entries())
+            .sort((a, b) => b[0].localeCompare(a[0])) // sort months descending
+            .map(([monthPrefix, daysSet]) => {
+                const monthDate = parseISO(`${monthPrefix}-01`);
+                return {
+                    label: format(monthDate, 'MMMM yyyy', { locale: id }),
+                    value: monthPrefix, // will match all timestamps starting with this
+                    children: Array.from(daysSet)
+                        .sort((a, b) => b.localeCompare(a)) // sort days descending
+                        .map(dayPrefix => ({
+                            label: format(parseISO(dayPrefix), 'dd MMM yyyy', { locale: id }),
+                            value: dayPrefix // matches specific day
+                        }))
+                };
+            });
+    }, [stockLogs]);
 
     const handleViewDetail = (log: StockLog) => {
         setSelectedLog(log);
@@ -291,6 +322,8 @@ export default function StockHistory() {
         {
             header: 'Waktu',
             accessorKey: 'timestamp',
+            filterable: true,
+            filterOptions: timeFilterOptions,
             cell: (log) => (
                 <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-muted-foreground" />
@@ -418,6 +451,8 @@ export default function StockHistory() {
         {
             header: 'Waktu',
             accessorKey: 'timestamp',
+            filterable: true,
+            filterOptions: timeFilterOptions,
             cell: (g) => (
                 <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-muted-foreground" />
