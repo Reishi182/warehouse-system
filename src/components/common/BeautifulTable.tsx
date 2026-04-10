@@ -446,9 +446,18 @@ export function BeautifulTable<T extends { id: string }>({
     }, [globalFilter, serializedFilters]);
 
     // Only reset page when data count actually changes (not on reference changes)
+    const isFirstDataLoadRef = React.useRef(data.length === 0);
     React.useEffect(() => {
         if (data.length !== prevDataLenRef.current) {
+            const oldLength = prevDataLenRef.current;
             prevDataLenRef.current = data.length;
+            
+            // Mencegah reset page ke 1 saat data pertama kali selesai di-load dari server
+            if (oldLength === 0 && data.length > 0 && isFirstDataLoadRef.current) {
+                isFirstDataLoadRef.current = false;
+                return;
+            }
+            
             setPageIndex(0);
         }
     }, [data.length]);
