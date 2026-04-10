@@ -18,8 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import { useAuth, useRole } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth, useRole } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
+import { compressImageToFile, formatFileSize } from '@/lib/imageCompression';
 
 export default function Settings() {
   const { profile, updateProfile, loading: authLoading } = useAuth();
@@ -31,6 +30,12 @@ export default function Settings() {
   const [lowStockThreshold, setLowStockThreshold] = useState(20);
 
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+  const [newName, setNewName] = useState(profile?.name || '');
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [lowPerformanceMode, setLowPerformanceMode] = useState(() => typeof localStorage !== 'undefined' ? localStorage.getItem('low-performance-mode') === 'true' : false);
+
 
   if (authLoading || !profile) {
     return (
