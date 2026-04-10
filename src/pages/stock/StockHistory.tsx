@@ -135,7 +135,7 @@ function GroupDetailDialog({
                         <tbody className="divide-y">
                             {group.logs.map((log, idx) => {
                                 const isMultiUnit = log.product?.has_multi_unit && log.product?.pcs_per_box;
-                                let displayQty = log.quantity.toString();
+                                let displayQty = Math.abs(log.quantity).toString();
                                 if (isMultiUnit && log.product) {
                                     const pcsPerBox = log.product.pcs_per_box!;
                                     const mainUnit = (log.product.main_unit || 'box').toUpperCase();
@@ -381,7 +381,7 @@ export default function StockHistory() {
             accessorKey: 'quantity',
             cell: (log) => {
                 const isMultiUnit = log.product?.has_multi_unit && log.product?.pcs_per_box;
-                let displayQty = log.quantity.toString();
+                let displayQty = Math.abs(log.quantity).toString();
                 if (isMultiUnit && log.product) {
                     const pcsPerBox = log.product.pcs_per_box!;
                     const mainUnit = (log.product.main_unit || 'box').toUpperCase();
