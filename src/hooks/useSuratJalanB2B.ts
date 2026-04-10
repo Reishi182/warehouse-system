@@ -64,11 +64,13 @@ export function useSuratJalanB2B() {
                 recipient_phone: data.recipientPhone || null,
                 recipient_email: data.recipientEmail || null,
                 type: 'B2B',
-                status: 'approved', // Bypass Main Office review
+                status: 'completed', // Bypass Main Office review and Warehouse processing
                 created_by: data.userId,
                 source_location: location,
                 reviewed_by: data.userId, // auto review by creator
                 reviewed_at: new Date().toISOString(),
+                completed_by: data.userId, // auto complete
+                completed_at: new Date().toISOString(),
             };
 
             if (data.customerPoUrl) {
@@ -127,29 +129,93 @@ export function useSuratJalanB2B() {
                 (itemsToInsert[i] as any)._actualQty = actualQty;
             }
 
+            // Strip _actualQty before insert
+            const cleanItemsToInsert = itemsToInsert.map(item => {
+                const { _actualQty, ...dbItem } = item as any;
+                return dbItem;
+            });
+
             const { error: itemsError } = await supabase
                 .from('surat_jalan_items')
-                .insert(itemsToInsert);
+                .insert(cleanItemsToInsert);
 
             if (itemsError) throw itemsError;
 
-            // Auto-reserve stock for 'gudang' since it's already approved
+            // Auto-deduct stock immediately (bypass warehouse)
             if (location === 'gudang') {
                 for (const item of itemsToInsert) {
-                    const { error: reserveError } = await supabase.rpc('reserve_stock', {
+                    const { error: commitError } = await supabase.rpc('commit_stock_issue', {
                         p_product_id: item.product_id,
                         p_quantity: (item as any)._actualQty || item.quantity
                     });
-                    if (reserveError) throw new Error(`Gagal reservasi stok: ${reserveError.message}`);
+                    if (commitError) throw new Error(`Gagal memotong stok gudang: ${commitError.message}`);
+
+                    // Log stock-out for gudang
+                    await supabase.from('stock_logs').insert({
+                        product_id: item.product_id,
+                        type: 'out',
+                        quantity: (item as any)._actualQty || item.quantity,
+                        location: 'gudang',
+                        user_id: data.userId,
+                        note: `Surat Jalan B2B Langsung - ${item.product_name || 'Produk'} (Input: ${item.quantity} ${item.unit || 'pcs'})`,
+                    });
+                }
+            } else {
+                // Toko stock deduction
+                for (const item of itemsToInsert) {
+                    const actualQty = (item as any)._actualQty || item.quantity;
+                    const { data: prod } = await supabase
+                        .from('products')
+                        .select('stock_toko')
+                        .eq('id', item.product_id)
+                        .single();
+
+                    if (prod) {
+                        const currentStock = prod.stock_toko || 0;
+                        if (currentStock < actualQty) {
+                            throw new Error(`Stok toko tidak cukup untuk ${item.product_name || 'produk'}: tersedia ${currentStock}, dibutuhkan ${actualQty}`);
+                        }
+                        const newStock = currentStock - actualQty;
+                        await supabase.from('products')
+                            .update({ stock_toko: newStock })
+                            .eq('id', item.product_id);
+
+                        // Log stock-out for toko
+                        await supabase.from('stock_logs').insert({
+                            product_id: item.product_id,
+                            type: 'out',
+                            quantity: actualQty,
+                            location: 'toko',
+                            user_id: data.userId,
+                            note: `Surat Jalan B2B Langsung - ${item.product_name || 'Produk'} (Input: ${item.quantity} ${item.unit || 'pcs'})`,
+                        });
+                    }
                 }
             }
+
+            // Generate Goods Issue Note
+            const { data: spDocNum, error: spError } = await supabase.rpc('get_next_document_number', { doc_type: 'SP' });
+            if (spError) throw spError;
+
+            const { error: noteError } = await supabase
+                .from('goods_issue_notes')
+                .insert({
+                    issue_number: spDocNum as string,
+                    surat_jalan_id: sj.id,
+                    issued_by: data.userId,
+                    status: 'approved',
+                    auditor_id: data.userId,
+                    verified_at: new Date().toISOString()
+                });
+
+            if (noteError) throw noteError;
 
             return sj;
         },
         onSuccess: async () => {
             queryClient.invalidateQueries({ queryKey: ['surat-jalan-b2b'] });
             queryClient.invalidateQueries({ queryKey: ['products'] });
-            toast({ title: 'Surat Jalan Dibuat', description: 'Surat jalan siap diproses' });
+            toast({ title: 'Surat Jalan Selesai', description: 'Dokumen dibuat dan stok otomatis terpotong' });
         }
     });
 

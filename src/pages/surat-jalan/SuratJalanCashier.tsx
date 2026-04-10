@@ -11,7 +11,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Package, Truck, CheckCircle, List, Store, Warehouse, Plus, Trash2, Clock, FileText, XCircle, ArrowRight, PlayCircle } from 'lucide-react';
+import { Package, Truck, CheckCircle, List, Store, Warehouse, Plus, Trash2, Clock, FileText, XCircle, ArrowRight, PlayCircle, Eye } from 'lucide-react';
+import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import {
     Dialog,
@@ -41,7 +42,8 @@ export default function SuratJalanCashier() {
     const { toast } = useToast();
     const { suratJalans, createSuratJalan, cancelSuratJalan, isLoading } = useSuratJalanB2B();
     const [dialogOpen, setDialogOpen] = useState(false);
-    const [selectedSj, setSelectedSj] = useState<any | null>(null);
+    const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+    const [selectedSjDetail, setSelectedSjDetail] = useState<any | null>(null);
 
     // Form State
     const [selectedCustomerId, setSelectedCustomerId] = useState('');
@@ -108,6 +110,59 @@ export default function SuratJalanCashier() {
         completed: completed.length,
     };
 
+    const tableColumns: Column<any>[] = [
+        {
+            header: 'No. Surat Jalan',
+            accessorKey: 'number',
+            cell: (row) => <span className="font-semibold">{row.number}</span>
+        },
+        {
+            header: 'Penerima',
+            accessorKey: 'recipient_name',
+            cell: (row) => (
+                <div>
+                    <p className="font-medium">{row.recipient_name}</p>
+                    <p className="text-xs text-muted-foreground truncate max-w-[200px]">{row.recipient_address}</p>
+                </div>
+            )
+        },
+        {
+            header: 'Tanggal Dibuat',
+            accessorKey: 'created_at',
+            cell: (row) => row.created_at ? format(new Date(row.created_at), 'dd MMM yyyy HH:mm', { locale: idLocale }) : '-'
+        },
+        {
+            header: 'Lokasi Asal',
+            accessorKey: 'source_location',
+            cell: (row) => <LocationBadge location={row.source_location} />
+        },
+        {
+            header: 'Status',
+            accessorKey: 'status',
+            cell: (row) => <StatusBadge status={row.status} />
+        },
+        {
+            header: 'Aksi',
+            accessorKey: 'id',
+            sortable: false,
+            filterable: false,
+            cell: (row) => (
+                <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="hover:bg-primary/10 hover:text-primary transition-colors"
+                    onClick={() => {
+                        setSelectedSjDetail(row);
+                        setDetailDialogOpen(true);
+                    }}
+                >
+                    <Eye className="w-4 h-4 mr-2" />
+                    Detail
+                </Button>
+            )
+        }
+    ];
+
     // Handle customer selection - auto-fill fields
     const handleCustomerSelect = (customerId: string) => {
         setSelectedCustomerId(customerId);
@@ -137,9 +192,17 @@ export default function SuratJalanCashier() {
             : quantity;
 
         if (actualQuantity > availableStock) {
+            let stockDisplay = `${availableStock} ${product.sell_unit || 'pcs'}`;
+            if (product.has_multi_unit && product.main_unit && product.pcs_per_box) {
+                const mainQty = Math.floor(availableStock / product.pcs_per_box);
+                const remainQty = availableStock % product.pcs_per_box;
+                if (remainQty === 0) stockDisplay = `${mainQty} ${product.main_unit}`;
+                else stockDisplay = `${mainQty} ${product.main_unit} ${remainQty} ${product.sell_unit}`;
+            }
+
             toast({
                 title: 'Stok tidak cukup!',
-                description: `Stok tersedia: ${Math.floor(availableStock / (product.has_multi_unit && unit === product.main_unit ? (product.pcs_per_box || 1) : 1))} ${unit} (${availableStock} ${product.sell_unit || 'pcs'})`,
+                description: `Stok tersedia: ${stockDisplay}`,
                 variant: 'destructive'
             });
             return;
@@ -443,156 +506,106 @@ export default function SuratJalanCashier() {
                     />
                 </StatsGrid>
 
-                {/* Approved - Waiting for Warehouse to Process */}
-                {approved.length > 0 && (
-                    <div>
-                        <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                            <Clock className="h-5 w-5 text-blue-500" />
-                            Menunggu Diproses Gudang ({approved.length})
-                        </h3>
-                        <div className="grid gap-4">
-                            {approved.map((sj: any) => (
-                                <div key={sj.id} className="bg-card border border-blue-200 rounded-lg p-4 shadow-sm opacity-90">
-                                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                                        <div>
-                                            <div className="flex items-center gap-2 mb-2 flex-wrap">
-                                                <span className="font-bold text-lg">{sj.number}</span>
-                                                <StatusBadge status={sj.status} showIcon />
-                                                <LocationBadge location={sj.source_location} />
-                                            </div>
-                                            <p className="text-muted-foreground font-medium">{sj.recipient_name}</p>
-                                            <p className="text-sm text-muted-foreground">{sj.recipient_address}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* Pending Review */}
-                {pendingReview.length > 0 && (
-                    <div>
-                        <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-yellow-600">
-                            <Clock className="h-5 w-5" />
-                            Menunggu Review Main Office ({pendingReview.length})
-                        </h3>
-                        <div className="grid gap-4">
-                            {pendingReview.map((sj: any) => (
-                                <div key={sj.id} className="bg-card border border-yellow-200 rounded-lg p-4 shadow-sm opacity-90">
-                                    <div className="flex justify-between items-center">
-                                        <div>
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <span className="font-bold">{sj.number}</span>
-                                                <StatusBadge status={sj.status} showIcon />
-                                            </div>
-                                            <p className="text-sm text-muted-foreground">{sj.recipient_name}</p>
-                                        </div>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => cancelSuratJalan.mutate(sj.id)}
-                                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                                        >
-                                            Batalkan
-                                        </Button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* Processing */}
-                {processing.length > 0 && (
-                    <div>
-                        <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-purple-600">
-                            <Truck className="h-5 w-5" />
-                            Dalam Pengiriman ({processing.length})
-                        </h3>
-                        <div className="grid gap-4">
-                            {processing.map((sj: any) => (
-                                <div key={sj.id} className="bg-card border border-purple-200 rounded-lg p-4 shadow-sm">
-                                    <div className="flex justify-between items-center">
-                                        <div>
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <span className="font-bold">{sj.number}</span>
-                                                <StatusBadge status={sj.status} showIcon />
-                                            </div>
-                                            <p className="text-sm text-muted-foreground">{sj.recipient_name}</p>
-                                            <p className="text-xs text-purple-600">Menunggu gudang menyelesaikan pengiriman</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* Rejected */}
-                {rejected.length > 0 && (
-                    <div>
-                        <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-red-600">
-                            <XCircle className="h-5 w-5" />
-                            Ditolak ({rejected.length})
-                        </h3>
-                        <div className="grid gap-4 opacity-75">
-                            {rejected.map((sj: any) => (
-                                <div key={sj.id} className="bg-card border border-red-200 rounded-lg p-4 shadow-sm">
-                                    <div className="flex justify-between items-center">
-                                        <div>
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <span className="font-bold">{sj.number}</span>
-                                                <StatusBadge status={sj.status} showIcon />
-                                            </div>
-                                            <p className="text-sm text-muted-foreground">{sj.recipient_name}</p>
-                                            {sj.review_notes && (
-                                                <p className="text-sm text-red-600 mt-1">Alasan: {sj.review_notes}</p>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* Completed History */}
-                {completed.length > 0 && (
-                    <div>
-                        <h3 className="text-lg font-bold mb-4 text-muted-foreground">Riwayat Selesai</h3>
-                        <div className="grid gap-4 opacity-75">
-                            {completed.slice(0, 5).map((sj: any) => (
-                                <div key={sj.id} className="bg-card border rounded-lg p-4 flex justify-between items-center">
-                                    <div>
-                                        <div className="flex items-center gap-2">
-                                            <p className="font-semibold">{sj.number}</p>
-                                            <StatusBadge status={sj.status} showIcon />
-                                        </div>
-                                        <p className="text-sm text-muted-foreground">Ke: {sj.recipient_name}</p>
-                                    </div>
-                                    <div className="text-right text-sm text-muted-foreground">
-                                        {sj.completed_at && format(new Date(sj.completed_at), 'dd MMM yyyy', { locale: idLocale })}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* Empty State */}
-                {suratJalans.length === 0 && (
-                    <div className="text-center py-16 bg-muted/20 rounded-lg border border-dashed">
-                        <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                        <h3 className="text-lg font-bold text-gray-900 mb-2">Belum Ada Surat Jalan</h3>
-                        <p className="text-muted-foreground mb-4">Buat surat jalan pertama Anda</p>
-                        <Button onClick={() => setDialogOpen(true)}>
-                            <Plus className="mr-2 h-4 w-4" />
-                            Buat Surat Jalan
-                        </Button>
-                    </div>
-                )}
+                {/* All Surat Jalans in BeautifulTable */}
+                <div className="mt-8">
+                    <BeautifulTable
+                        data={suratJalans}
+                        columns={tableColumns}
+                        title="Daftar Surat Jalan"
+                        subtitle="Semua surat jalan yang pernah dibuat"
+                        variant="premium"
+                        emptyState={{
+                            icon: <FileText className="w-8 h-8 text-white" />,
+                            title: "Belum Ada Surat Jalan",
+                            description: "Buat surat jalan pertama Anda dengan tombol di atas."
+                        }}
+                    />
+                </div>
             </div>
+
+            {/* Detail Dialog */}
+            <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
+                <DialogContent className="max-w-2xl rounded-3xl">
+                    <DialogHeader>
+                        <DialogTitle>Detail Surat Jalan: {selectedSjDetail?.number}</DialogTitle>
+                        <DialogDescription>
+                            Dikirim kepada {selectedSjDetail?.recipient_name}
+                        </DialogDescription>
+                    </DialogHeader>
+                    {selectedSjDetail && (
+                        <div className="space-y-4 py-4">
+                            <div className="bg-muted/30 rounded-xl p-4 flex gap-4 text-sm border">
+                                <div>
+                                    <p className="text-muted-foreground mb-1 text-xs">Penerima</p>
+                                    <p className="font-semibold">{selectedSjDetail.recipient_name}</p>
+                                    <p className="text-muted-foreground">{selectedSjDetail.recipient_address}</p>
+                                </div>
+                                <div className="ml-auto text-right">
+                                    <div className="mb-3">
+                                        <p className="text-muted-foreground mb-1 text-xs">Tanggal</p>
+                                        <p className="font-medium">
+                                            {selectedSjDetail.completed_at ? format(new Date(selectedSjDetail.completed_at), 'dd MMM yyyy', { locale: idLocale }) : '-'}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-muted-foreground mb-1 text-xs">Kontak</p>
+                                        <p className="font-medium">{selectedSjDetail.recipient_phone || '-'}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <h4 className="font-semibold text-sm">Daftar Barang Dikirim</h4>
+                            <div className="border rounded-xl overflow-hidden">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-4 py-3 text-left font-medium text-gray-500">Nama Barang</th>
+                                            <th className="px-4 py-3 text-center font-medium text-gray-500 w-24">Jumlah</th>
+                                            <th className="px-4 py-3 text-center font-medium text-gray-500 w-32">Lokasi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y">
+                                        {selectedSjDetail.items?.map((item: any) => (
+                                            <tr key={item.id} className="hover:bg-muted/50">
+                                                <td className="px-4 py-3">
+                                                    <p className="font-medium">{item.product?.name || item.product_name || 'Produk tidak diketahui'}</p>
+                                                </td>
+                                                <td className="px-4 py-3 text-center font-medium">
+                                                    {item.quantity} <span className="text-muted-foreground">{item.unit || ''}</span>
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <LocationBadge location={item.from_location} />
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {(!selectedSjDetail.items || selectedSjDetail.items.length === 0) && (
+                                            <tr>
+                                                <td colSpan={3} className="px-4 py-8 text-center text-muted-foreground">
+                                                    Tidak ada data barang
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            {selectedSjDetail.customer_po_url && (
+                                <div className="mt-4">
+                                    <h4 className="font-semibold text-sm mb-2">Lampiran PO</h4>
+                                    <a 
+                                        href={selectedSjDetail.customer_po_url} 
+                                        target="_blank" 
+                                        rel="noreferrer"
+                                        className="text-primary text-sm hover:underline flex items-center gap-1"
+                                    >
+                                        <FileText className="w-4 h-4" /> Lihat Dokumen PO
+                                    </a>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
 
         </MainLayout>
     );

@@ -77,6 +77,16 @@ export default function ProductSearchSelect({
         return stockLocation === 'gudang' ? (p.stock_gudang || 0) : (p.stock_toko || 0);
     };
 
+    const formatStockDisplay = (stock: number, product: Product) => {
+        if (product.has_multi_unit && product.main_unit && product.pcs_per_box) {
+             const mainQty = Math.floor(stock / product.pcs_per_box);
+             const remainQty = stock % product.pcs_per_box;
+             if (remainQty === 0) return `${mainQty} ${product.main_unit}`;
+             return `${mainQty} ${product.main_unit} ${remainQty} ${product.sell_unit}`;
+        }
+        return `${stock} ${product.sell_unit || 'pcs'}`;
+    };
+
     return (
         <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
@@ -165,7 +175,7 @@ export default function ProductSearchSelect({
                                                     ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
                                                     : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                                             )}>
-                                                Stok: {stock}
+                                                Stok: {formatStockDisplay(stock, product)}
                                             </span>
                                         )}
                                     </button>
