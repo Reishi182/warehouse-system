@@ -419,14 +419,7 @@ export default function StockHistory() {
         },
         {
             header: 'User / Aktor',
-            cell: (log) => log.actor_name ? (
-                <div className="flex items-center gap-2">
-                    <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                        <User className="w-3 h-3 text-primary" />
-                    </div>
-                    <span className="text-sm truncate max-w-[130px] font-medium">{log.actor_name}</span>
-                </div>
-            ) : log.user ? (
+            cell: (log) => log.user ? (
                 <div className="flex items-center gap-2">
                     <Avatar className="h-6 w-6">
                         <AvatarImage src={log.user.avatar || ''} />
@@ -434,7 +427,14 @@ export default function StockHistory() {
                             {log.user.name?.slice(0, 2).toUpperCase()}
                         </AvatarFallback>
                     </Avatar>
-                    <span className="text-sm truncate max-w-[130px]">{log.user.name}</span>
+                    <span className="text-sm truncate max-w-[130px] font-medium">{log.user.name}</span>
+                </div>
+            ) : log.actor_name ? (
+                <div className="flex items-center gap-2">
+                    <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                        <User className="w-3 h-3 text-primary" />
+                    </div>
+                    <span className="text-sm truncate max-w-[130px]">{log.actor_name}</span>
                 </div>
             ) : <span className="text-muted-foreground text-sm">-</span>
         },
@@ -526,14 +526,7 @@ export default function StockHistory() {
         },
         {
             header: 'User / Aktor',
-            cell: (g) => g.actor_name ? (
-                <div className="flex items-center gap-2">
-                    <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                        <User className="w-3 h-3 text-primary" />
-                    </div>
-                    <span className="text-sm truncate max-w-[130px] font-medium">{g.actor_name}</span>
-                </div>
-            ) : g.user ? (
+            cell: (g) => g.user ? (
                 <div className="flex items-center gap-2">
                     <Avatar className="h-6 w-6">
                         <AvatarImage src={g.user.avatar || ''} />
@@ -541,7 +534,14 @@ export default function StockHistory() {
                             {g.user.name?.slice(0, 2).toUpperCase()}
                         </AvatarFallback>
                     </Avatar>
-                    <span className="text-sm truncate max-w-[130px]">{g.user.name}</span>
+                    <span className="text-sm truncate max-w-[130px] font-medium">{g.user.name}</span>
+                </div>
+            ) : g.actor_name ? (
+                <div className="flex items-center gap-2">
+                    <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                        <User className="w-3 h-3 text-primary" />
+                    </div>
+                    <span className="text-sm truncate max-w-[130px]">{g.actor_name}</span>
                 </div>
             ) : <span className="text-muted-foreground text-sm">-</span>
         },
