@@ -91,7 +91,7 @@ export function QuickSaleDialog({
                     {/* Price */}
                     <div className="space-y-2">
                         <Label htmlFor="item-price">Harga (Rp)</Label>
-                        <Input
+                        <Input isCurrency
                             id="item-price"
                             type="number"
                             value={price}

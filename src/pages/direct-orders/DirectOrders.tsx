@@ -442,7 +442,7 @@ export default function DirectOrders() {
                                     </div>
                                     <div className="col-span-3 space-y-1">
                                         <Label className="text-xs">Harga</Label>
-                                        <Input
+                                        <Input isCurrency
                                             type="number"
                                             value={item.price}
                                             onChange={(e) => updateItem(idx, 'price', parseInt(e.target.value) || 0)}
@@ -468,7 +468,7 @@ export default function DirectOrders() {
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label>Biaya Pengiriman</Label>
-                                <Input
+                                <Input isCurrency
                                     type="number"
                                     value={shippingCost}
                                     onChange={(e) => setShippingCost(parseInt(e.target.value) || 0)}

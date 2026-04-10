@@ -300,7 +300,7 @@ export default function TokopediaOrders() {
                                     </div>
                                     <div className="space-y-2">
                                         <Label>Ongkir</Label>
-                                        <Input type="number" min={0} value={shippingCost} onChange={e => setShippingCost(parseInt(e.target.value) || 0)} placeholder="Ongkos kirim" />
+                                        <Input isCurrency type="number" min={0} value={shippingCost} onChange={e => setShippingCost(parseInt(e.target.value) || 0)} placeholder="Ongkos kirim" />
                                     </div>
                                 </div>
 
@@ -318,7 +318,7 @@ export default function TokopediaOrders() {
                                     />
                                     <div className="grid grid-cols-3 gap-3">
                                         <Input type="number" min={1} placeholder="Qty" value={itemQty} onChange={e => setItemQty(parseFloat(e.target.value) || 1)} />
-                                        <Input type="number" min={0} placeholder="Harga" value={itemPrice} onChange={e => setItemPrice(parseInt(e.target.value) || 0)} />
+                                        <Input isCurrency type="number" min={0} placeholder="Harga" value={itemPrice} onChange={e => setItemPrice(parseInt(e.target.value) || 0)} />
                                         <Button onClick={handleAddItem} disabled={!selectedProductId}>+ Tambah</Button>
                                     </div>
                                 </div>

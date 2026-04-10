@@ -178,7 +178,7 @@ export default function Expenses() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Jumlah (Rp)</Label>
-                                    <Input
+                                    <Input isCurrency
                                         type="number"
                                         placeholder="50000"
                                         value={form.amount}

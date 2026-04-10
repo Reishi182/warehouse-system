@@ -367,7 +367,7 @@ export default function CashTransfer() {
                     <div className="grid grid-cols-1 gap-4">
                       <div className="space-y-2">
                         <Label>Nominal Setoran</Label>
-                        <Input
+                        <Input isCurrency
                           type="number"
                           value={amount || ''}
                           onChange={(e) => setAmount(parseInt(e.target.value) || 0)}

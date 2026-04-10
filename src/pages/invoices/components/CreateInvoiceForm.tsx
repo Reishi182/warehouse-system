@@ -230,7 +230,7 @@ export default function CreateInvoiceForm({ onSubmit, onCancel }: CreateInvoiceF
                         <Label className="text-xs font-semibold text-gray-500 uppercase">Harga</Label>
                         <div className="relative">
                             <span className="absolute left-3 top-2.5 text-xs text-gray-400">Rp</span>
-                            <Input
+                            <Input isCurrency
                                 type="number"
                                 min="0"
                                 className="pl-8 bg-white border-gray-200 rounded-lg h-10"

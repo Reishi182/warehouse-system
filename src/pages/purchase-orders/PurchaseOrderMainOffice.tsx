@@ -640,7 +640,7 @@ export default function PurchaseOrderMainOffice() {
                                                 </div>
                                                 <div className="flex-1 space-y-2">
                                                     <Label>Harga Satuan</Label>
-                                                    <Input
+                                                    <Input isCurrency
                                                         type="number"
                                                         min={0}
                                                         value={itemPrice}
@@ -689,7 +689,7 @@ export default function PurchaseOrderMainOffice() {
                                             </div>
                                             <div className="w-40 space-y-2">
                                                 <Label>Harga Satuan</Label>
-                                                <Input
+                                                <Input isCurrency
                                                     type="number"
                                                     min={0}
                                                     value={itemPrice}
@@ -761,7 +761,7 @@ export default function PurchaseOrderMainOffice() {
                                                     {/* Unit price — editable */}
                                                     <div className="flex items-center gap-1 shrink-0">
                                                         <span className="text-xs text-muted-foreground">Rp</span>
-                                                        <Input
+                                                        <Input isCurrency
                                                             type="number"
                                                             min={0}
                                                             value={item.unitPrice}

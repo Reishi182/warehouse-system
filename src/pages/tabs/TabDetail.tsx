@@ -347,7 +347,7 @@ export default function TabDetail() {
                             <>
                                 <div className="space-y-2">
                                     <Label>Jumlah Bayar</Label>
-                                    <Input
+                                    <Input isCurrency
                                         type="number"
                                         className="rounded-xl h-11 text-lg"
                                         value={settleForm.amountPaid || ''}

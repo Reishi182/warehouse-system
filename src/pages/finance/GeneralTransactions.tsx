@@ -557,7 +557,7 @@ export default function GeneralTransactions() {
 
                             <div className="space-y-2">
                                 <Label>Nominal (Rp)</Label>
-                                <Input
+                                <Input isCurrency
                                     type="number"
                                     placeholder="0"
                                     value={amount}

@@ -223,7 +223,7 @@ export function POSCheckoutDialog({
                             {/* Amount Input */}
                             <div className="space-y-2">
                                 <Label className="text-sm">Uang Diterima</Label>
-                                <Input
+                                <Input isCurrency
                                     type="number"
                                     value={amountPaid || ''}
                                     onChange={(e) => onAmountPaidChange(parseInt(e.target.value) || 0)}

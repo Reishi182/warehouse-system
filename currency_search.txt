@@ -1,0 +1,108 @@
+﻿
+  src\pages\CashTransfer.tsx:369:                        <Label>Nominal Setoran</Label>
+  src\pages\CashTransfer.tsx:370:                        <Input
+> src\pages\CashTransfer.tsx:371:                          type="number"
+  src\pages\CashTransfer.tsx:372:                          value={amount || ''}
+  src\pages\CashTransfer.tsx:373:                          onChange={(e) => setAmount(parseInt(e.target.value) || 0)}
+  src\pages\Products.tsx:749:                                        <span>Halaman</span>
+  src\pages\Products.tsx:750:                                        <input
+> src\pages\Products.tsx:751:                                            type="number"
+  src\pages\Products.tsx:752:                                            min={1}
+  src\pages\Products.tsx:753:                                            max={totalPages}
+  src\pages\Sales.tsx:197:                              </Button>
+  src\pages\Sales.tsx:198:                              <Input
+> src\pages\Sales.tsx:199:                                type="number"
+  src\pages\Sales.tsx:200:                                min={0}
+  src\pages\Sales.tsx:201:                                value={it.quantity}
+  src\pages\Settings_restored.tsx:454:                  <Label>Batas Minimum Stok</Label>
+  src\pages\Settings_restored.tsx:455:                  <Input
+> src\pages\Settings_restored.tsx:456:                    type="number"
+  src\pages\Settings_restored.tsx:457:                    value={lowStockThreshold}
+  src\pages\Settings_restored.tsx:458:                    onChange={(e) => 
+setLowStockThreshold(parseInt(e.target.value) || 0)}
+  src\pages\StockIn.tsx:153:                          <div className="flex-1 space-y-1">
+  src\pages\StockIn.tsx:154:                            <Input
+> src\pages\StockIn.tsx:155:                              type="number"
+  src\pages\StockIn.tsx:156:                              min={0}
+  src\pages\StockIn.tsx:157:                              value={mainQty || ''}
+  src\pages\StockIn.tsx:169:                          <div className="flex-1 space-y-1">
+  src\pages\StockIn.tsx:170:                            <Input
+> src\pages\StockIn.tsx:171:                              type="number"
+  src\pages\StockIn.tsx:172:                              min={0}
+  src\pages\StockIn.tsx:173:                              value={subQty || ''}
+  src\pages\StockIn.tsx:191:                    ) : (
+  src\pages\StockIn.tsx:192:                      <Input
+> src\pages\StockIn.tsx:193:                        type="number"
+  src\pages\StockIn.tsx:194:                        value={quantity}
+  src\pages\StockIn.tsx:195:                        onChange={(e) => setQuantity(parseFloat(e.target.value) || 0)}
+  src\pages\StockOpname.tsx:695:                                                            </Select>
+  src\pages\StockOpname.tsx:696:                                                            <span className="text-xs 
+font-medium">=</span>
+> src\pages\StockOpname.tsx:697:                                                            <Input type="number" 
+min={1} value={item.adHocMultiplier || ''} onChange={e => updateItem(product.id, 'adHocMultiplier', 
+parseFloat(e.target.value) || 0)} placeholder="Mis: 12" className="h-7 text-xs w-[100px]" />
+  src\pages\StockOpname.tsx:698:                                                            <Select
+  src\pages\StockOpname.tsx:699:                                                                
+value={item.adHocSubLabel || defaultSubLabel.toLowerCase()}
+  src\pages\StockOpname.tsx:732:                                                            <div className="flex gap-2 
+items-center">
+  src\pages\StockOpname.tsx:733:                                                                <div className="flex-1 
+space-y-0.5">
+> src\pages\StockOpname.tsx:734:                                                                    <Input 
+type="number" min={0} step="any" value={item.mainGudang || ''} onChange={e => updateItem(product.id, 'mainGudang', 
+parseFloat(e.target.value) || 0)} className="h-9 text-center font-bold" placeholder="0" />
+  src\pages\StockOpname.tsx:735:                                                                    <p 
+className="text-[10px] text-center text-muted-foreground">{mainLabel}</p>
+  src\pages\StockOpname.tsx:736:                                                                </div>
+  src\pages\StockOpname.tsx:737:                                                                <Plus className="w-3 
+h-3 text-muted-foreground shrink-0" />
+  src\pages\StockOpname.tsx:738:                                                                <div className="flex-1 
+space-y-0.5">
+> src\pages\StockOpname.tsx:739:                                                                    <Input 
+type="number" min={0} step="any" value={item.subGudang || ''} onChange={e => updateItem(product.id, 'subGudang', 
+parseFloat(e.target.value) || 0)} className="h-9 text-center" placeholder="0" />
+  src\pages\StockOpname.tsx:740:                                                                    <p 
+className="text-[10px] text-center text-muted-foreground">{subLabel}</p>
+  src\pages\StockOpname.tsx:741:                                                                </div>
+  src\pages\StockOpname.tsx:742:                                                            </div>
+  src\pages\StockOpname.tsx:743:                                                        ) : (
+> src\pages\StockOpname.tsx:744:                                                            <Input type="number" 
+min={0} step="any" value={item.subGudang || ''} onChange={e => updateItem(product.id, 'subGudang', 
+parseFloat(e.target.value) || 0)} className="h-9" placeholder="Jumlah fisik" />
+  src\pages\StockOpname.tsx:745:                                                        )}
+  src\pages\StockOpname.tsx:746:                                                    </div>
+  src\pages\StockOpname.tsx:769:                                                            <div className="flex gap-2 
+items-center">
+  src\pages\StockOpname.tsx:770:                                                                <div className="flex-1 
+space-y-0.5">
+> src\pages\StockOpname.tsx:771:                                                                    <Input 
+type="number" min={0} step="any" value={item.mainToko || ''} onChange={e => updateItem(product.id, 'mainToko', 
+parseFloat(e.target.value) || 0)} className="h-9 text-center font-bold" placeholder="0" />
+  src\pages\StockOpname.tsx:772:                                                                    <p 
+className="text-[10px] text-center text-muted-foreground">{mainLabel}</p>
+  src\pages\StockOpname.tsx:773:                                                                </div>
+  src\pages\StockOpname.tsx:774:                                                                <Plus className="w-3 
+h-3 text-muted-foreground shrink-0" />
+  src\pages\StockOpname.tsx:775:                                                                <div className="flex-1 
+space-y-0.5">
+> src\pages\StockOpname.tsx:776:                                                                    <Input 
+type="number" min={0} step="any" value={item.subToko || ''} onChange={e => updateItem(product.id, 'subToko', 
+parseFloat(e.target.value) || 0)} className="h-9 text-center" placeholder="0" />
+  src\pages\StockOpname.tsx:777:                                                                    <p 
+className="text-[10px] text-center text-muted-foreground">{subLabel}</p>
+  src\pages\StockOpname.tsx:778:                                                                </div>
+  src\pages\StockOpname.tsx:779:                                                            </div>
+  src\pages\StockOpname.tsx:780:                                                        ) : (
+> src\pages\StockOpname.tsx:781:                                                            <Input type="number" 
+min={0} step="any" value={item.subToko || ''} onChange={e => updateItem(product.id, 'subToko', 
+parseFloat(e.target.value) || 0)} className="h-9" placeholder="Jumlah fisik" />
+  src\pages\StockOpname.tsx:782:                                                        )}
+  src\pages\StockOpname.tsx:783:                                                    </div>
+  src\pages\StockRequests.tsx:413:                        <div className="flex gap-4 items-center">
+  src\pages\StockRequests.tsx:414:                          <Input
+> src\pages\StockRequests.tsx:415:                            type="number"
+  src\pages\StockRequests.tsx:416:                            value={item.quantity}
+  src\pages\StockRequests.tsx:417:                            onChange={(e) => updateItemQuantity(item.id, 
+parseFloat(e.target.value))}
+
+

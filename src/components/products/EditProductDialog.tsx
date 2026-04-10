@@ -277,7 +277,7 @@ export default function EditProductDialog({
                     {/* Price */}
                     <div className="space-y-2">
                         <Label>Harga Jual (Rp) per Sub-Unit</Label>
-                        <Input
+                        <Input isCurrency
                             type="number"
                             min={0}
                             value={price}
@@ -495,7 +495,7 @@ export default function EditProductDialog({
                                         <Label className="text-blue-900 dark:text-blue-100">
                                             Harga per {mainUnitLabel} (Rp)
                                         </Label>
-                                        <Input
+                                        <Input isCurrency
                                             type="number"
                                             min={0}
                                             value={boxPrice ?? ''}

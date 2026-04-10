@@ -171,13 +171,17 @@ function GroupDetailDialog({
                                             </div>
                                         </td>
                                         <td className="px-3 py-3 text-center">
-                                            <span className={cn(
-                                                "font-bold",
-                                                log.type === 'in' ? 'text-green-600' :
-                                                    log.type === 'out' ? 'text-red-600' : 'text-blue-600'
-                                            )}>
-                                                {log.type === 'in' ? '+' : log.type === 'out' ? '-' : '±'}{displayQty}
-                                            </span>
+                                            {(() => {
+                                                const isPositive = log.type === 'in' || (log.type === 'adjustment' && log.quantity > 0);
+                                                const isNegative = log.type === 'out' || (log.type === 'adjustment' && log.quantity < 0);
+                                                const colorClass = isPositive ? 'text-green-600' : isNegative ? 'text-red-600' : 'text-gray-600';
+                                                const sign = isPositive ? '+' : isNegative ? '-' : '';
+                                                return (
+                                                    <span className={cn("font-bold", colorClass)}>
+                                                        {sign}{displayQty}
+                                                    </span>
+                                                );
+                                            })()}
                                         </td>
                                         <td className="px-3 py-3 text-xs text-muted-foreground max-w-[160px] truncate">
                                             {log.note || '—'}
@@ -391,9 +395,13 @@ export default function StockHistory() {
                 } else if (log.product?.sell_unit) {
                     displayQty = `${Math.abs(log.quantity)} ${log.product.sell_unit.toUpperCase()}`;
                 }
+                const isPositive = log.type === 'in' || (log.type === 'adjustment' && log.quantity > 0);
+                const isNegative = log.type === 'out' || (log.type === 'adjustment' && log.quantity < 0);
+                const colorClass = isPositive ? 'text-green-600' : isNegative ? 'text-red-600' : 'text-gray-600';
+                const sign = isPositive ? '+' : isNegative ? '-' : '';
                 return (
-                    <span className={cn("font-bold", log.type === 'in' ? 'text-green-600' : log.type === 'out' ? 'text-red-600' : 'text-blue-600')}>
-                        {log.type === 'in' ? '+' : log.type === 'out' ? '-' : '±'}{displayQty}
+                    <span className={cn("font-bold", colorClass)}>
+                        {sign}{displayQty}
                     </span>
                 );
             }

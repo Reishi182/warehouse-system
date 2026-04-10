@@ -443,7 +443,7 @@ export default function MarketplaceOrders() {
                                             value={itemUnit}
                                             onChange={(e) => setItemUnit(e.target.value)}
                                         />
-                                        <Input
+                                        <Input isCurrency
                                             type="number"
                                             min={0}
                                             placeholder="Harga"
