@@ -26,15 +26,25 @@ export default function RevenueByPaymentChart({ sales, days = 30 }: RevenueByPay
 
         const filteredSales = sales.filter(s => new Date(s.created_at) >= startDate);
 
-        const cashSales = filteredSales.filter(s => s.payment_method === 'cash');
-        const transferSales = filteredSales.filter(s => s.payment_method === 'transfer');
-
-        const cashAmount = cashSales.reduce((acc, s) => acc + s.total_amount, 0);
-        const transferAmount = transferSales.reduce((acc, s) => acc + s.total_amount, 0);
+        const cashAmount = filteredSales.reduce((acc, s) => {
+            if (s.payment_method === 'cash') return acc + s.total_amount;
+            if (s.payment_method === 'split') return acc + (s.amount_cash || 0);
+            return acc;
+        }, 0);
+        
+        const transferAmount = filteredSales.reduce((acc, s) => {
+            if (s.payment_method === 'transfer') return acc + s.total_amount;
+            if (s.payment_method === 'split') return acc + (s.amount_transfer || 0);
+            return acc;
+        }, 0);
+        
         const totalAmount = cashAmount + transferAmount;
 
         const cashPercent = totalAmount > 0 ? (cashAmount / totalAmount * 100) : 0;
         const transferPercent = totalAmount > 0 ? (transferAmount / totalAmount * 100) : 0;
+        
+        const cashCount = filteredSales.filter(s => s.payment_method === 'cash' || s.payment_method === 'split').length;
+        const transferCount = filteredSales.filter(s => s.payment_method === 'transfer' || s.payment_method === 'split').length;
 
         return {
             cashAmount,
@@ -42,8 +52,8 @@ export default function RevenueByPaymentChart({ sales, days = 30 }: RevenueByPay
             totalAmount,
             cashPercent,
             transferPercent,
-            cashCount: cashSales.length,
-            transferCount: transferSales.length,
+            cashCount,
+            transferCount,
         };
     }, [sales, days]);
 

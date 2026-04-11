@@ -495,9 +495,13 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
                                         </Label>
                                         <Input
                                             type="number"
-                                            min={1}
+                                            min={0}
+                                            step="any"
                                             value={pcsPerBox ?? ''}
-                                            onChange={(e) => setPcsPerBox(parseInt(e.target.value) || null)}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                setPcsPerBox(val === '' ? null : parseFloat(val));
+                                            }}
                                             placeholder={`Jumlah ${subUnitLabel}`}
                                         />
                                     </div>

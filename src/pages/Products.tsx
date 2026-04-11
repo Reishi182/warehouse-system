@@ -53,16 +53,54 @@ export default function Products() {
     const { toast } = useToast();
 
     // Filter states
-    const [searchQuery, setSearchQuery] = useState('');
+    const [searchQuery, setSearchQuery] = useState(() => sessionStorage.getItem('products_search_query') || '');
     const debouncedSearch = useDebounce(searchQuery, 300);
-    const [stockFilter, setStockFilter] = useState<StockFilter>('all');
-    const [locationFilter, setLocationFilter] = useState<LocationFilter>('all');
-    const [sortBy, setSortBy] = useState<SortOption>('name-asc');
-    const [dataFilters, setDataFilters] = useState<DataFilter[]>([]);
+    const [stockFilter, setStockFilter] = useState<StockFilter>(() => (sessionStorage.getItem('products_stock_filter') as StockFilter) || 'all');
+    const [locationFilter, setLocationFilter] = useState<LocationFilter>(() => (sessionStorage.getItem('products_location_filter') as LocationFilter) || 'all');
+    const [sortBy, setSortBy] = useState<SortOption>(() => (sessionStorage.getItem('products_sort_by') as SortOption) || 'name-asc');
+    const [dataFilters, setDataFilters] = useState<DataFilter[]>(() => {
+        const saved = sessionStorage.getItem('products_data_filters');
+        return saved ? JSON.parse(saved) : [];
+    });
 
     // Pagination states
-    const [currentPage, setCurrentPage] = useState(1);
-    const [pageSize, setPageSize] = useState<PageSize>(15);
+    const [currentPage, setCurrentPage] = useState(() => {
+        const saved = sessionStorage.getItem('products_current_page');
+        return saved ? parseInt(saved, 10) : 1;
+    });
+    const [pageSize, setPageSize] = useState<PageSize>(() => {
+        const saved = sessionStorage.getItem('products_page_size');
+        if (saved === 'all') return 'all';
+        return saved ? (parseInt(saved, 10) as PageSize) : 15;
+    });
+
+    useEffect(() => {
+        sessionStorage.setItem('products_search_query', searchQuery);
+    }, [searchQuery]);
+
+    useEffect(() => {
+        sessionStorage.setItem('products_stock_filter', stockFilter);
+    }, [stockFilter]);
+
+    useEffect(() => {
+        sessionStorage.setItem('products_location_filter', locationFilter);
+    }, [locationFilter]);
+
+    useEffect(() => {
+        sessionStorage.setItem('products_sort_by', sortBy);
+    }, [sortBy]);
+
+    useEffect(() => {
+        sessionStorage.setItem('products_data_filters', JSON.stringify(dataFilters));
+    }, [dataFilters]);
+
+    useEffect(() => {
+        sessionStorage.setItem('products_current_page', currentPage.toString());
+    }, [currentPage]);
+
+    useEffect(() => {
+        sessionStorage.setItem('products_page_size', pageSize.toString());
+    }, [pageSize]);
 
     // Dialog states
     const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -197,7 +235,12 @@ export default function Products() {
     }, [filteredProducts.length, pageSize]);
 
     // Reset page when filters change
+    const isFirstRender = useRef(true);
     useEffect(() => {
+        if (isFirstRender.current) {
+            isFirstRender.current = false;
+            return;
+        }
         setCurrentPage(1);
     }, [debouncedSearch, stockFilter, locationFilter, pageSize, sortBy, dataFilters]);
 
@@ -332,6 +375,12 @@ export default function Products() {
         setDataFilters([]);
         setSortBy('name-asc');
         setCurrentPage(1);
+        sessionStorage.removeItem('products_search_query');
+        sessionStorage.removeItem('products_stock_filter');
+        sessionStorage.removeItem('products_location_filter');
+        sessionStorage.removeItem('products_sort_by');
+        sessionStorage.removeItem('products_data_filters');
+        sessionStorage.removeItem('products_current_page');
     }, []);
 
     // Historical stock calculation

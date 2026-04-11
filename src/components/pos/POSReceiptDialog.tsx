@@ -72,6 +72,8 @@ export function POSReceiptDialog({
                             paymentMethod={lastSale.method}
                             amountPaid={lastSale.amountPaid}
                             change={lastSale.change}
+                            amountCash={lastSale.amountCash}
+                            amountTransfer={lastSale.amountTransfer}
                             storeName={storeName}
                             storeAddress={storeAddress}
                             isOffline={lastSale.isOffline}

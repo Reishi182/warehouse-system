@@ -44,7 +44,11 @@ export default function StatsGrid({
 
     const totalSalesToday = validSales.length;
     const totalSalesAmount = validSales.reduce((acc, s) => acc + s.total_amount, 0);
-    const cashSalesAmount = validSales.filter(s => s.payment_method === 'cash').reduce((acc, s) => acc + s.total_amount, 0);
+    const cashSalesAmount = validSales.reduce((acc, s) => {
+        if (s.payment_method === 'cash') return acc + s.total_amount;
+        if (s.payment_method === 'split') return acc + (s.amount_cash || 0);
+        return acc;
+    }, 0);
     const totalCashTransfer = cashTransfers.reduce((acc, t) => acc + t.amount, 0);
     const saldoBelumDisetor = Math.max(0, cashSalesAmount - totalCashTransfer);
 
@@ -117,7 +121,7 @@ export default function StatsGrid({
                 <StatCard
                     title="Cash Masuk"
                     value={formatCompact(cashSalesAmount)}
-                    subtitle={`${validSales.filter(s => s.payment_method === 'cash').length} transaksi`}
+                    subtitle={`${validSales.filter(s => s.payment_method === 'cash' || s.payment_method === 'split').length} transaksi`}
                     icon={Banknote}
                     gradient="emerald"
                     animationDelay={100}

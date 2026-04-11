@@ -10,7 +10,7 @@ export interface User {
 
 export type Location = 'gudang' | 'toko';
 
-export type PaymentMethod = 'cash' | 'transfer';
+export type PaymentMethod = 'cash' | 'transfer' | 'split';
 
 export interface Product {
   id: string;
@@ -122,6 +122,8 @@ export interface Sale {
   order_discount: number; // fixed amount discount in Rupiah for entire order
   amount_paid: number; // amount customer paid
   change_amount: number; // change returned to customer
+  amount_cash?: number; // split payment cash part
+  amount_transfer?: number; // split payment transfer part
   has_exchange?: boolean; // true if any item was exchanged
   // Exchange tracking
   is_exchanged?: boolean; // true if this sale was exchanged to another

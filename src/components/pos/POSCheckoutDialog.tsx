@@ -33,6 +33,10 @@ interface POSCheckoutDialogProps {
     paymentMethod: PaymentMethod;
     amountPaid: number;
     onAmountPaidChange: (amount: number) => void;
+    splitCashAmount: number;
+    onSplitCashAmountChange: (amount: number) => void;
+    splitTransferAmount: number;
+    onSplitTransferAmountChange: (amount: number) => void;
     transactionDate: Date;
     onTransactionDateChange: (date: Date) => void;
     onConfirm: () => void;
@@ -54,6 +58,10 @@ export function POSCheckoutDialog({
     paymentMethod,
     amountPaid,
     onAmountPaidChange,
+    splitCashAmount,
+    onSplitCashAmountChange,
+    splitTransferAmount,
+    onSplitTransferAmountChange,
     transactionDate,
     onTransactionDateChange,
     onConfirm,
@@ -80,8 +88,11 @@ export function POSCheckoutDialog({
         if (isCredit) {
             return creditCustomerName.trim().length > 0;
         }
+        if (paymentMethod === 'split') {
+            return (splitCashAmount + splitTransferAmount) >= totalAmount;
+        }
         return paymentMethod === 'transfer' || amountPaid >= totalAmount;
-    }, [isProcessing, isCredit, creditCustomerName, paymentMethod, amountPaid, totalAmount]);
+    }, [isProcessing, isCredit, creditCustomerName, paymentMethod, amountPaid, totalAmount, splitCashAmount, splitTransferAmount]);
 
     // Handle Enter key to confirm payment
     useEffect(() => {
@@ -134,7 +145,7 @@ export function POSCheckoutDialog({
 
                     <div className="mt-3 flex items-center justify-between">
                         <div className="text-sm text-muted-foreground">
-                            {items.length} item · {isCredit ? 'Piutang' : paymentMethod === 'cash' ? 'Tunai' : 'Transfer'}
+                            {items.length} item · {isCredit ? 'Piutang' : paymentMethod === 'cash' ? 'Tunai' : paymentMethod === 'split' ? 'Split (Trf+Tunai)' : 'Transfer'}
                         </div>
                         <div className={cn(
                             "text-2xl font-bold",
@@ -277,6 +288,44 @@ export function POSCheckoutDialog({
                                         <span className="font-medium text-emerald-700 dark:text-emerald-400">Kembalian</span>
                                         <span className="text-xl font-bold text-emerald-600">
                                             Rp {changeAmount.toLocaleString('id-ID')}
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Split Payment - Only show if not credit */}
+                    {!isCredit && paymentMethod === 'split' && (
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <Label className="text-sm">Nominal Transfer</Label>
+                                <Input isCurrency
+                                    type="number"
+                                    value={splitTransferAmount || ''}
+                                    onChange={(e) => onSplitTransferAmountChange(parseInt(e.target.value) || 0)}
+                                    className="h-12 text-xl font-bold text-center rounded-xl border-blue-200"
+                                    placeholder="0"
+                                    autoFocus
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-sm">Nominal Tunai</Label>
+                                <Input isCurrency
+                                    type="number"
+                                    value={splitCashAmount || ''}
+                                    onChange={(e) => onSplitCashAmountChange(parseInt(e.target.value) || 0)}
+                                    className="h-12 text-xl font-bold text-center rounded-xl border-emerald-200"
+                                    placeholder="0"
+                                />
+                            </div>
+                            {/* Change Display */}
+                            {(splitCashAmount + splitTransferAmount) >= totalAmount && (
+                                <div className="p-4 rounded-xl bg-gradient-to-r from-white to-emerald-100 dark:from-slate-900 dark:to-emerald-900/30 border border-emerald-200 dark:border-emerald-800">
+                                    <div className="flex items-center justify-between">
+                                        <span className="font-medium text-emerald-700 dark:text-emerald-400">Kembalian</span>
+                                        <span className="text-xl font-bold text-emerald-600">
+                                            Rp {Math.max(0, (splitCashAmount + splitTransferAmount) - totalAmount).toLocaleString('id-ID')}
                                         </span>
                                     </div>
                                 </div>

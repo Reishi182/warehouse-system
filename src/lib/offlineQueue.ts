@@ -15,7 +15,7 @@ export interface OfflineSale {
     saleNumber: string;
     cashierId: string;
     cashierName: string;
-    paymentMethod: 'cash' | 'transfer';
+    paymentMethod: 'cash' | 'transfer' | 'split';
     stockLocation: 'gudang' | 'toko';
     items: Array<{
         productId: string | null; // Bug fix #3: null for manual entries
@@ -31,6 +31,8 @@ export interface OfflineSale {
     orderDiscount: number;
     amountPaid: number;
     changeAmount: number;
+    amountCash?: number;
+    amountTransfer?: number;
     createdAt: string;
     synced: boolean;
     syncError?: string;
@@ -180,6 +182,8 @@ async function syncSaleToServer(sale: OfflineSale): Promise<boolean> {
                 order_discount: sale.orderDiscount,
                 amount_paid: sale.amountPaid,
                 change_amount: sale.changeAmount,
+                amount_cash: sale.amountCash,
+                amount_transfer: sale.amountTransfer,
                 created_at: sale.createdAt, // Use original offline timestamp
                 // Bug fix #3: Include credit fields
                 is_credit: sale.isCredit || false,

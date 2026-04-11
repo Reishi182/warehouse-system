@@ -22,6 +22,8 @@ export type LastSaleData = {
     method: PaymentMethod;
     amountPaid: number;
     change: number;
+    amountCash?: number;
+    amountTransfer?: number;
     date: Date;
     isOffline?: boolean; // Flag to show if sale was saved offline
     returnRef?: string | null; // Reference to original sale for returns
@@ -44,7 +46,12 @@ export interface UsePOSCheckoutReturn {
     showCheckoutDialog: boolean;
     showReceiptDialog: boolean;
     amountPaid: number;
+    amountPaid: number;
     setAmountPaid: (amount: number) => void;
+    splitCashAmount: number;
+    setSplitCashAmount: (amount: number) => void;
+    splitTransferAmount: number;
+    setSplitTransferAmount: (amount: number) => void;
     transactionDate: Date;
     setTransactionDate: (date: Date) => void;
     lastSale: LastSaleData | null;
@@ -72,6 +79,8 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
     const [showCheckoutDialog, setShowCheckoutDialog] = useState(false);
     const [showReceiptDialog, setShowReceiptDialog] = useState(false);
     const [amountPaid, setAmountPaid] = useState(0);
+    const [splitCashAmount, setSplitCashAmount] = useState(0);
+    const [splitTransferAmount, setSplitTransferAmount] = useState(0);
     const [transactionDate, setTransactionDate] = useState<Date>(new Date());
     const [lastSale, setLastSale] = useState<LastSaleData | null>(null);
     // Credit transaction state
@@ -96,6 +105,8 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
             return;
         }
         setAmountPaid(Math.ceil(totalAmount / 1000) * 1000);
+        setSplitCashAmount(0);
+        setSplitTransferAmount(totalAmount);
         setTransactionDate(new Date()); // Reset to today when opening
         setIsCredit(false); // Reset credit state
         setCreditCustomerName(''); // Reset customer name
@@ -121,8 +132,29 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
         const rand = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
         const saleNumber = `INV/${yyyy}${mm}${dd}-${rand}-OFF`; // -OFF suffix for offline
 
-        const changeAmount = (paymentMethod === 'cash' && !isCredit) ? Math.max(0, amountPaid - totalAmount) : 0;
-        const finalAmountPaid = isCredit ? 0 : (paymentMethod === 'cash' ? amountPaid : totalAmount);
+        let changeAmount = 0;
+        let finalAmountPaid = 0;
+        let amountCash = 0;
+        let amountTransfer = 0;
+
+        if (isCredit) {
+            finalAmountPaid = 0;
+            changeAmount = 0;
+        } else if (paymentMethod === 'split') {
+            finalAmountPaid = splitCashAmount + splitTransferAmount;
+            changeAmount = Math.max(0, finalAmountPaid - totalAmount);
+            amountCash = splitCashAmount;
+            amountTransfer = splitTransferAmount;
+        } else if (paymentMethod === 'cash') {
+            finalAmountPaid = amountPaid;
+            changeAmount = Math.max(0, amountPaid - totalAmount);
+            amountCash = amountPaid;
+        } else {
+            // transfer
+            finalAmountPaid = totalAmount;
+            changeAmount = 0;
+            amountTransfer = totalAmount;
+        }
 
         // Prepare items with product details
         const validItems = items.filter(it => it.quantity > 0);
@@ -159,6 +191,8 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
             orderDiscount,
             amountPaid: finalAmountPaid,
             changeAmount,
+            amountCash,
+            amountTransfer,
             createdAt: transactionDate.toISOString(),
             isCredit,
             creditCustomerName: isCredit ? creditCustomerName.trim() : undefined,
@@ -180,6 +214,8 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
             method: paymentMethod,
             amountPaid: finalAmountPaid,
             change: changeAmount,
+            amountCash,
+            amountTransfer,
             date: transactionDate,
             isOffline: true,
             returnRef,
@@ -251,8 +287,30 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
             const rand = String(Math.floor(Math.random() * 1000000)).padStart(6, '0');
             const saleNumber = `INV/${yyyy}${mm}${dd}-${HH}${MM}${ss}-${rand}`;
 
-            const changeAmount = paymentMethod === 'cash' ? Math.max(0, amountPaid - totalAmount) : 0;
-            const finalAmountPaid = paymentMethod === 'cash' ? amountPaid : totalAmount;
+            let changeAmount = 0;
+            let finalAmountPaid = 0;
+            let amountCash = undefined;
+            let amountTransfer = undefined;
+
+            if (isCredit) {
+                finalAmountPaid = 0;
+                changeAmount = 0;
+            } else if (paymentMethod === 'split') {
+                finalAmountPaid = splitCashAmount + splitTransferAmount;
+                changeAmount = Math.max(0, finalAmountPaid - totalAmount);
+                amountCash = splitCashAmount;
+                amountTransfer = splitTransferAmount;
+            } else if (paymentMethod === 'cash') {
+                changeAmount = Math.max(0, amountPaid - totalAmount);
+                finalAmountPaid = amountPaid;
+                amountCash = amountPaid;
+                amountTransfer = 0;
+            } else {
+                changeAmount = 0;
+                finalAmountPaid = totalAmount;
+                amountCash = 0;
+                amountTransfer = totalAmount;
+            }
 
             // Only pass transactionDate if it's a backdated (different day from today)
             const isBackdated = transactionDate.toDateString() !== new Date().toDateString();
@@ -274,6 +332,8 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
                 })),
                 orderDiscount,
                 amountPaid: isCredit ? 0 : finalAmountPaid, // No payment for credit
+                amountCash,
+                amountTransfer,
                 // Credit transaction fields
                 isCredit,
                 creditCustomerName: isCredit ? creditCustomerName.trim() : undefined,
@@ -305,6 +365,8 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
                     method: paymentMethod,
                     amountPaid: finalAmountPaid,
                     change: changeAmount,
+                    amountCash,
+                    amountTransfer,
                     date: transactionDate,
                     isOffline: false,
                     returnRef,
@@ -332,6 +394,10 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
         showReceiptDialog,
         amountPaid,
         setAmountPaid,
+        splitCashAmount,
+        setSplitCashAmount,
+        splitTransferAmount,
+        setSplitTransferAmount,
         transactionDate,
         setTransactionDate,
         lastSale,

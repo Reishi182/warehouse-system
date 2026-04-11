@@ -491,6 +491,10 @@ export default function POS() {
                 paymentMethod={checkout.paymentMethod}
                 amountPaid={checkout.amountPaid}
                 onAmountPaidChange={checkout.setAmountPaid}
+                splitCashAmount={checkout.splitCashAmount}
+                onSplitCashAmountChange={checkout.setSplitCashAmount}
+                splitTransferAmount={checkout.splitTransferAmount}
+                onSplitTransferAmountChange={checkout.setSplitTransferAmount}
                 transactionDate={checkout.transactionDate}
                 onTransactionDateChange={checkout.setTransactionDate}
                 onConfirm={checkout.handleConfirmCheckout}

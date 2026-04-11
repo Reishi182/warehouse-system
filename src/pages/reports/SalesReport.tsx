@@ -125,12 +125,14 @@ async function fetchSalesForPeriod(date: Date, period: PeriodType): Promise<Sale
         sale_number: row.sale_number,
         cashier_id: row.cashier_id,
         cashier_name: row.cashier_name,
-        payment_method: row.payment_method as 'cash' | 'transfer',
+        payment_method: row.payment_method as 'cash' | 'transfer' | 'split',
         stock_location: row.stock_location as 'gudang' | 'toko',
         total_amount: row.total_amount,
         order_discount: row.order_discount || 0,
         amount_paid: row.total_amount,
         change_amount: 0,
+        amount_cash: row.amount_cash,
+        amount_transfer: row.amount_transfer,
         created_at: row.created_at,
         is_cancelled: row.is_cancelled || false,
         is_exchanged: row.is_exchanged || false,
@@ -153,8 +155,16 @@ function calculateStats(sales: Sale[], date: Date): SalesData {
     const totalItems = validSales.reduce((sum, s) => sum + s.items.reduce((iSum, i) => iSum + i.quantity, 0), 0);
     const totalDiscount = validSales.reduce((sum, s) => sum + (s.order_discount || 0), 0);
     const grossSales = totalSales + totalDiscount; // Total before discount
-    const cashSales = validSales.filter(s => s.payment_method === 'cash').reduce((sum, s) => sum + s.total_amount, 0);
-    const transferSales = validSales.filter(s => s.payment_method === 'transfer').reduce((sum, s) => sum + s.total_amount, 0);
+    const cashSales = validSales.reduce((sum, s) => {
+        if (s.payment_method === 'cash') return sum + s.total_amount;
+        if (s.payment_method === 'split') return sum + (s.amount_cash || 0);
+        return sum;
+    }, 0);
+    const transferSales = validSales.reduce((sum, s) => {
+        if (s.payment_method === 'transfer') return sum + s.total_amount;
+        if (s.payment_method === 'split') return sum + (s.amount_transfer || 0);
+        return sum;
+    }, 0);
     const averageTransaction = totalTransactions > 0 ? totalSales / totalTransactions : 0;
 
     // Credit sales (unsettled) - count and total amount
@@ -322,7 +332,9 @@ export default function SalesReport() {
                             row.is_exchanged ? "bg-orange-100 dark:bg-orange-900/30" :
                                 row.payment_method === 'cash'
                                     ? "bg-green-100 dark:bg-green-900/30"
-                                    : "bg-blue-100 dark:bg-blue-900/30"
+                                    : row.payment_method === 'split'
+                                        ? "bg-indigo-100 dark:bg-indigo-900/30"
+                                        : "bg-blue-100 dark:bg-blue-900/30"
                     )}>
                         {row.payment_method === 'cash' ? (
                             <Banknote className={cn(
@@ -330,6 +342,8 @@ export default function SalesReport() {
                                 row.is_cancelled ? "text-red-600" :
                                     row.is_exchanged ? "text-orange-600" : "text-green-600"
                             )} />
+                        ) : row.payment_method === 'split' ? (
+                            <div className="flex -space-x-1 w-5 h-5 justify-center mt-1 text-indigo-600"><Banknote className="w-3.5 h-3.5" /><CreditCard className="w-3.5 h-3.5 opacity-80 z-10 bg-indigo-100 dark:bg-indigo-900 rounded-sm p-0.5" /></div>
                         ) : (
                             <CreditCard className={cn(
                                 "w-4 h-4",
@@ -422,12 +436,14 @@ export default function SalesReport() {
                     "text-xs",
                     row.payment_method === 'cash'
                         ? "border-green-200 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400"
-                        : "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-400"
+                        : row.payment_method === 'split'
+                            ? "border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-400"
+                            : "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-400"
                 )}>
-                    {row.payment_method === 'cash' ? 'Tunai' : 'Transfer'}
+                    {row.payment_method === 'cash' ? 'Tunai' : row.payment_method === 'split' ? 'Split' : 'Transfer'}
                 </Badge>
             ),
-            exportFormat: (value) => value === 'cash' ? 'Tunai' : 'Transfer',
+            exportFormat: (value) => value === 'cash' ? 'Tunai' : value === 'split' ? 'Split' : 'Transfer',
         },
     ];
 

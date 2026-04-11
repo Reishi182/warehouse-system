@@ -30,6 +30,8 @@ interface POSReceiptProps {
     paymentMethod: PaymentMethod;
     amountPaid: number;
     change: number;
+    amountCash?: number;
+    amountTransfer?: number;
     storeName?: string;
     storeAddress?: string;
     isCopy?: boolean;
@@ -49,6 +51,8 @@ const POSReceipt = forwardRef<HTMLDivElement, POSReceiptProps>(({
     paymentMethod,
     amountPaid,
     change,
+    amountCash,
+    amountTransfer,
     storeName = 'WAREHOUSE SYSTEM',
     storeAddress = 'Jl. Contoh No. 123',
     isCopy = false,
@@ -196,7 +200,7 @@ const POSReceipt = forwardRef<HTMLDivElement, POSReceiptProps>(({
                     <div className="flex justify-between font-semibold">
                         <span>Metode</span>
                         <span className="font-bold uppercase">
-                            {paymentMethod === 'cash' ? 'TUNAI' : 'TRANSFER'}
+                            {paymentMethod === 'cash' ? 'TUNAI' : paymentMethod === 'split' ? 'SPLIT (TRF+TUNAI)' : 'TRANSFER'}
                         </span>
                     </div>
                     {paymentMethod === 'cash' && (
@@ -204,6 +208,22 @@ const POSReceipt = forwardRef<HTMLDivElement, POSReceiptProps>(({
                             <div className="flex justify-between font-semibold">
                                 <span>Bayar</span>
                                 <span>{formatRupiah(amountPaid)}</span>
+                            </div>
+                            <div className="flex justify-between font-black">
+                                <span>Kembalian</span>
+                                <span>{formatRupiah(change)}</span>
+                            </div>
+                        </>
+                    )}
+                    {paymentMethod === 'split' && (
+                        <>
+                            <div className="flex justify-between font-semibold">
+                                <span>Tunai</span>
+                                <span>{formatRupiah(amountCash || 0)}</span>
+                            </div>
+                            <div className="flex justify-between font-semibold">
+                                <span>Transfer</span>
+                                <span>{formatRupiah(amountTransfer || 0)}</span>
                             </div>
                             <div className="flex justify-between font-black">
                                 <span>Kembalian</span>

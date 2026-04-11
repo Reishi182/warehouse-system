@@ -339,11 +339,11 @@ export function POSMobileCart({
                             </div>
 
                             {/* Payment Method */}
-                            <div className="grid grid-cols-2 gap-2">
+                            <div className="grid grid-cols-3 gap-2">
                                 <button
                                     onClick={() => onPaymentMethodChange('cash')}
                                     className={cn(
-                                        "flex items-center justify-center gap-2 h-10 rounded-lg text-sm font-medium transition-all",
+                                        "flex items-center justify-center gap-2 h-10 rounded-lg text-xs font-medium transition-all",
                                         paymentMethod === 'cash'
                                             ? "bg-emerald-600 text-white"
                                             : "bg-muted"
@@ -352,9 +352,22 @@ export function POSMobileCart({
                                     <Banknote className="w-4 h-4" /> Tunai
                                 </button>
                                 <button
+                                    onClick={() => onPaymentMethodChange('split')}
+                                    className={cn(
+                                        "flex items-center justify-center gap-1.5 h-10 rounded-lg text-xs font-medium transition-all duration-300",
+                                        paymentMethod === 'split'
+                                            ? "bg-gradient-to-r from-emerald-500 to-blue-500 text-white"
+                                            : "bg-muted"
+                                    )}
+                                >
+                                    <Banknote className="w-3 h-3 -mr-0.5" />
+                                    <CreditCard className="w-3 h-3 ml-0.5" />
+                                    Split
+                                </button>
+                                <button
                                     onClick={() => onPaymentMethodChange('transfer')}
                                     className={cn(
-                                        "flex items-center justify-center gap-2 h-10 rounded-lg text-sm font-medium transition-all",
+                                        "flex items-center justify-center gap-2 h-10 rounded-lg text-xs font-medium transition-all",
                                         paymentMethod === 'transfer'
                                             ? "bg-blue-600 text-white"
                                             : "bg-muted"

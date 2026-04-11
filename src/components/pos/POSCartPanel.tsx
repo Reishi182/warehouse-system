@@ -346,7 +346,7 @@ export const POSCartPanel = memo(function POSCartPanel({
 
                     {/* Payment Method Toggle - Only show if NOT in tab mode */}
                     {!isTabMode && (
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-3 gap-2">
                             <button
                                 onClick={() => onPaymentMethodChange('cash')}
                                 className={cn(
@@ -358,6 +358,19 @@ export const POSCartPanel = memo(function POSCartPanel({
                             >
                                 <Banknote className="w-4 h-4" />
                                 Tunai
+                            </button>
+                            <button
+                                onClick={() => onPaymentMethodChange('split')}
+                                className={cn(
+                                    "flex items-center justify-center gap-1.5 h-9 rounded-xl text-xs font-medium transition-all duration-300",
+                                    paymentMethod === 'split'
+                                        ? "bg-gradient-to-r from-emerald-500 to-blue-500 text-white shadow-lg shadow-emerald-500/20"
+                                        : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                                )}
+                            >
+                                <Banknote className="w-3 h-3 -mr-0.5" />
+                                <CreditCard className="w-3 h-3 ml-0.5" />
+                                Split
                             </button>
                             <button
                                 onClick={() => onPaymentMethodChange('transfer')}

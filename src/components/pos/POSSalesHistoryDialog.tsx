@@ -100,7 +100,7 @@ export function POSSalesHistoryDialog({ open, onOpenChange, onCreateReturn }: PO
 
             const { data, error } = await supabase
                 .from('sales')
-                .select('id, sale_number, cashier_id, cashier_name, payment_method, stock_location, total_amount, order_discount, amount_paid, change_amount, created_at, is_exchanged, exchanged_to_sale_id, exchanged_to_sale_number, exchange_from_sale_id, exchange_from_sale_number, is_cancelled, cancelled_at, cancelled_reason, is_credit, credit_customer_name, credit_settled_at, credit_payment_method, sale_items(id, sale_id, product_id, product_name, barcode, quantity, price, subtotal, discount)')
+                .select('id, sale_number, cashier_id, cashier_name, payment_method, stock_location, total_amount, order_discount, amount_paid, change_amount, amount_cash, amount_transfer, created_at, is_exchanged, exchanged_to_sale_id, exchanged_to_sale_number, exchange_from_sale_id, exchange_from_sale_number, is_cancelled, cancelled_at, cancelled_reason, is_credit, credit_customer_name, credit_settled_at, credit_payment_method, sale_items(id, sale_id, product_id, product_name, barcode, quantity, price, subtotal, discount)')
                 .eq('cashier_id', user.id)
                 .gte('created_at', localStart.toISOString())
                 .lte('created_at', localEnd.toISOString())
@@ -123,6 +123,8 @@ export function POSSalesHistoryDialog({ open, onOpenChange, onCreateReturn }: PO
                 order_discount: s.order_discount || 0,
                 amount_paid: s.amount_paid || 0,
                 change_amount: s.change_amount || 0,
+                amount_cash: s.amount_cash,
+                amount_transfer: s.amount_transfer,
                 is_exchanged: s.is_exchanged || false,
                 exchanged_to_sale_id: s.exchanged_to_sale_id,
                 exchanged_to_sale_number: s.exchanged_to_sale_number,
@@ -387,17 +389,19 @@ export function POSSalesHistoryDialog({ open, onOpenChange, onCreateReturn }: PO
                                                                     "font-semibold text-sm truncate",
                                                                     (sale.is_cancelled || sale.is_exchanged) && "line-through opacity-60"
                                                                 )}>{sale.sale_number}</span>
-                                                                <Badge
-                                                                    variant="outline"
-                                                                    className={cn(
-                                                                        "text-[10px] px-1.5 py-0",
-                                                                        sale.payment_method === 'cash'
-                                                                            ? "border-green-300 text-green-600 bg-green-50 dark:bg-green-900/20"
-                                                                            : "border-purple-300 text-purple-600 bg-purple-50 dark:bg-purple-900/20"
-                                                                    )}
-                                                                >
-                                                                    {sale.payment_method === 'cash' ? 'Tunai' : 'Transfer'}
-                                                                </Badge>
+                                                                    <Badge
+                                                                        variant="outline"
+                                                                        className={cn(
+                                                                            "text-[10px] px-1.5 py-0",
+                                                                            sale.payment_method === 'cash'
+                                                                                ? "border-green-300 text-green-600 bg-green-50 dark:bg-green-900/20"
+                                                                                : sale.payment_method === 'split'
+                                                                                    ? "border-blue-300 text-blue-600 bg-blue-50 dark:bg-blue-900/20"
+                                                                                    : "border-purple-300 text-purple-600 bg-purple-50 dark:bg-purple-900/20"
+                                                                        )}
+                                                                    >
+                                                                        {sale.payment_method === 'cash' ? 'Tunai' : sale.payment_method === 'split' ? 'Split' : 'Transfer'}
+                                                                    </Badge>
                                                                 {/* Status Badges */}
                                                                 {sale.is_cancelled && (
                                                                     <Badge className="text-[10px] px-1.5 py-0 bg-red-100 text-red-600 border-0">
@@ -561,6 +565,8 @@ export function POSSalesHistoryDialog({ open, onOpenChange, onCreateReturn }: PO
                                             paymentMethod={selectedSaleForPrint.payment_method}
                                             amountPaid={selectedSaleForPrint.amount_paid || selectedSaleForPrint.total_amount}
                                             change={selectedSaleForPrint.change_amount || 0}
+                                            amountCash={selectedSaleForPrint.amount_cash}
+                                            amountTransfer={selectedSaleForPrint.amount_transfer}
                                             storeName={storeSettings?.store_name}
                                             storeAddress={storeSettings?.store_address}
                                             isCopy={true}

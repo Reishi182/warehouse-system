@@ -77,17 +77,31 @@ export function BeautifulTable<T extends { id: string }>({
 }: BeautifulTableProps<T>) {
     const [searchParams, setSearchParams] = useSearchParams();
 
-    // Initialize page index from URL if enabled
-    const initialPageIndex = syncPaginationWithUrl 
-        ? Math.max(0, parseInt(searchParams.get(paginationUrlParam) || '1', 10) - 1)
-        : 0;
+    // Initialize page index from URL if enabled or fallback to sessionStorage
+    const [pageIndex, setPageIndex] = React.useState(() => {
+        if (!syncPaginationWithUrl) return 0;
+        const storageKey = `pagination_${window.location.pathname}_${paginationUrlParam}`;
+        // 1. Try URL
+        const urlPage = searchParams.get(paginationUrlParam);
+        if (urlPage) return Math.max(0, parseInt(urlPage, 10) - 1);
+        
+        // 2. Try sessionStorage
+        try {
+            const stored = sessionStorage.getItem(storageKey);
+            if (stored) return Math.max(0, parseInt(stored, 10) - 1);
+        } catch (e) {
+            console.error('Failed to read from sessionStorage', e);
+        }
+        
+        // 3. Default to 0
+        return 0;
+    });
 
     const [sorting, setSorting] = React.useState<SortingState>([]);
     const [globalFilter, setGlobalFilter] = React.useState('');
     const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
     const [rowSelection, setRowSelection] = React.useState({});
     const [pageSize, setPageSize] = React.useState(itemsPerPage);
-    const [pageIndex, setPageIndex] = React.useState(initialPageIndex);
     const expandedGroupsRef = React.useRef<Set<string>>(new Set());
     const [, forceRender] = React.useState(0);
     const toggleExpandedGroup = React.useCallback((value: string) => {
@@ -467,13 +481,22 @@ export function BeautifulTable<T extends { id: string }>({
         }
     }, [data.length]);
 
-    // Sync pageIndex to URL
+    // Sync pageIndex to URL & sessionStorage
     React.useEffect(() => {
         if (!syncPaginationWithUrl) return;
         
+        const storageKey = `pagination_${window.location.pathname}_${paginationUrlParam}`;
+        const targetPageValue = (pageIndex + 1).toString();
+        
+        // Save to sessionStorage
+        try {
+            sessionStorage.setItem(storageKey, targetPageValue);
+        } catch (e) {
+            console.error('Failed to save to sessionStorage', e);
+        }
+
         const newParams = new URLSearchParams(searchParams);
         const currentPageParam = newParams.get(paginationUrlParam);
-        const targetPageValue = (pageIndex + 1).toString();
         
         // Prevent unnecessary state updates to URL if value is the same or if it's page 1 and no param exists
         if (currentPageParam === targetPageValue || (pageIndex === 0 && !currentPageParam)) {

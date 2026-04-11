@@ -30,7 +30,7 @@ async function fetchCashFlowData(startDate: string, endDate: string): Promise<Ca
     const [salesRes, expensesRes, transfersRes, sessionsRes] = await Promise.all([
         supabase
             .from('sales')
-            .select('total_amount, payment_method, is_credit, credit_settled_at, credit_payment_method, is_cancelled, is_exchanged, created_at')
+            .select('total_amount, payment_method, is_credit, credit_settled_at, credit_payment_method, is_cancelled, is_exchanged, created_at, amount_cash, amount_transfer')
             .gte('created_at', `${startDate}T00:00:00`)
             .lte('created_at', `${endDate}T23:59:59`)
             .or('is_cancelled.is.null,is_cancelled.eq.false'),
@@ -97,6 +97,9 @@ async function fetchCashFlowData(startDate: string, endDate: string): Promise<Ca
             }
         } else if ((s as any).payment_method === 'cash') {
             entry.cashSales += (s as any).total_amount;
+        } else if ((s as any).payment_method === 'split') {
+            entry.cashSales += (s as any).amount_cash || 0;
+            entry.transferSales += (s as any).amount_transfer || 0;
         } else {
             entry.transferSales += (s as any).total_amount;
         }

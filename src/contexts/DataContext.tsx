@@ -277,7 +277,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     let query = supabase
       .from('sales')
-      .select('id, sale_number, cashier_id, cashier_name, payment_method, stock_location, total_amount, order_discount, amount_paid, change_amount, created_at, is_exchanged, exchanged_to_sale_id, exchanged_to_sale_number, exchange_from_sale_id, exchange_from_sale_number, is_cancelled, cancelled_at, cancelled_reason, is_credit, credit_customer_name, credit_settled_at, credit_payment_method, sale_items(id, sale_id, product_id, product_name, barcode, quantity, price, subtotal, discount)')
+      .select('id, sale_number, cashier_id, cashier_name, payment_method, stock_location, total_amount, order_discount, amount_paid, change_amount, amount_cash, amount_transfer, created_at, is_exchanged, exchanged_to_sale_id, exchanged_to_sale_number, exchange_from_sale_id, exchange_from_sale_number, is_cancelled, cancelled_at, cancelled_reason, is_credit, credit_customer_name, credit_settled_at, credit_payment_method, sale_items(id, sale_id, product_id, product_name, barcode, quantity, price, subtotal, discount)')
       .order('created_at', { ascending: false })
       .limit(200);
 
@@ -304,6 +304,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       order_discount: s.order_discount || 0,
       amount_paid: s.amount_paid || 0,
       change_amount: s.change_amount || 0,
+      amount_cash: s.amount_cash,
+      amount_transfer: s.amount_transfer,
       // Exchange tracking
       is_exchanged: s.is_exchanged || false,
       exchanged_to_sale_id: s.exchanged_to_sale_id,
@@ -526,6 +528,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }>;
     orderDiscount: number;
     amountPaid: number;
+    amountCash?: number;
+    amountTransfer?: number;
     transactionDate?: Date; // Optional: for backdated transactions
     // Credit transaction fields
     isCredit?: boolean;
@@ -626,6 +630,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         order_discount: data.orderDiscount,
         amount_paid: data.amountPaid,
         change_amount: changeAmount,
+        amount_cash: data.amountCash,
+        amount_transfer: data.amountTransfer,
         // Credit transaction fields
         is_credit: data.isCredit || false,
         credit_customer_name: data.isCredit ? data.creditCustomerName : null,
