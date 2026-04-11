@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { Package, Plus, AlertTriangle } from 'lucide-react';
+import { Package, Plus, AlertTriangle, Pencil } from 'lucide-react';
 import { LazyImage } from '@/components/common/LazyImage';
 import { Product, Location } from '@/types';
 import { cn } from '@/lib/utils';
@@ -8,12 +8,14 @@ interface ProductCardProps {
     product: Product;
     stockLocation: Location;
     onAddToCart: (product: Product) => void;
+    onEditProduct?: (product: Product) => void;
 }
 
 export const ProductCard = memo(function ProductCard({
     product,
     stockLocation,
     onAddToCart,
+    onEditProduct,
 }: ProductCardProps) {
     const stock = product.stock[stockLocation];
     const isOutOfStock = stock <= 0;
@@ -46,6 +48,30 @@ export const ProductCard = memo(function ProductCard({
                         <div className="bg-destructive text-white text-xs font-bold px-3 py-1.5 rounded-full">
                             HABIS
                         </div>
+                    </div>
+                )}
+
+                {/* Edit Button */}
+                {onEditProduct && (
+                    <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            onEditProduct(product);
+                        }}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                onEditProduct(product);
+                            }
+                        }}
+                        className="absolute top-2 right-2 p-2 bg-white/90 dark:bg-black/50 backdrop-blur-sm rounded-lg shadow-sm border border-border/50 text-muted-foreground hover:text-primary hover:bg-white dark:hover:bg-black focus:outline-none transition-colors z-10 cursor-pointer"
+                        title="Edit Produk"
+                    >
+                        <Pencil className="w-4 h-4" />
                     </div>
                 )}
 

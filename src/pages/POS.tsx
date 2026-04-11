@@ -17,6 +17,7 @@ import { isMultiUnit } from '@/lib/multiUnit';
 import { QuickSaleDialog } from '@/components/pos/QuickSaleDialog';
 import { CreditListDialog } from '@/components/pos/CreditListDialog';
 import { OfflineSyncStatus } from '@/components/pos/OfflineSyncStatus';
+import EditProductDialog from '@/components/products/EditProductDialog';
 import { Button } from '@/components/ui/button';
 import {
     Select,
@@ -37,7 +38,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Location, Sale, Product } from '@/types';
 
 export default function POS() {
-    const { products, getProductByBarcode, sales, loading } = useData();
+    const { products, getProductByBarcode, sales, updateProduct, loading } = useData();
     const { profile } = useAuth();
     const { toast } = useToast();
     const { data: storeSettings } = useStoreSettings();
@@ -68,6 +69,9 @@ export default function POS() {
 
     // Credit List dialog state
     const [creditListDialogOpen, setCreditListDialogOpen] = useState(false);
+
+    // Edit Product directly from POS
+    const [editProductState, setEditProductState] = useState<Product | null>(null);
 
     // Cart state
     const cart = usePOSCart('toko');
@@ -389,6 +393,7 @@ export default function POS() {
                         products={products}
                         stockLocation={cart.stockLocation}
                         onAddToCart={handleAddToCart}
+                        onEditProduct={setEditProductState}
                         searchInputRef={searchInputRef}
                     />
                 </div>
@@ -559,6 +564,16 @@ export default function POS() {
             <CreditListDialog
                 open={creditListDialogOpen}
                 onOpenChange={setCreditListDialogOpen}
+            />
+
+            {/* Edit Product Dialog */}
+            <EditProductDialog
+                product={editProductState}
+                open={!!editProductState}
+                onOpenChange={(open) => !open && setEditProductState(null)}
+                onUpdate={updateProduct}
+                products={products}
+                userRole={profile?.role || 'cashier'}
             />
         </MainLayout>
     );

@@ -33,6 +33,7 @@ interface POSProductGridProps {
     products: Product[];
     stockLocation: Location;
     onAddToCart: (product: Product) => void;
+    onEditProduct?: (product: Product) => void;
     searchInputRef?: React.RefObject<HTMLInputElement>;
 }
 
@@ -40,6 +41,7 @@ export const POSProductGrid = memo(function POSProductGrid({
     products,
     stockLocation,
     onAddToCart,
+    onEditProduct,
     searchInputRef,
 }: POSProductGridProps) {
     const [searchQuery, setSearchQuery] = useState('');
@@ -260,6 +262,7 @@ export const POSProductGrid = memo(function POSProductGrid({
                                 product={product}
                                 stockLocation={stockLocation}
                                 onAddToCart={handleAddToCart}
+                                onEditProduct={onEditProduct}
                             />
                         ))}
                     </div>
@@ -271,6 +274,7 @@ export const POSProductGrid = memo(function POSProductGrid({
                                 product={product}
                                 stockLocation={stockLocation}
                                 onAddToCart={handleAddToCart}
+                                onEditProduct={onEditProduct}
                             />
                         ))}
                     </div>

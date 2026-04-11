@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { Package, Plus, AlertTriangle } from 'lucide-react';
+import { Package, Plus, AlertTriangle, Pencil } from 'lucide-react';
 import { Product, Location } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -7,12 +7,14 @@ interface ProductListItemProps {
     product: Product;
     stockLocation: Location;
     onAddToCart: (product: Product) => void;
+    onEditProduct?: (product: Product) => void;
 }
 
 export const ProductListItem = memo(function ProductListItem({
     product,
     stockLocation,
     onAddToCart,
+    onEditProduct,
 }: ProductListItemProps) {
     const stock = product.stock[stockLocation];
     const isOutOfStock = stock <= 0;
@@ -88,14 +90,40 @@ export const ProductListItem = memo(function ProductListItem({
                 )}
             </div>
 
-            {/* Add Button */}
-            {!isOutOfStock && (
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                    <div className="bg-primary text-primary-foreground rounded-full p-1.5">
-                        <Plus className="w-4 h-4" strokeWidth={2.5} />
+            {/* Actions */}
+            <div className="flex items-center gap-1 shrink-0">
+                {onEditProduct && (
+                    <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            onEditProduct(product);
+                        }}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                onEditProduct(product);
+                            }
+                        }}
+                        className="p-2 text-muted-foreground hover:text-primary hover:bg-muted/50 rounded-lg transition-colors focus:outline-none cursor-pointer"
+                        title="Edit Produk"
+                    >
+                        <Pencil className="w-4 h-4" />
                     </div>
-                </div>
-            )}
+                )}
+                
+                {/* Add Button */}
+                {!isOutOfStock && (
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity ml-1">
+                        <div className="bg-primary text-primary-foreground rounded-full p-1.5">
+                            <Plus className="w-4 h-4" strokeWidth={2.5} />
+                        </div>
+                    </div>
+                )}
+            </div>
         </button>
     );
 });
