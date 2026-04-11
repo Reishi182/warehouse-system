@@ -39,7 +39,13 @@ export default function ProductSearchSelect({
 }: ProductSearchSelectProps) {
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState('');
+    const [displayCount, setDisplayCount] = useState(50);
     const inputRef = useRef<HTMLInputElement>(null);
+
+    // Reset display count when search changes
+    useEffect(() => {
+        setDisplayCount(50);
+    }, [search]);
 
     // Focus search input when popover opens
     useEffect(() => {
@@ -56,13 +62,22 @@ export default function ProductSearchSelect({
             .filter(p => {
                 if (!query) return true;
                 return (
-                    p.name.toLowerCase().includes(query) ||
-                    p.barcode.toLowerCase().includes(query) ||
-                    p.category?.toLowerCase().includes(query)
+                    (p.name || '').toLowerCase().includes(query) ||
+                    (p.barcode || '').toLowerCase().includes(query) ||
+                    (p.category || '').toLowerCase().includes(query)
                 );
             })
-            .slice(0, 50); // Limit results for performance
+            .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     }, [products, search, excludeIds]);
+
+    const displayedProducts = filteredProducts.slice(0, displayCount);
+
+    const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+        const bottom = e.currentTarget.scrollHeight - e.currentTarget.scrollTop - e.currentTarget.clientHeight < 50;
+        if (bottom && displayCount < filteredProducts.length) {
+            setDisplayCount(prev => prev + 50);
+        }
+    };
 
     // Get selected product name
     const selectedProduct = products.find(p => p.id === value);
@@ -121,7 +136,7 @@ export default function ProductSearchSelect({
                 </div>
 
                 {/* Products List */}
-                <ScrollArea className="h-[300px]">
+                <ScrollArea className="h-[300px]" onScroll={handleScroll}>
                     {filteredProducts.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-6 text-muted-foreground">
                             <Package className="h-8 w-8 mb-2 opacity-50" />
@@ -131,7 +146,7 @@ export default function ProductSearchSelect({
                         </div>
                     ) : (
                         <div className="p-1">
-                            {filteredProducts.map((product) => {
+                            {displayedProducts.map((product) => {
                                 const stock = getStock(product);
                                 const isSelected = value === product.id;
 
@@ -181,6 +196,11 @@ export default function ProductSearchSelect({
                                     </button>
                                 );
                             })}
+                            {displayCount < filteredProducts.length && (
+                                <div className="py-2 text-center text-xs text-muted-foreground animate-pulse">
+                                    Memuat lebih banyak...
+                                </div>
+                            )}
                         </div>
                     )}
                 </ScrollArea>
@@ -188,7 +208,6 @@ export default function ProductSearchSelect({
                 {/* Results count */}
                 <div className="border-t px-3 py-2 text-xs text-muted-foreground">
                     {filteredProducts.length} produk ditemukan
-                    {filteredProducts.length === 50 && ' (maks 50)'}
                 </div>
             </PopoverContent>
         </Popover>

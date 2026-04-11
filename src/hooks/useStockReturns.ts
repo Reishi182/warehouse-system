@@ -40,21 +40,26 @@ export function useStockReturns() {
             reason: string;
             items: { productId: string; quantity: number; unit: string; note?: string }[];
         }) => {
-            // 1. Create Return Header
+            // 1. Get next document number immediately
+            const { data: docNum, error: fnError } = await supabase.rpc('get_next_document_number', { doc_type: 'RTR' });
+            if (fnError) throw fnError;
+
+            // 2. Create Return Header
             const { data: returnData, error: returnError } = await supabase
                 .from('stock_returns')
                 .insert({
                     cashier_id: data.cashierId,
                     cashier_name: data.cashierName,
                     reason: data.reason,
-                    status: 'pending_main_office'
+                    status: 'pending_gudang',
+                    return_number: docNum as string
                 })
                 .select()
                 .single();
 
             if (returnError) throw returnError;
 
-            // 2. Create Return Items
+            // 3. Create Return Items
             const itemsToInsert = data.items.map(item => ({
                 stock_return_id: returnData.id,
                 product_id: item.productId,
@@ -73,12 +78,12 @@ export function useStockReturns() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['stock-returns'] });
-            toast({ title: 'Berhasil', description: 'Pengajuan retur ke gudang telah dikirim ke Main Office' });
+            toast({ title: 'Berhasil', description: 'Pengajuan retur diteruskan langsung ke Gudang' });
 
-            // Notify main_office about new stock return
-            sendNotificationToRole('main_office', {
-                title: 'Pengajuan Retur Baru',
-                message: 'Ada pengajuan retur barang ke gudang dari kasir yang perlu diproses',
+            // Notify warehouse about new stock return
+            sendNotificationToRole('warehouse', {
+                title: 'Retur Stok Baru',
+                message: 'Ada pengajuan retur barang dari toko ke gudang yang siap diproses',
                 type: 'info',
                 link: '/stock-return/approval',
             });
@@ -88,17 +93,22 @@ export function useStockReturns() {
         },
     });
 
-    // Approve Return (Main Office)
+    // Approve/Process Return (Gudang)
     const approveReturn = useMutation({
         mutationFn: async (data: {
             returnId: string;
             mainOfficeId: string;
             mainOfficeName: string;
         }) => {
-            // 1. Get next document number
-            const { data: docNum, error: fnError } = await supabase.rpc('get_next_document_number', { doc_type: 'RTR' });
+            // 1. Get return details
+            const { data: retData, error: fetchError } = await supabase
+                .from('stock_returns')
+                .select('return_number')
+                .eq('id', data.returnId)
+                .single();
 
-            if (fnError) throw fnError;
+            if (fetchError) throw fetchError;
+            const docNum = retData.return_number;
 
             // 2. Get return items to update stock
             const { data: items, error: itemsError } = await supabase
@@ -110,7 +120,6 @@ export function useStockReturns() {
 
             // 3. Update stock: decrease toko, increase gudang (atomic)
             for (const item of items || []) {
-                // Atomic transfer — no race condition
                 const { error: transferError } = await supabase.rpc('atomic_transfer_stock', {
                     p_product_id: item.product_id,
                     p_quantity: item.quantity,
@@ -120,14 +129,15 @@ export function useStockReturns() {
 
                 if (transferError) throw transferError;
 
-                // Bug fix #4: Add user_id to stock_logs
                 await supabase.from('stock_logs').insert({
                     product_id: item.product_id,
                     type: 'out',
                     quantity: item.quantity,
                     location: 'toko',
                     user_id: data.mainOfficeId,
-                    note: `Retur ke gudang - ${docNum}`
+                    note: `Akses cepat - Retur ke gudang - ${docNum}`,
+                    reference_type: 'stock_return',
+                    reference_id: data.returnId
                 });
 
                 await supabase.from('stock_logs').insert({
@@ -136,19 +146,20 @@ export function useStockReturns() {
                     quantity: item.quantity,
                     location: 'gudang',
                     user_id: data.mainOfficeId,
-                    note: `Retur dari toko - ${docNum}`
+                    note: `Akses cepat - Terima retur dari toko - ${docNum}`,
+                    reference_type: 'stock_return',
+                    reference_id: data.returnId
                 });
             }
 
-            // 4. Update return status
+            // 4. Update return status directly to completed
             const { error } = await supabase
                 .from('stock_returns')
                 .update({
-                    status: 'approved',
+                    status: 'completed',
                     main_office_id: data.mainOfficeId,
                     main_office_name: data.mainOfficeName,
-                    approved_at: new Date().toISOString(),
-                    return_number: docNum as string
+                    approved_at: new Date().toISOString()
                 })
                 .eq('id', data.returnId);
 
@@ -158,7 +169,7 @@ export function useStockReturns() {
         onSuccess: (_data, variables) => {
             queryClient.invalidateQueries({ queryKey: ['stock-returns'] });
             queryClient.invalidateQueries({ queryKey: ['products'] });
-            toast({ title: 'Retur Disetujui', description: 'Stok telah dipindahkan dari Toko ke Gudang' });
+            toast({ title: 'Retur Selesai', description: 'Stok telah berhasil ditarik dari Toko ke Gudang' });
 
             // Notify cashier
             supabase
@@ -169,13 +180,27 @@ export function useStockReturns() {
                 .then(({ data: ret }) => {
                     if (ret?.cashier_id) {
                         sendNotificationToUser(ret.cashier_id, {
-                            title: 'Retur Disetujui',
-                            message: `Pengajuan retur ${ret.return_number || ''} telah disetujui`,
+                            title: 'Retur Disetujui & Selesai',
+                            message: `Pengajuan retur ${ret.return_number || ''} telah ditarik dan diproses Gudang`,
                             type: 'success',
                             link: '/stock-return',
                         });
                     }
                 });
+
+            // Notify main office for history
+            sendNotificationToRole('main_office', {
+                title: 'Retur Stok Selesai',
+                message: 'Ada retur barang dari toko ke gudang yang baru saja diselesaikan secara instan.',
+                type: 'info',
+                link: '/stock-return/approval',
+            });
+            sendNotificationToRole('auditor', {
+                title: 'Retur Stok Selesai',
+                message: 'Ada retur barang dari toko ke gudang yang baru saja diselesaikan.',
+                type: 'info',
+                link: '/stock-return/approval',
+            });
         },
         onError: (error) => {
             toast({ title: 'Gagal', description: error.message, variant: 'destructive' });

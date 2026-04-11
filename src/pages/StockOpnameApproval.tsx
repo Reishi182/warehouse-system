@@ -695,6 +695,67 @@ export default function StockOpnameApproval() {
     const pastSessions = sessions?.filter(s => s.status !== 'pending_approval' && s.status !== 'draft') || [];
 
     // ─── BeautifulTable column definitions ──────────────────────
+    const pendingColumns: Column<StockOpnameSession>[] = [
+        {
+            header: 'No. Sesi',
+            accessorKey: 'session_number',
+            cell: (s) => (
+                <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center shrink-0">
+                        <FileText className="w-4 h-4 text-amber-600" />
+                    </div>
+                    <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 uppercase font-bold dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800">
+                        {s.session_number}
+                    </Badge>
+                </div>
+            )
+        },
+        {
+            header: 'Waktu Pengajuan',
+            accessorKey: 'created_at',
+            cell: (s) => (
+                <span className="text-sm text-muted-foreground flex items-center gap-1">
+                    <History className="w-3.5 h-3.5" />
+                    {format(new Date(s.created_at), 'dd MMM yyyy HH:mm', { locale: localeId })}
+                </span>
+            )
+        },
+        {
+            header: 'Diajukan Oleh',
+            accessorKey: 'created_by_name',
+            cell: (s) => <span className="text-sm font-medium">{s.created_by_name}</span>
+        },
+        {
+            header: 'Jumlah Item',
+            filterable: false,
+            sortable: false,
+            cell: (s) => (
+                <Badge variant="secondary" className="text-xs font-medium">
+                    <Package className="w-3 h-3 mr-1" />
+                    {s.items?.length || 0} item
+                </Badge>
+            )
+        },
+        {
+            header: 'Aksi',
+            filterable: false,
+            sortable: false,
+            cell: (s) => (
+                <Button
+                    size="sm"
+                    className="gap-2 shrink-0 h-8 font-medium"
+                    onClick={() => {
+                        setApprovalSession(s);
+                        setApprovalOpen(true);
+                    }}
+                >
+                    <Eye className="w-3.5 h-3.5" />
+                    Detail & Review
+                </Button>
+            )
+        }
+    ];
+
     const historyColumns: Column<StockOpnameSession>[] = [
         {
             header: 'No. Sesi',
@@ -815,69 +876,25 @@ export default function StockOpnameApproval() {
                     />
                 </StatsGrid>
 
-                {/* Pending sessions — compact cards with Detail button */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <ClipboardCheck className="w-5 h-5" />
-                            Permintaan Menunggu Persetujuan
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        {pendingSessions.length === 0 ? (
-                            <div className="text-center py-10 text-muted-foreground border-2 border-dashed rounded-xl">
-                                <ClipboardCheck className="w-10 h-10 mx-auto opacity-20 mb-3" />
-                                Tidak ada sesi stok opname yang menunggu persetujuan.
-                            </div>
-                        ) : (
-                            <div className="space-y-3">
-                                {pendingSessions.map(session => (
-                                    <div
-                                        key={session.id}
-                                        className="border rounded-2xl p-4 flex items-center gap-4 bg-card hover:bg-muted/10 transition-colors shadow-sm"
-                                    >
-                                        {/* Icon */}
-                                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center shrink-0">
-                                            <FileText className="w-6 h-6 text-amber-600" />
-                                        </div>
-
-                                        {/* Info */}
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 uppercase font-bold dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800">
-                                                    {session.session_number}
-                                                </Badge>
-                                                <span className="text-sm text-muted-foreground flex items-center gap-1">
-                                                    <History className="w-3.5 h-3.5" />
-                                                    {format(new Date(session.created_at), 'dd MMM yyyy HH:mm', { locale: localeId })}
-                                                </span>
-                                                <span className="text-sm font-medium">oleh {session.created_by_name}</span>
-                                            </div>
-                                            <div className="flex items-center gap-2 mt-1">
-                                                <Badge variant="secondary" className="text-xs font-medium">
-                                                    <Package className="w-3 h-3 mr-1" />
-                                                    {session.items?.length || 0} item butuh penyesuaian
-                                                </Badge>
-                                            </div>
-                                        </div>
-
-                                        {/* Detail button */}
-                                        <Button
-                                            className="gap-2 rounded-xl shrink-0"
-                                            onClick={() => {
-                                                setApprovalSession(session);
-                                                setApprovalOpen(true);
-                                            }}
-                                        >
-                                            <Eye className="w-4 h-4" />
-                                            Detail & Review
-                                        </Button>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+                {/* Pending sessions — BeautifulTable */}
+                <BeautifulTable
+                    data={pendingSessions}
+                    columns={pendingColumns}
+                    title={
+                        <div className="flex items-center gap-2">
+                            <ClipboardCheck className="w-5 h-5 text-amber-600" />
+                            <span className="text-amber-700 dark:text-amber-500">Permintaan Menunggu Persetujuan</span>
+                        </div>
+                    }
+                    hideSelection
+                    hideExport
+                    variant="premium"
+                    emptyState={{
+                        icon: <ClipboardCheck className="w-7 h-7" />,
+                        title: 'Tidak ada permintaan',
+                        description: 'Tidak ada sesi stok opname yang menunggu persetujuan.',
+                    }}
+                />
 
                 {/* ─── Riwayat menggunakan BeautifulTable ─── */}
                 <BeautifulTable

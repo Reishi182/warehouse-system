@@ -363,7 +363,7 @@ function AppRoutes() {
 
         {/* Stock Return Routes (Toko -> Gudang) */}
         <Route path="/stock-return" element={<ProtectedRoute allowedRoles={['cashier', 'admin']}><StockReturnCreate /></ProtectedRoute>} />
-        <Route path="/stock-return/approval" element={<ProtectedRoute allowedRoles={['main_office', 'admin']}><StockReturnApproval /></ProtectedRoute>} />
+        <Route path="/stock-return/approval" element={<ProtectedRoute allowedRoles={['warehouse', 'main_office', 'auditor', 'admin']}><StockReturnApproval /></ProtectedRoute>} />
 
         {/* Stock History - All roles */}
         <Route path="/stock/history" element={<ProtectedRoute allowedRoles={ALL_ROLES}><StockHistory /></ProtectedRoute>} />

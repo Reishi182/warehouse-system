@@ -3,24 +3,18 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useStockRequests } from '@/hooks/useStockRequests';
 import MainLayout from '@/components/layout/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import UnitSelector from '@/components/common/UnitSelector';
+import { ProductPicker } from '@/components/products/ProductPicker';
 import { Plus, Trash2, Send, ShoppingCart, Search, CheckCircle, Clock, Package, RefreshCw, XCircle, Eye, Sparkles, FileText, Calendar, User, Ban } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useData } from '@/contexts/DataContext';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-    DialogDescription,
-} from '@/components/ui/dialog';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { NewStockRequest } from '@/types';
@@ -39,6 +33,10 @@ function StatusBadge({ status }: { status: string }) {
         shipped: {
             label: 'Dalam Pengiriman',
             className: 'bg-gradient-to-r from-purple-500/20 to-violet-500/20 text-purple-600 border-purple-500/30 shadow-purple-500/10'
+        },
+        pending_receipt: {
+            label: 'Dalam Perjalanan',
+            className: 'bg-gradient-to-r from-blue-500/20 to-indigo-500/20 text-blue-600 border-blue-500/30 shadow-blue-500/10'
         },
         completed: {
             label: 'Selesai',
@@ -64,8 +62,8 @@ function StatusBadge({ status }: { status: string }) {
             {status === 'completed' && <CheckCircle className="w-3 h-3 mr-1" />}
             {status === 'rejected' && <XCircle className="w-3 h-3 mr-1" />}
             {status === 'cancelled' && <Ban className="w-3 h-3 mr-1" />}
-            {status.includes('pending') && <Clock className="w-3 h-3 mr-1" />}
-            {status === 'shipped' && <Package className="w-3 h-3 mr-1" />}
+            {status.includes('pending') && status !== 'pending_receipt' && <Clock className="w-3 h-3 mr-1" />}
+            {(status === 'shipped' || status === 'pending_receipt') && <Package className="w-3 h-3 mr-1" />}
             {config.label}
         </Badge>
     );
@@ -294,7 +292,7 @@ export default function StockRequestsNew() {
                     <div className={`w-2 h-2 rounded-full ${request.status === 'completed' ? 'bg-emerald-500' :
                         request.status === 'rejected' ? 'bg-red-500' :
                             request.status === 'cancelled' ? 'bg-gray-500' :
-                                request.status === 'shipped' ? 'bg-purple-500' :
+                                (request.status === 'shipped' || request.status === 'pending_receipt') ? 'bg-blue-500' :
                                     'bg-amber-500'
                         } animate-pulse`} />
                     <span className="font-mono text-sm font-semibold">
@@ -352,6 +350,7 @@ export default function StockRequestsNew() {
                     pending_main_office: 'Menunggu Approval',
                     pending_gudang: 'Diproses Gudang',
                     shipped: 'Dalam Pengiriman',
+                    pending_receipt: 'Dalam Perjalanan',
                     completed: 'Selesai',
                     rejected: 'Ditolak',
                     cancelled: 'Dibatalkan',
@@ -424,49 +423,16 @@ export default function StockRequestsNew() {
                             <div className="space-y-3">
                                 <div className="flex justify-between items-center">
                                     <Label className="text-sm font-semibold">Daftar Barang</Label>
-                                    <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                                        <DialogTrigger asChild>
+                                    <ProductPicker 
+                                        products={products}
+                                        onSelect={handleAddItem}
+                                        requireStockIn="gudang"
+                                        trigger={
                                             <Button size="sm" variant="outline" className="rounded-xl gap-2 hover:bg-primary/10 hover:border-primary/50">
                                                 <Plus className="w-4 h-4" /> Tambah
                                             </Button>
-                                        </DialogTrigger>
-                                        <DialogContent className="max-w-md max-h-[80vh] flex flex-col rounded-2xl">
-                                            <DialogHeader>
-                                                <DialogTitle className="flex items-center gap-2">
-                                                    <Package className="w-5 h-5 text-primary" />
-                                                    Pilih Barang
-                                                </DialogTitle>
-                                            </DialogHeader>
-                                            <div className="p-2">
-                                                <div className="relative">
-                                                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                                    <Input
-                                                        placeholder="Cari nama atau barcode..."
-                                                        value={searchTerm}
-                                                        onChange={e => setSearchTerm(e.target.value)}
-                                                        className="pl-9 rounded-xl"
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div className="flex-1 overflow-y-auto min-h-[300px] space-y-1">
-                                                {filteredProducts.map(product => (
-                                                    <div key={product.id} className="flex justify-between items-center p-3 rounded-xl hover:bg-primary/5 transition-colors border border-transparent hover:border-primary/20">
-                                                        <div>
-                                                            <p className="font-medium">{product.name}</p>
-                                                            <p className="text-xs text-muted-foreground flex items-center gap-2">
-                                                                <span className="font-mono">{product.barcode}</span>
-                                                                <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
-                                                                    <Sparkles className="w-3 h-3 mr-1" />
-                                                                    {product.stock.gudang} pcs
-                                                                </Badge>
-                                                            </p>
-                                                        </div>
-                                                        <Button size="sm" onClick={() => handleAddItem(product)} className="rounded-xl">Pilih</Button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </DialogContent>
-                                    </Dialog>
+                                        }
+                                    />
                                 </div>
 
                                 {requestItems.length === 0 ? (
@@ -489,11 +455,13 @@ export default function StockRequestsNew() {
                                                         <Label className="text-xs text-muted-foreground">Jumlah (Max: {item.maxStock})</Label>
                                                         <Input
                                                             type="number"
-                                                            min={1}
+                                                            step="any"
+                                                            min={0.1}
                                                             max={item.maxStock}
                                                             value={item.quantity}
                                                             onChange={e => handeUpdateItem(item.productId, 'quantity', parseFloat(e.target.value) || 0)}
                                                             className="h-8 text-sm rounded-lg"
+                                                            onWheel={(e) => e.currentTarget.blur()}
                                                         />
                                                     </div>
                                                     <div className="w-28">

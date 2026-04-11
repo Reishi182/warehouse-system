@@ -41,21 +41,29 @@ export function useStockRequests() {
             reason: string;
             items: { productId: string; quantity: number; unit: string; note?: string }[];
         }) => {
-            // 1. Create Request Header
+            // 1. Get next document number immediately
+            const { data: docNum, error: fnError } = await supabase.rpc('get_next_document_number', { doc_type: 'PMB' });
+            if (fnError) throw fnError;
+
+            // 2. Create Request Header (Auto approved by office)
             const { data: request, error: reqError } = await supabase
                 .from('stock_requests')
                 .insert({
                     cashier_id: data.cashierId,
                     cashier_name: data.cashierName,
                     reason: data.reason,
-                    status: 'pending_main_office'
+                    status: 'pending_gudang',
+                    request_number: docNum as string,
+                    main_office_id: null,
+                    main_office_name: 'Sistem',
+                    main_office_approved_at: new Date().toISOString()
                 })
                 .select()
                 .single();
 
             if (reqError) throw reqError;
 
-            // 2. Create Request Items
+            // 3. Create Request Items
             const itemsToInsert = data.items.map(item => ({
                 stock_request_id: request.id,
                 product_id: item.productId,
@@ -64,7 +72,7 @@ export function useStockRequests() {
                 note: item.note
             }));
 
-            // 3. Reserve Stock with rollback support
+            // 4. Reserve Stock with rollback support
             const reservedItems: { productId: string; quantity: number }[] = [];
             try {
                 for (const item of data.items) {
@@ -99,14 +107,14 @@ export function useStockRequests() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['stock-requests'] });
-            toast({ title: 'Permintaan Berhasil', description: 'Permintaan stok telah dikirim ke Main Office' });
+            toast({ title: 'Permintaan Terkirim', description: 'Permintaan stok diteruskan langsung ke Gudang' });
 
-            // Notify main_office about new stock request
-            sendNotificationToRole('main_office', {
+            // Notify warehouse about new stock request
+            sendNotificationToRole('warehouse', {
                 title: 'Permintaan Stok Baru',
-                message: 'Ada permintaan stok baru dari kasir yang perlu diproses',
+                message: 'Ada permintaan stok baru dari kasir yang siap untuk diproses',
                 type: 'info',
-                link: '/requests/approval',
+                link: '/requests/shipments',
             });
         },
         onError: (error) => {
@@ -232,11 +240,30 @@ export function useStockRequests() {
                 }
             }
 
+            // Also get next documnet number since it didn't have one if it failed before office previously (though now it has one right away, but to be safe for old ones)
+            const { data: request, error: fetchReqError } = await supabase
+                .from('stock_requests')
+                .select('request_number')
+                .eq('id', requestId)
+                .single();
+            if (fetchReqError) throw fetchReqError;
+
+            let docNum = request.request_number;
+            if (!docNum) {
+                const { data: newDocNum, error: fnError } = await supabase.rpc('get_next_document_number', { doc_type: 'PMB' });
+                if (fnError) throw fnError;
+                docNum = newDocNum;
+            }
+
             const { error } = await supabase
                 .from('stock_requests')
                 .update({
-                    status: 'pending_main_office',
-                    rejected_reason: null
+                    status: 'pending_gudang',
+                    rejected_reason: null,
+                    request_number: docNum as string,
+                    main_office_id: null,
+                    main_office_name: 'Sistem',
+                    main_office_approved_at: new Date().toISOString()
                 })
                 .eq('id', requestId);
 
@@ -253,7 +280,7 @@ export function useStockRequests() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['stock-requests'] });
-            toast({ title: 'Permintaan Diajukan Ulang', description: 'Status kembali ke Pending Main Office' });
+            toast({ title: 'Permintaan Diajukan Ulang', description: 'Status kembali ke Gudang' });
         },
     });
 

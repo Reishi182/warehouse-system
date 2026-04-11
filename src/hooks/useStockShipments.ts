@@ -30,7 +30,7 @@ export function useStockShipments() {
         },
     });
 
-    // Create Shipment (Gudang)
+    // Create Shipment (Gudang) - Bypasses Auditor now
     const createShipment = useMutation({
         mutationFn: async (data: {
             requestId: string;
@@ -43,7 +43,9 @@ export function useStockShipments() {
                 .insert({
                     stock_request_id: data.requestId,
                     shipped_by: data.shippedBy,
-                    status: 'pending_auditor',
+                    status: 'approved', // Auto-approve
+                    auditor_id: null,
+                    auditor_approved_at: new Date().toISOString()
                 })
                 .select()
                 .single();
@@ -64,28 +66,102 @@ export function useStockShipments() {
 
             if (itemsError) throw itemsError;
 
-            // Update request status
+            // Reduce Stock in Gudang AND Release Reservation
+            for (const item of itemsToInsert) {
+                // NEW: Get current stock gudang before deduction
+                const { data: gudangData } = await supabase
+                    .from('products')
+                    .select('stock_gudang')
+                    .eq('id', item.product_id)
+                    .single();
+                const stockGudangBefore = gudangData?.stock_gudang || 0;
+
+                // Reduce Stock in Gudang AND Release Reservation
+                const { error: commitError } = await supabase.rpc('commit_stock_issue', {
+                    p_product_id: item.product_id,
+                    p_quantity: item.quantity_shipped
+                });
+
+                if (commitError) throw commitError;
+
+                // NEW: Auto-log stock history for Gudang
+                await supabase.from('stock_logs').insert({
+                    product_id: item.product_id,
+                    type: 'out',
+                    quantity: item.quantity_shipped,
+                    location: 'gudang',
+                    user_id: data.shippedBy,
+                    note: `Akses cepat - kirim barang otomatis ke toko`,
+                    reference_type: 'stock_request',
+                    reference_id: data.requestId,
+                    stock_before: stockGudangBefore,
+                    stock_after: stockGudangBefore - item.quantity_shipped
+                });
+
+                // NEW: Get current stock toko before increment for accurate logging
+                const { data: prodData } = await supabase
+                    .from('products')
+                    .select('stock_toko, name')
+                    .eq('id', item.product_id)
+                    .single();
+                    
+                const stockBefore = prodData?.stock_toko || 0;
+
+                // NEW: Auto-increment Toko Stock
+                const { error: incrementError } = await supabase.rpc('atomic_increment_stock', {
+                    p_product_id: item.product_id,
+                    p_quantity: item.quantity_shipped,
+                    p_location: 'toko',
+                });
+
+                if (incrementError) throw incrementError;
+
+                // NEW: Auto-log stock history for Toko
+                await supabase.from('stock_logs').insert({
+                    product_id: item.product_id,
+                    type: 'in',
+                    quantity: item.quantity_shipped,
+                    location: 'toko',
+                    user_id: data.shippedBy,
+                    note: `Akses cepat - terima barang otomatis dari gudang`,
+                    reference_type: 'stock_request',
+                    reference_id: data.requestId,
+                    stock_before: stockBefore,
+                    stock_after: stockBefore + item.quantity_shipped
+                });
+            }
+
+            // Update request status directly to completed
             const { error: reqUpdateError } = await supabase
                 .from('stock_requests')
-                .update({ status: 'pending_auditor' })
+                .update({ status: 'completed' })
                 .eq('id', data.requestId);
 
             if (reqUpdateError) throw reqUpdateError;
 
             return shipment;
         },
-        onSuccess: () => {
+        onSuccess: (_data, variables) => {
             queryClient.invalidateQueries({ queryKey: ['stock-shipments'] });
             queryClient.invalidateQueries({ queryKey: ['stock-requests'] });
-            toast({ title: 'Pengiriman Dibuat', description: 'Menunggu verifikasi Auditor' });
+            toast({ title: 'Proses Selesai', description: 'Stok gudang dikurangi & stok toko otomatis bertambah seketika' });
 
-            // Notify auditor about new shipment
-            sendNotificationToRole('auditor', {
-                title: 'Pengiriman Baru',
-                message: 'Ada pengiriman stok baru dari Gudang yang perlu diverifikasi',
-                type: 'info',
-                link: '/stock-request/shipments',
-            });
+            // Notify Cashier about the completion
+            supabase
+                .from('stock_requests')
+                .select('cashier_id, request_number')
+                .eq('id', variables.requestId)
+                .single()
+                .then(({ data: req }) => {
+                    if (req?.cashier_id) {
+                        sendNotificationToUser(req.cashier_id, {
+                            title: 'Permintaan Selesai Ditambah',
+                            message: `Permintaan ${req.request_number || ''} diproses Gudang. Stok Toko telah BERHASIL DITAMBAH.`,
+                            type: 'success',
+                            link: '/requests',
+                        });
+                    }
+                });
         }
     });
 

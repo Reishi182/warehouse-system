@@ -80,6 +80,72 @@ export default function StockApprovals() {
         }
     };
 
+    const pendingColumns: Column<StockRequest>[] = [
+        {
+            header: 'Waktu Pengajuan',
+            accessorKey: 'created_at',
+            cell: (item: StockRequest) => (
+                <span className="text-sm">
+                    {format(new Date(item.created_at), 'dd MMM yyyy HH:mm', { locale: localeId })}
+                </span>
+            )
+        },
+        {
+            header: 'Kasir',
+            accessorKey: 'cashier_name',
+            cell: (item: StockRequest) => <span className="font-semibold">{item.cashier_name}</span>
+        },
+        {
+            header: 'Alasan',
+            accessorKey: 'reason',
+            cell: (item: StockRequest) => <span className="text-sm">{item.reason || '-'}</span>
+        },
+        {
+            header: 'Item',
+            accessorKey: 'id',
+            cell: (item: StockRequest) => (
+                <ul className="list-disc list-inside text-sm">
+                    {item.items?.map((i) => (
+                        <li key={i.id}>
+                            {i.product?.name} - {i.quantity} {i.unit}
+                            {i.note && <span className="text-muted-foreground italic"> ({i.note})</span>}
+                        </li>
+                    ))}
+                </ul>
+            )
+        },
+        {
+            header: 'Aksi',
+            sortable: false,
+            cell: (item: StockRequest) => (
+                <div className="flex gap-2">
+                    <Button
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700 h-8 font-medium"
+                        onClick={() => handleApprove(item)}
+                        disabled={isProcessing}
+                    >
+                        <Check className="w-4 h-4 mr-1.5" />
+                        Setujui
+                    </Button>
+                    <Button
+                        size="sm"
+                        variant="destructive"
+                        className="h-8 font-medium"
+                        onClick={() => {
+                            setSelectedRequest(item);
+                            setRejectDialogOpen(true);
+                        }}
+                        disabled={isProcessing}
+                    >
+                        <X className="w-4 h-4 mr-1.5" />
+                        Tolak
+                    </Button>
+                </div>
+            )
+        }
+    ];
+
     // Column definitions for past requests table
     const historyColumns: Column<StockRequest>[] = [
         {
@@ -155,70 +221,20 @@ export default function StockApprovals() {
                     />
                 </StatsGrid>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <FileText className="w-5 h-5" />
-                            Permintaan Menunggu Persetujuan
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        {pendingRequests.length === 0 ? (
-                            <div className="text-center py-8 text-muted-foreground">
-                                Tidak ada permintaan stok yang menunggu persetujuan.
-                            </div>
-                        ) : (
-                            <div className="space-y-4">
-                                {pendingRequests.map((request: StockRequest) => (
-                                    <div key={request.id} className="border rounded-lg p-4 flex flex-col md:flex-row gap-4 justify-between bg-card hover:bg-muted/10 transition-colors">
-                                        <div className="space-y-2 flex-1">
-                                            <div className="flex items-center gap-2">
-                                                <Badge variant="outline">{format(new Date(request.created_at), 'dd MMM yyyy HH:mm', { locale: localeId })}</Badge>
-                                                <span className="font-semibold text-lg">{request.cashier_name}</span>
-                                            </div>
-                                            <p className="text-sm text-muted-foreground">Alasan: {request.reason}</p>
-
-                                            <div className="mt-2 text-sm bg-muted/50 p-2 rounded">
-                                                <p className="font-semibold mb-1">Item:</p>
-                                                <ul className="list-disc list-inside">
-                                                    {request.items?.map((item) => (
-                                                        <li key={item.id}>
-                                                            {item.product?.name} - {item.quantity} {item.unit}
-                                                            {item.note && <span className="text-muted-foreground italic"> ({item.note})</span>}
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex flex-col gap-2 justify-center min-w-[150px]">
-                                            <Button
-                                                className="w-full bg-green-600 hover:bg-green-700"
-                                                onClick={() => handleApprove(request)}
-                                                disabled={isProcessing}
-                                            >
-                                                <Check className="w-4 h-4 mr-2" />
-                                                Setujui
-                                            </Button>
-                                            <Button
-                                                variant="destructive"
-                                                className="w-full"
-                                                onClick={() => {
-                                                    setSelectedRequest(request);
-                                                    setRejectDialogOpen(true);
-                                                }}
-                                                disabled={isProcessing}
-                                            >
-                                                <X className="w-4 h-4 mr-2" />
-                                                Tolak
-                                            </Button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+                {/* Pending Requests Table */}
+                <BeautifulTable
+                    data={pendingRequests}
+                    columns={pendingColumns}
+                    title={
+                        <div className="flex items-center gap-2">
+                            <FileText className="w-5 h-5 text-amber-600" />
+                            <span className="text-amber-700 dark:text-amber-500">Permintaan Menunggu Persetujuan</span>
+                        </div>
+                    }
+                    hideSelection
+                    hideExport
+                    variant="premium"
+                />
 
                 {/* History Table using BeautifulTable */}
                 <BeautifulTable
@@ -227,6 +243,7 @@ export default function StockApprovals() {
                     title="Riwayat Persetujuan"
                     hideSelection
                     hideExport
+                    variant="premium"
                 />
             </div>
 

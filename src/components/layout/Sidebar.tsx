@@ -87,7 +87,7 @@ const navGroups: NavItem[] = [
       { label: 'Retur ke Gudang', icon: RotateCcw, href: '/stock-return', roles: ['cashier'] },
       { label: 'Proses Permintaan', icon: Package, href: '/requests/shipments', roles: ['warehouse'] },
       { label: 'Persetujuan Stok', icon: ClipboardCheck, href: '/requests/approval', roles: ['main_office'], badgeKey: 'stockRequests' },
-      { label: 'Approval Retur', icon: ClipboardCheck, href: '/stock-return/approval', roles: ['main_office'], badgeKey: 'stockReturns' },
+      { label: 'Proses Retur', icon: ClipboardCheck, href: '/stock-return/approval', roles: ['warehouse', 'main_office', 'auditor', 'admin'], badgeKey: 'stockReturns' },
       { label: 'Approval Opname', icon: ClipboardCheck, href: '/stock-opname/approval', roles: ['main_office'] },
       { label: 'Penerimaan Barang', icon: ArrowDownToLine, href: '/requests/receipt', roles: ['cashier'] },
       { label: 'History Stok', icon: BarChart3, href: '/stock/history', roles: ['warehouse', 'cashier', 'auditor', 'main_office'] },

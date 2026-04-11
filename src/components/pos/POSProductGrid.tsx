@@ -47,8 +47,7 @@ export const POSProductGrid = memo(function POSProductGrid({
     const [searchQuery, setSearchQuery] = useState('');
     const debouncedSearchQuery = useDebounce(searchQuery, 300); // Debounce 300ms
     const [viewMode, setViewMode] = useState<ViewMode>('compact');
-    const [currentPage, setCurrentPage] = useState(1);
-    const [pageSize, setPageSize] = useState<number | 'all'>(24);
+    const [displayCount, setDisplayCount] = useState(24);
     const [stockFilter, setStockFilter] = useState<'all' | 'instock' | 'low'>('all');
     const [sortBy, setSortBy] = useState<SortOption>('name-asc');
 
@@ -94,21 +93,21 @@ export const POSProductGrid = memo(function POSProductGrid({
         return sorted;
     }, [filteredProducts, sortBy, stockLocation]);
 
-    // Paginated products
-    const paginatedProducts = useMemo(() => {
-        if (pageSize === 'all') return sortedProducts;
-        const startIndex = (currentPage - 1) * pageSize;
-        return sortedProducts.slice(startIndex, startIndex + pageSize);
-    }, [sortedProducts, currentPage, pageSize]);
-
-    const totalPages = useMemo(() => {
-        if (pageSize === 'all') return 1;
-        return Math.ceil(sortedProducts.length / pageSize);
-    }, [sortedProducts.length, pageSize]);
+    // Infinite Scroll Displayed products
+    const displayedProducts = useMemo(() => {
+        return sortedProducts.slice(0, displayCount);
+    }, [sortedProducts, displayCount]);
 
     useEffect(() => {
-        setCurrentPage(1);
-    }, [debouncedSearchQuery, pageSize, stockFilter, sortBy]);
+        setDisplayCount(24);
+    }, [debouncedSearchQuery, stockFilter, sortBy]);
+
+    const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+        const bottom = e.currentTarget.scrollHeight - e.currentTarget.scrollTop - e.currentTarget.clientHeight < 100;
+        if (bottom && displayCount < sortedProducts.length) {
+            setDisplayCount(prev => prev + 24);
+        }
+    };
 
     const getGridClass = () => {
         switch (viewMode) {
@@ -253,10 +252,10 @@ export const POSProductGrid = memo(function POSProductGrid({
             </div>
 
             {/* Products */}
-            <ScrollArea className="flex-1 -mx-1 px-1">
+            <ScrollArea className="flex-1 -mx-1 px-1" onScroll={handleScroll}>
                 {viewMode !== 'list' ? (
                     <div className={getGridClass()}>
-                        {paginatedProducts.map((product) => (
+                        {displayedProducts.map((product) => (
                             <ProductCard
                                 key={product.id}
                                 product={product}
@@ -268,7 +267,7 @@ export const POSProductGrid = memo(function POSProductGrid({
                     </div>
                 ) : (
                     <div className="space-y-2">
-                        {paginatedProducts.map((product) => (
+                        {displayedProducts.map((product) => (
                             <ProductListItem
                                 key={product.id}
                                 product={product}
@@ -277,6 +276,12 @@ export const POSProductGrid = memo(function POSProductGrid({
                                 onEditProduct={onEditProduct}
                             />
                         ))}
+                    </div>
+                )}
+
+                {displayCount < filteredProducts.length && (
+                    <div className="py-8 text-center">
+                        <div className="inline-block h-6 w-6 animate-spin rounded-full border-4 border-solid border-primary border-e-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
                     </div>
                 )}
 
@@ -290,55 +295,11 @@ export const POSProductGrid = memo(function POSProductGrid({
                     </div>
                 )}
             </ScrollArea>
-
-            {/* Pagination */}
+            
+            {/* Status Info Footer */}
             {filteredProducts.length > 0 && (
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-4 mt-4 pt-4 border-t">
-                    <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
-                        <Select
-                            value={pageSize === 'all' ? 'all' : String(pageSize)}
-                            onValueChange={(v) => setPageSize(v === 'all' ? 'all' : parseInt(v))}
-                        >
-                            <SelectTrigger className="w-[70px] sm:w-[80px] h-9 rounded-lg text-xs sm:text-sm">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent className="rounded-lg">
-                                <SelectItem value="12">12</SelectItem>
-                                <SelectItem value="24">24</SelectItem>
-                                <SelectItem value="48">48</SelectItem>
-                                <SelectItem value="all">All</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <span className="text-xs sm:text-sm text-muted-foreground">
-                            dari {filteredProducts.length} produk
-                        </span>
-                    </div>
-
-                    {pageSize !== 'all' && totalPages > 1 && (
-                        <div className="flex items-center gap-2 w-full sm:w-auto justify-center sm:justify-end">
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg"
-                                disabled={currentPage === 1}
-                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                            >
-                                <ChevronLeft className="w-4 h-4" />
-                            </Button>
-                            <span className="text-xs sm:text-sm font-medium px-2 sm:px-3 py-1.5 bg-muted rounded-lg">
-                                {currentPage} / {totalPages}
-                            </span>
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg"
-                                disabled={currentPage === totalPages}
-                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                            >
-                                <ChevronRight className="w-4 h-4" />
-                            </Button>
-                        </div>
-                    )}
+                <div className="mt-4 pt-4 border-t text-center text-xs sm:text-sm text-muted-foreground">
+                    Menampilkan <span className="font-semibold text-foreground">{Math.min(displayCount, filteredProducts.length)}</span> dari <span className="font-semibold text-foreground">{filteredProducts.length}</span> produk
                 </div>
             )}
         </div>

@@ -5,6 +5,7 @@ import { useStockRequests } from '@/hooks/useStockRequests';
 import { useStockShipments } from '@/hooks/useStockShipments';
 import MainLayout from '@/components/layout/MainLayout';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
+import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,8 +31,72 @@ export default function StockShipments() {
     const [shipmentItems, setShipmentItems] = useState<any[]>([]);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-    // Requests ready for shipment (approved by Main Office)
-    const pendingRequests = requests.filter(r => r.status === 'pending_gudang');
+    const columns: Column<any>[] = [
+        {
+            header: 'Waktu Permintaan',
+            accessorKey: 'created_at',
+            cell: (req) => (
+                <div className="flex flex-col">
+                    <span className="text-sm font-medium">{format(new Date(req.created_at), 'dd MMM yyyy')}</span>
+                    <span className="text-xs text-muted-foreground">{format(new Date(req.created_at), 'HH:mm')}</span>
+                </div>
+            )
+        },
+        {
+            header: 'Nomor Permintaan',
+            accessorKey: 'request_number',
+            cell: (req) => (
+                <Badge variant="outline" className="font-mono bg-primary/5 text-primary border-primary/20 uppercase font-bold">
+                    {req.request_number || '-'}
+                </Badge>
+            )
+        },
+        {
+            header: 'Kasir Peminta',
+            accessorKey: 'cashier_name',
+            cell: (req) => <span className="font-medium text-sm">{req.cashier_name}</span>
+        },
+        {
+            header: 'Status',
+            accessorKey: 'status',
+            cell: (req) => {
+                if (req.status === 'pending_gudang') return <Badge variant="warning" className="bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400">Siap Proses</Badge>;
+                if (req.status === 'pending_receipt') return <Badge className="bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400">Dalam Perjalanan</Badge>;
+                if (req.status === 'completed') return <Badge className="bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-400">Selesai</Badge>;
+                if (req.status === 'cancelled') return <Badge variant="destructive">Dibatalkan</Badge>;
+                if (req.status === 'rejected') return <Badge variant="destructive">Ditolak</Badge>;
+                return <Badge variant="secondary">{req.status}</Badge>;
+            }
+        },
+        {
+            header: 'Jumlah Item',
+            sortable: false,
+            filterable: false,
+            cell: (req) => (
+                <Badge variant="secondary" className="text-xs font-medium">
+                    <Package className="w-3 h-3 mr-1" />
+                    {req.items?.length || 0} barang
+                </Badge>
+            )
+        },
+        {
+            header: 'Aksi',
+            sortable: false,
+            filterable: false,
+            cell: (req) => (
+                req.status === 'pending_gudang' ? (
+                    <Button size="sm" className="h-8 gap-1.5 shrink-0 bg-orange-500 hover:bg-orange-600 text-white" onClick={() => openShipmentDialog(req)}>
+                        <Truck className="w-3.5 h-3.5" />
+                        Proses Kirim
+                    </Button>
+                ) : (
+                    <span className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                        <CheckCircle className="w-4 h-4 text-green-500" /> Selesai
+                    </span>
+                )
+            )
+        }
+    ];
 
     const openShipmentDialog = (request: any) => {
         setSelectedRequest(request);
@@ -80,117 +145,41 @@ export default function StockShipments() {
             subtitle="Proses permintaan stok dan buat pengiriman"
         >
             <div className="space-y-8">
-                <StatsGrid columns={3}>
+                <StatsGrid columns={2}>
                     <StatsCard
-                        title="Siap Kirim"
-                        value={pendingRequests.length}
+                        title="Siap Proses"
+                        value={requests.filter(r => r.status === 'pending_gudang').length}
                         icon={<Package className="w-5 h-5" />}
-                        subtitle={pendingRequests.length > 0 ? "perlu diproses" : undefined}
                         subtitleType="warning"
                     />
                     <StatsCard
-                        title="Terkirim"
-                        value={shipments.length}
-                        icon={<Truck className="w-5 h-5" />}
+                        title="Selesai"
+                        value={requests.filter(r => r.status === 'completed').length}
+                        icon={<CheckCircle className="w-5 h-5 text-green-500" />}
                         subtitleType="success"
-                    />
-                    <StatsCard
-                        title="Pending Auditor"
-                        value={shipments.filter(s => s.status === 'pending_auditor').length}
-                        icon={<CheckCircle className="w-5 h-5" />}
                     />
                 </StatsGrid>
 
-                {/* Pending Requests Section */}
-                <section className="space-y-4">
-                    <h2 className="text-xl font-semibold flex items-center gap-2">
-                        <Package className="w-5 h-5" /> Permintaan Siap Kirim
-                    </h2>
-
-                    {pendingRequests.length === 0 ? (
-                        <Card className="bg-muted/30 border-dashed">
-                            <CardContent className="flex flex-col items-center justify-center py-10 text-muted-foreground">
-                                <CheckCircle className="w-10 h-10 mb-2 opacity-20" />
-                                <p>Tidak ada permintaan yang perlu diproses saat ini.</p>
-                            </CardContent>
-                        </Card>
-                    ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {pendingRequests.map(req => (
-                                <Card key={req.id} className="relative overflow-hidden border-orange-200 dark:border-orange-900">
-                                    <div className="absolute top-0 left-0 w-1 h-full bg-orange-500" />
-                                    <CardHeader className="pb-2">
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <CardTitle className="text-lg">{req.cashier_name}</CardTitle>
-                                                <p className="text-sm font-mono text-muted-foreground mt-1">{req.request_number}</p>
-                                            </div>
-                                            <Badge>Siap Kirim</Badge>
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="space-y-3">
-                                            <div className="bg-muted p-3 rounded text-sm">
-                                                <p className="font-semibold mb-1">Daftar Barang ({req.items?.length}):</p>
-                                                <ul className="list-disc list-inside text-muted-foreground">
-                                                    {req.items?.slice(0, 3).map((i: any) => (
-                                                        <li key={i.id}>{i.product?.name} ({i.quantity} {i.unit})</li>
-                                                    ))}
-                                                    {(req.items?.length || 0) > 3 && <li>...dan {req.items.length - 3} lainnya</li>}
-                                                </ul>
-                                            </div>
-                                            <Button className="w-full" onClick={() => openShipmentDialog(req)}>
-                                                <Truck className="w-4 h-4 mr-2" /> Proses Pengiriman
-                                            </Button>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            ))}
+                {/* Unified Requests Table */}
+                <BeautifulTable
+                    data={requests}
+                    columns={columns}
+                    title={
+                        <div className="flex items-center gap-2">
+                            <Package className="w-5 h-5 text-primary" />
+                            <span>Daftar Permintaan Stok</span>
                         </div>
-                    )}
-                </section>
-
-                {/* Shipment History */}
-                <section className="space-y-4">
-                    <h2 className="text-xl font-semibold flex items-center gap-2">
-                        <Truck className="w-5 h-5" /> Riwayat Pengiriman
-                    </h2>
-                    <Card>
-                        <CardContent className="p-0">
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-sm">
-                                    <thead className="bg-muted/50 border-b">
-                                        <tr>
-                                            <th className="px-4 py-3 text-left font-medium">Tanggal</th>
-                                            <th className="px-4 py-3 text-left font-medium">No. Permintaan</th>
-                                            <th className="px-4 py-3 text-left font-medium">Status</th>
-                                            <th className="px-4 py-3 text-right font-medium">Total Item</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y">
-                                        {shipments.map(ship => (
-                                            <tr key={ship.id} className="hover:bg-muted/20">
-                                                <td className="px-4 py-3">{format(new Date(ship.created_at), 'dd MMM yyyy HH:mm')}</td>
-                                                <td className="px-4 py-3 font-mono">{ship.request?.request_number || '-'}</td>
-                                                <td className="px-4 py-3">
-                                                    <Badge variant={ship.status === 'approved' ? 'default' : ship.status === 'needs_revision' ? 'destructive' : 'secondary'}>
-                                                        {ship.status === 'pending_auditor' ? 'Verifikasi Auditor' : ship.status}
-                                                    </Badge>
-                                                </td>
-                                                <td className="px-4 py-3 text-right">{ship.items?.length} barang</td>
-                                            </tr>
-                                        ))}
-                                        {shipments.length === 0 && (
-                                            <tr>
-                                                <td colSpan={4} className="text-center py-6 text-muted-foreground">belum ada riwayat pengiriman</td>
-                                            </tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </section>
+                    }
+                    hideSelection
+                    hideExport={false}
+                    variant="premium"
+                    exportFilename="daftar-permintaan-stok"
+                    emptyState={{
+                        icon: <Package className="w-7 h-7" />,
+                        title: 'Tidak ada permintaan',
+                        description: 'Belum ada permintaan stok dari kasir.',
+                    }}
+                />
             </div>
 
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

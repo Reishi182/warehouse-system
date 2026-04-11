@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Camera, CheckCircle, PackageCheck, AlertTriangle, Loader2, Pen } from 'lucide-react';
+import { Camera, CheckCircle, PackageCheck, AlertTriangle, Loader2, Pen, Search, Barcode } from 'lucide-react';
 import { format } from 'date-fns';
 import {
     Dialog,
@@ -31,6 +31,7 @@ interface ReceivedItemState {
     quantityReceived: number;
     quantityDamaged: number;
     unit?: string | null;
+    scannedBarcode?: string;
 }
 
 export default function GoodsReceipt() {
@@ -97,10 +98,14 @@ export default function GoodsReceipt() {
         }
     };
 
-    const updateReceivedItem = (index: number, field: 'quantityReceived' | 'quantityDamaged', value: number) => {
+    const updateReceivedItem = (index: number, field: 'quantityReceived' | 'quantityDamaged' | 'scannedBarcode', value: string | number) => {
         setReceivedItems(prev => {
             const updated = [...prev];
-            updated[index] = { ...updated[index], [field]: Math.max(0, value) };
+            if (field === 'scannedBarcode') {
+                updated[index] = { ...updated[index], [field]: value };
+            } else {
+                updated[index] = { ...updated[index], [field]: Math.max(0, Number(value)) };
+            }
             return updated;
         });
     };
@@ -205,52 +210,71 @@ export default function GoodsReceipt() {
                             </Alert>
                         )}
 
-                        {/* Items with Qty Input */}
-                        <div className="space-y-3">
-                            <Label className="text-base font-semibold">Detail Penerimaan Per Item</Label>
-                            <div className="border rounded-lg overflow-hidden">
-                                <table className="w-full text-sm">
-                                    <thead className="bg-muted">
-                                        <tr>
-                                            <th className="text-left p-3">Produk</th>
-                                            <th className="text-center p-3 w-24">Dikirim</th>
-                                            <th className="text-center p-3 w-28">Diterima</th>
-                                            <th className="text-center p-3 w-28">Rusak</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {receivedItems.map((item, idx) => {
-                                            const hasItemDiscrepancy = item.quantityReceived !== item.quantityShipped || item.quantityDamaged > 0;
-                                            return (
-                                                <tr key={item.productId} className={hasItemDiscrepancy ? 'bg-amber-50 dark:bg-amber-900/20' : ''}>
-                                                    <td className="p-3 font-medium">{item.productName}</td>
-                                                    <td className="p-3 text-center font-mono">{item.quantityShipped} {item.unit || ''}</td>
-                                                    <td className="p-3">
-                                                        <Input
-                                                            type="number"
-                                                            min={0}
-                                                            max={item.quantityShipped}
-                                                            value={item.quantityReceived}
-                                                            onChange={e => updateReceivedItem(idx, 'quantityReceived', parseInt(e.target.value) || 0)}
-                                                            className="text-center h-8"
-                                                        />
-                                                    </td>
-                                                    <td className="p-3">
-                                                        <Input
-                                                            type="number"
-                                                            min={0}
-                                                            max={item.quantityReceived}
-                                                            value={item.quantityDamaged}
-                                                            onChange={e => updateReceivedItem(idx, 'quantityDamaged', parseInt(e.target.value) || 0)}
-                                                            className="text-center h-8"
-                                                        />
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
+                        {/* Items listed as cards */}
+                        <div className="space-y-4">
+                            <Label className="text-base font-semibold">Daftar Barang</Label>
+                            {receivedItems.map((item, idx) => {
+                                const hasItemDiscrepancy = item.quantityReceived !== item.quantityShipped || item.quantityDamaged > 0;
+                                return (
+                                    <div key={item.productId} className={`border rounded-xl p-4 space-y-4 bg-card ${hasItemDiscrepancy ? 'border-amber-300 dark:border-amber-700/50' : 'border-border'}`}>
+                                        <div className="flex items-start justify-between gap-2">
+                                            <h4 className="font-semibold text-base">{item.productName}</h4>
+                                            <Badge variant="outline" className="shrink-0 rounded-full font-medium shadow-sm bg-background">
+                                                Dipesan: {item.quantityShipped} {item.unit?.toUpperCase() || 'PCS'}
+                                            </Badge>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label className="text-xs text-blue-600 dark:text-blue-400 font-medium">Barcode Produk Baru (Wajib)</Label>
+                                            <div className="relative">
+                                                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-muted-foreground">
+                                                    <Search className="w-4 h-4" />
+                                                </div>
+                                                <Input
+                                                    placeholder="Scan atau ketik barcode..."
+                                                    className="pl-9 pr-10"
+                                                    value={item.scannedBarcode || ''}
+                                                    onChange={(e) => updateReceivedItem(idx, 'scannedBarcode', e.target.value)}
+                                                />
+                                                <div className="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer text-muted-foreground hover:text-foreground">
+                                                    <Camera className="w-4 h-4" />
+                                                </div>
+                                            </div>
+                                            {item.scannedBarcode && (
+                                                <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-500 mt-1">
+                                                    <CheckCircle className="w-3.5 h-3.5" />
+                                                    <span>{item.scannedBarcode}</span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4 pt-2">
+                                            <div className="space-y-1.5">
+                                                <Label className="text-sm">Diterima</Label>
+                                                <Input
+                                                    type="number"
+                                                    min={0}
+                                                    max={item.quantityShipped}
+                                                    value={item.quantityReceived}
+                                                    onChange={e => updateReceivedItem(idx, 'quantityReceived', e.target.value)}
+                                                    className="h-10 text-lg"
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <Label className="text-sm text-red-500">Rusak</Label>
+                                                <Input
+                                                    type="number"
+                                                    min={0}
+                                                    max={item.quantityReceived}
+                                                    value={item.quantityDamaged}
+                                                    onChange={e => updateReceivedItem(idx, 'quantityDamaged', e.target.value)}
+                                                    className="h-10 text-lg border-red-200 focus-visible:ring-red-500"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
 
                         {/* Photo Upload */}
@@ -320,7 +344,7 @@ export default function GoodsReceipt() {
                             ) : hasDiscrepancy ? (
                                 'Konfirmasi dengan Selisih'
                             ) : (
-                                'Konfirmasi & Simpan'
+                                'Konfirmasi & Tambah Stok'
                             )}
                         </Button>
                     </DialogFooter>
