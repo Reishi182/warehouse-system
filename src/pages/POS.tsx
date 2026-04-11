@@ -425,7 +425,7 @@ export default function POS() {
                                 stockLocation: cart.stockLocation,
                                 cashierId: profile?.user_id || '',
                                 cashierName: profile?.name || 'Kasir',
-                                items: cart.items.map(item => ({
+                                items: cart.items.filter(item => item.quantity > 0).map(item => ({
                                     productId: item.product.id,
                                     quantity: item.quantity,
                                 })),

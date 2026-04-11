@@ -86,7 +86,15 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
     });
 
     const openCheckoutDialog = useCallback(() => {
-        if (items.length === 0) return;
+        const validItems = items.filter(it => it.quantity > 0);
+        if (validItems.length === 0) {
+            toast({
+                title: 'Keranjang Kosong',
+                description: 'Tidak ada item dengan jumlah lebih dari 0',
+                variant: 'destructive',
+            });
+            return;
+        }
         setAmountPaid(Math.ceil(totalAmount / 1000) * 1000);
         setTransactionDate(new Date()); // Reset to today when opening
         setIsCredit(false); // Reset credit state
@@ -117,7 +125,8 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
         const finalAmountPaid = isCredit ? 0 : (paymentMethod === 'cash' ? amountPaid : totalAmount);
 
         // Prepare items with product details
-        const saleItems = items.map(it => {
+        const validItems = items.filter(it => it.quantity > 0);
+        const saleItems = validItems.map(it => {
             const effectivePrice = it.unitPrice || it.product.price;
             const itemTotal = effectivePrice * it.quantity;
             // discount is now a fixed amount in Rupiah per item
@@ -180,7 +189,8 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
     }, [user, profile, items, paymentMethod, amountPaid, totalAmount, subtotal, orderDiscount, stockLocation, returnRef, isCredit, creditCustomerName, transactionDate]);
 
     const handleConfirmCheckout = useCallback(async () => {
-        if (items.length === 0) return;
+        const validItems = items.filter(it => it.quantity > 0);
+        if (validItems.length === 0) return;
 
         // Skip payment check for credit transactions
         if (!isCredit && paymentMethod === 'cash' && amountPaid < totalAmount) {
@@ -250,7 +260,7 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
             const result = await createSale({
                 paymentMethod,
                 stockLocation,
-                items: items.map((it) => ({
+                items: validItems.map((it) => ({
                     // Use null for manual entry items (Quick Sale)
                     productId: it.isManualEntry ? null : it.product.id,
                     productName: it.product.name,
@@ -272,7 +282,7 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
             });
 
             if (result) {
-                const saleItems = items.map(it => {
+                const saleItems = validItems.map(it => {
                     const effectivePrice = it.unitPrice || it.product.price;
                     const itemTotal = effectivePrice * it.quantity;
                     // discount is now a fixed amount in Rupiah per item

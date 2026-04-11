@@ -251,8 +251,7 @@ export function usePOSCart(initialLocation: Location = 'toko'): UsePOSCartReturn
                 }
             }
             return prev
-                .map((it) => (it.product.id === productId ? { ...it, quantity: qty } : it))
-                .filter((it) => it.quantity > 0);
+                .map((it) => (it.product.id === productId ? { ...it, quantity: qty } : it));
         });
     }, [stockLocation, toast]);
 
