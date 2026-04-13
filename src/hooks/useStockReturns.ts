@@ -265,14 +265,17 @@ export function useStockReturns() {
                 throw new Error('Hanya pengajuan retur yang masih diproses Gudang yang dapat dibatalkan');
             }
 
-            const { error } = await supabase
+            const { data: updated, error } = await supabase
                 .from('stock_returns')
                 .update({
                     status: 'cancelled'
                 })
-                .eq('id', returnId);
+                .eq('id', returnId)
+                .select('id')
+                .single();
 
             if (error) throw error;
+            if (!updated) throw new Error('Gagal mengubah status. Pastikan Anda memiliki akses untuk membatalkan retur ini.');
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['stock-returns'] });

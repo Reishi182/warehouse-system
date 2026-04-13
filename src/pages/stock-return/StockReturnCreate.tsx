@@ -199,7 +199,6 @@ function ReturnDetailDialog({ stockReturn, onCancel }: { stockReturn: StockRetur
                                 </div>
                             ))}
                         </div>
-                        </div>
                     </div>
 
                     {/* Cancel button for pending returns */}

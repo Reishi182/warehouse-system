@@ -302,14 +302,17 @@ export function useStockRequests() {
             }
 
             // Update status to cancelled
-            const { error } = await supabase
+            const { data: updated, error } = await supabase
                 .from('stock_requests')
                 .update({
                     status: 'cancelled'
                 })
-                .eq('id', requestId);
+                .eq('id', requestId)
+                .select('id')
+                .single();
 
             if (error) throw error;
+            if (!updated) throw new Error('Gagal mengubah status. Pastikan Anda memiliki akses untuk membatalkan permintaan ini.');
 
             // RELEASE STOCK RESERVATION
             // 1. Fetch Items
