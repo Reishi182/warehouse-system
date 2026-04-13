@@ -105,7 +105,7 @@ function EditReturnDialog({ request, products, onEdit, onCancel }: { request: St
         </Dialog>
     );
 }
-function ReturnDetailDialog({ stockReturn }: { stockReturn: StockReturn }) {
+function ReturnDetailDialog({ stockReturn, onCancel }: { stockReturn: StockReturn, onCancel?: () => void }) {
     const [open, setOpen] = useState(false);
 
     return (
@@ -199,7 +199,23 @@ function ReturnDetailDialog({ stockReturn }: { stockReturn: StockReturn }) {
                                 </div>
                             ))}
                         </div>
+                        </div>
                     </div>
+
+                    {/* Cancel button for pending returns */}
+                    {stockReturn.status === 'pending_gudang' && onCancel && (
+                        <Button
+                            variant="outline"
+                            className="w-full rounded-xl h-12 border-2 border-destructive/50 text-destructive hover:bg-destructive/10 hover:border-destructive transition-all"
+                            onClick={() => {
+                                onCancel();
+                                setOpen(false);
+                            }}
+                        >
+                            <Ban className="w-5 h-5 mr-2" />
+                            Batalkan Retur
+                        </Button>
+                    )}
                 </div>
             </DialogContent>
         </Dialog>
@@ -313,7 +329,7 @@ export default function StockReturnCreate() {
         },
         {
             header: 'Aksi',
-            cell: (ret) => <ReturnDetailDialog stockReturn={ret} />
+            cell: (ret) => <ReturnDetailDialog stockReturn={ret} onCancel={() => cancelReturn.mutate(ret.id)} />
         },
     ];
 

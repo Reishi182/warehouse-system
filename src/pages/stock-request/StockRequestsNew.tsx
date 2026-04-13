@@ -260,7 +260,7 @@ function RequestDetailDialog({ request, onResubmit, onCancel }: { request: NewSt
                     </div>
 
                     {/* Cancel button for pending requests */}
-                    {request.status === 'pending_main_office' && (
+                    {(request.status === 'pending_main_office' || request.status === 'pending_gudang') && (
                         <Button
                             variant="outline"
                             className="w-full rounded-xl h-12 border-2 border-destructive/50 text-destructive hover:bg-destructive/10 hover:border-destructive transition-all"
