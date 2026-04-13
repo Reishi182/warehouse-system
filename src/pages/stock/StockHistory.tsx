@@ -4,7 +4,7 @@ import PageSkeleton from '@/components/common/PageSkeleton';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
-import { useData } from '@/contexts/DataContext';
+import { useDataStore } from '@/store/useDataStore';
 import { StockLogDetailDialog } from '@/components/stock/StockLogDetailDialog';
 import { StockLog, Location } from '@/types';
 import {
@@ -217,7 +217,8 @@ function GroupDetailDialog({
 
 // ─── Main Page ─────────────────────────────────────────────────
 export default function StockHistory() {
-    const { stockLogs, loading } = useData();
+    const stockLogs = useDataStore(s => s.stockLogs);
+    const loading = useDataStore(s => s.loading);
 
     const [selectedLog, setSelectedLog] = useState<StockLog | null>(null);
     const [detailDialogOpen, setDetailDialogOpen] = useState(false);
@@ -240,10 +241,14 @@ export default function StockHistory() {
         const groups = new Map<string, GroupedLog>();
 
         stockLogs.forEach(log => {
-            // Extract PO/OP label from note to use as group key when reference_id is missing
+            // Extract reference labels from note to use as group key when reference_id is missing
             const poMatch = log.note?.match(/PO-[\w\d-]+/i);
             const opMatch = log.note?.match(/OP-[\w\d-]+/i);
-            const extractedRef = poMatch?.[0] || opMatch?.[0] || null;
+            const invMatch = log.note?.match(/INV\/[\w\d/-]+/i);
+            const sjMatch = log.note?.match(/SJ\/[\w\d/-]+/i) || log.note?.match(/SJ-[\w\d-]+/i);
+            const retMatch = log.note?.match(/RET\/[\w\d/-]+/i) || log.note?.match(/RET-[\w\d-]+/i);
+            
+            const extractedRef = poMatch?.[0] || opMatch?.[0] || sjMatch?.[0] || retMatch?.[0] || invMatch?.[0] || null;
 
             // Priority: reference_id > extracted note label > individual log.id
             const groupKey = log.reference_id || extractedRef || log.id;

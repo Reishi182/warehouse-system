@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useLowStockProducts } from './useLowStockProducts';
-import { useData } from '@/contexts/DataContext';
+import { useDataStore } from '@/store/useDataStore';
 import { useToast } from '@/hooks/use-toast';
 
 interface UseStockAlertNotificationsOptions {

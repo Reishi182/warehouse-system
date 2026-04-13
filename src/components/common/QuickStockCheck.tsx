@@ -8,7 +8,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useData } from '@/contexts/DataContext';
+import { useDataStore } from '@/store/useDataStore';
 import { Product } from '@/types';
 import {
     Package,
@@ -34,7 +34,8 @@ export function QuickStockCheck({ open, onOpenChange }: QuickStockCheckProps) {
     const [query, setQuery] = useState('');
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
-    const { products, getProductByBarcode } = useData();
+    const products = useDataStore(s => s.products);
+    const getProductByBarcode = useDataStore(s => s.getProductByBarcode);
 
     // Reset on open
     useEffect(() => {

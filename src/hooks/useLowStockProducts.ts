@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useData } from '@/contexts/DataContext';
+import { useDataStore } from '@/store/useDataStore';
 import { Product } from '@/types';
 
 interface LowStockProduct extends Product {
@@ -18,7 +18,7 @@ interface UseLowStockProductsOptions {
  * Hook to get products with low stock levels
  */
 export function useLowStockProducts(options: UseLowStockProductsOptions = {}) {
-    const { products } = useData();
+    const products = useDataStore(s => s.products);
     const {
         lowThreshold = 10,
         criticalThreshold = 5,

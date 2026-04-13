@@ -21,12 +21,14 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { useData } from '@/contexts/DataContext';
+import { useDataStore } from '@/store/useDataStore';
 import { useToast } from '@/hooks/use-toast';
 import { Product, Location } from '@/types';
 
 export default function StockIn() {
-  const { getProductByBarcode, addStock, loading } = useData();
+  const getProductByBarcode = useDataStore(s => s.getProductByBarcode);
+    const addStock = useDataStore(s => s.addStock);
+    const loading = useDataStore(s => s.loading);
   const { toast } = useToast();
 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);

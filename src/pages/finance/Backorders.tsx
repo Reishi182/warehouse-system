@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/tabs';
 import { useBackorders, useFulfillBackorder, useCancelBackorder } from '@/hooks/useBackorders';
 import { useAuth } from '@/contexts/AuthContext';
-import { useData } from '@/contexts/DataContext';
+import { useDataStore } from '@/store/useDataStore';
 import { Backorder, BackorderStatus } from '@/types';
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
@@ -36,7 +36,7 @@ const statusLabels: Record<BackorderStatus, { label: string; color: string; icon
 
 export default function Backorders() {
     const { user, profile } = useAuth();
-    const { products } = useData();
+    const products = useDataStore(s => s.products);
     const [activeTab, setActiveTab] = useState<string>('pending');
     const [searchQuery, setSearchQuery] = useState('');
 

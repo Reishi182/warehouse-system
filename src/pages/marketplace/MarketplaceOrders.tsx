@@ -27,7 +27,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth, useRole } from '@/contexts/AuthContext';
-import { useData } from '@/contexts/DataContext';
+import { useDataStore } from '@/store/useDataStore';
 import { useMarketplaceOrders, useCreateMarketplaceOrder } from '@/hooks/useMarketplaceOrders';
 import { MarketplaceOrder, MarketplaceType, Product } from '@/types';
 import { format } from 'date-fns';
@@ -49,7 +49,7 @@ export default function MarketplaceOrders() {
     const navigate = useNavigate();
     const role = useRole();
     const { user, profile } = useAuth();
-    const { products } = useData();
+    const products = useDataStore(s => s.products);
     const { toast } = useToast();
 
     const [isCreateOpen, setIsCreateOpen] = useState(false);

@@ -27,7 +27,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { History, ClipboardList, RotateCcw, PackagePlus, AlertCircle } from 'lucide-react';
-import { useData } from '@/contexts/DataContext';
+import { useDataStore } from '@/store/useDataStore';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useStoreSettings } from '@/hooks/useStoreSettings';
@@ -38,7 +38,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { Location, Sale, Product } from '@/types';
 
 export default function POS() {
-    const { products, getProductByBarcode, sales, updateProduct, loading } = useData();
+    const products = useDataStore(s => s.products);
+    const getProductByBarcode = useDataStore(s => s.getProductByBarcode);
+    const sales = useDataStore(s => s.sales);
+    const updateProduct = useDataStore(s => s.updateProduct);
+    const loading = useDataStore(s => s.loading);
     const { profile } = useAuth();
     const { toast } = useToast();
     const { data: storeSettings } = useStoreSettings();

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useData } from '@/contexts/DataContext';
+import { useDataStore } from '@/store/useDataStore';
 import { startOfDay, endOfDay, subDays, format } from 'date-fns';
 import { id } from 'date-fns/locale';
 
@@ -47,7 +47,8 @@ interface UseStockMovementReportOptions {
  * Hook for generating stock movement reports
  */
 export function useStockMovementReport(options: UseStockMovementReportOptions = {}) {
-    const { stockLogs, products } = useData();
+    const stockLogs = useDataStore(s => s.stockLogs);
+    const products = useDataStore(s => s.products);
     const {
         productId,
         startDate,

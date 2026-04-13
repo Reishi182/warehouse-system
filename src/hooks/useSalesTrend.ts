@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useData } from '@/contexts/DataContext';
+import { useDataStore } from '@/store/useDataStore';
 import { startOfDay, subDays, format, eachDayOfInterval, startOfWeek, startOfMonth, endOfDay } from 'date-fns';
 import { id } from 'date-fns/locale';
 
@@ -30,7 +30,7 @@ interface TrendResult {
  * Hook to calculate sales trends over time
  */
 export function useSalesTrend(range: TimeRange = '7d'): TrendResult {
-    const { sales } = useData();
+    const sales = useDataStore(s => s.sales);
 
     return useMemo(() => {
         const today = endOfDay(new Date());

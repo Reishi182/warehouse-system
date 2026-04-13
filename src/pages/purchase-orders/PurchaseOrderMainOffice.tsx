@@ -38,7 +38,7 @@ import {
     TabsTrigger,
 } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
-import { useData } from '@/contexts/DataContext';
+import { useDataStore } from '@/store/useDataStore';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import {
     usePurchaseOrders,
@@ -81,7 +81,8 @@ const statusLabels: Record<string, { label: string; color: string }> = {
 
 export default function PurchaseOrderMainOffice() {
     const { user, profile } = useAuth();
-    const { products, loading: productsLoading } = useData();
+    const products = useDataStore(s => s.products);
+    const productsLoading = useDataStore(s => s.loading);
     const { data: suppliers = [], isLoading: suppliersLoading } = useSuppliers();
     const { data: purchaseOrders = [], isLoading: posLoading } = usePurchaseOrders();
     const { data: storeSettings } = useStoreSettings();

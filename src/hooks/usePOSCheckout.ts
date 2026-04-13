@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { useReactToPrint } from 'react-to-print';
 import { PaymentMethod, Location } from '@/types';
-import { useData } from '@/contexts/DataContext';
+import { useDataStore } from '@/store/useDataStore';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { CartItem } from './usePOSCart';
@@ -71,7 +71,8 @@ export interface UsePOSCheckoutReturn {
 
 export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutReturn {
     const { items, subtotal, totalAmount, orderDiscount, stockLocation, onSuccess, returnRef, exchangeFromSale } = options;
-    const { createSale, products } = useData();
+    const createSale = useDataStore(s => s.createSale);
+    const products = useDataStore(s => s.products);
     const { profile, user } = useAuth();
     const { toast } = useToast();
 

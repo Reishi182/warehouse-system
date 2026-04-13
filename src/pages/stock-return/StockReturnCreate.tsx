@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import UnitSelector from '@/components/common/UnitSelector';
 import { Plus, Trash2, Send, ShoppingCart, CheckCircle, Clock, Package, RefreshCw, XCircle, Eye, Sparkles, FileText, Calendar, User, Ban } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { useData } from '@/contexts/DataContext';
+import { useDataStore } from '@/store/useDataStore';
 import StatusBadge from '@/components/common/StatusBadge';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
@@ -28,6 +28,83 @@ import { StockReturn } from '@/types';
 import { ProductPicker } from '@/components/products/ProductPicker';
 
 
+
+
+// Edit Return Dialog Component
+function EditReturnDialog({ request, products, onEdit, onCancel }: { request: StockReturn, products: any[], onEdit: (data: any) => void, onCancel: () => void }) {
+    const [open, setOpen] = useState(false);
+    const [reason, setReason] = useState(request.reason || '');
+    const [items, setItems] = useState<any[]>(() => {
+        return request.items?.map((i: any) => ({
+            productId: i.product_id,
+            name: i.product?.name,
+            quantity: i.quantity,
+            maxStock: i.product?.stock_toko || 0,
+            unit: i.unit || 'pcs',
+            note: i.note || ''
+        })) || [];
+    });
+
+    const handleRemoveItem = (productId: string) => {
+        setItems(items.filter(i => i.productId !== productId));
+    };
+
+    const handleUpdateItem = (productId: string, field: string, value: any) => {
+        setItems(items.map(i => {
+            if (i.productId === productId) {
+                return { ...i, [field]: value };
+            }
+            return i;
+        }));
+    };
+
+    const handleSave = () => {
+        onEdit({ reason, items });
+        setOpen(false);
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button size="sm" variant="outline" className="rounded-xl gap-2 hover:bg-blue-500/10 hover:border-blue-500/50 hover:text-blue-600 transition-all ml-2">
+                    <FileText className="w-4 h-4" /> Edit
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl rounded-2xl border-2">
+                <DialogHeader>
+                    <DialogTitle>Edit Pengajuan Retur</DialogTitle>
+                    <DialogDescription>Ubah detail retur sebelum ditarik oleh gudang.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                        <Label>Alasan Retur</Label>
+                        <Textarea value={reason} onChange={e => setReason(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Daftar Barang</Label>
+                        {items.map((item) => (
+                            <div key={item.productId} className="flex gap-2 items-end border p-3 rounded-lg bg-muted/50">
+                                <div className="flex-1">
+                                    <Label className="text-xs">Barang</Label>
+                                    <Input value={item.name} disabled className="bg-background/50" />
+                                </div>
+                                <div className="w-24">
+                                    <Label className="text-xs">Jumlah</Label>
+                                    <Input type="number" min={0.1} step="any" value={item.quantity} onChange={e => handleUpdateItem(item.productId, 'quantity', parseFloat(e.target.value) || 0)} />
+                                </div>
+                                <Button size="icon" variant="ghost" className="text-destructive hover:bg-destructive/10" onClick={() => handleRemoveItem(item.productId)}><Trash2 className="w-4 h-4" /></Button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                <div className="flex justify-between mt-4">
+                    <Button variant="destructive" onClick={() => { onCancel(); setOpen(false); }}>Batalkan Retur</Button>
+                    <Button onClick={handleSave} disabled={items.length === 0 || !reason}>Simpan Perubahan</Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
 function ReturnDetailDialog({ stockReturn }: { stockReturn: StockReturn }) {
     const [open, setOpen] = useState(false);
 
@@ -131,8 +208,7 @@ function ReturnDetailDialog({ stockReturn }: { stockReturn: StockReturn }) {
 
 export default function StockReturnCreate() {
     const { user, profile } = useAuth();
-    const { products } = useData();
-    const { returns, createReturn } = useStockReturns();
+    const { returns, createReturn, editReturn, cancelReturn } = useStockReturns();
 
     // Form State
     const [reason, setReason] = useState('');

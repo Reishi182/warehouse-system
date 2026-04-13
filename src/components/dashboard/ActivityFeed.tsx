@@ -3,7 +3,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useRole } from '@/contexts/AuthContext';
-import { useData } from '@/contexts/DataContext';
+import { useDataStore } from '@/store/useDataStore';
 import { Activity } from 'lucide-react';
 
 type ActivityItem = {
@@ -16,7 +16,13 @@ type ActivityItem = {
 
 export default function ActivityFeed() {
     const role = useRole();
-    const { notifications, sales, cashTransfers, stockLogs, suratJalans, requests, activityLogs } = useData();
+    const notifications = useDataStore(s => s.notifications);
+    const sales = useDataStore(s => s.sales);
+    const cashTransfers = useDataStore(s => s.cashTransfers);
+    const stockLogs = useDataStore(s => s.stockLogs);
+    const suratJalans = useDataStore(s => s.suratJalans);
+    const requests = useDataStore(s => s.requests);
+    const activityLogs = useDataStore(s => s.activityLogs);
 
     const activities: ActivityItem[] = useMemo(() => {
         const global = (activityLogs || []).slice(0, 6).map((l) => ({

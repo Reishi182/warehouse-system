@@ -9,7 +9,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useData } from '@/contexts/DataContext';
+import { useDataStore } from '@/store/useDataStore';
 import { useAuth } from '@/contexts/AuthContext';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import {
@@ -63,7 +63,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
     const [selectedIndex, setSelectedIndex] = useState(0);
     const inputRef = useRef<HTMLInputElement>(null);
     const navigate = useNavigate();
-    const { products } = useData();
+    const products = useDataStore(s => s.products);
     const { profile } = useAuth();
 
     // Reset on open

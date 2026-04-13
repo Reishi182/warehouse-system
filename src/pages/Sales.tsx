@@ -21,7 +21,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { useData } from '@/contexts/DataContext';
+import { useDataStore } from '@/store/useDataStore';
 import { useToast } from '@/hooks/use-toast';
 import { Location, PaymentMethod, Product } from '@/types';
 
@@ -38,7 +38,9 @@ function toISODate(d: Date) {
 }
 
 export default function Sales() {
-  const { getProductByBarcode, createSale, loading } = useData();
+  const getProductByBarcode = useDataStore(s => s.getProductByBarcode);
+    const createSale = useDataStore(s => s.createSale);
+    const loading = useDataStore(s => s.loading);
   const { toast } = useToast();
 
   const [stockLocation, setStockLocation] = useState<Location>('toko');

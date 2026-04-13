@@ -13,7 +13,7 @@ import {
 import DashboardDateRangePicker, { getDefaultDateRange, DashboardDateRange } from '@/components/dashboard/DashboardDateRangePicker';
 import QuickActionBar from '@/components/dashboard/QuickActionBar';
 import { useAuth, useRole } from '@/contexts/AuthContext';
-import { useData } from '@/contexts/DataContext';
+import { useDataStore } from '@/store/useDataStore';
 
 function getGreeting(): { text: string; emoji: string } {
   const hour = new Date().getHours();
@@ -26,7 +26,13 @@ function getGreeting(): { text: string; emoji: string } {
 export default function Dashboard() {
   const { profile } = useAuth();
   const role = useRole();
-  const { products, requests, suratJalans, stockLogs, sales, cashTransfers, loading } = useData();
+  const products = useDataStore(s => s.products);
+    const requests = useDataStore(s => s.requests);
+    const suratJalans = useDataStore(s => s.suratJalans);
+    const stockLogs = useDataStore(s => s.stockLogs);
+    const sales = useDataStore(s => s.sales);
+    const cashTransfers = useDataStore(s => s.cashTransfers);
+    const loading = useDataStore(s => s.loading);
   const [dateRange, setDateRange] = useState<DashboardDateRange>(getDefaultDateRange);
 
   const greeting = useMemo(() => getGreeting(), []);

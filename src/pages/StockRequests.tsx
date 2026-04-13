@@ -30,7 +30,7 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/components/ui/tabs';
-import { useData } from '@/contexts/DataContext';
+import { useDataStore } from '@/store/useDataStore';
 import { useRole } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Product, Location, RequestStatus, StockRequestItem } from '@/types';
@@ -38,7 +38,12 @@ import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 
 export default function StockRequests() {
-  const { products, requests, getProductByBarcode, createStockOutRequest, updateRequestStatus, loading } = useData();
+  const products = useDataStore(s => s.products);
+    const requests = useDataStore(s => s.requests);
+    const getProductByBarcode = useDataStore(s => s.getProductByBarcode);
+    const createStockOutRequest = useDataStore(s => s.createStockOutRequest);
+    const updateRequestStatus = useDataStore(s => s.updateRequestStatus);
+    const loading = useDataStore(s => s.loading);
   const role = useRole();
   const { toast } = useToast();
 

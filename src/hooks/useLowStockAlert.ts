@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { useData } from '@/contexts/DataContext';
+import { useDataStore } from '@/store/useDataStore';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -40,7 +40,7 @@ export function useLowStockAlert(options: UseLowStockAlertOptions = {}) {
         checkInterval = 5 * 60 * 1000, // 5 minutes
     } = options;
 
-    const { products } = useData();
+    const products = useDataStore(s => s.products);
     const { toast } = useToast();
     const { user } = useAuth();
     const lastNotifiedRef = useRef<Set<string>>(new Set());

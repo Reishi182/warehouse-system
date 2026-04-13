@@ -19,7 +19,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { DateInput } from '@/components/common/DatePicker';
-import { useData } from '@/contexts/DataContext';
+import { useDataStore } from '@/store/useDataStore';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useProductUnits, unitsToSelectOptions } from '@/hooks/useProductUnits';
@@ -224,7 +224,7 @@ function SessionDetailDialog({
 type Tab = 'new' | 'history';
 
 export default function StockOpname() {
-    const { products } = useData();
+    const products = useDataStore(s => s.products);
     const { user, profile } = useAuth();
     const { toast } = useToast();
     const { data: unitsData } = useProductUnits();

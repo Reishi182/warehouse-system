@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth, useRole } from '@/contexts/AuthContext';
-import { useData } from '@/contexts/DataContext';
+import { useDataStore } from '@/store/useDataStore';
 import {
   useCashTransferRequests,
   useCreateCashTransferRequest,
@@ -49,7 +49,9 @@ function sameISODate(dateTime: string, isoDate: string) {
 export default function CashTransfer() {
   const role = useRole();
   const { user, profile } = useAuth();
-  const { sales, cashTransfers, loading } = useData();
+  const sales = useDataStore(s => s.sales);
+    const cashTransfers = useDataStore(s => s.cashTransfers);
+    const loading = useDataStore(s => s.loading);
   const { toast } = useToast();
 
   const [selectedDate, setSelectedDate] = useState<string>(toISODate(new Date()));

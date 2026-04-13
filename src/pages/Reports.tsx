@@ -14,7 +14,7 @@ import {
   RequestsTab,
   SuratJalanTab,
 } from '@/components/reports';
-import { useData } from '@/contexts/DataContext';
+import { useDataStore } from '@/store/useDataStore';
 
 function toISODate(d: Date) {
   const yyyy = d.getFullYear();
@@ -24,7 +24,13 @@ function toISODate(d: Date) {
 }
 
 export default function Reports() {
-  const { products, requests, suratJalans, stockLogs, sales, cashTransfers, loading } = useData();
+  const products = useDataStore(s => s.products);
+    const requests = useDataStore(s => s.requests);
+    const suratJalans = useDataStore(s => s.suratJalans);
+    const stockLogs = useDataStore(s => s.stockLogs);
+    const sales = useDataStore(s => s.sales);
+    const cashTransfers = useDataStore(s => s.cashTransfers);
+    const loading = useDataStore(s => s.loading);
   const [activeTab, setActiveTab] = useState('overview');
   const [financeDate, setFinanceDate] = useState<string>(toISODate(new Date()));
 

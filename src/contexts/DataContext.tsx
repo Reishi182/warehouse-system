@@ -70,15 +70,24 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 export function DataProvider({ children }: { children: React.ReactNode }) {
   const { user, profile, isAuthenticated } = useAuth();
   const { toast } = useToast();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [requests, setRequests] = useState<StockOutRequest[]>([]);
-  const [suratJalans, setSuratJalans] = useState<SuratJalan[]>([]);
-  const [stockLogs, setStockLogs] = useState<StockLog[]>([]);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [sales, setSales] = useState<Sale[]>([]);
-  const [cashTransfers, setCashTransfers] = useState<CashTransfer[]>([]);
-  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
-  const [loading, setLoading] = useState(true);
+  const products = useDataStore(s => s.products);
+  const setProducts = useDataStore(s => s.setProducts);
+  const requests = useDataStore(s => s.requests);
+  const setRequests = useDataStore(s => s.setRequests);
+  const suratJalans = useDataStore(s => s.suratJalans);
+  const setSuratJalans = useDataStore(s => s.setSuratJalans);
+  const stockLogs = useDataStore(s => s.stockLogs);
+  const setStockLogs = useDataStore(s => s.setStockLogs);
+  const notifications = useDataStore(s => s.notifications);
+  const setNotifications = useDataStore(s => s.setNotifications);
+  const sales = useDataStore(s => s.sales);
+  const setSales = useDataStore(s => s.setSales);
+  const cashTransfers = useDataStore(s => s.cashTransfers);
+  const setCashTransfers = useDataStore(s => s.setCashTransfers);
+  const activityLogs = useDataStore(s => s.activityLogs);
+  const setActivityLogs = useDataStore(s => s.setActivityLogs);
+  const loading = useDataStore(s => s.loading);
+  const setLoading = useDataStore(s => s.setLoading);
 
   const fetchProducts = async () => {
     // Supabase defaults to 1000 rows max per request.
@@ -784,6 +793,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           location: info.location,
           user_id: user.id,
           note: note,
+          stock_before: currentStock,
+          stock_after: newStock
         });
     }
 
@@ -1033,7 +1044,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       quantity,
       location,
       user_id: user.id,
-      note: `Stok masuk oleh ${profile?.name || 'User'}`
+      note: `Stok masuk oleh ${profile?.name || 'User'}`,
+      stock_before: currentStock,
+      stock_after: newStock
     });
 
     await addNotification({
@@ -1188,22 +1201,41 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           const freshFrom = item.from_location === 'gudang' ? freshProduct.stock_gudang : freshProduct.stock_toko;
           const freshTo = item.to_location === 'gudang' ? freshProduct.stock_gudang : freshProduct.stock_toko;
 
+          // Outgoing
+          const outAfter = Math.max(0, freshFrom - item.quantity);
+          // Incoming
+          const inAfter = freshTo + item.quantity;
+
           await supabase
             .from('products')
             .update({
-              [fromField]: Math.max(0, freshFrom - item.quantity),
-              [toField]: freshTo + item.quantity
+              [fromField]: outAfter,
+              [toField]: inAfter
             })
             .eq('id', product.id);
 
-          await supabase.from('stock_logs').insert({
-            product_id: product.id,
-            type: 'out',
-            quantity: item.quantity,
-            location: item.from_location,
-            user_id: user.id,
-            note: `Transfer ke ${item.to_location} via ${sj.number}`
-          });
+          await supabase.from('stock_logs').insert([
+            {
+              product_id: product.id,
+              type: 'out',
+              quantity: item.quantity,
+              location: item.from_location,
+              user_id: user.id,
+              note: `Transfer keluar ke ${item.to_location} via ${sj.number}`,
+              stock_before: freshFrom,
+              stock_after: outAfter
+            },
+            {
+              product_id: product.id,
+              type: 'in',
+              quantity: item.quantity,
+              location: item.to_location,
+              user_id: user.id,
+              note: `Transfer masuk dari ${item.from_location} via ${sj.number}`,
+              stock_before: freshTo,
+              stock_after: inAfter
+            }
+          ]);
         }
       }
 
@@ -1241,9 +1273,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   };
 
-  const unreadCount = useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
+  const unreadCount = useDataStore(s => s.unreadCount);
 
   const contextValue = useMemo(() => ({
+    // Data provided merely for backward compatibility if any missed
+
     products,
     requests,
     suratJalans,
@@ -1290,4 +1324,8 @@ export function useData() {
     throw new Error('useData must be used within a DataProvider');
   }
   return context;
+}
+
+export function useDataActions() {
+  return useContext(DataContext)!;
 }

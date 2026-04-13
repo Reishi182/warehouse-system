@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Product, Location, Sale } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { useData } from '@/contexts/DataContext';
+import { useDataStore } from '@/store/useDataStore';
 import { SellUnit } from '@/components/pos/UnitPickerDialog';
 import { getUnitPrice, getUnitMultiplier, getUnitLabel } from '@/lib/multiUnit';
 
@@ -275,7 +275,7 @@ export function usePOSCart(initialLocation: Location = 'toko'): UsePOSCartReturn
         setOrderDiscount(0);
     }, []);
 
-    const { products } = useData();
+    const products = useDataStore(s => s.products);
 
     // Load items from an existing sale into the cart (for exchange/return)
     const loadFromSale = useCallback((sale: Sale) => {

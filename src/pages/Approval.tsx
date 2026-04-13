@@ -18,14 +18,16 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/components/ui/tabs';
-import { useData } from '@/contexts/DataContext';
+import { useDataStore } from '@/store/useDataStore';
 import { useToast } from '@/hooks/use-toast';
 import { RequestStatus, SuratJalan } from '@/types';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 
 export default function Approval() {
-  const { suratJalans, updateSuratJalanStatus, loading } = useData();
+  const suratJalans = useDataStore(s => s.suratJalans);
+    const updateSuratJalanStatus = useDataStore(s => s.updateSuratJalanStatus);
+    const loading = useDataStore(s => s.loading);
   const { toast } = useToast();
 
   // ALL HOOKS MUST BE BEFORE ANY EARLY RETURNS

@@ -296,9 +296,9 @@ export function useStockRequests() {
 
             if (fetchError) throw fetchError;
 
-            // Only allow cancellation for pending_main_office status
-            if (request.status !== 'pending_main_office') {
-                throw new Error('Hanya permintaan yang masih pending yang dapat dibatalkan');
+            // Only allow cancellation for pending_gudang status (or pending_main_office just in case)
+            if (request.status !== 'pending_main_office' && request.status !== 'pending_gudang') {
+                throw new Error('Hanya permintaan yang masih diproses yang dapat dibatalkan');
             }
 
             // Update status to cancelled
@@ -339,6 +339,106 @@ export function useStockRequests() {
         },
     });
 
+    // Edit Request
+    const editRequest = useMutation({
+        mutationFn: async (data: {
+            requestId: string;
+            reason: string;
+            items: { productId: string; quantity: number; unit: string; note?: string }[];
+        }) => {
+            // First check if the request is still pending
+            const { data: request, error: fetchError } = await supabase
+                .from('stock_requests')
+                .select('status')
+                .eq('id', data.requestId)
+                .single();
+
+            if (fetchError) throw fetchError;
+
+            // Only allow edit for pending status
+            if (request.status !== 'pending_main_office' && request.status !== 'pending_gudang') {
+                throw new Error('Hanya permintaan yang belum diproses Gudang / Dikirim yang dapat diedit');
+            }
+
+            // 1. Release OLD reservations
+            const { data: oldItems, error: oldItemsError } = await supabase
+                .from('stock_request_items')
+                .select('*')
+                .eq('stock_request_id', data.requestId);
+
+            if (oldItemsError) throw oldItemsError;
+
+            for (const item of oldItems || []) {
+                const { error: releaseError } = await supabase.rpc('release_stock_reservation', {
+                    p_product_id: item.product_id,
+                    p_quantity: item.quantity
+                });
+                if (releaseError) throw releaseError;
+            }
+
+            // 2. Delete OLD items
+            const { error: deleteError } = await supabase
+                .from('stock_request_items')
+                .delete()
+                .eq('stock_request_id', data.requestId);
+                
+            if (deleteError) throw deleteError;
+
+            // 3. Update Request Header
+            const { error: updateError } = await supabase
+                .from('stock_requests')
+                .update({ reason: data.reason })
+                .eq('id', data.requestId);
+                
+            if (updateError) throw updateError;
+
+            // 4. Create NEW items & reserve stock
+            const itemsToInsert = data.items.map(item => ({
+                stock_request_id: data.requestId,
+                product_id: item.productId,
+                quantity: item.quantity,
+                unit: item.unit,
+                note: item.note
+            }));
+
+            const reservedItems: { productId: string; quantity: number }[] = [];
+            try {
+                for (const item of data.items) {
+                    const { error: reserveError } = await supabase.rpc('reserve_stock', {
+                        p_product_id: item.productId,
+                        p_quantity: item.quantity
+                    });
+
+                    if (reserveError) throw reserveError;
+                    reservedItems.push({ productId: item.productId, quantity: item.quantity });
+                }
+
+                const { error: newItemsError } = await supabase
+                    .from('stock_request_items')
+                    .insert(itemsToInsert);
+
+                if (newItemsError) throw newItemsError;
+            } catch (error) {
+                // If anything fails here, we rollback our NEW reservations
+                for (const reserved of reservedItems) {
+                    await supabase.rpc('release_stock_reservation', {
+                        p_product_id: reserved.productId,
+                        p_quantity: reserved.quantity
+                    });
+                }
+                throw error;
+            }
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['stock-requests'] });
+            queryClient.invalidateQueries({ queryKey: ['products'] });
+            toast({ title: 'Permintaan Diperbarui', description: 'Permintaan stok telah berhasil diubah' });
+        },
+        onError: (error) => {
+            toast({ title: 'Gagal Memperbarui', description: error.message, variant: 'destructive' });
+        },
+    });
+
     return {
         requests,
         isLoading,
@@ -346,6 +446,7 @@ export function useStockRequests() {
         approveRequest,
         rejectRequest,
         resubmitRequest,
-        cancelRequest
+        cancelRequest,
+        editRequest
     };
 }

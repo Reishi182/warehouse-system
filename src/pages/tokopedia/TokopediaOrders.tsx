@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth, useRole } from '@/contexts/AuthContext';
-import { useData } from '@/contexts/DataContext';
+import { useDataStore } from '@/store/useDataStore';
 import { useTokopediaOrders, useTokopediaStats } from '@/hooks/tokopedia/useTokopediaQueries';
 import { useCreateTokopediaOrder } from '@/hooks/tokopedia/useTokopediaMutations';
 import { TokopediaOrder, Location } from '@/types';
@@ -48,7 +48,7 @@ export default function TokopediaOrders() {
     const navigate = useNavigate();
     const role = useRole();
     const { user, profile } = useAuth();
-    const { products } = useData();
+    const products = useDataStore(s => s.products);
 
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [activeTab, setActiveTab] = useState('all');

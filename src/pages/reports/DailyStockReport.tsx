@@ -5,7 +5,7 @@ import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
 import { DateInput } from '@/components/common/DatePicker';
 import LocationBadge from '@/components/common/LocationBadge';
-import { useData } from '@/contexts/DataContext';
+import { useDataStore } from '@/store/useDataStore';
 import { Product, StockLog } from '@/types';
 import { format, parseISO, isToday } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
@@ -21,7 +21,9 @@ function toISODate(d: Date) {
 }
 
 export default function DailyStockReport() {
-    const { products, stockLogs, loading } = useData();
+    const products = useDataStore(s => s.products);
+    const stockLogs = useDataStore(s => s.stockLogs);
+    const loading = useDataStore(s => s.loading);
     const [selectedDate, setSelectedDate] = useState<string>(toISODate(new Date()));
 
     // Filter stock logs by date and toko location

@@ -249,11 +249,103 @@ export function useStockReturns() {
         },
     });
 
+    // Cancel Return (Cashier - for pending requests only)
+    const cancelReturn = useMutation({
+        mutationFn: async (returnId: string) => {
+            const { data: ret, error: fetchError } = await supabase
+                .from('stock_returns')
+                .select('status')
+                .eq('id', returnId)
+                .single();
+
+            if (fetchError) throw fetchError;
+
+            // Only allow cancellation for pending_gudang status
+            if (ret.status !== 'pending_gudang') {
+                throw new Error('Hanya pengajuan retur yang masih diproses Gudang yang dapat dibatalkan');
+            }
+
+            const { error } = await supabase
+                .from('stock_returns')
+                .update({
+                    status: 'cancelled'
+                })
+                .eq('id', returnId);
+
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['stock-returns'] });
+            toast({ title: 'Retur Dibatalkan', description: 'Pengajuan retur stok telah dibatalkan' });
+        },
+        onError: (error) => {
+            toast({ title: 'Gagal Membatalkan', description: error.message, variant: 'destructive' });
+        },
+    });
+
+    // Edit Return
+    const editReturn = useMutation({
+        mutationFn: async (data: {
+            returnId: string;
+            reason: string;
+            items: { productId: string; quantity: number; unit: string; note?: string }[];
+        }) => {
+            const { data: ret, error: fetchError } = await supabase
+                .from('stock_returns')
+                .select('status')
+                .eq('id', data.returnId)
+                .single();
+
+            if (fetchError) throw fetchError;
+
+            if (ret.status !== 'pending_gudang') {
+                throw new Error('Hanya pengajuan retur yang belum diproses Gudang yang dapat diedit');
+            }
+
+            const { error: deleteError } = await supabase
+                .from('stock_return_items')
+                .delete()
+                .eq('stock_return_id', data.returnId);
+                
+            if (deleteError) throw deleteError;
+
+            const { error: updateError } = await supabase
+                .from('stock_returns')
+                .update({ reason: data.reason })
+                .eq('id', data.returnId);
+                
+            if (updateError) throw updateError;
+
+            const itemsToInsert = data.items.map(item => ({
+                stock_return_id: data.returnId,
+                product_id: item.productId,
+                quantity: item.quantity,
+                unit: item.unit,
+                note: item.note
+            }));
+
+            const { error: newItemsError } = await supabase
+                .from('stock_return_items')
+                .insert(itemsToInsert);
+
+            if (newItemsError) throw newItemsError;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['stock-returns'] });
+            toast({ title: 'Retur Diperbarui', description: 'Pengajuan retur stok berhasil diubah' });
+        },
+        onError: (error) => {
+            toast({ title: 'Gagal Memperbarui', description: error.message, variant: 'destructive' });
+        },
+    });
+
     return {
         returns,
         isLoading,
         createReturn,
         approveReturn,
-        rejectReturn
+        rejectReturn,
+        cancelReturn,
+        editReturn
     };
 }

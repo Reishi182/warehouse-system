@@ -22,7 +22,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DateInput } from '@/components/common/DatePicker';
-import { useData } from '@/contexts/DataContext';
+import { useDataStore } from '@/store/useDataStore';
 import { useRole } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -48,7 +48,13 @@ type SortOption = 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc' | 'stock
 type PageSize = 5 | 10 | 15 | 'all';
 
 export default function Products() {
-    const { products, addProduct, updateProduct, deleteProduct, getProductByBarcode, addStock, loading } = useData();
+    const products = useDataStore(s => s.products);
+    const addProduct = useDataStore(s => s.addProduct);
+    const updateProduct = useDataStore(s => s.updateProduct);
+    const deleteProduct = useDataStore(s => s.deleteProduct);
+    const getProductByBarcode = useDataStore(s => s.getProductByBarcode);
+    const addStock = useDataStore(s => s.addStock);
+    const loading = useDataStore(s => s.loading);
     const role = useRole();
     const { toast } = useToast();
 
