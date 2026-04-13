@@ -1276,6 +1276,31 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const unreadCount = useDataStore(s => s.unreadCount);
 
+  // Sync actions to the Zustand store so components using useDataStore (like Products/POS) 
+  // have access to them properly after the provider initializes.
+  useEffect(() => {
+    useDataStore.setState({
+      addProduct,
+      updateProduct,
+      deleteProduct,
+      getProductByBarcode,
+      createSale,
+      addStock,
+      createStockOutRequest,
+      updateRequestStatus,
+      createSuratJalan,
+      updateSuratJalanStatus,
+      markNotificationRead,
+      markAllNotificationsRead,
+      refreshData
+    });
+  }, [
+    addProduct, updateProduct, deleteProduct, getProductByBarcode,
+    createSale, addStock, createStockOutRequest, updateRequestStatus,
+    createSuratJalan, updateSuratJalanStatus, markNotificationRead,
+    markAllNotificationsRead, refreshData
+  ]);
+
   const contextValue = useMemo(() => ({
     // Data provided merely for backward compatibility if any missed
 
