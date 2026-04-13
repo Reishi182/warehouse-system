@@ -663,8 +663,8 @@ export default function PurchaseOrderMainOffice() {
                                                     />
                                                 </div>
                                             </div>
-                                            <div className="flex gap-3 items-end">
-                                                <div className="w-24 space-y-2">
+                                            <div className="flex gap-3 items-end flex-wrap sm:flex-nowrap mt-4">
+                                                <div className="flex-1 min-w-[6rem] space-y-2">
                                                     <Label>Unit</Label>
                                                     <UnitSelector
                                                         value={newProductUnit}
@@ -681,7 +681,7 @@ export default function PurchaseOrderMainOffice() {
                                                         onChange={(e) => setItemQty(parseInt(e.target.value) || 0)}
                                                     />
                                                 </div>
-                                                <div className="w-20 space-y-2">
+                                                <div className="w-24 space-y-2">
                                                     <Label>Qty Bonus</Label>
                                                     <Input
                                                         type="number"
@@ -690,7 +690,7 @@ export default function PurchaseOrderMainOffice() {
                                                         onChange={(e) => setItemBonusQty(parseInt(e.target.value) || 0)}
                                                     />
                                                 </div>
-                                                <div className="flex-1 space-y-2">
+                                                <div className="flex-1 min-w-[9rem] space-y-2">
                                                     <Label>Harga Satuan</Label>
                                                     <Input isCurrency
                                                         type="number"
@@ -709,19 +709,19 @@ export default function PurchaseOrderMainOffice() {
                                         </>
                                     ) : (
                                         /* Existing Product Mode - Dropdown with Search */
-                                        <div className="space-y-3">
-                                            <div className="flex gap-3 items-end">
-                                                <div className="flex-1 min-w-0 space-y-2">
-                                                    <Label>Produk</Label>
-                                                    <ProductSearchSelect
-                                                        products={products}
-                                                        value={selectedProductId}
-                                                        onChange={setSelectedProductId}
-                                                        placeholder="Cari produk..."
-                                                        excludeIds={items.map(i => i.productId || '')}
-                                                    />
-                                                </div>
-                                                <div className="w-28 space-y-2">
+                                        <div className="space-y-4">
+                                            <div className="space-y-2">
+                                                <Label>Produk</Label>
+                                                <ProductSearchSelect
+                                                    products={products}
+                                                    value={selectedProductId}
+                                                    onChange={setSelectedProductId}
+                                                    placeholder="Cari produk..."
+                                                    excludeIds={items.map(i => i.productId || '')}
+                                                />
+                                            </div>
+                                            <div className="flex gap-3 items-end flex-wrap sm:flex-nowrap">
+                                                <div className="flex-1 min-w-[6rem] space-y-2">
                                                     <Label>Unit</Label>
                                                     <UnitSelector
                                                         product={products.find(p => p.id === selectedProductId)}
@@ -749,7 +749,7 @@ export default function PurchaseOrderMainOffice() {
                                                         onChange={(e) => setItemBonusQty(parseInt(e.target.value) || 0)}
                                                     />
                                                 </div>
-                                                <div className="w-36 space-y-2">
+                                                <div className="flex-1 min-w-[9rem] space-y-2">
                                                     <Label>Harga Satuan</Label>
                                                     <Input isCurrency
                                                         type="number"
@@ -858,17 +858,6 @@ export default function PurchaseOrderMainOffice() {
                                                         )}
                                                     </span>
 
-                                                    {/* Bonus toggle button */}
-                                                    <button
-                                                        type="button"
-                                                        title={item.isBonus ? 'Klik untuk hapus status bonus' : 'Tandai sebagai bonus'}
-                                                        onClick={() => setItems(prev => prev.map(it =>
-                                                            it.id === item.id ? { ...it, isBonus: !it.isBonus, unitPrice: it.isBonus ? it.unitPrice : 0 } : it
-                                                        ))}
-                                                        className={`shrink-0 h-8 w-8 p-0 rounded text-sm transition-colors ${item.isBonus ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 hover:bg-green-200' : 'bg-muted/50 text-muted-foreground hover:bg-muted'}`}
-                                                    >
-                                                        🎁
-                                                    </button>
 
                                                     {/* Remove */}
                                                     <Button size="sm" variant="ghost" onClick={() => handleRemoveItem(item.id)} className="shrink-0 h-8 w-8 p-0">
