@@ -37,6 +37,7 @@ export interface UsePOSCheckoutOptions {
     stockLocation: Location;
     onSuccess: (newSaleId?: string, newSaleNumber?: string) => void;
     returnRef?: string | null;
+    exchangeFromSale?: any; // The original sale we are exchanging from
 }
 
 export interface UsePOSCheckoutReturn {
@@ -46,7 +47,7 @@ export interface UsePOSCheckoutReturn {
     showCheckoutDialog: boolean;
     showReceiptDialog: boolean;
     amountPaid: number;
-    amountPaid: number;
+
     setAmountPaid: (amount: number) => void;
     splitCashAmount: number;
     setSplitCashAmount: (amount: number) => void;
@@ -69,7 +70,7 @@ export interface UsePOSCheckoutReturn {
 }
 
 export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutReturn {
-    const { items, subtotal, totalAmount, orderDiscount, stockLocation, onSuccess, returnRef } = options;
+    const { items, subtotal, totalAmount, orderDiscount, stockLocation, onSuccess, returnRef, exchangeFromSale } = options;
     const { createSale, products } = useData();
     const { profile, user } = useAuth();
     const { toast } = useToast();
@@ -339,6 +340,11 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
                 creditCustomerName: isCredit ? creditCustomerName.trim() : undefined,
                 // Only pass transaction date for backdated transactions
                 ...(isBackdated && { transactionDate }),
+                // Pass exchange info so createSale can calculate net stock
+                ...(exchangeFromSale && {
+                    exchangeOriginalItems: exchangeFromSale.items || [],
+                    exchangeOriginalLocation: exchangeFromSale.stock_location || 'toko'
+                }),
             });
 
             if (result) {

@@ -76,6 +76,11 @@ export default function POS() {
     // Cart state
     const cart = usePOSCart('toko');
 
+    // State to hold exchange from sale info for linking after checkout
+    const [exchangeFromSaleId, setExchangeFromSaleId] = useState<string | null>(null);
+    const [exchangeFromSaleNumber, setExchangeFromSaleNumber] = useState<string | null>(null);
+    const [exchangeFromSale, setExchangeFromSale] = useState<Sale | null>(null);
+
     // Checkout state
     const checkout = usePOSCheckout({
         items: cart.items,
@@ -87,35 +92,6 @@ export default function POS() {
             // Link exchange if we have an original sale
             if (exchangeFromSaleId && exchangeFromSale && newSaleId && newSaleNumber) {
                 try {
-                    const stockLocation = exchangeFromSale.stock_location || 'toko';
-                    const stockField = stockLocation === 'toko' ? 'stock_toko' : 'stock_gudang';
-
-                    // Bug fix #3: Return stock NOW (at checkout), not when exchange starts
-                    for (const item of exchangeFromSale.items || []) {
-                        const { data: product } = await supabase
-                            .from('products')
-                            .select(`id, ${stockField}`)
-                            .eq('id', item.product_id)
-                            .single();
-
-                        if (product) {
-                            const currentStock = (product as any)?.[stockField] || 0;
-                            await supabase
-                                .from('products')
-                                .update({ [stockField]: currentStock + item.quantity })
-                                .eq('id', item.product_id);
-
-                            await supabase.from('stock_logs').insert({
-                                product_id: item.product_id,
-                                type: 'in',
-                                quantity: item.quantity,
-                                location: stockLocation,
-                                user_id: profile?.user_id,
-                                note: `Ganti barang dari ${exchangeFromSaleNumber}`,
-                            });
-                        }
-                    }
-
                     // Mark original sale as exchanged
                     await supabase
                         .from('sales')
@@ -154,12 +130,8 @@ export default function POS() {
             setExchangeFromSale(null);
         },
         returnRef,
+        exchangeFromSale, // pass it to checkout!
     });
-
-    // State to hold exchange from sale info for linking after checkout
-    const [exchangeFromSaleId, setExchangeFromSaleId] = useState<string | null>(null);
-    const [exchangeFromSaleNumber, setExchangeFromSaleNumber] = useState<string | null>(null);
-    const [exchangeFromSale, setExchangeFromSale] = useState<Sale | null>(null);
 
     // Bug fix #3: Exchange no longer returns stock immediately.
     // Stock is only returned when checkout completes (in onSuccess above).

@@ -40,6 +40,8 @@ interface DataContextType {
     // Credit transaction fields
     isCredit?: boolean;
     creditCustomerName?: string;
+    exchangeOriginalItems?: any[];
+    exchangeOriginalLocation?: string;
   }) => Promise<{ saleId: string; saleNumber: string } | null>;
 
 
@@ -534,6 +536,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     // Credit transaction fields
     isCredit?: boolean;
     creditCustomerName?: string;
+    exchangeOriginalItems?: any[];
+    exchangeOriginalLocation?: string;
   }) => {
     if (!user || !profile) return null;
 
@@ -575,23 +579,66 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       return null;
     }
 
-    // Validate only non-manual items
+    // Bug fix #3: Calculate net stock change to properly handle exchanges!
+    const stockChangeMap = new Map<string, { productId: string, location: string, change: number, productName: string }>();
+
+    // 1. Add exchanged items (+quantity)
+    if (data.exchangeOriginalItems) {
+        const loc = data.exchangeOriginalLocation || 'toko';
+        for (const item of data.exchangeOriginalItems) {
+            if (item.product_id) {
+                const key = `${item.product_id}_${loc}`;
+                stockChangeMap.set(key, {
+                     productId: item.product_id, 
+                     location: loc, 
+                     change: item.quantity, 
+                     productName: item.product_name || 'Item'
+                });
+            }
+        }
+    }
+
+    // 2. Subtract new items (-quantity)
     for (const it of processedItems) {
-      if (!it.isManualEntry) {
-        if (!it.product) {
-          toast({ title: 'Produk tidak ditemukan', description: `Produk tidak ditemukan`, variant: 'destructive' });
-          return null;
+        if (!it.isManualEntry && it.product) {
+            if (it.quantity <= 0) {
+                toast({ title: 'Jumlah tidak valid', description: 'Jumlah harus lebih dari 0', variant: 'destructive' });
+                return null;
+            }
+            const deductQty = (it as any).stockDeductQty || it.quantity;
+            const loc = data.stockLocation;
+            const key = `${it.product.id}_${loc}`;
+            const existing = stockChangeMap.get(key);
+            if (existing) {
+                existing.change -= deductQty;
+            } else {
+                stockChangeMap.set(key, {
+                    productId: it.product.id,
+                    location: loc,
+                    change: -deductQty,
+                    productName: it.productName
+                });
+            }
         }
-        if (it.quantity <= 0) {
-          toast({ title: 'Jumlah tidak valid', description: 'Jumlah harus lebih dari 0', variant: 'destructive' });
-          return null;
+    }
+
+    // Validate stock using memory
+    for (const [key, info] of stockChangeMap.entries()) {
+        if (info.change >= 0) continue; // Adding stock is always valid
+        
+        const memProduct = products.find(p => p.id === info.productId);
+        if (memProduct) {
+             const loc = info.location as Location;
+             const memStock = memProduct.stock[loc] || 0;
+             const newStock = memStock + info.change; // info.change is negative since we're deducting
+             if (newStock < 0) {
+                 toast({ title: 'Stok tidak cukup', description: `${info.productName} stok ${loc} tidak cukup`, variant: 'destructive' });
+                 return null;
+             }
+        } else {
+             toast({ title: 'Produk tidak ditemukan', description: `Produk tidak ditemukan`, variant: 'destructive' });
+             return null;
         }
-        const deductQty = (it as any).stockDeductQty || it.quantity;
-        if (deductQty > it.product.stock[data.stockLocation]) {
-          toast({ title: 'Stok tidak cukup', description: `${it.product.name} stok ${data.stockLocation} tidak cukup`, variant: 'destructive' });
-          return null;
-        }
-      }
     }
 
     // Use transaction date if provided, otherwise use current time
@@ -675,20 +722,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       return null;
     }
 
-    // Bug fix #1+2: Atomic stock update with full rollback on failure
+    // Bug fix #1+2+3: Atomic stock update with full rollback on failure using mapped net changes
     const stockUpdated: { productId: string; quantity: number; field: string }[] = [];
     let stockUpdateFailed = false;
 
-    for (const it of processedItems) {
-      if (!it.isManualEntry && it.product) {
-        const stockField = `stock_${data.stockLocation}`;
-        const deductQty = (it as any).stockDeductQty || it.quantity;
+    for (const [key, info] of stockChangeMap.entries()) {
+        if (info.change === 0) continue; // no net change
 
+        const stockField = `stock_${info.location}`;
+        
         // Read fresh stock from database
         const { data: freshProduct, error: freshError } = await supabase
           .from('products')
           .select(`id, ${stockField}`)
-          .eq('id', it.product.id)
+          .eq('id', info.productId)
           .single();
 
         if (freshError) {
@@ -698,18 +745,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         }
 
         const currentStock = (freshProduct as any)?.[stockField] || 0;
-        const newStock = currentStock - deductQty;
+        const newStock = currentStock + info.change;
 
         if (newStock < 0) {
           stockUpdateFailed = true;
-          toast({ title: 'Stok tidak cukup', description: `${it.productName} stok terbaru tidak mencukupi`, variant: 'destructive' });
+          toast({ title: 'Stok tidak cukup', description: `${info.productName} stok terbaru tidak mencukupi`, variant: 'destructive' });
           break;
         }
 
         const { error: stockError } = await supabase
           .from('products')
           .update({ [stockField]: newStock })
-          .eq('id', it.product.id);
+          .eq('id', info.productId);
 
         if (stockError) {
           stockUpdateFailed = true;
@@ -717,17 +764,27 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           break;
         }
 
-        stockUpdated.push({ productId: it.product.id, quantity: deductQty, field: stockField });
+        // Store opposite change to reverse if we need to rollback later
+        stockUpdated.push({ productId: info.productId, quantity: -info.change, field: stockField });
+
+        const type = info.change > 0 ? 'in' : 'out';
+        const qty = Math.abs(info.change);
+        let note = '';
+        if (info.change > 0 && data.exchangeOriginalItems) {
+            note = `Ganti barang ke INV/xxx`; // Using generic since new saleNumber is not fully parsed? Actually we have saleNumber here!
+            note = `Ganti barang ke ${saleNumber}`;
+        } else {
+            note = `Penjualan ${saleNumber} (${data.paymentMethod})`;
+        }
 
         await supabase.from('stock_logs').insert({
-          product_id: it.product.id,
-          type: 'out',
-          quantity: deductQty,
-          location: data.stockLocation,
+          product_id: info.productId,
+          type: type,
+          quantity: qty,
+          location: info.location,
           user_id: user.id,
-          note: `Penjualan ${saleNumber} (${data.paymentMethod})`,
+          note: note,
         });
-      }
     }
 
     // Rollback if stock update failed
