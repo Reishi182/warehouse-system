@@ -125,9 +125,9 @@ export default function PurchaseOrderMainOffice() {
     // Add item state
     const [selectedProductId, setSelectedProductId] = useState('');
     const [itemQty, setItemQty] = useState(1);
+    const [itemBonusQty, setItemBonusQty] = useState(0);
     const [itemPrice, setItemPrice] = useState(0);
     const [selectedUnit, setSelectedUnit] = useState<string>('');
-    const [itemIsBonus, setItemIsBonus] = useState(false);
 
     const selectedProduct = useMemo(() => products.find(p => p.id === selectedProductId), [products, selectedProductId]);
 
@@ -183,26 +183,44 @@ export default function PurchaseOrderMainOffice() {
     }, [items]);
 
     const handleAddItem = () => {
-        // Harga 0 diizinkan (produk gratis atau bonus)
-        if (itemQty <= 0) return;
+        // Harus ada Qty atau Bonus Qty
+        if (itemQty <= 0 && itemBonusQty <= 0) return;
+
+        const newItems: POItem[] = [];
 
         if (isNewProductMode) {
             // New product mode - use free text input
             if (!newProductName.trim()) return;
 
-            const newItem: POItem = {
-                id: crypto.randomUUID(),
-                productId: '', // No product ID for new products
-                productName: newProductName.trim(),
-                barcode: newProductBarcode.trim() || undefined,
-                unit: newProductUnit || 'pcs',
-                quantity: itemQty,
-                unitPrice: itemIsBonus ? 0 : itemPrice,
-                isNewProduct: true,
-                isBonus: itemIsBonus,
-            };
+            if (itemQty > 0) {
+                newItems.push({
+                    id: crypto.randomUUID(),
+                    productId: '', // No product ID for new products
+                    productName: newProductName.trim(),
+                    barcode: newProductBarcode.trim() || undefined,
+                    unit: newProductUnit || 'pcs',
+                    quantity: itemQty,
+                    unitPrice: itemPrice,
+                    isNewProduct: true,
+                    isBonus: false,
+                });
+            }
 
-            setItems([...items, newItem]);
+            if (itemBonusQty > 0) {
+                newItems.push({
+                    id: crypto.randomUUID(),
+                    productId: '',
+                    productName: newProductName.trim(),
+                    barcode: newProductBarcode.trim() || undefined,
+                    unit: newProductUnit || 'pcs',
+                    quantity: itemBonusQty,
+                    unitPrice: 0,
+                    isNewProduct: true,
+                    isBonus: true,
+                });
+            }
+
+            setItems([...items, ...newItems]);
             setNewProductName('');
             setNewProductBarcode('');
             setNewProductUnit('pcs');
@@ -212,24 +230,39 @@ export default function PurchaseOrderMainOffice() {
             const product = products.find(p => p.id === selectedProductId);
             if (!product) return;
 
-            const newItem: POItem = {
-                id: crypto.randomUUID(),
-                productId: product.id,
-                productName: product.name,
-                unit: selectedUnit || product.sell_unit || 'pcs',
-                quantity: itemQty,
-                unitPrice: itemIsBonus ? 0 : itemPrice,
-                isNewProduct: false,
-                isBonus: itemIsBonus,
-            };
+            if (itemQty > 0) {
+                newItems.push({
+                    id: crypto.randomUUID(),
+                    productId: product.id,
+                    productName: product.name,
+                    unit: selectedUnit || product.sell_unit || 'pcs',
+                    quantity: itemQty,
+                    unitPrice: itemPrice,
+                    isNewProduct: false,
+                    isBonus: false,
+                });
+            }
 
-            setItems([...items, newItem]);
+            if (itemBonusQty > 0) {
+                newItems.push({
+                    id: crypto.randomUUID(),
+                    productId: product.id,
+                    productName: product.name,
+                    unit: selectedUnit || product.sell_unit || 'pcs',
+                    quantity: itemBonusQty,
+                    unitPrice: 0,
+                    isNewProduct: false,
+                    isBonus: true,
+                });
+            }
+
+            setItems([...items, ...newItems]);
             setSelectedProductId('');
         }
 
         setItemQty(1);
+        setItemBonusQty(0);
         setItemPrice(0);
-        setItemIsBonus(false);
     };
 
     const handleRemoveItem = (id: string) => {
@@ -639,13 +672,22 @@ export default function PurchaseOrderMainOffice() {
                                                         className="h-10"
                                                     />
                                                 </div>
-                                                <div className="w-24 space-y-2">
+                                                <div className="w-20 space-y-2">
                                                     <Label>Qty</Label>
                                                     <Input
                                                         type="number"
-                                                        min={1}
+                                                        min={0}
                                                         value={itemQty}
-                                                        onChange={(e) => setItemQty(parseInt(e.target.value) || 1)}
+                                                        onChange={(e) => setItemQty(parseInt(e.target.value) || 0)}
+                                                    />
+                                                </div>
+                                                <div className="w-20 space-y-2">
+                                                    <Label>Qty Bonus</Label>
+                                                    <Input
+                                                        type="number"
+                                                        min={0}
+                                                        value={itemBonusQty}
+                                                        onChange={(e) => setItemBonusQty(parseInt(e.target.value) || 0)}
                                                     />
                                                 </div>
                                                 <div className="flex-1 space-y-2">
@@ -653,33 +695,15 @@ export default function PurchaseOrderMainOffice() {
                                                     <Input isCurrency
                                                         type="number"
                                                         min={0}
-                                                        value={itemIsBonus ? 0 : itemPrice}
-                                                        disabled={itemIsBonus}
+                                                        value={itemPrice}
                                                         onChange={(e) => setItemPrice(parseInt(e.target.value) || 0)}
                                                     />
                                                 </div>
-                                                <Button onClick={handleAddItem} disabled={!newProductName.trim()}>
+                                                <Button onClick={handleAddItem} disabled={!newProductName.trim() || (itemQty === 0 && itemBonusQty === 0)}>
                                                     <Plus className="w-4 h-4" />
                                                 </Button>
                                             </div>
-                                            {/* Bonus Toggle for new products */}
-                                            <div className="flex items-center gap-3">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setItemIsBonus(!itemIsBonus)}
-                                                    className={`relative w-9 h-5 rounded-full transition-colors ${itemIsBonus ? 'bg-green-500' : 'bg-muted'}`}
-                                                >
-                                                    <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${itemIsBonus ? 'translate-x-4' : 'translate-x-0'}`} />
-                                                </button>
-                                                <Label className="text-sm cursor-pointer" onClick={() => setItemIsBonus(!itemIsBonus)}>
-                                                    {itemIsBonus ? (
-                                                        <span className="text-green-600 font-medium">✅ Item Bonus (harga Rp 0)</span>
-                                                    ) : (
-                                                        <span className="text-muted-foreground">Tandai sebagai item bonus?</span>
-                                                    )}
-                                                </Label>
-                                            </div>
-                                            <p className="text-xs text-muted-foreground">
+                                            <p className="text-xs text-muted-foreground mt-2">
                                                 💡 Produk baru akan dibuat otomatis saat PO diterima.
                                             </p>
                                         </>
@@ -697,7 +721,7 @@ export default function PurchaseOrderMainOffice() {
                                                         excludeIds={items.map(i => i.productId || '')}
                                                     />
                                                 </div>
-                                                <div className="w-32 space-y-2">
+                                                <div className="w-28 space-y-2">
                                                     <Label>Unit</Label>
                                                     <UnitSelector
                                                         product={products.find(p => p.id === selectedProductId)}
@@ -707,45 +731,36 @@ export default function PurchaseOrderMainOffice() {
                                                         className="h-10"
                                                     />
                                                 </div>
-                                                <div className="w-24 space-y-2">
+                                                <div className="w-20 space-y-2">
                                                     <Label>Qty</Label>
                                                     <Input
                                                         type="number"
-                                                        min={1}
+                                                        min={0}
                                                         value={itemQty}
-                                                        onChange={(e) => setItemQty(parseInt(e.target.value) || 1)}
+                                                        onChange={(e) => setItemQty(parseInt(e.target.value) || 0)}
                                                     />
                                                 </div>
-                                                <div className="w-40 space-y-2">
+                                                <div className="w-24 space-y-2">
+                                                    <Label>Qty Bonus</Label>
+                                                    <Input
+                                                        type="number"
+                                                        min={0}
+                                                        value={itemBonusQty}
+                                                        onChange={(e) => setItemBonusQty(parseInt(e.target.value) || 0)}
+                                                    />
+                                                </div>
+                                                <div className="w-36 space-y-2">
                                                     <Label>Harga Satuan</Label>
                                                     <Input isCurrency
                                                         type="number"
                                                         min={0}
-                                                        value={itemIsBonus ? 0 : itemPrice}
-                                                        disabled={itemIsBonus}
+                                                        value={itemPrice}
                                                         onChange={(e) => setItemPrice(parseInt(e.target.value) || 0)}
                                                     />
                                                 </div>
-                                                <Button onClick={handleAddItem} disabled={!selectedProductId}>
+                                                <Button onClick={handleAddItem} disabled={!selectedProductId || (itemQty === 0 && itemBonusQty === 0)}>
                                                     <Plus className="w-4 h-4" />
                                                 </Button>
-                                            </div>
-                                            {/* Bonus Toggle */}
-                                            <div className="flex items-center gap-3 pt-1">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setItemIsBonus(!itemIsBonus)}
-                                                    className={`relative w-9 h-5 rounded-full transition-colors ${itemIsBonus ? 'bg-green-500' : 'bg-muted'}`}
-                                                >
-                                                    <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${itemIsBonus ? 'translate-x-4' : 'translate-x-0'}`} />
-                                                </button>
-                                                <Label className="text-sm cursor-pointer" onClick={() => setItemIsBonus(!itemIsBonus)}>
-                                                    {itemIsBonus ? (
-                                                        <span className="text-green-600 font-medium">✅ Item Bonus (harga Rp 0, tidak dihitung ke total)</span>
-                                                    ) : (
-                                                        <span className="text-muted-foreground">Tandai sebagai item bonus dari supplier?</span>
-                                                    )}
-                                                </Label>
                                             </div>
                                         </div>
                                     )}
