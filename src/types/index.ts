@@ -434,6 +434,9 @@ export interface PurchaseOrderItem {
   unit?: string | null;
   unit_price: number;
   total_price: number;
+  is_new_product?: boolean;
+  is_bonus?: boolean;
+  barcode?: string | null;
   created_at: string;
 }
 

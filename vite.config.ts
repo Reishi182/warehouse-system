@@ -15,7 +15,7 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === "development" && componentTagger(),
     VitePWA({
-      registerType: 'prompt',
+      registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
       manifest: {
         name: 'VMB Warehouse System',
@@ -47,6 +47,9 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       workbox: {
+        // Force new SW to take over immediately
+        skipWaiting: true,
+        clientsClaim: true,
         // Cache strategies
         runtimeCaching: [
           {

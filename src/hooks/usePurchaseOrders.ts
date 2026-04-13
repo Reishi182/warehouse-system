@@ -142,6 +142,7 @@ interface CreatePOInput {
         isNewProduct?: boolean;
         barcode?: string;
         unit?: string;
+        isBonus?: boolean;
     }>;
 }
 
@@ -168,8 +169,8 @@ export function useCreatePurchaseOrder() {
                 poNumber = poNumberData;
             }
 
-            // Calculate total
-            const totalAmount = input.items.reduce((acc, item) => acc + (item.quantity * item.unitPrice), 0);
+            // Calculate total (item bonus tidak dihitung ke total)
+            const totalAmount = input.items.reduce((acc, item) => acc + (item.isBonus ? 0 : (item.quantity * item.unitPrice)), 0);
 
             // Create PO
             const { data: po, error: poError } = await supabase
@@ -196,11 +197,12 @@ export function useCreatePurchaseOrder() {
                 product_id: item.productId || null, // Send null for new products (empty string is invalid UUID)
                 product_name: item.productName,
                 quantity: item.quantity,
-                unit_price: item.unitPrice,
-                total_price: item.quantity * item.unitPrice,
+                unit_price: item.isBonus ? 0 : item.unitPrice,
+                total_price: item.isBonus ? 0 : (item.quantity * item.unitPrice),
                 barcode: item.barcode || null,
                 unit: item.unit || 'pcs',
                 is_new_product: item.isNewProduct || false,
+                is_bonus: item.isBonus || false,
             }));
 
             const { error: itemsError } = await supabase
@@ -279,8 +281,8 @@ export function useUpdatePurchaseOrder() {
                 poNumber = poNumberData;
             }
 
-            // Calculate total
-            const totalAmount = input.items.reduce((acc, item) => acc + (item.quantity * item.unitPrice), 0);
+            // Calculate total (item bonus tidak dihitung ke total)
+            const totalAmount = input.items.reduce((acc, item) => acc + (item.isBonus ? 0 : (item.quantity * item.unitPrice)), 0);
 
             // Update PO
             const { data: po, error: poError } = await supabase
@@ -314,11 +316,12 @@ export function useUpdatePurchaseOrder() {
                 product_id: item.productId || null,
                 product_name: item.productName,
                 quantity: item.quantity,
-                unit_price: item.unitPrice,
-                total_price: item.quantity * item.unitPrice,
+                unit_price: item.isBonus ? 0 : item.unitPrice,
+                total_price: item.isBonus ? 0 : (item.quantity * item.unitPrice),
                 barcode: item.barcode || null,
                 unit: item.unit || 'pcs',
                 is_new_product: item.isNewProduct || false,
+                is_bonus: item.isBonus || false,
             }));
 
             const { error: itemsError } = await supabase

@@ -66,6 +66,7 @@ interface POItem {
     quantity: number;
     unitPrice: number;
     isNewProduct?: boolean; // Flag for products not in catalog
+    isBonus?: boolean; // Flag for bonus items (price = 0, tidak dihitung ke total)
 }
 
 const statusLabels: Record<string, { label: string; color: string }> = {
@@ -126,6 +127,7 @@ export default function PurchaseOrderMainOffice() {
     const [itemQty, setItemQty] = useState(1);
     const [itemPrice, setItemPrice] = useState(0);
     const [selectedUnit, setSelectedUnit] = useState<string>('');
+    const [itemIsBonus, setItemIsBonus] = useState(false);
 
     const selectedProduct = useMemo(() => products.find(p => p.id === selectedProductId), [products, selectedProductId]);
 
@@ -176,11 +178,13 @@ export default function PurchaseOrderMainOffice() {
     }, [purchaseOrders, activeTab]);
 
     const totalAmount = useMemo(() => {
-        return items.reduce((acc, item) => acc + (item.quantity * item.unitPrice), 0);
+        // Item bonus tidak dihitung ke total (harganya 0)
+        return items.reduce((acc, item) => acc + (item.isBonus ? 0 : (item.quantity * item.unitPrice)), 0);
     }, [items]);
 
     const handleAddItem = () => {
-        if (itemQty <= 0 || itemPrice <= 0) return;
+        // Harga 0 diizinkan (produk gratis atau bonus)
+        if (itemQty <= 0) return;
 
         if (isNewProductMode) {
             // New product mode - use free text input
@@ -193,8 +197,9 @@ export default function PurchaseOrderMainOffice() {
                 barcode: newProductBarcode.trim() || undefined,
                 unit: newProductUnit || 'pcs',
                 quantity: itemQty,
-                unitPrice: itemPrice,
+                unitPrice: itemIsBonus ? 0 : itemPrice,
                 isNewProduct: true,
+                isBonus: itemIsBonus,
             };
 
             setItems([...items, newItem]);
@@ -213,8 +218,9 @@ export default function PurchaseOrderMainOffice() {
                 productName: product.name,
                 unit: selectedUnit || product.sell_unit || 'pcs',
                 quantity: itemQty,
-                unitPrice: itemPrice,
+                unitPrice: itemIsBonus ? 0 : itemPrice,
                 isNewProduct: false,
+                isBonus: itemIsBonus,
             };
 
             setItems([...items, newItem]);
@@ -223,6 +229,7 @@ export default function PurchaseOrderMainOffice() {
 
         setItemQty(1);
         setItemPrice(0);
+        setItemIsBonus(false);
     };
 
     const handleRemoveItem = (id: string) => {
@@ -245,10 +252,11 @@ export default function PurchaseOrderMainOffice() {
                     productId: item.productId,
                     productName: item.productName,
                     quantity: item.quantity,
-                    unitPrice: item.unitPrice,
+                    unitPrice: item.isBonus ? 0 : item.unitPrice,
                     isNewProduct: item.isNewProduct,
                     barcode: item.barcode,
                     unit: item.unit,
+                    isBonus: item.isBonus,
                 })),
             });
         } else {
@@ -263,10 +271,11 @@ export default function PurchaseOrderMainOffice() {
                     productId: item.productId,
                     productName: item.productName,
                     quantity: item.quantity,
-                    unitPrice: item.unitPrice,
+                    unitPrice: item.isBonus ? 0 : item.unitPrice,
                     isNewProduct: item.isNewProduct,
                     barcode: item.barcode,
                     unit: item.unit,
+                    isBonus: item.isBonus,
                 })),
             });
         }
@@ -324,6 +333,7 @@ export default function PurchaseOrderMainOffice() {
                     quantity: item.quantity,
                     unitPrice: item.unit_price,
                     isNewProduct: item.is_new_product,
+                    isBonus: item.is_bonus || false,
                 })));
             }
         } catch (err) {
@@ -643,7 +653,8 @@ export default function PurchaseOrderMainOffice() {
                                                     <Input isCurrency
                                                         type="number"
                                                         min={0}
-                                                        value={itemPrice}
+                                                        value={itemIsBonus ? 0 : itemPrice}
+                                                        disabled={itemIsBonus}
                                                         onChange={(e) => setItemPrice(parseInt(e.target.value) || 0)}
                                                     />
                                                 </div>
@@ -651,54 +662,91 @@ export default function PurchaseOrderMainOffice() {
                                                     <Plus className="w-4 h-4" />
                                                 </Button>
                                             </div>
+                                            {/* Bonus Toggle for new products */}
+                                            <div className="flex items-center gap-3">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setItemIsBonus(!itemIsBonus)}
+                                                    className={`relative w-9 h-5 rounded-full transition-colors ${itemIsBonus ? 'bg-green-500' : 'bg-muted'}`}
+                                                >
+                                                    <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${itemIsBonus ? 'translate-x-4' : 'translate-x-0'}`} />
+                                                </button>
+                                                <Label className="text-sm cursor-pointer" onClick={() => setItemIsBonus(!itemIsBonus)}>
+                                                    {itemIsBonus ? (
+                                                        <span className="text-green-600 font-medium">✅ Item Bonus (harga Rp 0)</span>
+                                                    ) : (
+                                                        <span className="text-muted-foreground">Tandai sebagai item bonus?</span>
+                                                    )}
+                                                </Label>
+                                            </div>
                                             <p className="text-xs text-muted-foreground">
                                                 💡 Produk baru akan dibuat otomatis saat PO diterima.
                                             </p>
                                         </>
                                     ) : (
                                         /* Existing Product Mode - Dropdown with Search */
-                                        <div className="flex gap-3 items-end">
-                                            <div className="flex-1 min-w-0 space-y-2">
-                                                <Label>Produk</Label>
-                                                <ProductSearchSelect
-                                                    products={products}
-                                                    value={selectedProductId}
-                                                    onChange={setSelectedProductId}
-                                                    placeholder="Cari produk..."
-                                                    excludeIds={items.map(i => i.productId || '')}
-                                                />
+                                        <div className="space-y-3">
+                                            <div className="flex gap-3 items-end">
+                                                <div className="flex-1 min-w-0 space-y-2">
+                                                    <Label>Produk</Label>
+                                                    <ProductSearchSelect
+                                                        products={products}
+                                                        value={selectedProductId}
+                                                        onChange={setSelectedProductId}
+                                                        placeholder="Cari produk..."
+                                                        excludeIds={items.map(i => i.productId || '')}
+                                                    />
+                                                </div>
+                                                <div className="w-32 space-y-2">
+                                                    <Label>Unit</Label>
+                                                    <UnitSelector
+                                                        product={products.find(p => p.id === selectedProductId)}
+                                                        value={selectedUnit}
+                                                        onChange={handleUnitChange}
+                                                        disabled={!selectedProductId}
+                                                        className="h-10"
+                                                    />
+                                                </div>
+                                                <div className="w-24 space-y-2">
+                                                    <Label>Qty</Label>
+                                                    <Input
+                                                        type="number"
+                                                        min={1}
+                                                        value={itemQty}
+                                                        onChange={(e) => setItemQty(parseInt(e.target.value) || 1)}
+                                                    />
+                                                </div>
+                                                <div className="w-40 space-y-2">
+                                                    <Label>Harga Satuan</Label>
+                                                    <Input isCurrency
+                                                        type="number"
+                                                        min={0}
+                                                        value={itemIsBonus ? 0 : itemPrice}
+                                                        disabled={itemIsBonus}
+                                                        onChange={(e) => setItemPrice(parseInt(e.target.value) || 0)}
+                                                    />
+                                                </div>
+                                                <Button onClick={handleAddItem} disabled={!selectedProductId}>
+                                                    <Plus className="w-4 h-4" />
+                                                </Button>
                                             </div>
-                                            <div className="w-32 space-y-2">
-                                                <Label>Unit</Label>
-                                                <UnitSelector
-                                                    product={products.find(p => p.id === selectedProductId)}
-                                                    value={selectedUnit}
-                                                    onChange={handleUnitChange}
-                                                    disabled={!selectedProductId}
-                                                    className="h-10"
-                                                />
+                                            {/* Bonus Toggle */}
+                                            <div className="flex items-center gap-3 pt-1">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setItemIsBonus(!itemIsBonus)}
+                                                    className={`relative w-9 h-5 rounded-full transition-colors ${itemIsBonus ? 'bg-green-500' : 'bg-muted'}`}
+                                                >
+                                                    <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${itemIsBonus ? 'translate-x-4' : 'translate-x-0'}`} />
+                                                </button>
+                                                <Label className="text-sm cursor-pointer" onClick={() => setItemIsBonus(!itemIsBonus)}>
+                                                    {itemIsBonus ? (
+                                                        <span className="text-green-600 font-medium">✅ Item Bonus (harga Rp 0, tidak dihitung ke total)</span>
+                                                    ) : (
+                                                        <span className="text-muted-foreground">Tandai sebagai item bonus dari supplier?</span>
+                                                    )}
+                                                </Label>
                                             </div>
-                                            <div className="w-24 space-y-2">
-                                                <Label>Qty</Label>
-                                                <Input
-                                                    type="number"
-                                                    min={1}
-                                                    value={itemQty}
-                                                    onChange={(e) => setItemQty(parseInt(e.target.value) || 1)}
-                                                />
-                                            </div>
-                                            <div className="w-40 space-y-2">
-                                                <Label>Harga Satuan</Label>
-                                                <Input isCurrency
-                                                    type="number"
-                                                    min={0}
-                                                    value={itemPrice}
-                                                    onChange={(e) => setItemPrice(parseInt(e.target.value) || 0)}
-                                                />
-                                            </div>
-                                            <Button onClick={handleAddItem} disabled={!selectedProductId}>
-                                                <Plus className="w-4 h-4" />
-                                            </Button>
                                         </div>
                                     )}
                                 </CardContent>
@@ -720,14 +768,24 @@ export default function PurchaseOrderMainOffice() {
                                     <CardContent>
                                         <div className="space-y-2">
                                             {items.map((item, idx) => (
-                                                <div key={item.id} className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
+                                                <div key={item.id} className={`flex items-center gap-3 p-3 rounded-lg ${item.isBonus ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' : 'bg-muted/30'}`}>
                                                     {/* Product name */}
                                                     <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center gap-2">
+                                                        <div className="flex items-center gap-2 flex-wrap">
                                                             <p className="font-medium truncate">{item.productName}</p>
                                                             {item.isNewProduct && (
                                                                 <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full shrink-0">
                                                                     Produk Baru
+                                                                </span>
+                                                            )}
+                                                            {item.isBonus && (
+                                                                <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 rounded-full shrink-0 font-semibold">
+                                                                    🎁 BONUS
+                                                                </span>
+                                                            )}
+                                                            {!item.isBonus && item.unitPrice === 0 && (
+                                                                <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded-full shrink-0">
+                                                                    GRATIS
                                                                 </span>
                                                             )}
                                                         </div>
@@ -758,13 +816,14 @@ export default function PurchaseOrderMainOffice() {
                                                         />
                                                     </div>
 
-                                                    {/* Unit price — editable */}
+                                                    {/* Unit price — editable (locked if bonus) */}
                                                     <div className="flex items-center gap-1 shrink-0">
                                                         <span className="text-xs text-muted-foreground">Rp</span>
                                                         <Input isCurrency
                                                             type="number"
                                                             min={0}
-                                                            value={item.unitPrice}
+                                                            value={item.isBonus ? 0 : item.unitPrice}
+                                                            disabled={item.isBonus}
                                                             onChange={(e) => {
                                                                 const price = parseInt(e.target.value) || 0;
                                                                 setItems(prev => prev.map(it =>
@@ -777,8 +836,24 @@ export default function PurchaseOrderMainOffice() {
 
                                                     {/* Subtotal */}
                                                     <span className="text-sm font-semibold text-right shrink-0 w-28 tabular-nums">
-                                                        Rp {(item.quantity * item.unitPrice).toLocaleString('id-ID')}
+                                                        {item.isBonus ? (
+                                                            <span className="text-green-600 dark:text-green-400">BONUS</span>
+                                                        ) : (
+                                                            `Rp ${(item.quantity * item.unitPrice).toLocaleString('id-ID')}`
+                                                        )}
                                                     </span>
+
+                                                    {/* Bonus toggle button */}
+                                                    <button
+                                                        type="button"
+                                                        title={item.isBonus ? 'Klik untuk hapus status bonus' : 'Tandai sebagai bonus'}
+                                                        onClick={() => setItems(prev => prev.map(it =>
+                                                            it.id === item.id ? { ...it, isBonus: !it.isBonus, unitPrice: it.isBonus ? it.unitPrice : 0 } : it
+                                                        ))}
+                                                        className={`shrink-0 h-8 w-8 p-0 rounded text-sm transition-colors ${item.isBonus ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 hover:bg-green-200' : 'bg-muted/50 text-muted-foreground hover:bg-muted'}`}
+                                                    >
+                                                        🎁
+                                                    </button>
 
                                                     {/* Remove */}
                                                     <Button size="sm" variant="ghost" onClick={() => handleRemoveItem(item.id)} className="shrink-0 h-8 w-8 p-0">
@@ -786,9 +861,17 @@ export default function PurchaseOrderMainOffice() {
                                                     </Button>
                                                 </div>
                                             ))}
-                                            <div className="pt-3 border-t flex justify-between">
-                                                <span className="font-semibold">Total</span>
-                                                <span className="font-bold text-lg">Rp {totalAmount.toLocaleString('id-ID')}</span>
+                                            <div className="pt-3 border-t space-y-1">
+                                                {items.some(i => i.isBonus) && (
+                                                    <div className="flex justify-between text-sm text-green-600 dark:text-green-400">
+                                                        <span>Item Bonus ({items.filter(i => i.isBonus).reduce((a,i) => a + i.quantity, 0)} pcs, tidak dihitung)</span>
+                                                        <span className="font-medium">🎁 Gratis</span>
+                                                    </div>
+                                                )}
+                                                <div className="flex justify-between">
+                                                    <span className="font-semibold">Total Pembelian</span>
+                                                    <span className="font-bold text-lg">Rp {totalAmount.toLocaleString('id-ID')}</span>
+                                                </div>
                                             </div>
                                         </div>
                                     </CardContent>
@@ -877,14 +960,35 @@ export default function PurchaseOrderMainOffice() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {selectedPO.items?.map(item => (
-                                                <tr key={item.id} className="border-t">
-                                                    <td className="p-3">{item.product_name}</td>
-                                                    <td className="text-right p-3">{item.quantity} <span className="text-xs text-muted-foreground uppercase">{item.unit || 'pcs'}</span></td>
-                                                    <td className="text-right p-3">Rp {item.unit_price.toLocaleString('id-ID')}</td>
-                                                    <td className="text-right p-3 font-medium">Rp {item.total_price.toLocaleString('id-ID')}</td>
-                                                </tr>
-                                            ))}
+                                            {selectedPO.items?.map(item => {
+                                                const isBonus = (item as any).is_bonus === true;
+                                                const isFree = !isBonus && item.unit_price === 0;
+                                                return (
+                                                    <tr key={item.id} className={`border-t ${isBonus ? 'bg-green-50 dark:bg-green-900/20' : ''}`}>
+                                                        <td className="p-3">
+                                                            <div className="flex items-center gap-2 flex-wrap">
+                                                                <span>{item.product_name}</span>
+                                                                {isBonus && (
+                                                                    <span className="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 rounded font-semibold">🎁 BONUS</span>
+                                                                )}
+                                                                {isFree && (
+                                                                    <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded">GRATIS</span>
+                                                                )}
+                                                                {(item as any).is_new_product && (
+                                                                    <span className="text-xs px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded">Baru</span>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                        <td className="text-right p-3">{item.quantity} <span className="text-xs text-muted-foreground uppercase">{item.unit || 'pcs'}</span></td>
+                                                        <td className="text-right p-3">
+                                                            {isBonus ? <span className="text-green-600 dark:text-green-400 text-xs font-medium">Gratis</span> : `Rp ${item.unit_price.toLocaleString('id-ID')}`}
+                                                        </td>
+                                                        <td className="text-right p-3 font-medium">
+                                                            {isBonus ? <span className="text-green-600 dark:text-green-400 text-xs">-</span> : `Rp ${item.total_price.toLocaleString('id-ID')}`}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
                                         </tbody>
                                         <tfoot className="bg-muted/30">
                                             <tr>
