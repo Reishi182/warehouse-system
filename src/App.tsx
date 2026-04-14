@@ -70,8 +70,8 @@ const TokopediaSalesReport = React.lazy(() => import('@/pages/tokopedia/Tokopedi
 const SiteBuilder = React.lazy(() => import("./pages/SiteBuilder"));
 const NotFound = React.lazy(() => import("./pages/NotFound"));
 const Guide = React.lazy(() => import("./pages/Guide"));
-
 import { UserRole } from '@/types';
+import { useGlobalRealtimeUpdates } from '@/hooks/useGlobalRealtimeUpdates';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -146,6 +146,9 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 }
 
 function AppRoutes() {
+  // Call global real-time subscriptions
+  useGlobalRealtimeUpdates();
+
   // Role shortcuts for cleaner route definitions
   const ALL_ROLES: UserRole[] = ['warehouse', 'cashier', 'auditor', 'admin', 'main_office'];
 
