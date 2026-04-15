@@ -144,6 +144,8 @@ interface CreatePOInput {
         unit?: string;
         isBonus?: boolean;
     }>;
+    discount1Percent?: number;
+    discount2Percent?: number;
 }
 
 export function useCreatePurchaseOrder() {
@@ -170,7 +172,15 @@ export function useCreatePurchaseOrder() {
             }
 
             // Calculate total (item bonus tidak dihitung ke total)
-            const totalAmount = input.items.reduce((acc, item) => acc + (item.isBonus ? 0 : (item.quantity * item.unitPrice)), 0);
+            let totalAmount = input.items.reduce((acc, item) => acc + (item.isBonus ? 0 : (item.quantity * item.unitPrice)), 0);
+
+            // Apply discounts sequentially
+            if (input.discount1Percent) {
+                totalAmount = totalAmount - (totalAmount * (input.discount1Percent / 100));
+            }
+            if (input.discount2Percent) {
+                totalAmount = totalAmount - (totalAmount * (input.discount2Percent / 100));
+            }
 
             // Create PO
             const { data: po, error: poError } = await supabase
@@ -182,6 +192,8 @@ export function useCreatePurchaseOrder() {
                     destination: input.destination,
                     status: 'pending_receipt',
                     total_amount: totalAmount,
+                    discount_1_percent: input.discount1Percent || 0,
+                    discount_2_percent: input.discount2Percent || 0,
                     notes: input.notes || null,
                     created_by: input.createdBy || null,
                     created_by_name: input.createdByName,
@@ -282,7 +294,15 @@ export function useUpdatePurchaseOrder() {
             }
 
             // Calculate total (item bonus tidak dihitung ke total)
-            const totalAmount = input.items.reduce((acc, item) => acc + (item.isBonus ? 0 : (item.quantity * item.unitPrice)), 0);
+            let totalAmount = input.items.reduce((acc, item) => acc + (item.isBonus ? 0 : (item.quantity * item.unitPrice)), 0);
+
+            // Apply discounts sequentially
+            if (input.discount1Percent) {
+                totalAmount = totalAmount - (totalAmount * (input.discount1Percent / 100));
+            }
+            if (input.discount2Percent) {
+                totalAmount = totalAmount - (totalAmount * (input.discount2Percent / 100));
+            }
 
             // Update PO
             const { data: po, error: poError } = await supabase
@@ -293,6 +313,8 @@ export function useUpdatePurchaseOrder() {
                     supplier_id: input.supplierId || null,
                     destination: input.destination,
                     total_amount: totalAmount,
+                    discount_1_percent: input.discount1Percent || 0,
+                    discount_2_percent: input.discount2Percent || 0,
                     notes: input.notes || null,
                     updated_at: new Date().toISOString()
                 })

@@ -449,6 +449,8 @@ export interface PurchaseOrder {
   destination: PODestination;
   status: POStatus;
   total_amount: number;
+  discount_1_percent?: number | null;
+  discount_2_percent?: number | null;
   notes?: string | null;
   created_by?: string | null;
   created_by_name?: string | null;

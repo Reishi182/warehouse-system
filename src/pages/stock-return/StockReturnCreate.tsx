@@ -224,6 +224,7 @@ function ReturnDetailDialog({ stockReturn, onCancel }: { stockReturn: StockRetur
 export default function StockReturnCreate() {
     const { user, profile } = useAuth();
     const { returns, createReturn, editReturn, cancelReturn } = useStockReturns();
+    const { products } = useDataStore();
 
     // Form State
     const [reason, setReason] = useState('');

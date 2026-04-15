@@ -122,6 +122,8 @@ export default function PurchaseOrderMainOffice() {
         const now = new Date();
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     });
+    const [discount1Percent, setDiscount1Percent] = useState<number>(0);
+    const [discount2Percent, setDiscount2Percent] = useState<number>(0);
 
     // Add item state
     const [selectedProductId, setSelectedProductId] = useState('');
@@ -180,8 +182,15 @@ export default function PurchaseOrderMainOffice() {
 
     const totalAmount = useMemo(() => {
         // Item bonus tidak dihitung ke total (harganya 0)
-        return items.reduce((acc, item) => acc + (item.isBonus ? 0 : (item.quantity * item.unitPrice)), 0);
-    }, [items]);
+        let subtotal = items.reduce((acc, item) => acc + (item.isBonus ? 0 : (item.quantity * item.unitPrice)), 0);
+        if (discount1Percent > 0) {
+            subtotal -= subtotal * (discount1Percent / 100);
+        }
+        if (discount2Percent > 0) {
+            subtotal -= subtotal * (discount2Percent / 100);
+        }
+        return subtotal;
+    }, [items, discount1Percent, discount2Percent]);
 
     const handleAddItem = () => {
         // Harus ada Qty atau Bonus Qty
@@ -292,6 +301,8 @@ export default function PurchaseOrderMainOffice() {
                     unit: item.unit,
                     isBonus: item.isBonus,
                 })),
+                discount1Percent,
+                discount2Percent,
             });
         } else {
             await createPO.mutateAsync({
@@ -311,6 +322,8 @@ export default function PurchaseOrderMainOffice() {
                     unit: item.unit,
                     isBonus: item.isBonus,
                 })),
+                discount1Percent,
+                discount2Percent,
             });
         }
 
@@ -320,6 +333,8 @@ export default function PurchaseOrderMainOffice() {
         setNotes('');
         setItems([]);
         setEditPOId(null);
+        setDiscount1Percent(0);
+        setDiscount2Percent(0);
         setPODate(() => {
             const now = new Date();
             return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -333,6 +348,8 @@ export default function PurchaseOrderMainOffice() {
         setDestination('toko');
         setNotes('');
         setItems([]);
+        setDiscount1Percent(0);
+        setDiscount2Percent(0);
         setPODate(() => {
             const now = new Date();
             return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -345,6 +362,8 @@ export default function PurchaseOrderMainOffice() {
         setSupplierId(po.supplier_id || '');
         setDestination(po.destination);
         setNotes(po.notes || '');
+        setDiscount1Percent(po.discount_1_percent || 0);
+        setDiscount2Percent(po.discount_2_percent || 0);
         setPODate(po.po_date || po.created_at.split('T')[0]);
         // we need to set items, but we need items array not yet loaded?
         // Ah, if we open edit, we better fetch items if they are not in the current `po` object.
@@ -873,6 +892,34 @@ export default function PurchaseOrderMainOffice() {
                                                         <span className="font-medium">🎁 Gratis</span>
                                                     </div>
                                                 )}
+                                                <div className="flex justify-between items-center mt-2 pt-2 border-t text-sm">
+                                                    <span className="font-medium">Subtotal</span>
+                                                    <span>Rp {items.reduce((acc, item) => acc + (item.isBonus ? 0 : (item.quantity * item.unitPrice)), 0).toLocaleString('id-ID')}</span>
+                                                </div>
+                                                <div className="flex gap-4 items-center justify-end">
+                                                    <div className="flex items-center gap-2">
+                                                        <Label className="text-xs text-muted-foreground whitespace-nowrap">Diskon 1 (%)</Label>
+                                                        <Input
+                                                            type="number"
+                                                            min={0}
+                                                            max={100}
+                                                            value={discount1Percent}
+                                                            onChange={(e) => setDiscount1Percent(parseFloat(e.target.value) || 0)}
+                                                            className="w-20 h-8 text-sm"
+                                                        />
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <Label className="text-xs text-muted-foreground whitespace-nowrap">Diskon 2 (%)</Label>
+                                                        <Input
+                                                            type="number"
+                                                            min={0}
+                                                            max={100}
+                                                            value={discount2Percent}
+                                                            onChange={(e) => setDiscount2Percent(parseFloat(e.target.value) || 0)}
+                                                            className="w-20 h-8 text-sm"
+                                                        />
+                                                    </div>
+                                                </div>
                                                 <div className="flex justify-between">
                                                     <span className="font-semibold">Total Pembelian</span>
                                                     <span className="font-bold text-lg">Rp {totalAmount.toLocaleString('id-ID')}</span>
@@ -996,9 +1043,21 @@ export default function PurchaseOrderMainOffice() {
                                             })}
                                         </tbody>
                                         <tfoot className="bg-muted/30">
+                                            {(selectedPO.discount_1_percent || 0) > 0 && (
+                                                <tr>
+                                                    <td colSpan={3} className="text-right p-3 font-semibold text-muted-foreground pb-1">Diskon 1 ({selectedPO.discount_1_percent}%)</td>
+                                                    <td className="text-right p-3 font-medium text-red-600 pb-1">-</td>
+                                                </tr>
+                                            )}
+                                            {(selectedPO.discount_2_percent || 0) > 0 && (
+                                                <tr>
+                                                    <td colSpan={3} className="text-right p-3 font-semibold text-muted-foreground pb-1 pt-0">Diskon 2 ({selectedPO.discount_2_percent}%)</td>
+                                                    <td className="text-right p-3 font-medium text-red-600 pb-1 pt-0">-</td>
+                                                </tr>
+                                            )}
                                             <tr>
-                                                <td colSpan={3} className="text-right p-3 font-semibold">Total</td>
-                                                <td className="text-right p-3 font-bold">Rp {selectedPO.total_amount.toLocaleString('id-ID')}</td>
+                                                <td colSpan={3} className="text-right p-3 font-semibold pt-2">Total</td>
+                                                <td className="text-right p-3 font-bold pt-2">Rp {selectedPO.total_amount.toLocaleString('id-ID')}</td>
                                             </tr>
                                         </tfoot>
                                     </table>
