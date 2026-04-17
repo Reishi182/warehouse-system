@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { OtherTransaction } from '@/types';
 import { useToast } from './use-toast';
+import { invalidateAndBroadcast } from '@/lib/queryBroadcast';
 
 export const useOtherTransactions = () => {
     return useQuery({
@@ -43,7 +44,7 @@ export const useCreateOtherTransaction = () => {
             return data;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['other_transactions'] });
+            invalidateAndBroadcast(queryClient, ['other_transactions']);
             toast({
                 title: 'Transaksi berhasil disimpan',
                 description: 'Data transaksi telah ditambahkan ke sistem',
@@ -74,7 +75,7 @@ export const useDeleteOtherTransaction = () => {
             if (error) throw error;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['other_transactions'] });
+            invalidateAndBroadcast(queryClient, ['other_transactions']);
             toast({
                 title: 'Transaksi dihapus',
                 description: 'Data transaksi berhasil dihapus',

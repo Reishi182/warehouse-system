@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { CashTransferRequest, CashTransferRequestStatus } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { sendNotificationToRole, sendNotificationToUser } from '@/hooks/useRealtimeNotifications';
+import { invalidateAndBroadcast } from '@/lib/queryBroadcast';
 
 // Transform database row to CashTransferRequest type
 function transformRequest(row: any): CashTransferRequest {
@@ -74,7 +75,7 @@ export function useCreateCashTransferRequest() {
             return transformRequest(data);
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['cash-transfer-requests'] });
+            invalidateAndBroadcast(queryClient, ['cash-transfer-requests']);
             toast({
                 title: 'Permintaan setoran dibuat',
                 description: 'Menunggu persetujuan Auditor',
@@ -175,9 +176,7 @@ export function useApproveCashTransferRequest() {
             }
         },
         onSuccess: (_data, variables) => {
-            queryClient.invalidateQueries({ queryKey: ['cash-transfer-requests'] });
-            queryClient.invalidateQueries({ queryKey: ['cash-transfers'] });
-            queryClient.invalidateQueries({ queryKey: ['other_transactions'] });
+            invalidateAndBroadcast(queryClient, ['cash-transfer-requests', 'cash-transfers', 'other_transactions']);
             toast({
                 title: 'Setoran diterima',
                 description: 'Setoran berhasil dikonfirmasi dan dicatat ke transaksi umum',
@@ -241,7 +240,7 @@ export function useRejectCashTransferRequest() {
             if (error) throw error;
         },
         onSuccess: (_data, variables) => {
-            queryClient.invalidateQueries({ queryKey: ['cash-transfer-requests'] });
+            invalidateAndBroadcast(queryClient, ['cash-transfer-requests']);
             toast({
                 title: 'Setoran ditolak',
                 description: 'Permintaan setoran berhasil ditolak',

@@ -4,6 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { StockShipment } from '@/types';
 import { sendNotificationToUser } from '@/hooks/useRealtimeNotifications';
+import { broadcastTableChange } from '@/lib/broadcastSync';
+import { invalidateAndBroadcast } from '@/lib/queryBroadcast';
 
 export function useStockShipments() {
     const { toast } = useToast();
@@ -142,8 +144,8 @@ export function useStockShipments() {
             return shipment;
         },
         onSuccess: (_data, variables) => {
-            queryClient.invalidateQueries({ queryKey: ['stock-shipments'] });
-            queryClient.invalidateQueries({ queryKey: ['stock-requests'] });
+            invalidateAndBroadcast(queryClient, ['stock-shipments', 'stock-requests']);
+            broadcastTableChange('stock_shipments', 'INSERT', ['stock-shipments', 'stock-requests', 'products']);
             toast({ title: 'Proses Selesai', description: 'Stok gudang dikurangi & stok toko otomatis bertambah seketika' });
 
             // Notify Cashier about the completion
@@ -212,8 +214,8 @@ export function useStockShipments() {
             if (reqUpdateError) throw reqUpdateError;
         },
         onSuccess: (_data, variables) => {
-            queryClient.invalidateQueries({ queryKey: ['stock-shipments'] });
-            queryClient.invalidateQueries({ queryKey: ['stock-requests'] });
+            invalidateAndBroadcast(queryClient, ['stock-shipments', 'stock-requests']);
+            broadcastTableChange('stock_shipments', 'UPDATE', ['stock-shipments', 'stock-requests', 'products']);
             toast({ title: 'Pengiriman Disetujui', description: 'Stok gudang telah dikurangi' });
 
             // Get the request to notify the cashier
@@ -249,7 +251,8 @@ export function useStockShipments() {
             if (error) throw error;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['stock-shipments'] });
+            invalidateAndBroadcast(queryClient, ['stock-shipments']);
+            broadcastTableChange('stock_shipments', 'UPDATE', ['stock-shipments']);
             toast({ title: 'Revisi Diminta', description: 'Gudang perlu memperbaiki pengiriman ini' });
         }
     });

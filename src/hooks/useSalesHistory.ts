@@ -44,7 +44,7 @@ export function useSalesHistory(): UseSalesHistoryResult {
         for (let offset = 0; offset < totalToFetch; offset += BATCH_SIZE) {
             let query = supabase
                 .from('sales')
-                .select('id, sale_number, cashier_id, cashier_name, payment_method, stock_location, total_amount, order_discount, amount_paid, change_amount, created_at, is_exchanged, exchanged_to_sale_id, exchanged_to_sale_number, exchange_from_sale_id, exchange_from_sale_number, is_cancelled, cancelled_at, cancelled_reason, is_credit, credit_customer_name, credit_settled_at, credit_payment_method, sale_items(id, sale_id, product_id, product_name, barcode, quantity, price, subtotal, discount)')
+                .select('id, sale_number, cashier_id, cashier_name, payment_method, stock_location, total_amount, order_discount, amount_paid, change_amount, created_at, is_exchanged, exchanged_to_sale_id, exchanged_to_sale_number, exchange_from_sale_id, exchange_from_sale_number, is_cancelled, cancelled_at, cancelled_reason, is_credit, credit_customer_name, credit_settled_at, credit_payment_method')
                 .order('created_at', { ascending: false })
                 .range(offset, offset + BATCH_SIZE - 1);
 
@@ -56,7 +56,25 @@ export function useSalesHistory(): UseSalesHistoryResult {
 
             if (error) throw new Error(error.message);
 
-            if (data) {
+            if (data && data.length > 0) {
+                const saleIds = data.map((s: any) => s.id);
+                
+                // Fetch items separately to avoid expensive lateral JOIN in PostgreSQL
+                const { data: itemsData, error: itemsError } = await supabase
+                    .from('sale_items')
+                    .select('id, sale_id, product_id, product_name, barcode, quantity, price, subtotal, discount')
+                    .in('sale_id', saleIds);
+                
+                if (itemsError) throw new Error(itemsError.message);
+
+                const itemsMap = new Map();
+                (itemsData || []).forEach((item: any) => {
+                    if (!itemsMap.has(item.sale_id)) {
+                        itemsMap.set(item.sale_id, []);
+                    }
+                    itemsMap.get(item.sale_id).push(item);
+                });
+
                 const mapped = data.map((s: any): Sale => ({
                     id: s.id,
                     sale_number: s.sale_number,
@@ -81,7 +99,7 @@ export function useSalesHistory(): UseSalesHistoryResult {
                     credit_settled_at: s.credit_settled_at,
                     credit_payment_method: s.credit_payment_method as PaymentMethod | null,
                     created_at: s.created_at,
-                    items: (s.sale_items || []).map((it: any): SaleItem => ({
+                    items: (itemsMap.get(s.id) || []).map((it: any): SaleItem => ({
                         id: it.id,
                         sale_id: it.sale_id,
                         product_id: it.product_id,

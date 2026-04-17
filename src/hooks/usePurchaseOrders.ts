@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { PurchaseOrder, POStatus, POReceiptWithDetails } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { sendNotificationToRole, sendNotificationToUser } from '@/hooks/useRealtimeNotifications';
+import { invalidateAndBroadcast } from '@/lib/queryBroadcast';
 
 /**
  * Hook to subscribe to real-time changes on purchase_orders table.
@@ -229,7 +230,7 @@ export function useCreatePurchaseOrder() {
             return po;
         },
         onSuccess: (po) => {
-            queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
+            invalidateAndBroadcast(queryClient, ['purchase_orders']);
             toast({
                 title: 'Berhasil',
                 description: 'Purchase Order berhasil dibuat',
@@ -358,7 +359,7 @@ export function useUpdatePurchaseOrder() {
             return po;
         },
         onSuccess: (po) => {
-            queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
+            invalidateAndBroadcast(queryClient, ['purchase_orders']);
             queryClient.invalidateQueries({ queryKey: ['purchase_order', po.id] });
             toast({
                 title: 'Berhasil',
@@ -409,7 +410,7 @@ export function useApprovePurchaseOrder() {
             return po;
         },
         onSuccess: (po, variables) => {
-            queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
+            invalidateAndBroadcast(queryClient, ['purchase_orders']);
             toast({
                 title: 'Berhasil',
                 description: 'Purchase Order berhasil diapprove',
@@ -479,7 +480,7 @@ export function useRejectPurchaseOrder() {
             return po;
         },
         onSuccess: (po, variables) => {
-            queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
+            invalidateAndBroadcast(queryClient, ['purchase_orders']);
             toast({
                 title: 'Berhasil',
                 description: 'Purchase Order berhasil ditolak',
@@ -703,9 +704,7 @@ export function useConfirmPOReceipt() {
             return { po, hasDiscrepancy, discrepancyItems };
         },
         onSuccess: async (result) => {
-            queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
-            queryClient.invalidateQueries({ queryKey: ['products'] });
-            queryClient.invalidateQueries({ queryKey: ['po_receipt'] });
+            invalidateAndBroadcast(queryClient, ['purchase_orders', 'products', 'po_receipt']);
 
             // Notify main_office about PO receipt completion
             sendNotificationToRole('main_office', {
@@ -782,7 +781,7 @@ export function useCancelPurchaseOrder() {
             return po;
         },
         onSuccess: (po, variables) => {
-            queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
+            invalidateAndBroadcast(queryClient, ['purchase_orders']);
             toast({
                 title: 'PO Dibatalkan',
                 description: `Purchase Order ${po?.po_number} berhasil dibatalkan`,

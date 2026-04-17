@@ -4,6 +4,7 @@ import { useAuth } from './AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useDataStore } from '@/store/useDataStore';
+import { broadcastTableChange } from '@/lib/broadcastSync';
 
 interface DataContextType {
   products: Product[];
@@ -444,56 +445,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     refreshData();
   }, [isAuthenticated]); // Only depend on isAuthenticated, not user object
 
-  // Supabase Realtime subscriptions for live data updates - SEPARATE channels per table for reliability
-  const realtimeChannelsRef = useRef<ReturnType<typeof supabase.channel>[]>([]);
-
+  // ============================================================
+    // REALTIME SUBSCRIPTIONS REMOVED FROM DataContext
     // ============================================================
-    // SMART REALTIME PATCHING - HANYA UNTUK PRODUCTS
-    // ============================================================
-    useEffect(() => {
-      if (!isAuthenticated) return;
-  
-      const mapProduct = (p: any) => ({
-        id: p.id,
-        name: p.name,
-        barcode: p.barcode,
-        price: p.price,
-        image_url: p.image_url,
-        stock: { gudang: p.stock_gudang, toko: p.stock_toko },
-        has_multi_unit: p.has_multi_unit ?? false,
-        main_unit: p.main_unit ?? null,
-        pcs_per_box: p.pcs_per_box ?? null,
-        box_price: p.box_price ?? null,
-        sell_by_quantity: p.sell_by_quantity ?? false,
-        sell_unit: p.sell_unit ?? 'pcs',
-        created_at: p.created_at,
-        updated_at: p.updated_at
-      });
-  
-      const channel = supabase
-        .channel('data_products_smart')
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'products' },
-          (payload: any) => {
-            console.log(`[SmartRealtime] products patched:`, payload.eventType);
-            
-            // PATCHING: Mengkoreksi memory langsung tanpa fetch! Sangat hemat Egress.
-            if (payload.eventType === 'UPDATE' && payload.new) {
-                setProducts((prev: any[]) => prev.map(p => p.id === payload.new.id ? mapProduct(payload.new) : p));
-            } else if (payload.eventType === 'INSERT' && payload.new) {
-                setProducts((prev: any[]) => [mapProduct(payload.new), ...prev]);
-            } else if (payload.eventType === 'DELETE' && payload.old) {
-                setProducts((prev: any[]) => prev.filter(p => p.id !== payload.old.id));
-            }
-          }
-        )
-        .subscribe();
-  
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }, [isAuthenticated]);
+    // Products realtime → handled by useGlobalRealtimeUpdates.ts (postgres_changes)
+    // All other tables → handled by useBroadcastSync.ts (broadcast)
+    // Notifications → handled by useRealtimeNotifications.tsx (per-user filter)
+    //
+    // DataContext now ONLY does: initial fetch + mutations + broadcast after mutations.
+    // This eliminates duplicate subscriptions and saves massive egress.
 
   const addNotification = async (notification: { title: string; message: string; type: string; link?: string }) => {
     if (!user) return;
@@ -824,7 +784,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       link: '/finance/sales-history',
     });
 
-    await Promise.all([fetchSales(), fetchStockLogs(), fetchProducts()]);
+    // ✅ Broadcast changes instead of re-fetching (saves egress)
+    broadcastTableChange('sales', 'INSERT', ['sales', 'sales-history'], saleRow);
+    broadcastTableChange('stock_logs', 'INSERT', ['stock-logs']);
+    // Products will auto-update via postgres_changes (stock changes via DB)
     return { saleId: saleRow.id, saleNumber };
   };
 
@@ -868,7 +831,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       description: `Tambah produk: ${product.name}`,
     });
 
-    await fetchProducts();
+    // ✅ Broadcast instead of re-fetch — postgres_changes will also patch
+    if (inserted) {
+      broadcastTableChange('products', 'INSERT', ['products'], inserted);
+    }
 
     return true;
   };
@@ -926,15 +892,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       description: `Update produk: ${prev?.name || 'Produk'}${updates.name ? ` → ${updates.name}` : ''}`,
     });
 
-    await fetchProducts();
-
-    // Broadcast to other devices/tabs
-    try {
-      const { broadcastProductUpdate } = await import('@/hooks/useProducts');
-      await broadcastProductUpdate();
-    } catch (e) {
-      console.log('[DataContext] Broadcast not available');
-    }
+    // ✅ Products will auto-update via postgres_changes smart-patch
+    // Broadcast to other tabs/devices
+    broadcastTableChange('products', 'UPDATE', ['products']);
 
     return true;
   };
@@ -996,7 +956,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       link: '/products'
     });
 
-    await fetchProducts();
+    // ✅ Products will auto-update via postgres_changes smart-patch
+    broadcastTableChange('products', 'DELETE', ['products'], undefined, id);
     return true;
   };
 
@@ -1053,7 +1014,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       link: '/stock-in'
     });
 
-    await Promise.all([fetchProducts(), fetchStockLogs()]);
+    // ✅ Broadcast instead of re-fetch
+    broadcastTableChange('stock_logs', 'INSERT', ['stock-logs']);
+    // Products will auto-update via postgres_changes
   };
 
   const createStockOutRequest = async (data: { productId: string; quantity: number; fromLocation: Location; toLocation: Location; toLocationName?: string | null }) => {
@@ -1082,7 +1045,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       link: '/requests'
     });
 
-    await fetchRequests();
+    // ✅ Broadcast instead of re-fetch
+    broadcastTableChange('stock_out_requests', 'INSERT', ['stock-requests']);
   };
 
   const updateRequestStatus = async (id: string, status: RequestStatus, reason?: string) => {
@@ -1102,7 +1066,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    await fetchRequests();
+    // ✅ Broadcast instead of re-fetch
+    broadcastTableChange('stock_out_requests', 'UPDATE', ['stock-requests']);
   };
 
   const createSuratJalan = async (requestIds: string[]) => {
@@ -1152,7 +1117,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       link: '/surat-jalan'
     });
 
-    await Promise.all([fetchSuratJalans(), fetchRequests()]);
+    // ✅ Broadcast instead of re-fetch
+    broadcastTableChange('surat_jalan', 'INSERT', ['surat-jalan', 'surat-jalan-b2b']);
+    broadcastTableChange('stock_out_requests', 'UPDATE', ['stock-requests']);
   };
 
   const updateSuratJalanStatus = async (id: string, status: RequestStatus, reason?: string) => {
@@ -1256,7 +1223,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       link: '/surat-jalan'
     });
 
-    await Promise.all([fetchSuratJalans(), fetchRequests(), fetchProducts(), fetchStockLogs()]);
+    // ✅ Broadcast instead of re-fetch
+    broadcastTableChange('surat_jalan', 'UPDATE', ['surat-jalan', 'surat-jalan-b2b']);
+    broadcastTableChange('stock_out_requests', 'UPDATE', ['stock-requests']);
+    broadcastTableChange('stock_logs', 'INSERT', ['stock-logs']);
+    // Products will auto-update via postgres_changes
   };
 
   const markNotificationRead = async (id: string) => {

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { ActivityLog, UserRole } from '@/types';
+import { invalidateAndBroadcast } from '@/lib/queryBroadcast';
 
 // Transform database row to ActivityLog type
 function transformActivityLog(row: any): ActivityLog {
@@ -64,7 +65,7 @@ export function useAddActivityLog() {
             if (error) throw error;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['activity-logs'] });
+            invalidateAndBroadcast(queryClient, ['activity-logs']);
         },
     });
 }

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { CashierSession } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { invalidateAndBroadcast } from '@/lib/queryBroadcast';
 
 function transformSession(row: any): CashierSession {
     return {
@@ -71,8 +72,7 @@ export function useCreateCashierSession() {
             return transformSession(data);
         },
         onSuccess: (data) => {
-            queryClient.invalidateQueries({ queryKey: ['cashier-sessions'] });
-            queryClient.invalidateQueries({ queryKey: ['cash-flow'] });
+            invalidateAndBroadcast(queryClient, ['cashier-sessions', 'cash-flow']);
             toast({
                 title: 'Modal awal dicatat',
                 description: `Modal Rp ${data.opening_cash.toLocaleString('id-ID')} untuk ${data.cashier_name}`,

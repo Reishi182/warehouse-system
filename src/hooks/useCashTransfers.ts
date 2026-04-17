@@ -4,6 +4,7 @@ import { CashTransfer } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { cashTransferValidation, validateNote } from '@/lib/validation';
 import { enforceRateLimit } from '@/lib/rateLimiter';
+import { invalidateAndBroadcast } from '@/lib/queryBroadcast';
 
 // Transform database row to CashTransfer type
 function transformCashTransfer(row: any): CashTransfer {
@@ -96,7 +97,7 @@ export function useCreateCashTransfer() {
                 link: '/finance/cash-transfers',
             });
 
-            queryClient.invalidateQueries({ queryKey: ['cash-transfers'] });
+            invalidateAndBroadcast(queryClient, ['cash-transfers']);
             toast({
                 title: 'Setoran berhasil',
                 description: 'Setoran cash berhasil dicatat',

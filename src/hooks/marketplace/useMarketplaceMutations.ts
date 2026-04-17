@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { MarketplaceType } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { sendNotificationToRole } from '@/hooks/useRealtimeNotifications';
+import { invalidateAndBroadcast } from '@/lib/queryBroadcast';
 
 // Generate order number
 async function generateOrderNumber(): Promise<string> {
@@ -88,7 +89,7 @@ export function useCreateMarketplaceOrder() {
             return order;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['marketplace-orders'] });
+            invalidateAndBroadcast(queryClient, ['marketplace-orders']);
             toast({ title: 'Pesanan Dibuat', description: 'Menunggu barang sampai' });
         },
         onError: (error: Error) => {
@@ -197,7 +198,7 @@ export function useReceiveMarketplaceOrder() {
             return order;
         },
         onSuccess: (order) => {
-            queryClient.invalidateQueries({ queryKey: ['marketplace-orders'] });
+            invalidateAndBroadcast(queryClient, ['marketplace-orders']);
             toast({
                 title: order.has_discrepancy ? 'Diterima dengan Masalah' : 'Penerimaan Berhasil',
                 description: order.has_discrepancy ? 'Stok yang OK sudah masuk. Silakan buat return untuk item rusak.' : 'Stok sudah ditambahkan'

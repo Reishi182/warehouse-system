@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { invalidateAndBroadcast } from '@/lib/queryBroadcast';
 
 export interface StoreSettings {
     id: string;
@@ -91,7 +92,7 @@ export function useUpdateStoreSettings() {
             return stored;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['store_settings'] });
+            invalidateAndBroadcast(queryClient, ['store_settings']);
             toast({
                 title: 'Berhasil',
                 description: 'Pengaturan toko berhasil disimpan',

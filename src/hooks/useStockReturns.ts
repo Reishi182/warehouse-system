@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { StockReturn } from '@/types';
 import { sendNotificationToRole, sendNotificationToUser } from '@/hooks/useRealtimeNotifications';
+import { broadcastTableChange } from '@/lib/broadcastSync';
+import { invalidateAndBroadcast } from '@/lib/queryBroadcast';
 
 export function useStockReturns() {
     const { toast } = useToast();
@@ -77,7 +79,8 @@ export function useStockReturns() {
             return returnData;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['stock-returns'] });
+            invalidateAndBroadcast(queryClient, ['stock-returns']);
+            broadcastTableChange('stock_returns', 'INSERT', ['stock-returns']);
             toast({ title: 'Berhasil', description: 'Pengajuan retur diteruskan langsung ke Gudang' });
 
             // Notify warehouse about new stock return
@@ -167,8 +170,8 @@ export function useStockReturns() {
             return docNum;
         },
         onSuccess: (_data, variables) => {
-            queryClient.invalidateQueries({ queryKey: ['stock-returns'] });
-            queryClient.invalidateQueries({ queryKey: ['products'] });
+            invalidateAndBroadcast(queryClient, ['stock-returns', 'products']);
+            broadcastTableChange('stock_returns', 'UPDATE', ['stock-returns', 'products']);
             toast({ title: 'Retur Selesai', description: 'Stok telah berhasil ditarik dari Toko ke Gudang' });
 
             // Notify cashier
@@ -224,7 +227,8 @@ export function useStockReturns() {
             if (error) throw error;
         },
         onSuccess: (_data, variables) => {
-            queryClient.invalidateQueries({ queryKey: ['stock-returns'] });
+            invalidateAndBroadcast(queryClient, ['stock-returns']);
+            broadcastTableChange('stock_returns', 'UPDATE', ['stock-returns']);
             toast({ title: 'Retur Ditolak', description: 'Status berubah menjadi Ditolak' });
 
             // Notify cashier
@@ -278,7 +282,7 @@ export function useStockReturns() {
             if (!updated) throw new Error('Gagal mengubah status. Pastikan Anda memiliki akses untuk membatalkan retur ini.');
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['stock-returns'] });
+            invalidateAndBroadcast(queryClient, ['stock-returns']);
             toast({ title: 'Retur Dibatalkan', description: 'Pengajuan retur stok telah dibatalkan' });
         },
         onError: (error) => {
@@ -334,7 +338,7 @@ export function useStockReturns() {
             if (newItemsError) throw newItemsError;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['stock-returns'] });
+            invalidateAndBroadcast(queryClient, ['stock-returns']);
             toast({ title: 'Retur Diperbarui', description: 'Pengajuan retur stok berhasil diubah' });
         },
         onError: (error) => {

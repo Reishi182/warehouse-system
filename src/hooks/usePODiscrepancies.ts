@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { POClaim, POClaimStatus, POClaimType, ClaimedItem, POReceiptWithDetails, PurchaseOrder } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { sendNotificationToRole } from '@/hooks/useRealtimeNotifications';
+import { invalidateAndBroadcast } from '@/lib/queryBroadcast';
 
 // =============================================
 // DISCREPANCY QUERIES
@@ -254,10 +255,9 @@ export function useCreatePOClaim() {
             return claim;
         },
         onSuccess: (claim) => {
-            queryClient.invalidateQueries({ queryKey: ['po_claims'] });
-            queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
+            invalidateAndBroadcast(queryClient, ['po_claims', 'purchase_orders']);
             queryClient.invalidateQueries({ queryKey: ['purchase_orders', 'with_discrepancy'] });
-            queryClient.invalidateQueries({ queryKey: ['po_discrepancy_stats'] });
+            invalidateAndBroadcast(queryClient, ['po_discrepancy_stats']);
 
             toast({
                 title: 'Klaim Berhasil Dibuat',
@@ -404,11 +404,11 @@ export function useUpdatePOClaimStatus() {
             return data;
         },
         onSuccess: (claim) => {
-            queryClient.invalidateQueries({ queryKey: ['po_claims'] });
+            invalidateAndBroadcast(queryClient, ['po_claims']);
             queryClient.invalidateQueries({ queryKey: ['po_claim', claim.id] });
-            queryClient.invalidateQueries({ queryKey: ['po_discrepancy_stats'] });
+            invalidateAndBroadcast(queryClient, ['po_discrepancy_stats']);
             queryClient.invalidateQueries({ queryKey: ['purchase_orders', 'with_discrepancy'] });
-            queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
+            invalidateAndBroadcast(queryClient, ['purchase_orders']);
             queryClient.invalidateQueries({ queryKey: ['products'] }); // Refresh product stock
 
             const statusLabels: Record<string, string> = {

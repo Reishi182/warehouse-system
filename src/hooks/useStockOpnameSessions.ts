@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { StockOpnameSession, StockOpnameSessionStatus, Location } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { invalidateAndBroadcast } from '@/lib/queryBroadcast';
 
 /**
  * Hook to fetch stock opname sessions with filters
@@ -191,7 +192,7 @@ export function useSubmitStockOpnameSession() {
     },
 
     onSuccess: ({ session, itemCount }) => {
-      queryClient.invalidateQueries({ queryKey: ['stock-opname-sessions'] });
+      invalidateAndBroadcast(queryClient, ['stock-opname-sessions']);
       toast({
         title: 'Opname Berhasil Diajukan',
         description: `Sesi ${session.session_number} (${itemCount} item selisih) dikirim ke main office untuk persetujuan`,
@@ -310,9 +311,7 @@ export function useApproveStockOpnameSession() {
     },
 
     onSuccess: ({ session, itemsApproved }) => {
-      queryClient.invalidateQueries({ queryKey: ['stock-opname-sessions'] });
-      queryClient.invalidateQueries({ queryKey: ['products'] });
-      queryClient.invalidateQueries({ queryKey: ['stock-logs'] });
+      invalidateAndBroadcast(queryClient, ['stock-opname-sessions', 'products', 'stock-logs']);
       toast({
         title: 'Opname Disetujui',
         description: `Sesi ${session.session_number}: ${itemsApproved} item stok berhasil disesuaikan`,
@@ -388,7 +387,7 @@ export function useRejectStockOpnameSession() {
     },
 
     onSuccess: (session) => {
-      queryClient.invalidateQueries({ queryKey: ['stock-opname-sessions'] });
+      invalidateAndBroadcast(queryClient, ['stock-opname-sessions']);
       toast({
         title: 'Opname Ditolak',
         description: `Sesi ${session?.session_number} ditolak — stok tidak diubah`,
@@ -433,14 +432,14 @@ export function useStockOpnameRealtime() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'stock_opname_sessions' },
         () => {
-          queryClient.invalidateQueries({ queryKey: ['stock-opname-sessions'] });
+          invalidateAndBroadcast(queryClient, ['stock-opname-sessions']);
         }
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'stock_opname_items' },
         () => {
-          queryClient.invalidateQueries({ queryKey: ['stock-opname-sessions'] });
+          invalidateAndBroadcast(queryClient, ['stock-opname-sessions']);
         }
       )
       .subscribe((status) => {

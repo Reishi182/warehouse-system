@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { invalidateAndBroadcast } from '@/lib/queryBroadcast';
 
 export interface ProductUnit {
     id: string;
@@ -137,8 +138,7 @@ export function useAddProductUnit() {
             return data;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['product-units'] });
-            queryClient.invalidateQueries({ queryKey: ['product-units-all'] });
+            invalidateAndBroadcast(queryClient, ['product-units', 'product-units-all']);
             toast({ title: 'Satuan berhasil ditambahkan' });
         },
         onError: (error: Error) => {
@@ -176,8 +176,7 @@ export function useUpdateProductUnit() {
             if (error) throw error;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['product-units'] });
-            queryClient.invalidateQueries({ queryKey: ['product-units-all'] });
+            invalidateAndBroadcast(queryClient, ['product-units', 'product-units-all']);
         },
         onError: (error: Error) => {
             toast({
@@ -206,8 +205,7 @@ export function useDeleteProductUnit() {
             if (error) throw error;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['product-units'] });
-            queryClient.invalidateQueries({ queryKey: ['product-units-all'] });
+            invalidateAndBroadcast(queryClient, ['product-units', 'product-units-all']);
             toast({ title: 'Satuan berhasil dihapus' });
         },
         onError: (error: Error) => {

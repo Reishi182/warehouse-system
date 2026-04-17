@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { MarketplaceReturn, MarketplaceOrder } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { sendNotificationToRole } from '@/hooks/useRealtimeNotifications';
+import { invalidateAndBroadcast } from '@/lib/queryBroadcast';
 
 // Fetch returns
 export function useMarketplaceReturns(status?: string) {
@@ -68,8 +69,7 @@ export function useCreateMarketplaceReturn() {
             return data;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['marketplace-orders'] });
-            queryClient.invalidateQueries({ queryKey: ['marketplace-returns'] });
+            invalidateAndBroadcast(queryClient, ['marketplace-orders', 'marketplace-returns']);
             toast({ title: 'Return Dibuat', description: 'Menunggu pickup ekspedisi' });
         },
         onError: (error: Error) => {
@@ -124,8 +124,7 @@ export function useUpdateMarketplaceReturn() {
             return data;
         },
         onSuccess: (data) => {
-            queryClient.invalidateQueries({ queryKey: ['marketplace-orders'] });
-            queryClient.invalidateQueries({ queryKey: ['marketplace-returns'] });
+            invalidateAndBroadcast(queryClient, ['marketplace-orders', 'marketplace-returns']);
             toast({
                 title: data.status === 'completed' ? 'Return Selesai' : 'Bukti Pickup Disimpan',
                 description: data.status === 'completed' ? 'Proses return telah selesai' : 'Menunggu refund/penggantian'

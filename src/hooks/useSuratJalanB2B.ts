@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { sendNotificationToRole, sendNotificationToUser } from '@/hooks/useRealtimeNotifications';
+import { broadcastTableChange } from '@/lib/broadcastSync';
+import { invalidateAndBroadcast } from '@/lib/queryBroadcast';
 
 // Status flow: pending_review -> approved/rejected -> processing -> completed
 export type SuratJalanB2BStatus = 'pending_review' | 'approved' | 'rejected' | 'processing' | 'completed' | 'cancelled';
@@ -213,8 +215,8 @@ export function useSuratJalanB2B() {
             return sj;
         },
         onSuccess: async () => {
-            queryClient.invalidateQueries({ queryKey: ['surat-jalan-b2b'] });
-            queryClient.invalidateQueries({ queryKey: ['products'] });
+            invalidateAndBroadcast(queryClient, ['surat-jalan-b2b', 'products']);
+            broadcastTableChange('surat_jalan', 'INSERT', ['surat-jalan-b2b', 'products']);
             toast({ title: 'Surat Jalan Selesai', description: 'Dokumen dibuat dan stok otomatis terpotong' });
         }
     });
@@ -270,7 +272,8 @@ export function useSuratJalanB2B() {
             }
         },
         onSuccess: async (_, variables) => {
-            queryClient.invalidateQueries({ queryKey: ['surat-jalan-b2b'] });
+            invalidateAndBroadcast(queryClient, ['surat-jalan-b2b']);
+            broadcastTableChange('surat_jalan', 'UPDATE', ['surat-jalan-b2b']);
             toast({
                 title: variables.approved ? 'Surat Jalan Disetujui' : 'Surat Jalan Ditolak',
                 description: variables.approved ? 'Kasir dapat memproses pesanan' : 'Surat jalan telah ditolak'
@@ -333,7 +336,8 @@ export function useSuratJalanB2B() {
             if (error) throw error;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['surat-jalan-b2b'] });
+            invalidateAndBroadcast(queryClient, ['surat-jalan-b2b']);
+            broadcastTableChange('surat_jalan', 'UPDATE', ['surat-jalan-b2b']);
             toast({ title: 'Pesanan Diproses', description: 'Menunggu gudang menyelesaikan pengiriman' });
         }
     });
@@ -445,8 +449,8 @@ export function useSuratJalanB2B() {
             }
         },
         onSuccess: async () => {
-            queryClient.invalidateQueries({ queryKey: ['surat-jalan-b2b'] });
-            queryClient.invalidateQueries({ queryKey: ['products'] });
+            invalidateAndBroadcast(queryClient, ['surat-jalan-b2b', 'products']);
+            broadcastTableChange('surat_jalan', 'UPDATE', ['surat-jalan-b2b', 'products']);
             toast({ title: 'Pesanan Selesai', description: 'Pengiriman berhasil diselesaikan dengan bukti' });
 
             // Notify about completed order
@@ -486,7 +490,8 @@ export function useSuratJalanB2B() {
             await supabase.from('surat_jalan').update({ status: 'cancelled' }).eq('id', suratJalanId);
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['surat-jalan-b2b'] });
+            invalidateAndBroadcast(queryClient, ['surat-jalan-b2b']);
+            broadcastTableChange('surat_jalan', 'UPDATE', ['surat-jalan-b2b']);
             toast({ title: 'Surat Jalan Dibatalkan', description: 'Status diperbarui' });
         }
     });

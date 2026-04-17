@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Notification } from '@/types';
+import { invalidateAndBroadcast } from '@/lib/queryBroadcast';
 
 // Transform database row to Notification type
 function transformNotification(row: any): Notification {
@@ -49,6 +50,8 @@ export function useNotifications(userId?: string) {
         queryKey: ['notifications', userId],
         queryFn: () => fetchNotifications(userId!),
         enabled: !!userId,
+        staleTime: 30 * 1000, // 30 seconds
+        refetchOnWindowFocus: false, // Handled by realtime channel
     });
 }
 
@@ -71,7 +74,7 @@ export function useMarkNotificationRead() {
             if (error) throw error;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['notifications'] });
+            invalidateAndBroadcast(queryClient, ['notifications']);
         },
     });
 }
@@ -91,7 +94,7 @@ export function useMarkAllNotificationsRead() {
             if (error) throw error;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['notifications'] });
+            invalidateAndBroadcast(queryClient, ['notifications']);
         },
     });
 }
@@ -119,7 +122,7 @@ export function useAddNotification() {
             if (error) throw error;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['notifications'] });
+            invalidateAndBroadcast(queryClient, ['notifications']);
         },
     });
 }

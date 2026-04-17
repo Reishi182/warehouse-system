@@ -4,6 +4,7 @@ import { Sale, SaleItem, PaymentMethod, Location } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { saleValidation, validateUUID } from '@/lib/validation';
 import { enforceRateLimit } from '@/lib/rateLimiter';
+import { invalidateAndBroadcast } from '@/lib/queryBroadcast';
 
 // Transform database rows to Sale type
 function transformSale(row: any, items: SaleItem[]): Sale {
@@ -195,10 +196,7 @@ export function useCreateSale() {
             return sale;
         },
         onSuccess: (sale: any) => {
-            queryClient.invalidateQueries({ queryKey: ['sales'] });
-            queryClient.invalidateQueries({ queryKey: ['products'] });
-            queryClient.invalidateQueries({ queryKey: ['stock-logs'] });
-            queryClient.invalidateQueries({ queryKey: ['credit-sales'] });
+            invalidateAndBroadcast(queryClient, ['sales', 'products', 'stock-logs', 'credit-sales']);
             toast({
                 title: sale.is_credit ? 'Piutang berhasil dicatat' : 'Penjualan berhasil',
                 description: sale.is_credit

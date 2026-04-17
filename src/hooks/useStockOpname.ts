@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { StockOpname, StockOpnameStatus, Location } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { sendNotificationToRole } from '@/hooks/useRealtimeNotifications';
+import { invalidateAndBroadcast } from '@/lib/queryBroadcast';
 
 // Transform database row to StockOpname type
 function transformOpname(row: any): StockOpname {
@@ -120,7 +121,7 @@ export function useCreateStockOpname() {
                 link: '/inventory/stock-opname',
             });
 
-            queryClient.invalidateQueries({ queryKey: ['stock-opname'] });
+            invalidateAndBroadcast(queryClient, ['stock-opname']);
             toast({
                 title: 'Stok opname dicatat',
                 description: 'Menunggu persetujuan auditor untuk penyesuaian stok',
@@ -220,9 +221,7 @@ export function useApproveStockOpname() {
                 link: '/inventory/stock-opname',
             });
 
-            queryClient.invalidateQueries({ queryKey: ['stock-opname'] });
-            queryClient.invalidateQueries({ queryKey: ['products'] });
-            queryClient.invalidateQueries({ queryKey: ['stock-logs'] });
+            invalidateAndBroadcast(queryClient, ['stock-opname', 'products', 'stock-logs']);
             toast({
                 title: 'Stok opname disetujui',
                 description: 'Stok produk berhasil disesuaikan',
@@ -277,7 +276,7 @@ export function useRejectStockOpname() {
                 link: '/inventory/stock-opname',
             });
 
-            queryClient.invalidateQueries({ queryKey: ['stock-opname'] });
+            invalidateAndBroadcast(queryClient, ['stock-opname']);
             toast({
                 title: 'Stok opname ditolak',
                 description: 'Penyesuaian stok dibatalkan',

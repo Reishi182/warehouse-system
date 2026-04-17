@@ -4,6 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { NewStockRequest } from '@/types';
 import { sendNotificationToRole, sendNotificationToUser } from '@/hooks/useRealtimeNotifications';
+import { broadcastTableChange } from '@/lib/broadcastSync';
+import { invalidateAndBroadcast } from '@/lib/queryBroadcast';
 
 export function useStockRequests() {
     const { toast } = useToast();
@@ -106,7 +108,8 @@ export function useStockRequests() {
             return request;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['stock-requests'] });
+            invalidateAndBroadcast(queryClient, ['stock-requests']);
+            broadcastTableChange('stock_requests', 'INSERT', ['stock-requests']);
             toast({ title: 'Permintaan Terkirim', description: 'Permintaan stok diteruskan langsung ke Gudang' });
 
             // Notify warehouse about new stock request
@@ -149,7 +152,8 @@ export function useStockRequests() {
             return docNum;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['stock-requests'] });
+            invalidateAndBroadcast(queryClient, ['stock-requests']);
+            broadcastTableChange('stock_requests', 'UPDATE', ['stock-requests']);
             toast({ title: 'Permintaan Disetujui', description: 'Permintaan diteruskan ke Gudang' });
 
             // Notify warehouse about approved request
@@ -200,7 +204,8 @@ export function useStockRequests() {
             }
         },
         onSuccess: (_data, variables) => {
-            queryClient.invalidateQueries({ queryKey: ['stock-requests'] });
+            invalidateAndBroadcast(queryClient, ['stock-requests']);
+            broadcastTableChange('stock_requests', 'UPDATE', ['stock-requests']);
             toast({ title: 'Permintaan Ditolak', description: 'Status berubah menjadi Ditolak' });
 
             // Get the request to notify the cashier
@@ -279,7 +284,8 @@ export function useStockRequests() {
             }
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['stock-requests'] });
+            invalidateAndBroadcast(queryClient, ['stock-requests']);
+            broadcastTableChange('stock_requests', 'UPDATE', ['stock-requests']);
             toast({ title: 'Permintaan Diajukan Ulang', description: 'Status kembali ke Gudang' });
         },
     });
@@ -333,8 +339,8 @@ export function useStockRequests() {
             }
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['stock-requests'] });
-            queryClient.invalidateQueries({ queryKey: ['products'] });
+            invalidateAndBroadcast(queryClient, ['stock-requests', 'products']);
+            broadcastTableChange('stock_requests', 'UPDATE', ['stock-requests', 'products']);
             toast({ title: 'Permintaan Dibatalkan', description: 'Permintaan stok telah dibatalkan' });
         },
         onError: (error) => {
@@ -433,8 +439,8 @@ export function useStockRequests() {
             }
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['stock-requests'] });
-            queryClient.invalidateQueries({ queryKey: ['products'] });
+            invalidateAndBroadcast(queryClient, ['stock-requests', 'products']);
+            broadcastTableChange('stock_requests', 'UPDATE', ['stock-requests', 'products']);
             toast({ title: 'Permintaan Diperbarui', description: 'Permintaan stok telah berhasil diubah' });
         },
         onError: (error) => {

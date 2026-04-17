@@ -9,6 +9,7 @@ import {
     PaymentMethod,
 } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { invalidateAndBroadcast } from '@/lib/queryBroadcast';
 
 // ========================================
 // Fetch Functions
@@ -151,7 +152,7 @@ export function useCreateTab() {
                 link: '/pos/tabs',
             });
 
-            queryClient.invalidateQueries({ queryKey: ['customer-tabs'] });
+            invalidateAndBroadcast(queryClient, ['customer-tabs']);
             toast({
                 title: 'Tab berhasil dibuat',
                 description: 'Tab baru untuk pelanggan telah dibuat',
@@ -287,10 +288,9 @@ export function useAddTabTransaction() {
             return { transaction, subtotal, newTotal };
         },
         onSuccess: (_, variables) => {
-            queryClient.invalidateQueries({ queryKey: ['customer-tabs'] });
+            invalidateAndBroadcast(queryClient, ['customer-tabs']);
             queryClient.invalidateQueries({ queryKey: ['customer-tab', variables.tabId] });
-            queryClient.invalidateQueries({ queryKey: ['products'] });
-            queryClient.invalidateQueries({ queryKey: ['stock-logs'] });
+            invalidateAndBroadcast(queryClient, ['products', 'stock-logs']);
             toast({
                 title: 'Transaksi berhasil ditambahkan',
                 description: 'Item telah ditambahkan ke tab pelanggan',
@@ -428,10 +428,10 @@ export function useSettleTab() {
                 link: '/pos/tabs',
             });
 
-            queryClient.invalidateQueries({ queryKey: ['customer-tabs'] });
+            invalidateAndBroadcast(queryClient, ['customer-tabs']);
             queryClient.invalidateQueries({ queryKey: ['customer-tab', variables.tabId] });
             queryClient.invalidateQueries({ queryKey: ['sales'] }); // Refresh sales list
-            queryClient.invalidateQueries({ queryKey: ['sale-items'] });
+            invalidateAndBroadcast(queryClient, ['sale-items']);
             toast({
                 title: 'Tab berhasil ditutup',
                 description: 'Pembayaran telah dicatat dan ditambahkan ke daftar penjualan',
@@ -524,10 +524,9 @@ export function useCancelTab() {
                 link: '/pos/tabs',
             });
 
-            queryClient.invalidateQueries({ queryKey: ['customer-tabs'] });
+            invalidateAndBroadcast(queryClient, ['customer-tabs']);
             queryClient.invalidateQueries({ queryKey: ['customer-tab', variables.tabId] });
-            queryClient.invalidateQueries({ queryKey: ['products'] });
-            queryClient.invalidateQueries({ queryKey: ['stock-logs'] });
+            invalidateAndBroadcast(queryClient, ['products', 'stock-logs']);
             toast({
                 title: 'Tab dibatalkan',
                 description: 'Stok telah dikembalikan',
@@ -634,8 +633,7 @@ export function useDeleteTabTransaction() {
             // Force refetch to ensure UI updates immediately
             await queryClient.refetchQueries({ queryKey: ['customer-tab', variables.tabId] });
             await queryClient.refetchQueries({ queryKey: ['customer-tabs'] });
-            queryClient.invalidateQueries({ queryKey: ['products'] });
-            queryClient.invalidateQueries({ queryKey: ['stock-logs'] });
+            invalidateAndBroadcast(queryClient, ['products', 'stock-logs']);
             toast({
                 title: 'Transaksi dihapus',
                 description: 'Stok telah dikembalikan',

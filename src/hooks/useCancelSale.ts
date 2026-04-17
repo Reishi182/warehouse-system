@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast'; // Bug fix #22: Use consistent toast
 import { Location } from '@/types';
+import { invalidateAndBroadcast } from '@/lib/queryBroadcast';
 
 interface CancelSaleInput {
     saleId: string;
@@ -96,10 +97,7 @@ export function useCancelSale() {
             return { saleNumber: input.saleNumber, failedItems };
         },
         onSuccess: (data) => {
-            queryClient.invalidateQueries({ queryKey: ['sales'] });
-            queryClient.invalidateQueries({ queryKey: ['products'] });
-            queryClient.invalidateQueries({ queryKey: ['stock-logs'] });
-            queryClient.invalidateQueries({ queryKey: ['notifications'] });
+            invalidateAndBroadcast(queryClient, ['sales', 'products', 'stock-logs', 'notifications']);
 
             if (data.failedItems.length > 0) {
                 toast({

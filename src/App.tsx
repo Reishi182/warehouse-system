@@ -71,6 +71,7 @@ const NotFound = React.lazy(() => import("./pages/NotFound"));
 const Guide = React.lazy(() => import("./pages/Guide"));
 import { UserRole } from '@/types';
 import { useGlobalRealtimeUpdates } from '@/hooks/useGlobalRealtimeUpdates';
+import { useBroadcastSync } from '@/hooks/useBroadcastSync';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -149,6 +150,9 @@ function AppRoutes() {
   
   // Call global real-time subscriptions with user.id for filtered notifications
   useGlobalRealtimeUpdates(user?.id);
+  
+  // ✅ Broadcast sync — handles ALL tables via egress-free WebSocket broadcast
+  useBroadcastSync();
 
   // Role shortcuts for cleaner route definitions
   const ALL_ROLES: UserRole[] = ['warehouse', 'cashier', 'auditor', 'admin', 'main_office'];

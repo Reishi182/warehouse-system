@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { SuratJalan, RequestStatus, Location } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { sendNotificationToRole, sendNotificationToUser } from '@/hooks/useRealtimeNotifications';
+import { invalidateAndBroadcast } from '@/lib/queryBroadcast';
 
 // Transform database rows to SuratJalan type
 function transformSuratJalan(row: any, items: any[]): SuratJalan {
@@ -120,8 +121,7 @@ export function useCreateSuratJalan() {
             return sj;
         },
         onSuccess: (sj) => {
-            queryClient.invalidateQueries({ queryKey: ['surat-jalans'] });
-            queryClient.invalidateQueries({ queryKey: ['requests'] });
+            invalidateAndBroadcast(queryClient, ['surat-jalans', 'requests']);
             toast({
                 title: 'Surat Jalan dibuat',
                 description: 'Surat jalan berhasil dibuat',
@@ -229,10 +229,7 @@ export function useUpdateSuratJalanStatus() {
             }
         },
         onSuccess: (_, variables) => {
-            queryClient.invalidateQueries({ queryKey: ['surat-jalans'] });
-            queryClient.invalidateQueries({ queryKey: ['requests'] });
-            queryClient.invalidateQueries({ queryKey: ['products'] });
-            queryClient.invalidateQueries({ queryKey: ['stock-logs'] });
+            invalidateAndBroadcast(queryClient, ['surat-jalans', 'requests', 'products', 'stock-logs']);
 
             const statusText = variables.status === 'approved' ? 'disetujui' :
                 variables.status === 'rejected' ? 'ditolak' :

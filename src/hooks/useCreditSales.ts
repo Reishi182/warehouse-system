@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Sale, PaymentMethod } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { invalidateAndBroadcast } from '@/lib/queryBroadcast';
 
 // Fetch credit sales (unsettled)
 async function fetchCreditSales(): Promise<Sale[]> {
@@ -91,8 +92,7 @@ export function useSettleCreditSale() {
             return data;
         },
         onSuccess: (data: any) => {
-            queryClient.invalidateQueries({ queryKey: ['credit-sales'] });
-            queryClient.invalidateQueries({ queryKey: ['sales'] });
+            invalidateAndBroadcast(queryClient, ['credit-sales', 'sales']);
             toast({
                 title: 'Piutang dilunasi',
                 description: `Piutang ${data.sale_number} atas nama ${data.credit_customer_name} berhasil dilunasi`,

@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { DirectOrder, DirectOrderStatus } from '@/types';
 import { sendNotificationToRole } from '@/hooks/useRealtimeNotifications';
+import { invalidateAndBroadcast } from '@/lib/queryBroadcast';
 
 interface CreateDirectOrderInput {
     supplier_id: string;
@@ -188,7 +189,7 @@ export function useCreateDirectOrder() {
             return newOrder;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['direct_orders'] });
+            invalidateAndBroadcast(queryClient, ['direct_orders']);
             toast({
                 title: 'Berhasil',
                 description: 'Direct order berhasil dibuat',
@@ -265,7 +266,7 @@ export function useUpdateDirectOrderStatus() {
             return { orderId, status };
         },
         onSuccess: (_, variables) => {
-            queryClient.invalidateQueries({ queryKey: ['direct_orders'] });
+            invalidateAndBroadcast(queryClient, ['direct_orders']);
             queryClient.invalidateQueries({ queryKey: ['direct_order', variables.orderId] });
 
             const statusText: Record<DirectOrderStatus, string> = {

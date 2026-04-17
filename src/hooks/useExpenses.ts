@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Expense, ExpenseCategory } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { invalidateAndBroadcast } from '@/lib/queryBroadcast';
 
 function transformExpense(row: any): Expense {
     return {
@@ -80,8 +81,7 @@ export function useCreateExpense() {
             return transformExpense(data);
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['expenses'] });
-            queryClient.invalidateQueries({ queryKey: ['cash-flow'] });
+            invalidateAndBroadcast(queryClient, ['expenses', 'cash-flow']);
             toast({
                 title: 'Pengeluaran dicatat',
                 description: 'Pengeluaran berhasil ditambahkan',
@@ -107,8 +107,7 @@ export function useDeleteExpense() {
             if (error) throw error;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['expenses'] });
-            queryClient.invalidateQueries({ queryKey: ['cash-flow'] });
+            invalidateAndBroadcast(queryClient, ['expenses', 'cash-flow']);
             toast({
                 title: 'Pengeluaran dihapus',
                 description: 'Data pengeluaran berhasil dihapus',

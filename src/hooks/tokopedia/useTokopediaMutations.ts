@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { TokopediaCourier, Location } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { sendNotificationToRole } from '@/hooks/useRealtimeNotifications';
+import { invalidateAndBroadcast } from '@/lib/queryBroadcast';
 
 // Generate order number
 async function generateOrderNumber(): Promise<string> {
@@ -112,8 +113,7 @@ export function useCreateTokopediaOrder() {
             return order;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['tokopedia-orders'] });
-            queryClient.invalidateQueries({ queryKey: ['tokopedia-stats'] });
+            invalidateAndBroadcast(queryClient, ['tokopedia-orders', 'tokopedia-stats']);
             toast({ title: 'Order Dibuat', description: 'Menunggu gudang mengemas' });
         },
         onError: (error: Error) => {
@@ -148,8 +148,7 @@ export function useStartPacking() {
             return data;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['tokopedia-orders'] });
-            queryClient.invalidateQueries({ queryKey: ['tokopedia-stats'] });
+            invalidateAndBroadcast(queryClient, ['tokopedia-orders', 'tokopedia-stats']);
             toast({ title: 'Mulai Kemas', description: 'Status diubah ke "Sedang Dikemas"' });
         },
         onError: (error: Error) => {
@@ -209,8 +208,7 @@ export function useShipOrder() {
             return data;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['tokopedia-orders'] });
-            queryClient.invalidateQueries({ queryKey: ['tokopedia-stats'] });
+            invalidateAndBroadcast(queryClient, ['tokopedia-orders', 'tokopedia-stats']);
             toast({ title: 'Dikirim!', description: 'Nomor resi tersimpan' });
         },
         onError: (error: Error) => {
@@ -303,9 +301,7 @@ export function useMarkDelivered() {
             return updatedOrder;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['tokopedia-orders'] });
-            queryClient.invalidateQueries({ queryKey: ['tokopedia-stats'] });
-            queryClient.invalidateQueries({ queryKey: ['products'] });
+            invalidateAndBroadcast(queryClient, ['tokopedia-orders', 'tokopedia-stats', 'products']);
             toast({ title: 'Order Selesai!', description: 'Stok sudah dikurangi otomatis' });
         },
         onError: (error: Error) => {
@@ -339,8 +335,7 @@ export function useCancelTokopediaOrder() {
             return data;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['tokopedia-orders'] });
-            queryClient.invalidateQueries({ queryKey: ['tokopedia-stats'] });
+            invalidateAndBroadcast(queryClient, ['tokopedia-orders', 'tokopedia-stats']);
             toast({ title: 'Dibatalkan', description: 'Order telah dibatalkan' });
         },
         onError: (error: Error) => {

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Backorder, BackorderStatus, Location } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { invalidateAndBroadcast } from '@/lib/queryBroadcast';
 
 // Fetch all backorders
 export function useBackorders(statusFilter?: BackorderStatus | BackorderStatus[]) {
@@ -107,7 +108,7 @@ export function useCreateBackorder() {
             return data;
         },
         onSuccess: (data) => {
-            queryClient.invalidateQueries({ queryKey: ['backorders'] });
+            invalidateAndBroadcast(queryClient, ['backorders']);
             toast({
                 title: 'Backorder Dibuat',
                 description: `Backorder ${data.backorder_number} untuk ${data.quantity_ordered} ${data.product_name} berhasil dicatat.`,
@@ -169,8 +170,7 @@ export function useFulfillBackorder() {
             return data;
         },
         onSuccess: (data) => {
-            queryClient.invalidateQueries({ queryKey: ['backorders'] });
-            queryClient.invalidateQueries({ queryKey: ['products'] });
+            invalidateAndBroadcast(queryClient, ['backorders', 'products']);
             toast({
                 title: data.status === 'fulfilled' ? 'Backorder Selesai' : 'Partial Fulfill',
                 description: `${data.quantity_fulfilled}/${data.quantity_ordered} ${data.product_name} telah dipenuhi.`,
@@ -217,7 +217,7 @@ export function useCancelBackorder() {
             return data;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['backorders'] });
+            invalidateAndBroadcast(queryClient, ['backorders']);
             toast({
                 title: 'Backorder Dibatalkan',
                 description: 'Backorder berhasil dibatalkan.',

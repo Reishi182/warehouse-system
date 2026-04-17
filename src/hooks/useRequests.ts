@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { StockOutRequest, Location, RequestStatus, Product } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { invalidateAndBroadcast } from '@/lib/queryBroadcast';
 
 // Transform database row to StockOutRequest type
 function transformRequest(row: any, products: Product[]): StockOutRequest {
@@ -71,7 +72,7 @@ export function useCreateRequest() {
             if (error) throw error;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['requests'] });
+            invalidateAndBroadcast(queryClient, ['requests']);
             toast({
                 title: 'Permintaan dibuat',
                 description: 'Permintaan stok berhasil dibuat',
@@ -121,7 +122,7 @@ export function useUpdateRequestStatus() {
             if (error) throw error;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['requests'] });
+            invalidateAndBroadcast(queryClient, ['requests']);
         },
         onError: (error: Error) => {
             toast({

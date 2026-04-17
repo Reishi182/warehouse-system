@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { Notification, UserRole } from '@/types';
+import { invalidateAndBroadcast } from '@/lib/queryBroadcast';
 import {
     connectionManager,
     notificationQueue,
@@ -74,7 +75,7 @@ export function useRealtimeNotifications(userId?: string) {
                     }
 
                     // Invalidate notifications query to update badge count
-                    queryClient.invalidateQueries({ queryKey: ['notifications'] });
+                    invalidateAndBroadcast(queryClient, ['notifications']);
                 }
             )
             .subscribe((status) => {

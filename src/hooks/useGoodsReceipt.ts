@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { sendNotificationToRole } from '@/hooks/useRealtimeNotifications';
+import { invalidateAndBroadcast } from '@/lib/queryBroadcast';
 
 interface ReceivedItem {
     productId: string;
@@ -199,10 +200,7 @@ export function useGoodsReceipt() {
             return { docNum, hasDiscrepancy };
         },
         onSuccess: (result) => {
-            queryClient.invalidateQueries({ queryKey: ['stock-requests'] });
-            queryClient.invalidateQueries({ queryKey: ['stock-shipments'] });
-            queryClient.invalidateQueries({ queryKey: ['goods-receipts'] });
-            queryClient.invalidateQueries({ queryKey: ['products'] });
+            invalidateAndBroadcast(queryClient, ['stock-requests', 'stock-shipments', 'goods-receipts', 'products']);
 
             if (result.hasDiscrepancy) {
                 toast({

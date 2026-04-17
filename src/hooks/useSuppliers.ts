@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Supplier } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { invalidateAndBroadcast } from '@/lib/queryBroadcast';
 
 export function useSuppliers() {
     return useQuery({
@@ -34,7 +35,7 @@ export function useCreateSupplier() {
             return data;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+            invalidateAndBroadcast(queryClient, ['suppliers']);
             toast({
                 title: 'Berhasil',
                 description: 'Supplier berhasil ditambahkan',
@@ -64,7 +65,7 @@ export function useUpdateSupplier() {
             if (error) throw error;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+            invalidateAndBroadcast(queryClient, ['suppliers']);
             toast({
                 title: 'Berhasil',
                 description: 'Supplier berhasil diperbarui',
@@ -94,7 +95,7 @@ export function useDeleteSupplier() {
             if (error) throw error;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+            invalidateAndBroadcast(queryClient, ['suppliers']);
             toast({
                 title: 'Berhasil',
                 description: 'Supplier berhasil dihapus',

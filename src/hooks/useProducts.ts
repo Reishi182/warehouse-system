@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Product, Location } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect } from 'react';
+import { broadcastTableChange } from '@/lib/broadcastSync';
+import { invalidateAndBroadcast } from '@/lib/queryBroadcast';
 
 // Transform database row to Product type
 function transformProduct(row: any): Product {
@@ -60,6 +62,8 @@ export function useProducts() {
     return useQuery({
         queryKey: ['products'],
         queryFn: fetchProducts,
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        gcTime: 10 * 60 * 1000, // 10 minutes
     });
 }
 
@@ -119,7 +123,8 @@ export function useAddProduct() {
             return transformProduct(data);
         },
         onSuccess: async () => {
-            queryClient.invalidateQueries({ queryKey: ['products'] });
+            invalidateAndBroadcast(queryClient, ['products']);
+            broadcastTableChange('products', 'INSERT', ['products']);
             // Broadcast to other devices/tabs
             await broadcastProductUpdate();
         },
@@ -164,7 +169,8 @@ export function useUpdateProduct() {
             if (error) throw error;
         },
         onSuccess: async () => {
-            queryClient.invalidateQueries({ queryKey: ['products'] });
+            invalidateAndBroadcast(queryClient, ['products']);
+            broadcastTableChange('products', 'UPDATE', ['products']);
             // Broadcast to other devices/tabs
             await broadcastProductUpdate();
         },
@@ -193,8 +199,8 @@ export function useDeleteProduct() {
             if (error) throw error;
         },
         onSuccess: async () => {
-            queryClient.invalidateQueries({ queryKey: ['products'] });
-            queryClient.invalidateQueries({ queryKey: ['activity-logs'] });
+            invalidateAndBroadcast(queryClient, ['products', 'activity-logs']);
+            broadcastTableChange('products', 'DELETE', ['products', 'activity-logs']);
             // Broadcast to other devices/tabs
             await broadcastProductUpdate();
         },
@@ -247,8 +253,8 @@ export function useAddStock() {
             if (logError) throw logError;
         },
         onSuccess: async () => {
-            queryClient.invalidateQueries({ queryKey: ['products'] });
-            queryClient.invalidateQueries({ queryKey: ['stock-logs'] });
+            invalidateAndBroadcast(queryClient, ['products', 'stock-logs']);
+            broadcastTableChange('products', 'UPDATE', ['products', 'stock-logs']);
             // Broadcast to other devices/tabs
             await broadcastProductUpdate();
         },
