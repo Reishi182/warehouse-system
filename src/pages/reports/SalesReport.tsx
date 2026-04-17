@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DateInput, MonthInput, YearInput } from '@/components/common/DatePicker';
-import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
+;
 import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
 import { supabase } from '@/integrations/supabase/client';
 import { Sale, SaleItem } from '@/types';

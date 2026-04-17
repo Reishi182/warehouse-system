@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, forwardRef, useImperativeHandle } from 'react';
 import { Button } from '@/components/ui/button';
-import { Eraser, Check } from 'lucide-react';
+import { Eraser } from 'lucide-react';
 
 interface SignaturePadProps {
     width?: number;

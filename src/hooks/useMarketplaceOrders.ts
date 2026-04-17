@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { MarketplaceOrder, MarketplaceOrderItem, MarketplaceReturn, MarketplaceType } from '@/types';
+import { MarketplaceOrder, MarketplaceReturn, MarketplaceType } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { sendNotificationToRole } from '@/hooks/useRealtimeNotifications';
 

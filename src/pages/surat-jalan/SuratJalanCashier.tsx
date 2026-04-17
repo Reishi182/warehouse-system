@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Package, Truck, CheckCircle, List, Store, Warehouse, Plus, Trash2, Clock, FileText, XCircle, ArrowRight, PlayCircle, Eye } from 'lucide-react';
+import { Package, Truck, CheckCircle, Plus, Trash2, Clock, FileText, Eye } from 'lucide-react';
 import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import {

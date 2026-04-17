@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Package, Truck, ExternalLink, Clock, CheckCircle2, AlertTriangle, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Package, ExternalLink, Clock, CheckCircle2, AlertTriangle, RotateCcw } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import PageSkeleton from '@/components/common/PageSkeleton';
 import { Button } from '@/components/ui/button';

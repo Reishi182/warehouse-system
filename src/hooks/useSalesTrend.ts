@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useDataStore } from '@/store/useDataStore';
-import { startOfDay, subDays, format, eachDayOfInterval, startOfWeek, startOfMonth, endOfDay } from 'date-fns';
+import { startOfDay, subDays, format, eachDayOfInterval, endOfDay } from 'date-fns';
 import { id } from 'date-fns/locale';
 
 type TimeRange = '7d' | '14d' | '30d' | '90d';

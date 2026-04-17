@@ -1,11 +1,11 @@
 import { useState, useMemo } from 'react';
-import { Check, X, Package, Clock, AlertCircle, Eye, Sparkles, FileText, Calendar, User, RefreshCw, ShoppingCart } from 'lucide-react';
+import { Check, X, Package, Clock, AlertCircle, Eye, Sparkles, FileText, Calendar, User, ShoppingCart } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import StatusBadge from '@/components/common/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+;
 import {
     Dialog,
     DialogContent,
@@ -173,7 +173,6 @@ export default function StockReturnApproval() {
             }
         });
     };
-
 
     // Access control: everyone except cashier can see this page
     if (role === 'cashier') {

@@ -1,10 +1,9 @@
 
 import { useState } from 'react';
-import { Package, Plus, Check, ArrowDownToLine } from 'lucide-react';
+import { Package, Plus } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import BarcodeScanner from '@/components/common/BarcodeScanner';
 import PageSkeleton from '@/components/common/PageSkeleton';
-import LocationBadge from '@/components/common/LocationBadge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -96,7 +95,6 @@ export default function StockIn() {
   return (
     <MainLayout title="Stok Masuk" subtitle="Tambah stok produk ke inventaris">
       <div className="space-y-6">
-
 
         <div className="space-y-6">
           {/* Scanner */}

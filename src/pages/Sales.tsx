@@ -5,7 +5,7 @@ import MainLayout from '@/components/layout/MainLayout';
 import BarcodeScanner from '@/components/common/BarcodeScanner';
 import PageSkeleton from '@/components/common/PageSkeleton';
 import { Button } from '@/components/ui/button';
-import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
+;
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -76,7 +76,6 @@ export default function Sales() {
       return [...prev, { product, quantity: 1 }];
     });
   };
-
 
   const updateQty = (productId: string, qty: number) => {
     setItems((prev) =>

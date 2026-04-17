@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { Plus, FileText, Printer, Eye, Trash2, Package, Check, X, Ban, Calendar, Camera, User, CalendarCheck, AlertTriangle, Image, Pencil } from 'lucide-react';
+import { Plus, FileText, Printer, Eye, Trash2, Package, Check, Ban, Calendar, Camera, User, CalendarCheck, AlertTriangle, Image, Pencil, Download, FileSpreadsheet } from 'lucide-react';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import MainLayout from '@/components/layout/MainLayout';
 import PageSkeleton from '@/components/common/PageSkeleton';
@@ -52,10 +52,14 @@ import { useStoreSettings } from '@/hooks/useStoreSettings';
 import { useProductUnits } from '@/hooks/useProductUnits';
 import PrintPurchaseOrder from '@/components/print/PrintPurchaseOrder';
 import { PurchaseOrder, PODestination, Product } from '@/types';
-import { format } from 'date-fns';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import { useReactToPrint } from 'react-to-print';
 import { supabase } from '@/integrations/supabase/client';
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface POItem {
     id: string;
@@ -84,7 +88,21 @@ export default function PurchaseOrderMainOffice() {
     const products = useDataStore(s => s.products);
     const productsLoading = useDataStore(s => s.loading);
     const { data: suppliers = [], isLoading: suppliersLoading } = useSuppliers();
-    const { data: purchaseOrders = [], isLoading: posLoading } = usePurchaseOrders();
+    
+    // Filters
+    const now = new Date();
+    const [filterStartDate, setFilterStartDate] = useState(format(startOfMonth(now), 'yyyy-MM-dd'));
+    const [filterEndDate, setFilterEndDate] = useState(format(endOfMonth(now), 'yyyy-MM-dd'));
+    
+    const queryFilters = useMemo(() => {
+        let filters: any = {};
+        if (filterStartDate) filters.startDate = filterStartDate;
+        if (filterEndDate) filters.endDate = filterEndDate;
+        return Object.keys(filters).length > 0 ? filters : undefined;
+    }, [filterStartDate, filterEndDate]);
+
+    const { data: purchaseOrders = [], isLoading: posLoading } = usePurchaseOrders(queryFilters);
+    
     const { data: storeSettings } = useStoreSettings();
     const { data: globalUnits = [] } = useProductUnits();
     const createPO = useCreatePurchaseOrder();
@@ -122,46 +140,31 @@ export default function PurchaseOrderMainOffice() {
         const now = new Date();
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     });
-    const [discount1Percent, setDiscount1Percent] = useState<number>(0);
-    const [discount2Percent, setDiscount2Percent] = useState<number>(0);
-
     // Add item state
     const [selectedProductId, setSelectedProductId] = useState('');
     const [itemQty, setItemQty] = useState(1);
     const [itemBonusQty, setItemBonusQty] = useState(0);
-    const [itemPrice, setItemPrice] = useState(0);
+    const [itemTotalPrice, setItemTotalPrice] = useState(0);
     const [selectedUnit, setSelectedUnit] = useState<string>('');
 
     const selectedProduct = useMemo(() => products.find(p => p.id === selectedProductId), [products, selectedProductId]);
 
-    // Auto-populate unit and price when a product is selected
+    // Auto-populate unit when a product is selected
     useEffect(() => {
         if (selectedProduct) {
             const defaultUnit = selectedProduct.has_multi_unit && selectedProduct.main_unit 
                 ? selectedProduct.main_unit 
                 : (selectedProduct.sell_unit || 'pcs');
             setSelectedUnit(defaultUnit);
-            
-            const defaultPrice = selectedProduct.has_multi_unit && selectedProduct.main_unit && defaultUnit === selectedProduct.main_unit && selectedProduct.box_price != null 
-                ? selectedProduct.box_price 
-                : selectedProduct.price;
-            setItemPrice(defaultPrice);
         } else {
             setSelectedUnit('');
-            setItemPrice(0);
+            setItemTotalPrice(0);
         }
     }, [selectedProduct]);
 
-    // Update price if unit changes manually
+    // Update unit when unit changes manually
     const handleUnitChange = (unit: string) => {
         setSelectedUnit(unit);
-        if (selectedProduct && selectedProduct.has_multi_unit && selectedProduct.main_unit) {
-             if (unit === selectedProduct.main_unit && selectedProduct.box_price != null) {
-                 setItemPrice(selectedProduct.box_price);
-             } else {
-                 setItemPrice(selectedProduct.price);
-             }
-        }
     };
 
     // New product mode state
@@ -182,21 +185,17 @@ export default function PurchaseOrderMainOffice() {
 
     const totalAmount = useMemo(() => {
         // Item bonus tidak dihitung ke total (harganya 0)
-        let subtotal = items.reduce((acc, item) => acc + (item.isBonus ? 0 : (item.quantity * item.unitPrice)), 0);
-        if (discount1Percent > 0) {
-            subtotal -= subtotal * (discount1Percent / 100);
-        }
-        if (discount2Percent > 0) {
-            subtotal -= subtotal * (discount2Percent / 100);
-        }
-        return subtotal;
-    }, [items, discount1Percent, discount2Percent]);
+        // unitPrice di sini sudah merupakan harga satuan (total/qty), jadi total = qty * unitPrice
+        return items.reduce((acc, item) => acc + (item.isBonus ? 0 : (item.quantity * item.unitPrice)), 0);
+    }, [items]);
 
     const handleAddItem = () => {
         // Harus ada Qty atau Bonus Qty
         if (itemQty <= 0 && itemBonusQty <= 0) return;
 
         const newItems: POItem[] = [];
+        // Hitung harga satuan dari harga total / qty
+        const computedUnitPrice = itemQty > 0 ? Math.round(itemTotalPrice / itemQty) : 0;
 
         if (isNewProductMode) {
             // New product mode - use free text input
@@ -210,7 +209,7 @@ export default function PurchaseOrderMainOffice() {
                     barcode: newProductBarcode.trim() || undefined,
                     unit: newProductUnit || 'pcs',
                     quantity: itemQty,
-                    unitPrice: itemPrice,
+                    unitPrice: computedUnitPrice,
                     isNewProduct: true,
                     isBonus: false,
                 });
@@ -247,7 +246,7 @@ export default function PurchaseOrderMainOffice() {
                     productName: product.name,
                     unit: selectedUnit || product.sell_unit || 'pcs',
                     quantity: itemQty,
-                    unitPrice: itemPrice,
+                    unitPrice: computedUnitPrice,
                     isNewProduct: false,
                     isBonus: false,
                 });
@@ -272,7 +271,7 @@ export default function PurchaseOrderMainOffice() {
 
         setItemQty(1);
         setItemBonusQty(0);
-        setItemPrice(0);
+        setItemTotalPrice(0);
     };
 
     const handleRemoveItem = (id: string) => {
@@ -301,8 +300,6 @@ export default function PurchaseOrderMainOffice() {
                     unit: item.unit,
                     isBonus: item.isBonus,
                 })),
-                discount1Percent,
-                discount2Percent,
             });
         } else {
             await createPO.mutateAsync({
@@ -322,8 +319,6 @@ export default function PurchaseOrderMainOffice() {
                     unit: item.unit,
                     isBonus: item.isBonus,
                 })),
-                discount1Percent,
-                discount2Percent,
             });
         }
 
@@ -333,8 +328,6 @@ export default function PurchaseOrderMainOffice() {
         setNotes('');
         setItems([]);
         setEditPOId(null);
-        setDiscount1Percent(0);
-        setDiscount2Percent(0);
         setPODate(() => {
             const now = new Date();
             return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -348,8 +341,6 @@ export default function PurchaseOrderMainOffice() {
         setDestination('toko');
         setNotes('');
         setItems([]);
-        setDiscount1Percent(0);
-        setDiscount2Percent(0);
         setPODate(() => {
             const now = new Date();
             return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -362,8 +353,6 @@ export default function PurchaseOrderMainOffice() {
         setSupplierId(po.supplier_id || '');
         setDestination(po.destination);
         setNotes(po.notes || '');
-        setDiscount1Percent(po.discount_1_percent || 0);
-        setDiscount2Percent(po.discount_2_percent || 0);
         setPODate(po.po_date || po.created_at.split('T')[0]);
         // we need to set items, but we need items array not yet loaded?
         // Ah, if we open edit, we better fetch items if they are not in the current `po` object.
@@ -420,8 +409,135 @@ export default function PurchaseOrderMainOffice() {
             reason: cancelReason || undefined,
         });
         setIsCancelDialogOpen(false);
+        setIsCancelDialogOpen(false);
         setPOToCancel(null);
         setCancelReason('');
+    };
+
+    const exportToExcel = async () => {
+        const workbook = new ExcelJS.Workbook();
+        const sheet = workbook.addWorksheet('Laporan PO');
+
+        const titleFont = { name: 'Times New Roman', size: 16, bold: true };
+        const headerFont = { name: 'Times New Roman', size: 12, bold: true };
+        const bodyFont = { name: 'Times New Roman', size: 11 };
+
+        sheet.mergeCells('A1:F1');
+        const titleCell = sheet.getCell('A1');
+        titleCell.value = `Laporan Pengeluaran Purchase Order`;
+        titleCell.font = titleFont;
+        titleCell.alignment = { horizontal: 'center' };
+
+        sheet.mergeCells('A2:F2');
+        const subTitleCell = sheet.getCell('A2');
+        subTitleCell.value = `Periode: ${format(new Date(filterStartDate), 'dd MMM yyyy', { locale: localeId })} - ${format(new Date(filterEndDate), 'dd MMM yyyy', { locale: localeId })}`;
+        subTitleCell.font = bodyFont;
+        subTitleCell.alignment = { horizontal: 'center' };
+
+        sheet.addRow([]);
+
+        const headerRow = sheet.addRow(['No.', 'Tanggal', 'Nomor PO', 'Supplier', 'Tujuan', 'Total (Rp)']);
+        headerRow.eachCell(cell => {
+            cell.font = headerFont;
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } };
+            cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+        });
+
+        sheet.getColumn(1).width = 5;
+        sheet.getColumn(2).width = 15;
+        sheet.getColumn(3).width = 20;
+        sheet.getColumn(4).width = 25;
+        sheet.getColumn(5).width = 15;
+        sheet.getColumn(6).width = 20;
+
+        let total = 0;
+
+        filteredPOs.forEach((po, index) => {
+            const row = sheet.addRow([
+                index + 1,
+                format(new Date(po.created_at), 'dd-MM-yyyy'),
+                po.po_number,
+                po.supplier?.name || '-',
+                po.destination.toUpperCase(),
+                po.total_amount
+            ]);
+            total += po.total_amount;
+            
+            row.eachCell((cell, colNumber) => {
+                cell.font = bodyFont;
+                cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                if (colNumber === 6) {
+                    cell.numFmt = '#,##0';
+                }
+            });
+        });
+
+        const totalRow = sheet.addRow(['', '', '', '', 'TOTAL', total]);
+        totalRow.eachCell((cell, colNumber) => {
+            if (colNumber >= 5) {
+                cell.font = headerFont;
+                cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                if (colNumber === 6) cell.numFmt = '#,##0';
+            }
+        });
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        saveAs(new Blob([buffer]), `Laporan_PO_${filterStartDate}_to_${filterEndDate}.xlsx`);
+    };
+
+    const exportToPDF = () => {
+        const doc = new jsPDF();
+        
+        doc.setFont('times', 'bold');
+        doc.setFontSize(16);
+        doc.text('Laporan Pengeluaran Purchase Order', 105, 15, { align: 'center' });
+        
+        doc.setFont('times', 'normal');
+        doc.setFontSize(11);
+        doc.text(`Periode: ${format(new Date(filterStartDate), 'dd MMM yyyy', { locale: localeId })} - ${format(new Date(filterEndDate), 'dd MMM yyyy', { locale: localeId })}`, 105, 22, { align: 'center' });
+
+        const tableColumn = ["No.", "Tanggal", "Nomor PO", "Supplier", "Tujuan", "Total (Rp)"];
+        const tableRows: any[] = [];
+        
+        let total = 0;
+        filteredPOs.forEach((po, index) => {
+            const poData = [
+                index + 1,
+                format(new Date(po.created_at), 'dd-MM-yyyy'),
+                po.po_number,
+                po.supplier?.name || '-',
+                po.destination.toUpperCase(),
+                po.total_amount.toLocaleString('id-ID')
+            ];
+            tableRows.push(poData);
+            total += po.total_amount;
+        });
+        
+        tableRows.push(["", "", "", "", "TOTAL", total.toLocaleString('id-ID')]);
+
+        autoTable(doc, {
+            startY: 30,
+            head: [tableColumn],
+            body: tableRows,
+            theme: 'grid',
+            headStyles: { fillColor: [60, 60, 60], font: 'times', fontStyle: 'bold' },
+            bodyStyles: { font: 'times' },
+            footStyles: { font: 'times', fontStyle: 'bold', fillColor: [240, 240, 240] },
+            didParseCell: function(data) {
+                if (data.row.index === tableRows.length - 1 && data.section === 'body') {
+                    data.cell.styles.fontStyle = 'bold';
+                    data.cell.styles.fillColor = [240, 240, 240];
+                    if(data.column.index === 5) {
+                        data.cell.styles.halign = 'left';
+                    }
+                }
+                if (data.section === 'body' && data.column.index === 5 && data.row.index !== tableRows.length - 1) {
+                   data.cell.styles.halign = 'left';
+                }
+            }
+        });
+
+        doc.save(`Laporan_PO_${filterStartDate}_to_${filterEndDate}.pdf`);
     };
 
     const columns: Column<PurchaseOrder>[] = [
@@ -517,13 +633,24 @@ export default function PurchaseOrderMainOffice() {
             title="Purchase Order"
             subtitle="Kelola pembelian barang dari supplier"
             actions={
-                <Button
-                    onClick={openCreateDialog}
-                    className="rounded-xl text-xs sm:text-sm"
-                >
-                    <Plus className="h-4 w-4 sm:mr-2" />
-                    <span className="hidden sm:inline">Buat PO Baru</span>
-                </Button>
+                <div className="flex items-center gap-2 flex-wrap">
+                    <DateInput value={filterStartDate} onChange={setFilterStartDate} className="w-[140px]" />
+                    <span className="text-muted-foreground">-</span>
+                    <DateInput value={filterEndDate} onChange={setFilterEndDate} className="w-[140px]" />
+                    <Button variant="outline" className="rounded-xl" onClick={exportToPDF}>
+                        <Download className="w-4 h-4 mr-2" /> PDF
+                    </Button>
+                    <Button variant="outline" className="rounded-xl text-green-700 border-green-200 hover:bg-green-50 hover:text-green-800 dark:hover:bg-green-900/30" onClick={exportToExcel}>
+                        <FileSpreadsheet className="w-4 h-4 mr-2" /> Excel
+                    </Button>
+                    <Button
+                        onClick={openCreateDialog}
+                        className="rounded-xl text-xs sm:text-sm"
+                    >
+                        <Plus className="h-4 w-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Buat PO</span>
+                    </Button>
+                </div>
             }
         >
             <div className="space-y-6">
@@ -711,12 +838,12 @@ export default function PurchaseOrderMainOffice() {
                                                     />
                                                 </div>
                                                 <div className="flex-1 min-w-[9rem] space-y-2">
-                                                    <Label>Harga Satuan</Label>
+                                                    <Label>Harga Total</Label>
                                                     <Input isCurrency
                                                         type="number"
                                                         min={0}
-                                                        value={itemPrice}
-                                                        onChange={(e) => setItemPrice(parseInt(e.target.value) || 0)}
+                                                        value={itemTotalPrice}
+                                                        onChange={(e) => setItemTotalPrice(parseInt(e.target.value) || 0)}
                                                     />
                                                 </div>
                                                 <Button onClick={handleAddItem} disabled={!newProductName.trim() || (itemQty === 0 && itemBonusQty === 0)}>
@@ -770,12 +897,12 @@ export default function PurchaseOrderMainOffice() {
                                                     />
                                                 </div>
                                                 <div className="flex-1 min-w-[9rem] space-y-2">
-                                                    <Label>Harga Satuan</Label>
+                                                    <Label>Harga Total</Label>
                                                     <Input isCurrency
                                                         type="number"
                                                         min={0}
-                                                        value={itemPrice}
-                                                        onChange={(e) => setItemPrice(parseInt(e.target.value) || 0)}
+                                                        value={itemTotalPrice}
+                                                        onChange={(e) => setItemTotalPrice(parseInt(e.target.value) || 0)}
                                                     />
                                                 </div>
                                                 <Button onClick={handleAddItem} disabled={!selectedProductId || (itemQty === 0 && itemBonusQty === 0)}>
@@ -851,33 +978,35 @@ export default function PurchaseOrderMainOffice() {
                                                         />
                                                     </div>
 
-                                                    {/* Unit price — editable (locked if bonus) */}
+                                                    {/* Harga total — editable (locked if bonus) */}
                                                     <div className="flex items-center gap-1 shrink-0">
-                                                        <span className="text-xs text-muted-foreground">Rp</span>
+                                                        <span className="text-xs text-muted-foreground">Total Rp</span>
                                                         <Input isCurrency
                                                             type="number"
                                                             min={0}
-                                                            value={item.isBonus ? 0 : item.unitPrice}
+                                                            value={item.isBonus ? 0 : (item.quantity * item.unitPrice)}
                                                             disabled={item.isBonus}
                                                             onChange={(e) => {
-                                                                const price = parseInt(e.target.value) || 0;
+                                                                const total = parseInt(e.target.value) || 0;
+                                                                const qty = item.quantity || 1;
+                                                                const newUnitPrice = Math.round(total / qty);
                                                                 setItems(prev => prev.map(it =>
-                                                                    it.id === item.id ? { ...it, unitPrice: price } : it
+                                                                    it.id === item.id ? { ...it, unitPrice: newUnitPrice } : it
                                                                 ));
                                                             }}
-                                                            className="w-28 h-8 text-sm px-2"
+                                                            className="w-32 h-8 text-sm px-2"
                                                         />
                                                     </div>
 
-                                                    {/* Subtotal */}
-                                                    <span className="text-sm font-semibold text-right shrink-0 w-28 tabular-nums">
-                                                        {item.isBonus ? (
-                                                            <span className="text-green-600 dark:text-green-400">BONUS</span>
-                                                        ) : (
-                                                            `Rp ${(item.quantity * item.unitPrice).toLocaleString('id-ID')}`
-                                                        )}
-                                                    </span>
-
+                                                    {/* Harga satuan (info) */}
+                                                    {!item.isBonus && item.unitPrice > 0 && (
+                                                        <span className="text-xs text-muted-foreground shrink-0">
+                                                            @Rp {item.unitPrice.toLocaleString('id-ID')}
+                                                        </span>
+                                                    )}
+                                                    {item.isBonus && (
+                                                        <span className="text-sm font-semibold text-green-600 dark:text-green-400 shrink-0">BONUS</span>
+                                                    )}
 
                                                     {/* Remove */}
                                                     <Button size="sm" variant="ghost" onClick={() => handleRemoveItem(item.id)} className="shrink-0 h-8 w-8 p-0">
@@ -892,35 +1021,7 @@ export default function PurchaseOrderMainOffice() {
                                                         <span className="font-medium">🎁 Gratis</span>
                                                     </div>
                                                 )}
-                                                <div className="flex justify-between items-center mt-2 pt-2 border-t text-sm">
-                                                    <span className="font-medium">Subtotal</span>
-                                                    <span>Rp {items.reduce((acc, item) => acc + (item.isBonus ? 0 : (item.quantity * item.unitPrice)), 0).toLocaleString('id-ID')}</span>
-                                                </div>
-                                                <div className="flex gap-4 items-center justify-end">
-                                                    <div className="flex items-center gap-2">
-                                                        <Label className="text-xs text-muted-foreground whitespace-nowrap">Diskon 1 (%)</Label>
-                                                        <Input
-                                                            type="number"
-                                                            min={0}
-                                                            max={100}
-                                                            value={discount1Percent}
-                                                            onChange={(e) => setDiscount1Percent(parseFloat(e.target.value) || 0)}
-                                                            className="w-20 h-8 text-sm"
-                                                        />
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <Label className="text-xs text-muted-foreground whitespace-nowrap">Diskon 2 (%)</Label>
-                                                        <Input
-                                                            type="number"
-                                                            min={0}
-                                                            max={100}
-                                                            value={discount2Percent}
-                                                            onChange={(e) => setDiscount2Percent(parseFloat(e.target.value) || 0)}
-                                                            className="w-20 h-8 text-sm"
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <div className="flex justify-between">
+                                                <div className="flex justify-between mt-2 pt-2 border-t">
                                                     <span className="font-semibold">Total Pembelian</span>
                                                     <span className="font-bold text-lg">Rp {totalAmount.toLocaleString('id-ID')}</span>
                                                 </div>
@@ -929,7 +1030,6 @@ export default function PurchaseOrderMainOffice() {
                                     </CardContent>
                                 </Card>
                             )}
-
 
                             {/* Notes */}
                             <div className="space-y-2">
@@ -1007,8 +1107,8 @@ export default function PurchaseOrderMainOffice() {
                                             <tr>
                                                 <th className="text-left p-3">Produk</th>
                                                 <th className="text-right p-3">Qty</th>
-                                                <th className="text-right p-3">Harga</th>
-                                                <th className="text-right p-3">Subtotal</th>
+                                                <th className="text-right p-3">Harga Satuan</th>
+                                                <th className="text-right p-3">Total</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -1043,18 +1143,6 @@ export default function PurchaseOrderMainOffice() {
                                             })}
                                         </tbody>
                                         <tfoot className="bg-muted/30">
-                                            {(selectedPO.discount_1_percent || 0) > 0 && (
-                                                <tr>
-                                                    <td colSpan={3} className="text-right p-3 font-semibold text-muted-foreground pb-1">Diskon 1 ({selectedPO.discount_1_percent}%)</td>
-                                                    <td className="text-right p-3 font-medium text-red-600 pb-1">-</td>
-                                                </tr>
-                                            )}
-                                            {(selectedPO.discount_2_percent || 0) > 0 && (
-                                                <tr>
-                                                    <td colSpan={3} className="text-right p-3 font-semibold text-muted-foreground pb-1 pt-0">Diskon 2 ({selectedPO.discount_2_percent}%)</td>
-                                                    <td className="text-right p-3 font-medium text-red-600 pb-1 pt-0">-</td>
-                                                </tr>
-                                            )}
                                             <tr>
                                                 <td colSpan={3} className="text-right p-3 font-semibold pt-2">Total</td>
                                                 <td className="text-right p-3 font-bold pt-2">Rp {selectedPO.total_amount.toLocaleString('id-ID')}</td>

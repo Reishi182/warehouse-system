@@ -1,11 +1,10 @@
-import React from 'react';
 import {
     Dialog,
     DialogContent,
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { COMMON_SHORTCUTS, formatShortcut } from '@/hooks/useKeyboardShortcuts';
+;
 import { Keyboard, Command } from 'lucide-react';
 
 interface KeyboardShortcutsHelpProps {

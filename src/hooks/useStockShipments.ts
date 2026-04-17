@@ -2,8 +2,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { StockShipment, StockShipmentItem } from '@/types';
-import { sendNotificationToRole, sendNotificationToUser } from '@/hooks/useRealtimeNotifications';
+import { StockShipment } from '@/types';
+import { sendNotificationToUser } from '@/hooks/useRealtimeNotifications';
 
 export function useStockShipments() {
     const { toast } = useToast();

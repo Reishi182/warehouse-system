@@ -1,5 +1,5 @@
-import { useState, useEffect, type ChangeEvent } from 'react';
-import { Settings as SettingsIcon, Building2, Bell, Shield, Database, Save, User as UserIcon, Upload, Sun, Moon, Monitor, Store, Loader2, Zap, ZapOff, Plus, Trash2, Edit2, Check, X as XIcon, Layers } from 'lucide-react';
+import { useState, type ChangeEvent } from 'react';
+import { User as UserIcon, Upload, Sun, Moon, Monitor, Zap, ZapOff } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import MainLayout from '@/components/layout/MainLayout';
 import PageSkeleton from '@/components/common/PageSkeleton';

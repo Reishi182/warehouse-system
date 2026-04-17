@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/card';
 import { useAuth, useRole } from '@/contexts/AuthContext';
 import { usePendingReceiptPOs, usePurchaseOrder, useConfirmPOReceipt } from '@/hooks/usePurchaseOrders';
-import { PurchaseOrder, PurchaseOrderItem } from '@/types';
+import { PurchaseOrder } from '@/types';
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';

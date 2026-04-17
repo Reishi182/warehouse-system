@@ -2,7 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { NewStockRequest, NewStockRequestItem, NewRequestStatus } from '@/types';
+import { NewStockRequest } from '@/types';
 import { sendNotificationToRole, sendNotificationToUser } from '@/hooks/useRealtimeNotifications';
 
 export function useStockRequests() {

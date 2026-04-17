@@ -17,7 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth, useRole } from '@/contexts/AuthContext';
 import { usePendingMarketplaceOrders, useReceiveMarketplaceOrder, useCreateMarketplaceReturn } from '@/hooks/useMarketplaceOrders';
-import { MarketplaceOrder, MarketplaceOrderItem } from '@/types';
+import { MarketplaceOrder } from '@/types';
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';

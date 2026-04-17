@@ -222,19 +222,37 @@ export default function PurchaseOrderAuditor() {
                                             <tr>
                                                 <th className="text-left p-3">Produk</th>
                                                 <th className="text-right p-3">Qty</th>
-                                                <th className="text-right p-3">Harga</th>
-                                                <th className="text-right p-3">Subtotal</th>
+                                                <th className="text-right p-3">Harga Satuan</th>
+                                                <th className="text-right p-3">Total</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {selectedPO.items?.map(item => (
-                                                <tr key={item.id} className="border-t">
-                                                    <td className="p-3">{item.product_name}</td>
-                                                    <td className="text-right p-3">{item.quantity} <span className="text-xs text-muted-foreground uppercase">{item.unit || 'pcs'}</span></td>
-                                                    <td className="text-right p-3">Rp {item.unit_price.toLocaleString('id-ID')}</td>
-                                                    <td className="text-right p-3 font-medium">Rp {item.total_price.toLocaleString('id-ID')}</td>
-                                                </tr>
-                                            ))}
+                                            {selectedPO.items?.map(item => {
+                                                const isBonus = (item as any).is_bonus === true;
+                                                const isFree = !isBonus && item.unit_price === 0;
+                                                return (
+                                                    <tr key={item.id} className={`border-t ${isBonus ? 'bg-green-50 dark:bg-green-900/20' : ''}`}>
+                                                        <td className="p-3">
+                                                            <div className="flex items-center gap-2 flex-wrap">
+                                                                <span>{item.product_name}</span>
+                                                                {isBonus && (
+                                                                    <span className="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 rounded font-semibold">🎁 BONUS</span>
+                                                                )}
+                                                                {isFree && (
+                                                                    <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded">GRATIS</span>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                        <td className="text-right p-3">{item.quantity} <span className="text-xs text-muted-foreground uppercase">{item.unit || 'pcs'}</span></td>
+                                                        <td className="text-right p-3">
+                                                            {isBonus ? <span className="text-green-600 dark:text-green-400 text-xs font-medium">Gratis</span> : `Rp ${item.unit_price.toLocaleString('id-ID')}`}
+                                                        </td>
+                                                        <td className="text-right p-3 font-medium">
+                                                            {isBonus ? <span className="text-green-600 dark:text-green-400 text-xs">-</span> : `Rp ${item.total_price.toLocaleString('id-ID')}`}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
                                         </tbody>
                                         <tfoot className="bg-muted/30">
                                             <tr>

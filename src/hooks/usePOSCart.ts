@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Product, Location, Sale } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { useDataStore } from '@/store/useDataStore';

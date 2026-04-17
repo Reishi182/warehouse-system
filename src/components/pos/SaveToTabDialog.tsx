@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+;
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
     Dialog,
@@ -10,7 +10,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { format } from 'date-fns';
-import { id as idLocale } from 'date-fns/locale';
+;
 import {
     Plus,
     User,
@@ -21,7 +21,7 @@ import {
 import { useTabs, useCreateTab, useAddTabTransaction } from '@/hooks/useTabs';
 import { useProducts } from '@/hooks/useProducts';
 import { useAuth } from '@/contexts/AuthContext';
-import { CustomerTab, Location } from '@/types';
+import { Location } from '@/types';
 import { CartItem } from '@/hooks/usePOSCart';
 import { toast } from 'sonner';
 

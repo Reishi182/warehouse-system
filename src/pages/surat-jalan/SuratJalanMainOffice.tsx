@@ -8,7 +8,7 @@ import { ClickableImage } from '@/components/common/ImageLightbox';
 import { useSuratJalanB2B } from '@/hooks/useSuratJalanB2B';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+;
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
@@ -20,7 +20,7 @@ import {
     DialogDescription,
     DialogFooter,
 } from '@/components/ui/dialog';
-import { FileText, CheckCircle, Clock, Package, TruckIcon, XCircle, Eye, ThumbsUp, ThumbsDown, Ban } from 'lucide-react';
+import { FileText, CheckCircle, Clock, Package, TruckIcon, Eye, ThumbsUp, ThumbsDown, Ban } from 'lucide-react';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 

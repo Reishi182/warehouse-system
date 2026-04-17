@@ -2,7 +2,7 @@ import { ReactNode, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ChevronRight, Home } from 'lucide-react';
 import { NotificationBell } from './NotificationBell';
-import { cn } from '@/lib/utils';
+;
 
 // Complete route-to-breadcrumb mapping
 // Each route maps to: [parentLabel, parentHref?, currentLabel]

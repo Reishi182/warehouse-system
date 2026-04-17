@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { PurchaseOrder, PurchaseOrderItem, POStatus, POReceiptWithDetails } from '@/types';
+import { PurchaseOrder, POStatus, POReceiptWithDetails } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { sendNotificationToRole, sendNotificationToUser } from '@/hooks/useRealtimeNotifications';
 
@@ -37,10 +37,30 @@ export function usePurchaseOrdersRealtime() {
     }, [queryClient]);
 }
 
+export interface POFilters {
+    status?: POStatus | POStatus[];
+    startDate?: string;
+    endDate?: string;
+}
+
 // Fetch all purchase orders with supplier info
-export function usePurchaseOrders(statusFilter?: POStatus | POStatus[]) {
+export function usePurchaseOrders(filtersOrStatus?: POFilters | POStatus | POStatus[]) {
+    let statusFilter: POStatus | POStatus[] | undefined;
+    let startDate: string | undefined;
+    let endDate: string | undefined;
+
+    if (filtersOrStatus) {
+        if (typeof filtersOrStatus === 'string' || Array.isArray(filtersOrStatus)) {
+            statusFilter = filtersOrStatus;
+        } else {
+            statusFilter = filtersOrStatus.status;
+            startDate = filtersOrStatus.startDate;
+            endDate = filtersOrStatus.endDate;
+        }
+    }
+
     return useQuery({
-        queryKey: ['purchase_orders', statusFilter],
+        queryKey: ['purchase_orders', statusFilter, startDate, endDate],
         queryFn: async () => {
             let query = supabase
                 .from('purchase_orders')
@@ -56,6 +76,13 @@ export function usePurchaseOrders(statusFilter?: POStatus | POStatus[]) {
                 } else {
                     query = query.eq('status', statusFilter);
                 }
+            }
+            
+            if (startDate) {
+                query = query.gte('created_at', `${startDate}T00:00:00`);
+            }
+            if (endDate) {
+                query = query.lte('created_at', `${endDate}T23:59:59`);
             }
 
             const { data, error } = await query;
@@ -595,7 +622,7 @@ export function useConfirmPOReceipt() {
                     const newProductData: Record<string, any> = {
                         name: item.productName,
                         barcode: barcode,
-                        price: item.unitPrice || 0,
+                        price: 0, // Harga jual default 0, harga modal/PO tidak mempengaruhi harga jual
                         stock_gudang: 0,
                         stock_toko: 0,
                     };

@@ -3,12 +3,12 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+;
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Product, Customer } from '@/types';
 import ProductSearchSelect from '@/components/common/ProductSearchSelect';
-import { Plus, Trash2, Check, User } from 'lucide-react';
+import { Plus, Trash2, User } from 'lucide-react';
 import {
     Table,
     TableBody,

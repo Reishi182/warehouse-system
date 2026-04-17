@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Trophy, TrendingUp, Package } from 'lucide-react';
+import { Trophy, Package } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Sale, Product } from '@/types';

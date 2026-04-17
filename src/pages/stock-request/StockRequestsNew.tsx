@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import UnitSelector from '@/components/common/UnitSelector';
 import { ProductPicker } from '@/components/products/ProductPicker';
-import { Plus, Trash2, Send, ShoppingCart, Search, CheckCircle, Clock, Package, RefreshCw, XCircle, Eye, Sparkles, FileText, Calendar, User, Ban } from 'lucide-react';
+import { Plus, Trash2, Send, ShoppingCart, CheckCircle, Clock, Package, RefreshCw, XCircle, Eye, Sparkles, FileText, Calendar, User, Ban } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useDataStore } from '@/store/useDataStore';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';

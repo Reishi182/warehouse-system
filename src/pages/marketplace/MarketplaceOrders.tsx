@@ -24,12 +24,12 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth, useRole } from '@/contexts/AuthContext';
 import { useDataStore } from '@/store/useDataStore';
 import { useMarketplaceOrders, useCreateMarketplaceOrder } from '@/hooks/useMarketplaceOrders';
-import { MarketplaceOrder, MarketplaceType, Product } from '@/types';
+import { MarketplaceOrder, MarketplaceType } from '@/types';
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';

@@ -2,7 +2,7 @@
  * Component to show offline sync status in POS
  */
 
-import { Cloud, CloudOff, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Cloud, CloudOff, RefreshCw, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
     Tooltip,
@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
-import { cn } from '@/lib/utils';
+;
 
 export function OfflineSyncStatus() {
     const { online, syncStatus, isSyncing, syncNow } = useOfflineSync();

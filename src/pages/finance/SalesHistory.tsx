@@ -3,7 +3,7 @@ import MainLayout from '@/components/layout/MainLayout';
 import PageSkeleton from '@/components/common/PageSkeleton';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
-import { DateInput } from '@/components/common/DatePicker';
+;
 import { useSalesHistory } from '@/hooks/useSalesHistory';
 import { Sale } from '@/types';
 
@@ -24,9 +24,9 @@ import {
     ArrowRightLeft,
     XCircle,
 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+;
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+;
 import {
     Select,
     SelectContent,

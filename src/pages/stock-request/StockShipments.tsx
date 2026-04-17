@@ -6,11 +6,11 @@ import { useStockShipments } from '@/hooks/useStockShipments';
 import MainLayout from '@/components/layout/MainLayout';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+;
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Package, Truck, ArrowRight, CheckCircle } from 'lucide-react';
+import { Package, Truck, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import {
     Dialog,
@@ -19,7 +19,7 @@ import {
     DialogTitle,
     DialogFooter,
 } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
+;
 
 export default function StockShipments() {
     const role = useRole();

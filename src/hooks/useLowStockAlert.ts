@@ -3,7 +3,7 @@ import { useDataStore } from '@/store/useDataStore';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Product } from '@/types';
+;
 import { STOCK_THRESHOLDS } from '@/constants';
 
 interface LowStockProduct {

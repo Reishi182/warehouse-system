@@ -1,5 +1,5 @@
 import { forwardRef } from 'react';
-import { CustomerTab, TabTransaction } from '@/types';
+import { CustomerTab } from '@/types';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { formatRupiah } from '@/lib/format';

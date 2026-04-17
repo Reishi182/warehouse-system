@@ -1,5 +1,4 @@
-import React from 'react';
-import { LogOut, RefreshCw, Clock } from 'lucide-react';
+import { LogOut, Clock } from 'lucide-react';
 import {
     AlertDialog,
     AlertDialogAction,

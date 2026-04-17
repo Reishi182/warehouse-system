@@ -26,7 +26,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { History, ClipboardList, RotateCcw, PackagePlus, AlertCircle } from 'lucide-react';
+import { History, ClipboardList, PackagePlus, AlertCircle } from 'lucide-react';
 import { useDataStore } from '@/store/useDataStore';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';

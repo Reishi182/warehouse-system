@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useDataStore } from '@/store/useDataStore';
 import { useAuth } from '@/contexts/AuthContext';
-import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+;
 import {
     Search,
     Package,

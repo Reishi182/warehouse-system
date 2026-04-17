@@ -11,7 +11,7 @@ import { DateInput } from '@/components/common/DatePicker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useCashFlow, CashFlowDay } from '@/hooks/useCashFlow';
-import { format, subDays, startOfMonth, endOfMonth, startOfWeek, endOfWeek, subMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import { useRef } from 'react';
 import { useReactToPrint } from 'react-to-print';

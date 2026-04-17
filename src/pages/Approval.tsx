@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/tabs';
 import { useDataStore } from '@/store/useDataStore';
 import { useToast } from '@/hooks/use-toast';
-import { RequestStatus, SuratJalan } from '@/types';
+import { SuratJalan } from '@/types';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 
@@ -43,7 +43,6 @@ export default function Approval() {
       </MainLayout>
     );
   }
-
 
   const handleApprove = (sj: SuratJalan) => {
     updateSuratJalanStatus(sj.id, 'approved');

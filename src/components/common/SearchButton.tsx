@@ -1,4 +1,3 @@
-import React from 'react';
 import { Button } from '@/components/ui/button';
 import { useGlobalShortcuts } from '@/components/common/GlobalShortcutsProvider';
 import { Search, Command } from 'lucide-react';

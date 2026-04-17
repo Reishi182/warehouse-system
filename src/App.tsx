@@ -8,7 +8,6 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { DataProvider } from "@/contexts/DataContext";
 import { SidebarProvider } from "@/contexts/SidebarContext";
 import ErrorBoundary from "@/components/common/ErrorBoundary";
-import PageSkeleton from "@/components/common/PageSkeleton";
 import { RealtimeNotificationProvider } from "@/components/common/RealtimeNotificationProvider";
 import OfflineIndicator from "@/components/common/OfflineIndicator";
 import { GlobalShortcutsProvider } from "@/components/common/GlobalShortcutsProvider";

@@ -1,4 +1,3 @@
-import React from 'react';
 import { useLocation } from 'react-router-dom';
 import { usePinnedPages } from '@/hooks/usePinnedPages';
 import { Button } from '@/components/ui/button';

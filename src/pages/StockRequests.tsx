@@ -1,10 +1,9 @@
 
 import { useState } from 'react';
-import { Plus, Package, ArrowRight, Check, X, Trash2, Clock } from 'lucide-react';
+import { Package, ArrowRight, Check, X, Trash2 } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import BarcodeScanner from '@/components/common/BarcodeScanner';
 import PageSkeleton from '@/components/common/PageSkeleton';
-import LocationBadge from '@/components/common/LocationBadge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -33,7 +32,7 @@ import {
 import { useDataStore } from '@/store/useDataStore';
 import { useRole } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Product, Location, RequestStatus, StockRequestItem } from '@/types';
+import { Location, RequestStatus, StockRequestItem } from '@/types';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 

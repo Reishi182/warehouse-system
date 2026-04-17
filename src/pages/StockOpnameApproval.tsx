@@ -4,7 +4,7 @@ import { useStockOpnameSessions, useStockOpnameRealtime } from '@/hooks/useStock
 import MainLayout from '@/components/layout/MainLayout';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+;
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -34,7 +34,7 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { StockOpnameSession, StockOpnameItem } from '@/types';
+import { StockOpnameSession } from '@/types';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
