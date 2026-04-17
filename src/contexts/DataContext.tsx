@@ -447,57 +447,53 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   // Supabase Realtime subscriptions for live data updates - SEPARATE channels per table for reliability
   const realtimeChannelsRef = useRef<ReturnType<typeof supabase.channel>[]>([]);
 
-  useEffect(() => {
-    if (!isAuthenticated) {
-      // Cleanup channels if user logs out
-      realtimeChannelsRef.current.forEach(ch => supabase.removeChannel(ch));
-      realtimeChannelsRef.current = [];
-      return;
-    }
-
-    // Create SEPARATE channels for each table (Supabase works better this way)
-    // Bug fix #18: Added notifications to realtime subscriptions
-    const tables = [
-      { table: 'products', callback: fetchProducts },
-      { table: 'sales', callback: fetchSales },
-      { table: 'stock_logs', callback: fetchStockLogs },
-      { table: 'cash_transfers', callback: fetchCashTransfers },
-      { table: 'stock_out_requests', callback: fetchRequests },
-      { table: 'surat_jalan', callback: fetchSuratJalans },
-      { table: 'activity_logs', callback: fetchActivityLogs },
-      { table: 'notifications', callback: fetchNotifications },
-    ];
-
-    const channels = tables.map(({ table, callback }) => {
+    // ============================================================
+    // SMART REALTIME PATCHING - HANYA UNTUK PRODUCTS
+    // ============================================================
+    useEffect(() => {
+      if (!isAuthenticated) return;
+  
+      const mapProduct = (p: any) => ({
+        id: p.id,
+        name: p.name,
+        barcode: p.barcode,
+        price: p.price,
+        image_url: p.image_url,
+        stock: { gudang: p.stock_gudang, toko: p.stock_toko },
+        has_multi_unit: p.has_multi_unit ?? false,
+        main_unit: p.main_unit ?? null,
+        pcs_per_box: p.pcs_per_box ?? null,
+        box_price: p.box_price ?? null,
+        sell_by_quantity: p.sell_by_quantity ?? false,
+        sell_unit: p.sell_unit ?? 'pcs',
+        created_at: p.created_at,
+        updated_at: p.updated_at
+      });
+  
       const channel = supabase
-        .channel(`data_${table}`)
+        .channel('data_products_smart')
         .on(
           'postgres_changes',
-          { event: '*', schema: 'public', table },
-          (payload) => {
-            console.log(`[Realtime] ${table} changed:`, payload.eventType);
-            callback();
+          { event: '*', schema: 'public', table: 'products' },
+          (payload: any) => {
+            console.log(`[SmartRealtime] products patched:`, payload.eventType);
+            
+            // PATCHING: Mengkoreksi memory langsung tanpa fetch! Sangat hemat Egress.
+            if (payload.eventType === 'UPDATE' && payload.new) {
+                setProducts((prev: any[]) => prev.map(p => p.id === payload.new.id ? mapProduct(payload.new) : p));
+            } else if (payload.eventType === 'INSERT' && payload.new) {
+                setProducts((prev: any[]) => [mapProduct(payload.new), ...prev]);
+            } else if (payload.eventType === 'DELETE' && payload.old) {
+                setProducts((prev: any[]) => prev.filter(p => p.id !== payload.old.id));
+            }
           }
         )
-        .subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
-            console.log(`[Realtime] ✅ Subscribed to ${table}`);
-          } else if (status === 'CHANNEL_ERROR') {
-            console.error(`[Realtime] ❌ ${table} - ENABLE REPLICATION IN SUPABASE DASHBOARD!`);
-          }
-        });
-      return channel;
-    });
-
-    realtimeChannelsRef.current = channels;
-    console.log(`[Realtime] Created ${channels.length} separate channel subscriptions`);
-
-    return () => {
-      console.log('[Realtime] Unsubscribing from all channels');
-      realtimeChannelsRef.current.forEach(ch => supabase.removeChannel(ch));
-      realtimeChannelsRef.current = [];
-    };
-  }, [isAuthenticated]);
+        .subscribe();
+  
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }, [isAuthenticated]);
 
   const addNotification = async (notification: { title: string; message: string; type: string; link?: string }) => {
     if (!user) return;
@@ -828,7 +824,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       link: '/finance/sales-history',
     });
 
-    await refreshData();
+    await Promise.all([fetchSales(), fetchStockLogs(), fetchProducts()]);
     return { saleId: saleRow.id, saleNumber };
   };
 
@@ -1000,7 +996,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       link: '/products'
     });
 
-    await refreshData();
+    await fetchProducts();
     return true;
   };
 
@@ -1057,7 +1053,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       link: '/stock-in'
     });
 
-    await refreshData();
+    await Promise.all([fetchProducts(), fetchStockLogs()]);
   };
 
   const createStockOutRequest = async (data: { productId: string; quantity: number; fromLocation: Location; toLocation: Location; toLocationName?: string | null }) => {
@@ -1156,7 +1152,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       link: '/surat-jalan'
     });
 
-    await refreshData();
+    await Promise.all([fetchSuratJalans(), fetchRequests()]);
   };
 
   const updateSuratJalanStatus = async (id: string, status: RequestStatus, reason?: string) => {
@@ -1260,7 +1256,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       link: '/surat-jalan'
     });
 
-    await refreshData();
+    await Promise.all([fetchSuratJalans(), fetchRequests(), fetchProducts(), fetchStockLogs()]);
   };
 
   const markNotificationRead = async (id: string) => {

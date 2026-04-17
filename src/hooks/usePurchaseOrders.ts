@@ -10,31 +10,7 @@ import { sendNotificationToRole, sendNotificationToUser } from '@/hooks/useRealt
  * This will automatically invalidate and refetch PO data when changes occur.
  */
 export function usePurchaseOrdersRealtime() {
-    const queryClient = useQueryClient();
-
-    useEffect(() => {
-        const channel = supabase
-            .channel('purchase_orders_changes')
-            .on(
-                'postgres_changes',
-                {
-                    event: '*', // Listen to INSERT, UPDATE, DELETE
-                    schema: 'public',
-                    table: 'purchase_orders',
-                },
-                (payload) => {
-                    console.log('PO Realtime change detected:', payload.eventType);
-                    // Invalidate all purchase_orders queries to refetch data
-                    queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
-                    queryClient.invalidateQueries({ queryKey: ['purchase_order'] });
-                }
-            )
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [queryClient]);
+    // Deprecated: Realtime is now handled centrally in DataContext to avoid channel explosion
 }
 
 export interface POFilters {

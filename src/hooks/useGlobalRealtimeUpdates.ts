@@ -3,127 +3,95 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
-/**
- * Tables that need real-time updates for approval workflows
- */
-const REALTIME_TABLES = [
-    { table: 'purchase_orders', queryKeys: ['purchase_orders', 'purchase_order'] },
-    { table: 'stock_requests', queryKeys: ['stock-requests'] },
-    { table: 'stock_shipments', queryKeys: ['stock-shipments', 'goods-receipts'] },
-    { table: 'stock_returns', queryKeys: ['stock-returns'] },
-    { table: 'surat_jalan', queryKeys: ['surat-jalan', 'surat_jalan', 'surat-jalan-b2b', 'surat-jalans'] },
-    { table: 'surat_jalan_items', queryKeys: ['surat-jalan', 'surat-jalan-b2b'] },
-    { table: 'goods_issue_notes', queryKeys: ['goods-issue-notes'] },
-    { table: 'marketplace_orders', queryKeys: ['marketplace-orders', 'marketplace_orders', 'marketplace-order'] },
-    { table: 'marketplace_order_items', queryKeys: ['marketplace-orders', 'marketplace-order'] },
-    { table: 'marketplace_returns', queryKeys: ['marketplace-orders', 'marketplace-returns'] },
-    { table: 'direct_orders', queryKeys: ['direct-orders', 'direct_orders'] },
-    { table: 'cash_transfer_requests', queryKeys: ['cash-transfer-requests'] },
-    { table: 'products', queryKeys: ['products', 'products-available'] },
-    { table: 'notifications', queryKeys: ['notifications'] },
+// Tabel yang BENAR-BENAR butuh realtime (kritikal, multi-user)
+const REALTIME_CRITICAL = [
     { table: 'sales', queryKeys: ['sales', 'sales-history'] },
-    { table: 'cash_transfers', queryKeys: ['cash-transfers', 'cash-history'] },
-    { table: 'backorders', queryKeys: ['backorders'] },
-    { table: 'customers', queryKeys: ['customers'] },
-    { table: 'invoices', queryKeys: ['invoices'] },
-    { table: 'invoice_items', queryKeys: ['invoices'] },
-    { table: 'expenses', queryKeys: ['expenses', 'cash-flow'] },
-    { table: 'suppliers', queryKeys: ['suppliers'] },
+    { table: 'notifications', queryKeys: ['notifications'] },
     { table: 'store_settings', queryKeys: ['store-settings'] },
-    { table: 'stock_opname', queryKeys: ['stock-opname'] },
-    { table: 'stock_opname_sessions', queryKeys: ['stock-opname-sessions'] },
+    { table: 'stock_requests', queryKeys: ['stock-requests'] },
+    { table: 'cash_transfer_requests', queryKeys: ['cash-transfer-requests'] },
 ] as const;
 
-/**
- * Global hook to subscribe to real-time changes on all approval-related tables.
- * Creates SEPARATE channels for each table (required by Supabase for reliable operation).
- * When any change occurs, it invalidates the corresponding React Query cache.
- * 
- * Usage: Call this once at the app level (e.g., in MainLayout or App.tsx)
- */
-export function useGlobalRealtimeUpdates() {
+// Tabel yang cukup di-polling (tidak perlu instant)
+const POLLING_TABLES = [
+    { table: 'purchase_orders', queryKeys: ['purchase_orders', 'purchase_order'], interval: 30000 },
+    { table: 'stock_shipments', queryKeys: ['stock-shipments', 'goods-receipts'], interval: 30000 },
+    { table: 'stock_returns', queryKeys: ['stock-returns'], interval: 30000 },
+    { table: 'surat_jalan', queryKeys: ['surat-jalan', 'surat-jalan-b2b'], interval: 30000 },
+    { table: 'goods_issue_notes', queryKeys: ['goods-issue-notes'], interval: 30000 },
+    { table: 'marketplace_orders', queryKeys: ['marketplace-orders'], interval: 20000 },
+    { table: 'marketplace_returns', queryKeys: ['marketplace-returns'], interval: 30000 },
+    { table: 'direct_orders', queryKeys: ['direct-orders'], interval: 30000 },
+    { table: 'cash_transfers', queryKeys: ['cash-transfers', 'cash-history'], interval: 30000 },
+    { table: 'backorders', queryKeys: ['backorders'], interval: 30000 },
+    { table: 'invoices', queryKeys: ['invoices'], interval: 30000 },
+    { table: 'expenses', queryKeys: ['expenses', 'cash-flow'], interval: 30000 },
+    { table: 'stock_opname', queryKeys: ['stock-opname'], interval: 60000 },
+    { table: 'stock_opname_sessions', queryKeys: ['stock-opname-sessions'], interval: 60000 },
+    { table: 'customers', queryKeys: ['customers'], interval: 60000 },
+    { table: 'suppliers', queryKeys: ['suppliers'], interval: 60000 },
+] as const;
+
+export function useGlobalRealtimeUpdates(userId?: string) {
     const queryClient = useQueryClient();
     const channelsRef = useRef<RealtimeChannel[]>([]);
+    const intervalsRef = useRef<ReturnType<typeof setInterval>[]>([]);
 
     useEffect(() => {
-        console.log('[Realtime] Initializing global realtime updates...');
+        // ✅ CHANNEL 1: Gabung semua tabel kritikal dalam SATU channel
+        const criticalChannel = supabase
+            .channel('realtime_critical')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'sales' }, () => {
+                queryClient.invalidateQueries({ queryKey: ['sales'] });
+                queryClient.invalidateQueries({ queryKey: ['sales-history'] });
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'store_settings' }, () => {
+                queryClient.invalidateQueries({ queryKey: ['store-settings'] });
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'stock_requests' }, () => {
+                queryClient.invalidateQueries({ queryKey: ['stock-requests'] });
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'cash_transfer_requests' }, () => {
+                queryClient.invalidateQueries({ queryKey: ['cash-transfer-requests'] });
+            })
+            .subscribe();
 
-        // Create SEPARATE channel for each table (Supabase works better this way)
-        const channels: RealtimeChannel[] = REALTIME_TABLES.map(({ table, queryKeys }) => {
-            const channel = supabase
-                .channel(`realtime_${table}`)
-                .on(
-                    'postgres_changes',
-                    {
-                        event: '*', // INSERT, UPDATE, DELETE
-                        schema: 'public',
-                        table: table,
-                    },
-                    (payload) => {
-                        console.log(`[Realtime] ${table} changed:`, payload.eventType);
-
-                        // Invalidate all related query keys
-                        queryKeys.forEach(key => {
-                            queryClient.invalidateQueries({ queryKey: [key] });
-                        });
-                    }
-                )
-                .subscribe((status) => {
-                    if (status === 'SUBSCRIBED') {
-                        console.log(`[Realtime] ✓ Subscribed to ${table}`);
-                    } else if (status === 'CHANNEL_ERROR') {
-                        console.error(`[Realtime] ✗ Error subscribing to ${table}`);
-                    }
-                });
-
-            return channel;
-        });
-
-        channelsRef.current = channels;
-        console.log(`[Realtime] Created ${channels.length} channel subscriptions`);
-
-        // Cleanup on unmount
-        return () => {
-            console.log('[Realtime] Cleaning up realtime subscriptions...');
-            channelsRef.current.forEach(channel => {
-                supabase.removeChannel(channel);
-            });
-            channelsRef.current = [];
-        };
-    }, [queryClient]);
-}
-
-/**
- * Hook to subscribe to a specific table's real-time changes.
- * Use this for page-specific subscriptions if needed.
- */
-export function useTableRealtimeUpdates(
-    tableName: string,
-    queryKeys: string[]
-) {
-    const queryClient = useQueryClient();
-
-    useEffect(() => {
-        const channel = supabase
-            .channel(`${tableName}_realtime`)
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
+        // ✅ CHANNEL 2: Notifikasi — filter per user agar tidak terima notif orang lain
+        const notifChannel = userId
+            ? supabase
+                .channel('realtime_notifications')
+                .on('postgres_changes', {
+                    event: 'INSERT',        // hanya INSERT, bukan UPDATE/DELETE
                     schema: 'public',
-                    table: tableName,
-                },
-                (payload) => {
-                    console.log(`[Realtime] ${tableName} changed:`, payload.eventType);
+                    table: 'notifications',
+                    filter: `user_id=eq.${userId}`,  // ← filter per user!
+                }, () => {
+                    queryClient.invalidateQueries({ queryKey: ['notifications'] });
+                })
+                .subscribe()
+            : null;
+
+        channelsRef.current = [criticalChannel, ...(notifChannel ? [notifChannel] : [])];
+
+        // ✅ Polling untuk tabel non-kritikal
+        const intervals = POLLING_TABLES.map(({ queryKeys, interval }) => {
+            return setInterval(() => {
+                // Hanya invalidate kalau tab sedang aktif (hemat egress saat minimize)
+                if (document.visibilityState === 'visible') {
                     queryKeys.forEach(key => {
                         queryClient.invalidateQueries({ queryKey: [key] });
                     });
                 }
-            )
-            .subscribe();
+            }, interval);
+        });
+
+        intervalsRef.current = intervals;
 
         return () => {
-            supabase.removeChannel(channel);
+            channelsRef.current.forEach(ch => supabase.removeChannel(ch));
+            channelsRef.current = [];
+            intervalsRef.current.forEach(id => clearInterval(id));
+            intervalsRef.current = [];
         };
-    }, [tableName, queryKeys, queryClient]);
+    }, [queryClient, userId]);
 }

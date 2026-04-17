@@ -145,8 +145,10 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 }
 
 function AppRoutes() {
-  // Call global real-time subscriptions
-  useGlobalRealtimeUpdates();
+  const { user } = useAuth();
+  
+  // Call global real-time subscriptions with user.id for filtered notifications
+  useGlobalRealtimeUpdates(user?.id);
 
   // Role shortcuts for cleaner route definitions
   const ALL_ROLES: UserRole[] = ['warehouse', 'cashier', 'auditor', 'admin', 'main_office'];

@@ -55,44 +55,8 @@ async function fetchProducts(): Promise<Product[]> {
     return allData.map(transformProduct);
 }
 
-// Hook to get all products with realtime updates
+// Hook to get all products (data is managed centrally by DataContext and cached by react-query)
 export function useProducts() {
-    const queryClient = useQueryClient();
-
-    // Set up realtime subscription with broadcast fallback
-    useEffect(() => {
-        // Method 1: Subscribe to postgres_changes (may be blocked by RLS)
-        const pgChannel = supabase
-            .channel('products-pg-changes')
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'products' },
-                (payload) => {
-                    console.log('[Realtime PG] Products changed:', payload.eventType);
-                    queryClient.invalidateQueries({ queryKey: ['products'] });
-                }
-            )
-            .subscribe((status) => {
-                console.log('[Realtime Products PG] Status:', status);
-            });
-
-        // Method 2: Subscribe to broadcast channel (not affected by RLS)
-        const broadcastChannel = supabase
-            .channel('products-broadcast')
-            .on('broadcast', { event: 'products-updated' }, () => {
-                console.log('[Realtime Broadcast] Products updated signal received');
-                queryClient.invalidateQueries({ queryKey: ['products'] });
-            })
-            .subscribe((status) => {
-                console.log('[Realtime Broadcast] Status:', status);
-            });
-
-        return () => {
-            supabase.removeChannel(pgChannel);
-            supabase.removeChannel(broadcastChannel);
-        };
-    }, [queryClient]);
-
     return useQuery({
         queryKey: ['products'],
         queryFn: fetchProducts,

@@ -73,35 +73,8 @@ export function usePendingCounts() {
         enabled: !!role,
     });
 
-    // Subscribe to real-time changes for auto-refresh
-    useEffect(() => {
-        if (role !== 'main_office' && role !== 'admin') return;
-
-        const channels = [
-            supabase
-                .channel('pending_surat_jalan')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'surat_jalan' }, () => {
-                    queryClient.invalidateQueries({ queryKey: ['pending-counts'] });
-                })
-                .subscribe(),
-            supabase
-                .channel('pending_stock_requests')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'stock_requests' }, () => {
-                    queryClient.invalidateQueries({ queryKey: ['pending-counts'] });
-                })
-                .subscribe(),
-            supabase
-                .channel('pending_stock_returns')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'stock_returns' }, () => {
-                    queryClient.invalidateQueries({ queryKey: ['pending-counts'] });
-                })
-                .subscribe(),
-        ];
-
-        return () => {
-            channels.forEach(channel => supabase.removeChannel(channel));
-        };
-    }, [role, queryClient]);
+    // Realtime subscriptions removed to eliminate channel leaks and excessive egress.
+    // The data is already fetched via interval polling (refetchInterval) which is much safer and lighter.
 
     return {
         counts: counts || { suratJalan: 0, stockRequests: 0, stockReturns: 0 },

@@ -27,6 +27,7 @@ export interface UsePOSCartReturn {
     setOrderDiscount: (discount: number) => void;
     addToCart: (product: Product) => void;
     addToCartWithUnit: (product: Product, unit: SellUnit) => void;
+    addToCartWithUnitAndQuantity: (product: Product, unit: SellUnit, quantity: number) => void; // For multi-unit + variable qty (e.g. 2.5 kubik)
     addToCartWithQuantity: (product: Product, quantity: number) => void; // For variable unit products
     addManualItem: (name: string, price: number, quantity: number) => void; // For quick sale items
     updateQuantity: (productId: string, quantity: number) => void;
@@ -155,6 +156,64 @@ export function usePOSCart(initialLocation: Location = 'toko'): UsePOSCartReturn
             return [...prev, {
                 product,
                 quantity: 1,
+                discount: 0,
+                sellUnit: unit,
+                unitMultiplier: multiplier,
+                unitPrice: price,
+            }];
+        });
+    }, [stockLocation, toast]);
+
+    // Add to cart with specific unit AND a custom quantity
+    // Used for multi-unit products that also have sell_by_quantity (e.g. 2.5 kubik)
+    const addToCartWithUnitAndQuantity = useCallback((product: Product, unit: SellUnit, quantity: number) => {
+        if (quantity <= 0) return;
+
+        const multiplier = getUnitMultiplier(product, unit);
+        const price = getUnitPrice(product, unit);
+        const availableStock = product.stock[stockLocation];
+        const mainLabel = getUnitLabel(product, 'main');
+        const subLabel = getUnitLabel(product, 'sub');
+        const unitLabel = unit === 'main' ? mainLabel : subLabel;
+
+        // For sub unit, multiplier=1 so totalBaseUnits = quantity
+        // For main unit, totalBaseUnits = quantity * pcs_per_box
+        const totalBaseUnitsNeeded = quantity * multiplier;
+
+        if (totalBaseUnitsNeeded > availableStock) {
+            toast({
+                title: 'Stok tidak cukup',
+                description: `Dibutuhkan ${totalBaseUnitsNeeded} ${subLabel.toLowerCase()}, stok ${stockLocation}: ${availableStock} ${subLabel.toLowerCase()}`,
+                variant: 'destructive'
+            });
+            return;
+        }
+
+        setItems((prev) => {
+            const idx = prev.findIndex((it) =>
+                it.product.id === product.id && (it.sellUnit || 'sub') === unit
+            );
+            if (idx >= 0) {
+                const next = [...prev];
+                const newQty = next[idx].quantity + quantity;
+                const newTotalBase = newQty * multiplier;
+                const otherUnitsBase = prev
+                    .filter((it, i) => i !== idx && it.product.id === product.id)
+                    .reduce((sum, it) => sum + it.quantity * (it.unitMultiplier || 1), 0);
+                if (newTotalBase + otherUnitsBase > availableStock) {
+                    toast({
+                        title: 'Stok tidak cukup',
+                        description: `Stok tersedia: ${availableStock} ${subLabel.toLowerCase()}`,
+                        variant: 'destructive'
+                    });
+                    return prev;
+                }
+                next[idx] = { ...next[idx], quantity: newQty };
+                return next;
+            }
+            return [...prev, {
+                product,
+                quantity,
                 discount: 0,
                 sellUnit: unit,
                 unitMultiplier: multiplier,
@@ -378,6 +437,7 @@ export function usePOSCart(initialLocation: Location = 'toko'): UsePOSCartReturn
         setOrderDiscount: (discount: number) => setOrderDiscount(Math.max(0, discount)),
         addToCart,
         addToCartWithUnit,
+        addToCartWithUnitAndQuantity,
         addToCartWithQuantity,
         addManualItem,
         updateQuantity,

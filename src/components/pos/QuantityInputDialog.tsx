@@ -9,12 +9,16 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SellUnit } from '@/components/pos/UnitPickerDialog';
+import { getUnitLabel, getUnitPrice } from '@/lib/multiUnit';
 
 interface QuantityInputDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     product: Product | null;
     onConfirm: (quantity: number) => void;
+    /** When set, derive unit label and price from this sell unit (for multi-unit products) */
+    selectedUnit?: SellUnit | null;
 }
 
 export default function QuantityInputDialog({
@@ -22,6 +26,7 @@ export default function QuantityInputDialog({
     onOpenChange,
     product,
     onConfirm,
+    selectedUnit,
 }: QuantityInputDialogProps) {
     const [quantity, setQuantity] = useState('');
 
@@ -34,8 +39,16 @@ export default function QuantityInputDialog({
 
     if (!product) return null;
 
-    const unit = product.sell_unit || 'pcs';
-    const price = product.price || 0;
+    // If a selectedUnit is provided (from UnitPickerDialog), use that unit's label & price.
+    // Otherwise fall back to product.sell_unit / product.price.
+    const unit = selectedUnit
+        ? getUnitLabel(product, selectedUnit)
+        : (product.sell_unit || 'pcs');
+
+    const price = selectedUnit
+        ? getUnitPrice(product, selectedUnit)
+        : (product.price || 0);
+
     const numericQty = parseFloat(quantity) || 0;
     const total = numericQty * price;
 

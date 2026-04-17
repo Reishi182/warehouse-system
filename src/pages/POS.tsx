@@ -63,6 +63,8 @@ export default function POS() {
     // Variable unit quantity dialog state
     const [quantityDialogOpen, setQuantityDialogOpen] = useState(false);
     const [quantityDialogProduct, setQuantityDialogProduct] = useState<Product | null>(null);
+    // Stores the unit chosen in UnitPickerDialog before quantity input (for multi-unit + sell_by_quantity)
+    const [pendingUnit, setPendingUnit] = useState<SellUnit | null>(null);
 
     // Multi-unit picker dialog state
     const [unitPickerOpen, setUnitPickerOpen] = useState(false);
@@ -251,36 +253,60 @@ export default function POS() {
     };
 
     // Handle adding product to cart - check for variable unit or multi-unit products
+    // BUG FIX: multi-unit products always show UnitPickerDialog first, even if sell_by_quantity is true.
+    // Previously, sell_by_quantity check came first, causing the karung dialog to open directly
+    // instead of the unit picker (kubik vs karung).
     const handleAddToCart = (product: Product) => {
-        if (product.sell_by_quantity) {
-            // Open quantity input dialog for variable unit products
-            setQuantityDialogProduct(product);
-            setQuantityDialogOpen(true);
-        } else if (isMultiUnit(product)) {
-            // Open unit picker dialog for multi-unit products (box/pcs)
+        if (isMultiUnit(product)) {
+            // Multi-unit product: ALWAYS show unit picker first (e.g. kubik vs karung, box vs pcs)
+            // This must come before sell_by_quantity check to fix the bug!
             setUnitPickerProduct(product);
             setUnitPickerOpen(true);
+        } else if (product.sell_by_quantity) {
+            // Non-multi-unit variable quantity product: open quantity dialog directly
+            setQuantityDialogProduct(product);
+            setPendingUnit(null);
+            setQuantityDialogOpen(true);
         } else {
             // Normal product - add directly
             cart.addToCart(product);
         }
     };
 
-    // Handle multi-unit selection
+    // Handle multi-unit selection (after user picks kubik/karung, box/pcs, etc.)
     const handleUnitSelect = (unit: SellUnit) => {
         if (unitPickerProduct) {
-            cart.addToCartWithUnit(unitPickerProduct, unit);
+            if (unitPickerProduct.sell_by_quantity) {
+                // Product also needs quantity input — store the selected unit then open quantity dialog
+                setQuantityDialogProduct(unitPickerProduct);
+                setPendingUnit(unit);
+                setUnitPickerOpen(false);
+                setUnitPickerProduct(null);
+                setQuantityDialogOpen(true);
+            } else {
+                // Standard multi-unit product: add with qty=1 directly
+                cart.addToCartWithUnit(unitPickerProduct, unit);
+                setUnitPickerOpen(false);
+                setUnitPickerProduct(null);
+            }
+        } else {
+            setUnitPickerOpen(false);
+            setUnitPickerProduct(null);
         }
-        setUnitPickerOpen(false);
-        setUnitPickerProduct(null);
     };
 
     // Handle variable quantity confirmation
     const handleQuantityConfirm = (quantity: number) => {
         if (quantityDialogProduct && quantity > 0) {
-            cart.addToCartWithQuantity(quantityDialogProduct, quantity);
+            if (pendingUnit) {
+                // Multi-unit + sell_by_quantity: add with specific unit + custom quantity (supports decimals)
+                cart.addToCartWithUnitAndQuantity(quantityDialogProduct, pendingUnit, quantity);
+            } else {
+                cart.addToCartWithQuantity(quantityDialogProduct, quantity);
+            }
         }
         setQuantityDialogProduct(null);
+        setPendingUnit(null);
     };
 
     if (loading) {
@@ -519,6 +545,7 @@ export default function POS() {
                 onOpenChange={setQuantityDialogOpen}
                 product={quantityDialogProduct}
                 onConfirm={handleQuantityConfirm}
+                selectedUnit={pendingUnit}
             />
 
             {/* Multi-Unit Picker Dialog (Dynamic: SAK/KG, BOX/PCS, ROLL/METER, etc.) */}
