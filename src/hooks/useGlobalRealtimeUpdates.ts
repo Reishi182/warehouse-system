@@ -56,6 +56,8 @@ export function useGlobalRealtimeUpdates(userId?: string) {
                         box_price: p.box_price ?? null,
                         sell_by_quantity: p.sell_by_quantity ?? false,
                         sell_unit: p.sell_unit ?? 'pcs',
+                        bulk_quantity: p.bulk_quantity ?? null,
+                        bulk_price: p.bulk_price ?? null,
                         created_at: p.created_at,
                         updated_at: p.updated_at,
                     });

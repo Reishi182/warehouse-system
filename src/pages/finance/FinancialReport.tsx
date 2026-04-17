@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react';
 import {
     TrendingUp, TrendingDown, Wallet, ArrowDownToLine, ArrowUpFromLine,
-    Receipt, DollarSign, ShoppingCart, BarChart3, Printer,
+    Receipt, DollarSign, ShoppingCart, BarChart3, Printer, Download,
 } from 'lucide-react';
+import { exportToExcel } from '@/lib/exportExcel';
 import MainLayout from '@/components/layout/MainLayout';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
@@ -170,6 +171,26 @@ export default function FinancialReport() {
                             <DateInput value={customEnd} onChange={setCustomEnd} className="w-44" />
                         </>
                     )}
+                    <Button variant="outline" className="rounded-xl" onClick={() => {
+                        if (cashFlow) {
+                            exportToExcel(
+                                cashFlow.days.map(d => ({ date: d.date, cashSales: d.cashSales, transferSales: d.transferSales, expenses: d.cashExpenses + d.transferExpenses, transfers: d.cashTransfers, netCash: d.netCash })),
+                                [
+                                    { header: 'Tanggal', key: 'date', format: 'date', width: 14 },
+                                    { header: 'Cash Sales', key: 'cashSales', format: 'number', width: 18 },
+                                    { header: 'Transfer Sales', key: 'transferSales', format: 'number', width: 18 },
+                                    { header: 'Pengeluaran', key: 'expenses', format: 'number', width: 16 },
+                                    { header: 'Setoran', key: 'transfers', format: 'number', width: 14 },
+                                    { header: 'Net Cash', key: 'netCash', format: 'number', width: 16 },
+                                ],
+                                `Laporan-Keuangan-${startDate}-${endDate}`,
+                                'Cash Flow',
+                                { title: 'Laporan Keuangan', period: periodLabel }
+                            );
+                        }
+                    }}>
+                        <Download className="w-4 h-4 mr-2" /> Excel
+                    </Button>
                     <Button variant="outline" className="rounded-xl" onClick={() => handlePrint()}>
                         <Printer className="w-4 h-4 mr-2" /> Cetak
                     </Button>

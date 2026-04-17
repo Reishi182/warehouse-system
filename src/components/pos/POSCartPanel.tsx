@@ -200,8 +200,18 @@ export const POSCartPanel = memo(function POSCartPanel({
                                 const qtyDisplay = isVariableUnit
                                     ? `${it.quantity} ${unit}`
                                     : it.quantity;
-                                const effectivePrice = it.unitPrice || it.product.price;
-                                const itemTotal = effectivePrice * it.quantity;
+                                const basePrice = it.unitPrice || it.product.price;
+                                let itemTotal = basePrice * it.quantity;
+                                let isBulkApplied = false;
+                                
+                                if (it.product.bulk_quantity && it.product.bulk_price && it.quantity >= it.product.bulk_quantity) {
+                                    if (!it.sellUnit || it.sellUnit === 'sub') {
+                                        const bulkBundles = Math.floor(it.quantity / it.product.bulk_quantity);
+                                        const remainder = it.quantity % it.product.bulk_quantity;
+                                        itemTotal = (bulkBundles * it.product.bulk_price) + (remainder * basePrice);
+                                        isBulkApplied = true;
+                                    }
+                                }
 
                                 return (
                                     <div
@@ -238,8 +248,9 @@ export const POSCartPanel = memo(function POSCartPanel({
                                             <div className="flex-1 min-w-0">
                                                 <p className="text-xs font-medium leading-tight">{it.product.name}</p>
                                                 <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
-                                                    Rp {effectivePrice.toLocaleString('id-ID')}
+                                                    Rp {basePrice.toLocaleString('id-ID')}
                                                     {isVariableUnit && <span className="text-amber-600">/{unit}</span>}
+                                                    {isBulkApplied && <span className="ml-1 text-[9px] font-bold text-orange-600 bg-orange-100 px-1 rounded">GROSIR</span>}
                                                     <span className="mx-1 text-muted-foreground/50">→</span>
                                                     <span className="font-semibold text-primary">Rp {itemTotal.toLocaleString('id-ID')}</span>
                                                 </p>

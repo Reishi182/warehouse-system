@@ -410,8 +410,19 @@ export function usePOSCart(initialLocation: Location = 'toko'): UsePOSCartReturn
     const subtotal = useMemo(() => {
         return items.reduce((acc, it) => {
             // Use unitPrice if available (multi-unit), otherwise use product.price
-            const effectivePrice = it.unitPrice || it.product.price;
-            const itemTotal = effectivePrice * it.quantity;
+            const basePrice = it.unitPrice || it.product.price;
+            let itemTotal = basePrice * it.quantity;
+            
+            // Apply bulk pricing strictly on multiples if applicable
+            if (it.product.bulk_quantity && it.product.bulk_price && it.quantity >= it.product.bulk_quantity) {
+                // If they bought using sub-unit (pcs) or it is a normal item without multi-unit
+                if (!it.sellUnit || it.sellUnit === 'sub') {
+                   const bulkBundles = Math.floor(it.quantity / it.product.bulk_quantity);
+                   const remainder = it.quantity % it.product.bulk_quantity;
+                   itemTotal = (bulkBundles * it.product.bulk_price) + (remainder * basePrice);
+                }
+            }
+
             // discount is now a fixed amount in Rupiah per item
             const itemDiscount = it.discount * it.quantity;
             return acc + (itemTotal - itemDiscount);

@@ -37,6 +37,8 @@ interface AddProductDialogProps {
         box_price?: number | null;
         sell_by_quantity?: boolean;
         sell_unit?: string;
+        bulk_quantity?: number | null;
+        bulk_price?: number | null;
     }) => Promise<boolean>;
     getProductByBarcode: (barcode: string) => Product | undefined;
     userRole: UserRole;
@@ -68,6 +70,9 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
     const [mainUnit, setMainUnit] = useState('box');   // the LARGER unit
     const [pcsPerBox, setPcsPerBox] = useState<number | null>(null);   // qty of sub-unit per main-unit
     const [boxPrice, setBoxPrice] = useState<number | null>(null);     // price per main-unit
+
+    const [bulkQuantity, setBulkQuantity] = useState<number | null>(null);
+    const [bulkPrice, setBulkPrice] = useState<number | null>(null);
 
     // Visual Stock Helpers for Multi-Unit
     const [mainStockGudang, setMainStockGudang] = useState(0);
@@ -152,6 +157,8 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
         setSubStockGudang(0);
         setMainStockToko(0);
         setSubStockToko(0);
+        setBulkQuantity(null);
+        setBulkPrice(null);
     };
 
     const handleSubmit = async () => {
@@ -221,6 +228,8 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
             main_unit: hasMultiUnit ? mainUnit : null,
             pcs_per_box: hasMultiUnit ? pcsPerBox : null,
             box_price: hasMultiUnit ? finalBoxPrice : null,
+            bulk_quantity: bulkQuantity,
+            bulk_price: bulkPrice,
         });
 
         setSaving(false);
@@ -537,6 +546,48 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
                                 )}
                             </div>
                         )}
+                    </div>
+
+                    {/* Bulk Pricing */}
+                    <div className="space-y-3">
+                        <div className="flex items-center gap-2 mb-1">
+                            <Layers className="w-4 h-4 text-orange-500" />
+                            <Label className="font-bold">Harga Grosir (Bulk Purchase)</Label>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 p-4 rounded-xl border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/20 border-2">
+                            <div className="space-y-2">
+                                <Label className="text-orange-900 dark:text-orange-100">Minimal Pembelian</Label>
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    value={bulkQuantity ?? ''}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        setBulkQuantity(val === '' ? null : parseInt(val));
+                                    }}
+                                    placeholder="Contoh: 5"
+                                />
+                                <p className="text-xs text-muted-foreground text-orange-700/70 dark:text-orange-300/70">Dalam satuan {subUnitLabel}</p>
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-orange-900 dark:text-orange-100">Total Harga (Rp)</Label>
+                                <Input isCurrency
+                                    type="number"
+                                    min={0}
+                                    value={bulkPrice ?? ''}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        setBulkPrice(val === '' ? null : parseInt(val));
+                                    }}
+                                    placeholder="Total: 10000"
+                                />
+                            </div>
+                            {bulkQuantity && bulkPrice ? (
+                                <div className="col-span-2 p-2 bg-orange-100 dark:bg-orange-900/40 rounded-lg text-xs text-orange-800 dark:text-orange-200 border border-orange-200 dark:border-orange-800/60">
+                                    💡 <strong>Otomatis:</strong> Jika beli <strong>{bulkQuantity} {subUnitLabel}</strong> atau lebih, harga per {subUnitLabel} menjadi <strong>Rp {(bulkPrice / bulkQuantity).toLocaleString('id-ID')}</strong>.
+                                </div>
+                            ) : null}
+                        </div>
                     </div>
 
                     {/* Image Upload */}

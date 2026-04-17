@@ -49,21 +49,27 @@ export function useLowStockAlert(options: UseLowStockAlertOptions = {}) {
     // Get all low stock products
     const getLowStockProducts = useCallback((): LowStockProduct[] => {
         return products
-            .filter(p =>
-                p.stock.gudang < thresholdGudang ||
-                p.stock.toko < thresholdToko
-            )
-            .map(p => ({
-                id: p.id,
-                name: p.name,
-                barcode: p.barcode,
-                stockGudang: p.stock.gudang,
-                stockToko: p.stock.toko,
-                thresholdGudang,
-                thresholdToko,
-                isLowGudang: p.stock.gudang < thresholdGudang,
-                isLowToko: p.stock.toko < thresholdToko,
-            }));
+            .filter(p => {
+                // Use per-product threshold if set (> 0), otherwise use global threshold
+                const minGudang = (p.min_stock_gudang && p.min_stock_gudang > 0) ? p.min_stock_gudang : thresholdGudang;
+                const minToko = (p.min_stock_toko && p.min_stock_toko > 0) ? p.min_stock_toko : thresholdToko;
+                return p.stock.gudang < minGudang || p.stock.toko < minToko;
+            })
+            .map(p => {
+                const minGudang = (p.min_stock_gudang && p.min_stock_gudang > 0) ? p.min_stock_gudang : thresholdGudang;
+                const minToko = (p.min_stock_toko && p.min_stock_toko > 0) ? p.min_stock_toko : thresholdToko;
+                return {
+                    id: p.id,
+                    name: p.name,
+                    barcode: p.barcode,
+                    stockGudang: p.stock.gudang,
+                    stockToko: p.stock.toko,
+                    thresholdGudang: minGudang,
+                    thresholdToko: minToko,
+                    isLowGudang: p.stock.gudang < minGudang,
+                    isLowToko: p.stock.toko < minToko,
+                };
+            });
     }, [products, thresholdGudang, thresholdToko]);
 
     const lowStockProducts = getLowStockProducts();

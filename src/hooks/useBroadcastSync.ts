@@ -83,6 +83,8 @@ const ZUSTAND_PATCHERS: Record<string, (event: BroadcastSyncEvent, store: Return
       box_price: p.box_price ?? null,
       sell_by_quantity: p.sell_by_quantity ?? false,
       sell_unit: p.sell_unit ?? 'pcs',
+      bulk_quantity: p.bulk_quantity ?? null,
+      bulk_price: p.bulk_price ?? null,
       created_at: p.created_at,
       updated_at: p.updated_at,
     });
@@ -129,6 +131,45 @@ const ZUSTAND_PATCHERS: Record<string, (event: BroadcastSyncEvent, store: Return
       });
     } else if (event.eventType === 'UPDATE' && event.record) {
       store.setCashTransfers((prev) => prev.map(c => c.id === event.record.id ? { ...c, ...event.record } : c));
+    }
+  },
+
+  stock_logs: (event, store) => {
+    if (event.eventType === 'INSERT' && event.record) {
+      const l = event.record;
+      const mappedLog = {
+        id: l.id,
+        product_id: l.product_id,
+        product: l.products ? {
+          id: l.products.id,
+          name: l.products.name,
+          barcode: l.products.barcode,
+          price: l.products.price,
+          image_url: l.products.image_url,
+          stock: {
+            gudang: l.products.stock_gudang,
+            toko: l.products.stock_toko
+          },
+          created_at: l.products.created_at,
+          updated_at: l.products.updated_at
+        } : undefined,
+        type: l.type,
+        quantity: l.quantity,
+        location: l.location,
+        user_id: l.user_id,
+        timestamp: l.timestamp,
+        note: l.note,
+        actor_name: l.actor_name,
+        reference_type: l.reference_type,
+        reference_id: l.reference_id,
+        stock_before: l.stock_before,
+        stock_after: l.stock_after
+      };
+      
+      store.setStockLogs(prev => {
+        if (prev.some(log => log.id === mappedLog.id)) return prev;
+        return [mappedLog, ...prev];
+      });
     }
   },
 };

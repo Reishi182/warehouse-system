@@ -24,6 +24,10 @@ function transformProduct(row: any): Product {
         main_unit: row.main_unit ?? null,
         pcs_per_box: row.pcs_per_box ?? null,
         box_price: row.box_price ?? null,
+        category_id: row.category_id ?? null,
+        hpp: row.hpp ?? 0,
+        min_stock_gudang: row.min_stock_gudang ?? 0,
+        min_stock_toko: row.min_stock_toko ?? 0,
         created_at: row.created_at,
         updated_at: row.updated_at,
     };
@@ -99,6 +103,10 @@ export function useAddProduct() {
             main_unit?: string | null;
             pcs_per_box?: number | null;
             box_price?: number | null;
+            category_id?: string | null;
+            hpp?: number;
+            min_stock_gudang?: number;
+            min_stock_toko?: number;
         }) => {
             const { data, error } = await supabase
                 .from('products')
@@ -115,6 +123,10 @@ export function useAddProduct() {
                     main_unit: product.main_unit ?? null,
                     pcs_per_box: product.pcs_per_box ?? null,
                     box_price: product.box_price ?? null,
+                    category_id: product.category_id ?? null,
+                    hpp: product.hpp ?? 0,
+                    min_stock_gudang: product.min_stock_gudang ?? 0,
+                    min_stock_toko: product.min_stock_toko ?? 0,
                 })
                 .select()
                 .single();
@@ -156,6 +168,10 @@ export function useUpdateProduct() {
             if (updates.main_unit !== undefined) updateData.main_unit = updates.main_unit;
             if (updates.pcs_per_box !== undefined) updateData.pcs_per_box = updates.pcs_per_box;
             if (updates.box_price !== undefined) updateData.box_price = updates.box_price;
+            if (updates.category_id !== undefined) updateData.category_id = updates.category_id;
+            if (updates.hpp !== undefined) updateData.hpp = updates.hpp;
+            if (updates.min_stock_gudang !== undefined) updateData.min_stock_gudang = updates.min_stock_gudang;
+            if (updates.min_stock_toko !== undefined) updateData.min_stock_toko = updates.min_stock_toko;
             if (updates.stock) {
                 if (updates.stock.gudang !== undefined) updateData.stock_gudang = updates.stock.gudang;
                 if (updates.stock.toko !== undefined) updateData.stock_toko = updates.stock.toko;

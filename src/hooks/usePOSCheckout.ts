@@ -7,6 +7,19 @@ import { useToast } from '@/hooks/use-toast';
 import { CartItem } from './usePOSCart';
 import { addOfflineSale, isOnline } from '@/lib/offlineQueue';
 
+export const calculateCartItemTotal = (it: CartItem) => {
+    const basePrice = it.unitPrice || it.product.price;
+    let itemTotal = basePrice * it.quantity;
+    if (it.product.bulk_quantity && it.product.bulk_price && it.quantity >= it.product.bulk_quantity) {
+        if (!it.sellUnit || it.sellUnit === 'sub') {
+            const bulkBundles = Math.floor(it.quantity / it.product.bulk_quantity);
+            const remainder = it.quantity % it.product.bulk_quantity;
+            itemTotal = (bulkBundles * it.product.bulk_price) + (remainder * basePrice);
+        }
+    }
+    return Math.round(itemTotal);
+};
+
 export type LastSaleData = {
     saleNumber: string;
     total: number;
@@ -162,7 +175,7 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
         const validItems = items.filter(it => it.quantity > 0);
         const saleItems = validItems.map(it => {
             const effectivePrice = it.unitPrice || it.product.price;
-            const itemTotal = effectivePrice * it.quantity;
+            const itemTotal = calculateCartItemTotal(it);
             // discount is now a fixed amount in Rupiah per item
             const itemDiscountAmount = it.discount * it.quantity;
             return {
@@ -329,6 +342,7 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
                     quantity: it.quantity,
                     discount: it.discount,
                     isManualEntry: it.isManualEntry || false,
+                    calculatedSubtotal: calculateCartItemTotal(it),
                     // Multi-unit: how many base units to deduct from stock
                     stockDeductQty: it.quantity * (it.unitMultiplier || 1),
                 })),
@@ -351,7 +365,7 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
             if (result) {
                 const saleItems = validItems.map(it => {
                     const effectivePrice = it.unitPrice || it.product.price;
-                    const itemTotal = effectivePrice * it.quantity;
+                    const itemTotal = calculateCartItemTotal(it);
                     // discount is now a fixed amount in Rupiah per item
                     const itemDiscountAmount = it.discount * it.quantity;
                     return {

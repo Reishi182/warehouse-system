@@ -63,6 +63,9 @@ export default function EditProductDialog({
     const [pcsPerBox, setPcsPerBox] = useState<number | null>(null);
     const [boxPrice, setBoxPrice] = useState<number | null>(null);
 
+    const [bulkQuantity, setBulkQuantity] = useState<number | null>(null);
+    const [bulkPrice, setBulkPrice] = useState<number | null>(null);
+
     // Stock fields
     const [stockGudang, setStockGudang] = useState(0);
     const [stockToko, setStockToko] = useState(0);
@@ -94,6 +97,8 @@ export default function EditProductDialog({
             setMainUnit(product.main_unit || 'box');
             setPcsPerBox(product.pcs_per_box ?? null);
             setBoxPrice(product.box_price ?? null);
+            setBulkQuantity(product.bulk_quantity ?? null);
+            setBulkPrice(product.bulk_price ?? null);
             setStockGudang(product.stock.gudang);
             setStockToko(product.stock.toko);
 
@@ -225,6 +230,8 @@ export default function EditProductDialog({
             main_unit: hasMultiUnit ? mainUnit : null,
             pcs_per_box: hasMultiUnit ? pcsPerBox : null,
             box_price: hasMultiUnit ? finalBoxPrice : null,
+            bulk_quantity: bulkQuantity,
+            bulk_price: bulkPrice,
             stock: { gudang: stockGudang, toko: stockToko }
         };
 
@@ -523,6 +530,48 @@ export default function EditProductDialog({
                                 )}
                             </div>
                         )}
+                    </div>
+
+                    {/* Bulk Pricing */}
+                    <div className="space-y-3">
+                        <div className="flex items-center gap-2 mb-1">
+                            <Layers className="w-4 h-4 text-orange-500" />
+                            <Label className="font-bold">Harga Grosir (Bulk Purchase)</Label>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 p-4 rounded-xl border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/20 border-2">
+                            <div className="space-y-2">
+                                <Label className="text-orange-900 dark:text-orange-100">Minimal Pembelian</Label>
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    value={bulkQuantity ?? ''}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        setBulkQuantity(val === '' ? null : parseInt(val));
+                                    }}
+                                    placeholder="Contoh: 5"
+                                />
+                                <p className="text-xs text-muted-foreground text-orange-700/70 dark:text-orange-300/70">Dalam satuan {subUnitLabel}</p>
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-orange-900 dark:text-orange-100">Total Harga (Rp)</Label>
+                                <Input isCurrency
+                                    type="number"
+                                    min={0}
+                                    value={bulkPrice ?? ''}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        setBulkPrice(val === '' ? null : parseInt(val));
+                                    }}
+                                    placeholder="Total: 10000"
+                                />
+                            </div>
+                            {bulkQuantity && bulkPrice ? (
+                                <div className="col-span-2 p-2 bg-orange-100 dark:bg-orange-900/40 rounded-lg text-xs text-orange-800 dark:text-orange-200 border border-orange-200 dark:border-orange-800/60">
+                                    💡 <strong>Otomatis:</strong> Jika beli <strong>{bulkQuantity} {subUnitLabel}</strong> atau lebih, harga per {subUnitLabel} menjadi <strong>Rp {(bulkPrice / bulkQuantity).toLocaleString('id-ID')}</strong>.
+                                </div>
+                            ) : null}
+                        </div>
                     </div>
 
                     {/* Image Upload */}

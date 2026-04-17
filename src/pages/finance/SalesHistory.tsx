@@ -23,7 +23,9 @@ import {
     AlertTriangle,
     ArrowRightLeft,
     XCircle,
+    Download,
 } from 'lucide-react';
+import { exportToExcel } from '@/lib/exportExcel';
 ;
 import { Button } from '@/components/ui/button';
 ;
@@ -312,6 +314,35 @@ export default function SalesHistory() {
         <MainLayout
             title="Riwayat Penjualan"
             subtitle="Detail transaksi penjualan dari kasir"
+            actions={
+                <Button variant="outline" className="rounded-xl" onClick={() => {
+                    exportToExcel(
+                        filteredSales.map(s => ({
+                            invoice: s.sale_number,
+                            cashier: s.cashier_name || '-',
+                            items: s.items?.length || 0,
+                            paymentMethod: s.payment_method,
+                            status: s._status,
+                            total: s.total_amount,
+                            date: s.created_at,
+                        })),
+                        [
+                            { header: 'No. Invoice', key: 'invoice', width: 20 },
+                            { header: 'Kasir', key: 'cashier', width: 22 },
+                            { header: 'Jml Item', key: 'items', width: 12, format: 'number' },
+                            { header: 'Metode', key: 'paymentMethod', width: 15 },
+                            { header: 'Status', key: 'status', width: 15 },
+                            { header: 'Total', key: 'total', width: 18, format: 'number' },
+                            { header: 'Tanggal', key: 'date', width: 20 },
+                        ],
+                        `Riwayat-Penjualan-${startDate}-${endDate}`,
+                        'Penjualan',
+                        { title: 'Riwayat Penjualan' }
+                    );
+                }}>
+                    <Download className="w-4 h-4 mr-2" /> Excel
+                </Button>
+            }
         >
             <div className="space-y-6">
                 {/* Stats */}

@@ -31,6 +31,13 @@ export interface Product {
   main_unit?: string | null;   // the larger unit name (e.g. 'box', 'sak', 'roll', 'lusin')
   pcs_per_box?: number | null; // qty of sell_unit per main_unit (e.g. 70 kg per sak)
   box_price?: number | null;   // price per main_unit (null = price × pcs_per_box)
+  // Product enhancements
+  category_id?: string | null;
+  hpp?: number;                  // Harga Pokok Penjualan
+  min_stock_gudang?: number;     // Minimum stock threshold gudang
+  min_stock_toko?: number;       // Minimum stock threshold toko
+  bulk_quantity?: number | null; // Quantity for bulk price (e.g. 5)
+  bulk_price?: number | null;    // Total price if bulk quantity is met (e.g. 10000)
   created_at: string;
   updated_at: string;
 }

@@ -18,7 +18,7 @@ interface DataContextType {
   loading: boolean;
 
   // Product actions
-  addProduct: (product: { name: string; barcode: string; price: number; stock: { gudang: number; toko: number }; image_url?: string }) => Promise<boolean>;
+  addProduct: (product: { name: string; barcode: string; price: number; stock: { gudang: number; toko: number }; image_url?: string; has_multi_unit?: boolean; main_unit?: string | null; pcs_per_box?: number | null; box_price?: number | null; sell_by_quantity?: boolean; sell_unit?: string; bulk_quantity?: number | null; bulk_price?: number | null }) => Promise<boolean>;
   updateProduct: (id: string, updates: Partial<Product>) => Promise<boolean>;
   deleteProduct: (id: string) => Promise<boolean>;
   getProductByBarcode: (barcode: string) => Product | undefined;
@@ -136,6 +136,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       box_price: p.box_price ?? null,
       sell_by_quantity: p.sell_by_quantity ?? false,
       sell_unit: p.sell_unit ?? 'pcs',
+      bulk_quantity: p.bulk_quantity ?? null,
+      bulk_price: p.bulk_price ?? null,
       created_at: p.created_at,
       updated_at: p.updated_at
     })));
@@ -493,6 +495,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       discount: number;
       isManualEntry?: boolean;
       stockDeductQty?: number; // Multi-unit: base units to deduct (e.g. 1 box = 70 pcs)
+      calculatedSubtotal?: number; // Added to support bundle logic exactly as computed
     }>;
     orderDiscount: number;
     amountPaid: number;
@@ -522,6 +525,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             quantity: i.quantity,
             discount: i.discount,
             isManualEntry: true,
+            calculatedSubtotal: i.calculatedSubtotal,
           };
         } else {
           // Database product
@@ -536,6 +540,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             discount: i.discount,
             isManualEntry: false,
             stockDeductQty: i.stockDeductQty || i.quantity, // default to quantity for regular items
+            calculatedSubtotal: i.calculatedSubtotal,
           };
         }
       });
@@ -620,7 +625,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     // Calculate subtotal with per-item discounts (discount is now nominal Rupiah per item)
     const subtotal = processedItems.reduce((acc, it) => {
-      const itemTotal = it.price * it.quantity;
+      let itemTotal = it.price * it.quantity;
+      if (it.calculatedSubtotal !== undefined) itemTotal = it.calculatedSubtotal;
       const itemDiscountAmount = it.discount * it.quantity;
       return acc + (itemTotal - itemDiscountAmount);
     }, 0);
@@ -668,7 +674,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
 
     const saleItems = processedItems.map(it => {
-      const itemTotal = it.price * it.quantity;
+      let itemTotal = it.price * it.quantity;
+      if (it.calculatedSubtotal !== undefined) itemTotal = it.calculatedSubtotal;
       const itemDiscountAmount = it.discount * it.quantity;
       return {
         sale_id: saleRow.id,
@@ -690,6 +697,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     // Bug fix #1+2+3: Atomic stock update with full rollback on failure using mapped net changes
     const stockUpdated: { productId: string; quantity: number; field: string }[] = [];
+    const stockLogsToInsert: any[] = [];
     let stockUpdateFailed = false;
 
     for (const [key, info] of stockChangeMap.entries()) {
@@ -743,7 +751,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             note = `Penjualan ${saleNumber} (${data.paymentMethod})`;
         }
 
-        await supabase.from('stock_logs').insert({
+        stockLogsToInsert.push({
           product_id: info.productId,
           type: type,
           quantity: qty,
@@ -786,13 +794,22 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     // ✅ Broadcast changes instead of re-fetching (saves egress)
     broadcastTableChange('sales', 'INSERT', ['sales', 'sales-history'], saleRow);
-    broadcastTableChange('stock_logs', 'INSERT', ['stock-logs']);
+    
+    // Batch Insert Stock Logs
+    if (stockLogsToInsert.length > 0) {
+        const { data: insertedLogs } = await supabase.from('stock_logs').insert(stockLogsToInsert).select('*, products(*)');
+        if (insertedLogs) {
+            insertedLogs.forEach((log) => {
+                 broadcastTableChange('stock_logs', 'INSERT', ['stock-logs'], log);
+            });
+        }
+    }
+
     // Products will auto-update via postgres_changes (stock changes via DB)
     return { saleId: saleRow.id, saleNumber };
   };
 
-
-  const addProduct = async (product: { name: string; barcode: string; price: number; stock: { gudang: number; toko: number }; image_url?: string; has_multi_unit?: boolean; main_unit?: string | null; pcs_per_box?: number | null; box_price?: number | null; sell_by_quantity?: boolean; sell_unit?: string }) => {
+  const addProduct = async (product: { name: string; barcode: string; price: number; stock: { gudang: number; toko: number }; image_url?: string; has_multi_unit?: boolean; main_unit?: string | null; pcs_per_box?: number | null; box_price?: number | null; sell_by_quantity?: boolean; sell_unit?: string; bulk_quantity?: number | null; bulk_price?: number | null }) => {
     const { data: inserted, error } = await supabase
       .from('products')
       .insert({
@@ -808,6 +825,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         box_price: product.box_price ?? null,
         sell_by_quantity: product.sell_by_quantity ?? false,
         sell_unit: product.sell_unit ?? 'pcs',
+        bulk_quantity: product.bulk_quantity ?? null,
+        bulk_price: product.bulk_price ?? null,
       })
       .select()
       .single();
@@ -856,6 +875,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (updates.box_price !== undefined) updateData.box_price = updates.box_price;
     if (updates.sell_by_quantity !== undefined) updateData.sell_by_quantity = updates.sell_by_quantity;
     if (updates.sell_unit !== undefined) updateData.sell_unit = updates.sell_unit;
+    if (updates.bulk_quantity !== undefined) updateData.bulk_quantity = updates.bulk_quantity;
+    if (updates.bulk_price !== undefined) updateData.bulk_price = updates.bulk_price;
 
     console.log('[updateProduct] Sending update:', { id, updateData });
 
@@ -893,6 +914,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     });
 
     // ✅ Products will auto-update via postgres_changes smart-patch
+    // But we also apply an optimistic update here so the UI updates immediately for the sender
+    const store = useDataStore.getState();
+    store.setProducts(prevProducts => prevProducts.map(p => 
+      p.id === id ? { 
+        ...p, 
+        ...updates, 
+        stock: updates.stock ? { gudang: updates.stock.gudang, toko: updates.stock.toko } : p.stock 
+      } : p
+    ));
+
     // Broadcast to other tabs/devices
     broadcastTableChange('products', 'UPDATE', ['products']);
 

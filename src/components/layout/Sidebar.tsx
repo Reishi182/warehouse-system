@@ -31,6 +31,8 @@ import {
   ArrowLeftRight,
   ShoppingBag,
   Zap,
+  TrendingUp,
+  FileBarChart,
 } from 'lucide-react';
 import { useAuth, useRole } from '@/contexts/AuthContext';
 import { usePendingCounts } from '@/hooks/usePendingCounts';
@@ -149,6 +151,10 @@ const navGroups: NavItem[] = [
       { label: 'Transaksi Umum', icon: Banknote, href: '/finance/transactions', roles: ['main_office'] },
       { label: 'Riwayat Penjualan', icon: Receipt, href: '/finance/sales-history', roles: ['main_office'] },
       { label: 'Backorder', icon: ClipboardList, href: '/finance/backorders', roles: ['cashier', 'main_office'] },
+      { label: 'Pengeluaran', icon: Receipt, href: '/finance/expenses', roles: ['main_office'] },
+      { label: 'Modal Kasir', icon: Wallet, href: '/finance/opening-cash', roles: ['main_office'] },
+      { label: 'Lap. Keuangan', icon: FileBarChart, href: '/finance/report', roles: ['main_office'] },
+      { label: 'Z-Report Kasir', icon: ClipboardCheck, href: '/finance/z-report', roles: ['cashier', 'main_office'] },
     ],
   },
 
@@ -163,6 +169,8 @@ const navGroups: NavItem[] = [
       { label: 'Laporan Penjualan', icon: Receipt, href: '/reports/sales', roles: ['cashier', 'main_office', 'auditor'] },
       { label: 'Laporan Stok Harian', icon: Package, href: '/reports/daily-stock', roles: ['cashier'] },
       { label: 'Laporan Umum', icon: BarChart3, href: '/reports', roles: ['cashier', 'main_office', 'auditor'] },
+      { label: 'Laba Rugi', icon: TrendingUp, href: '/reports/profit-loss', roles: ['main_office'] },
+      { label: 'Aging Piutang', icon: CreditCard, href: '/reports/credit-aging', roles: ['main_office'] },
     ],
   },
 

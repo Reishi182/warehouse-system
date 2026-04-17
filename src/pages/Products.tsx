@@ -1,11 +1,13 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { Package, AlertTriangle, Warehouse, Store, ArrowDownToLine, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, ArrowUpDown, Download, FileText, FileSpreadsheet, Calendar, Clock, Loader2 } from 'lucide-react';
+import { Package, AlertTriangle, Warehouse, Store, ArrowDownToLine, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, ArrowUpDown, Download, FileText, FileSpreadsheet, Calendar, Clock, Loader2, Tag, Barcode } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import BarcodeScanner from '@/components/common/BarcodeScanner';
 import PageSkeleton from '@/components/common/PageSkeleton';
 import { AddProductDialog, EditProductDialog, StockAdjustDialog, StockInDialog } from '@/components/products';
 import { ProductManageCard } from '@/components/products/ProductManageCard';
 import { ProductFilterSidebar, StockFilter, LocationFilter, DataFilter } from '@/components/products/ProductFilterSidebar';
+import CategoryManager from '@/components/products/CategoryManager';
+import BarcodeLabelPrint from '@/components/products/BarcodeLabelPrint';
 import { exportProductStockPDF, exportProductStockExcel } from '@/lib/export';
 import {
     DropdownMenu,
@@ -19,7 +21,6 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-;
 import { Label } from '@/components/ui/label';
 import { DateInput } from '@/components/common/DatePicker';
 import { useDataStore } from '@/store/useDataStore';
@@ -120,6 +121,8 @@ export default function Products() {
     const [exportDate, setExportDate] = useState('');
     const [exportMode, setExportMode] = useState<'current' | 'historical'>('current');
     const [exportLoading, setExportLoading] = useState(false);
+    const [categoryManagerOpen, setCategoryManagerOpen] = useState(false);
+    const [barcodePrintOpen, setBarcodePrintOpen] = useState(false);
     const location = useLocation();
 
     // Role permissions
@@ -366,11 +369,19 @@ export default function Products() {
         setStockAdjustDialog(true);
     }, []);
 
-    const handleStockAdjustSave = async (productId: string, newStock: { gudang: number; toko: number }) => {
+    const handleStockAdjustSave = async (productId: string, adjustments: { gudang: number; toko: number }) => {
+        const product = products.find(p => p.id === productId);
+        if (!product) return;
+        
+        const newStock = {
+            gudang: Math.max(0, product.stock.gudang + adjustments.gudang),
+            toko: Math.max(0, product.stock.toko + adjustments.toko)
+        };
+
         await updateProduct(productId, { stock: newStock });
         toast({
             title: 'Stok diperbarui',
-            description: `Stok ${stockAdjustProduct?.name} berhasil diperbarui`,
+            description: `Stok ${product.name} berhasil diperbarui`,
         });
     };
 
@@ -502,6 +513,24 @@ export default function Products() {
             subtitle="Kelola inventaris produk, pantau stok, dan atur harga"
             actions={
                 <div className="flex gap-2 flex-wrap">
+                    {(role === 'admin' || role === 'main_office') && (
+                        <Button
+                            variant="outline"
+                            className="rounded-xl text-xs sm:text-sm"
+                            onClick={() => setCategoryManagerOpen(true)}
+                        >
+                            <Tag className="h-4 w-4 sm:mr-2" />
+                            <span className="hidden sm:inline">Kategori</span>
+                        </Button>
+                    )}
+                    <Button
+                        variant="outline"
+                        className="rounded-xl text-xs sm:text-sm"
+                        onClick={() => setBarcodePrintOpen(true)}
+                    >
+                        <Barcode className="h-4 w-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Label</span>
+                    </Button>
                     <Button
                         variant="outline"
                         className="rounded-xl text-xs sm:text-sm"
@@ -954,6 +983,12 @@ export default function Products() {
                     </div>
                 </DialogContent>
             </Dialog>
+
+            {/* Category Manager Dialog */}
+            <CategoryManager open={categoryManagerOpen} onOpenChange={setCategoryManagerOpen} />
+
+            {/* Barcode Label Print Dialog */}
+            <BarcodeLabelPrint open={barcodePrintOpen} onOpenChange={setBarcodePrintOpen} products={products} />
         </MainLayout>
     );
 }
