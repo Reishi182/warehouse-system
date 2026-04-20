@@ -69,6 +69,7 @@ export function BeautifulTable<T extends { id: string }>({
     hideFilters = false,
     exportFilename,
     exportTitle,
+    exportDateFilterAccessor,
     emptyState,
     variant = 'premium',
     globalFilterFn: customGlobalFilterFn,
@@ -113,16 +114,34 @@ export function BeautifulTable<T extends { id: string }>({
 
     const isPremium = variant === 'premium';
 
-    // Get unique values for each filterable column
-    const getUniqueValues = React.useCallback((accessorKey: keyof T) => {
-        const values = new Set<string>();
+    // Get unique values for each filterable column — skips objects and formats ISO dates
+    const getUniqueValues = React.useCallback((accessorKey: keyof T): { label: string; value: string }[] => {
+        const seen = new Map<string, string>(); // value -> label
         data.forEach(item => {
-            const value = item[accessorKey];
-            if (value !== null && value !== undefined) {
-                values.add(String(value));
+            const raw = item[accessorKey];
+            if (raw === null || raw === undefined) return;
+            // Skip objects (e.g. supplier object) — they should use explicit filterOptions
+            if (typeof raw === 'object') return;
+            const strVal = String(raw);
+            if (seen.has(strVal)) return;
+            // Format ISO date strings nicely
+            const isoDateRe = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/;
+            if (isoDateRe.test(strVal)) {
+                try {
+                    const label = new Date(strVal).toLocaleDateString('id-ID', {
+                        day: '2-digit', month: 'short', year: 'numeric'
+                    });
+                    seen.set(strVal, label);
+                } catch {
+                    seen.set(strVal, strVal);
+                }
+            } else {
+                seen.set(strVal, strVal);
             }
         });
-        return Array.from(values).sort();
+        return Array.from(seen.entries())
+            .map(([value, label]) => ({ label, value }))
+            .sort((a, b) => a.label.localeCompare(b.label));
     }, [data]);
 
     // Convert our Column interface to TanStack ColumnDef
@@ -155,8 +174,8 @@ export function BeautifulTable<T extends { id: string }>({
         // Map user columns
         columns.forEach((col, idx) => {
             const columnId = String(col.accessorKey || idx);
-            // Excel-like: all columns with accessorKey are filterable by default
-            const canFilter = col.filterable !== false && !!col.accessorKey;
+            // Only filterable when explicitly set true OR when filterOptions are provided
+            const canFilter = (col.filterable === true || !!col.filterOptions) && !!col.accessorKey;
 
             cols.push({
                 id: columnId,
@@ -167,8 +186,9 @@ export function BeautifulTable<T extends { id: string }>({
                     const currentFilter = columnFilters.find(f => f.id === columnId);
                     const hasFilter = !!currentFilter;
 
+                    // Use explicit filterOptions when provided; otherwise auto-generate from data (only for filterable: true columns)
                     const filterOptions: { label: string; value: string; children?: { label: string; value: string }[] }[] = col.filterOptions || (
-                        canFilter ? getUniqueValues(col.accessorKey!).map(v => ({ label: v, value: v })) : []
+                        canFilter ? getUniqueValues(col.accessorKey!) : []
                     );
 
                     return (
@@ -551,6 +571,7 @@ export function BeautifulTable<T extends { id: string }>({
                     exportColumns={exportColumns}
                     exportFilename={exportFilename}
                     exportTitle={exportTitle}
+                    exportDateFilterAccessor={exportDateFilterAccessor}
                 />
 
                 {/* Filters Section */}

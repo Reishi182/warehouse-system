@@ -37,6 +37,8 @@ export interface BeautifulTableProps<T> {
     hideFilters?: boolean;
     exportFilename?: string;
     exportTitle?: string;
+    /** Accessor key for a date field. When set, the export button shows a date range filter dialog. */
+    exportDateFilterAccessor?: string;
     emptyState?: EmptyStateConfig;
     variant?: 'default' | 'premium';
     /** Custom global search predicate. When provided, a row is visible if

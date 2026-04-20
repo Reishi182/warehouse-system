@@ -12,7 +12,8 @@ import {
   FinanceTab,
   StockMovementTab,
   RequestsTab,
-import { SuratJalanTab } from '@/components/reports';
+  SuratJalanTab,
+} from '@/components/reports';
 import { useDataStore } from '@/store/useDataStore';
 import { useStockLogs } from '@/hooks/useStockLogs';
 

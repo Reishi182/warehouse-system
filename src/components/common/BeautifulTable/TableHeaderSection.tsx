@@ -15,6 +15,7 @@ interface TableHeaderSectionProps<T> {
     exportColumns: { header: string; accessorKey: string; format?: (value: any, row?: T) => string }[];
     exportFilename?: string;
     exportTitle?: string;
+    exportDateFilterAccessor?: string;
 }
 
 export function TableHeaderSection<T>({
@@ -29,6 +30,7 @@ export function TableHeaderSection<T>({
     exportColumns,
     exportFilename,
     exportTitle,
+    exportDateFilterAccessor,
 }: TableHeaderSectionProps<T>) {
     if (!title && hideExport && !onAdd) return null;
 
@@ -73,6 +75,7 @@ export function TableHeaderSection<T>({
                         filename={exportFilename || title?.toLowerCase().replace(/\s+/g, '_') || 'export'}
                         title={exportTitle || title}
                         subtitle={`Exported on ${new Date().toLocaleDateString('id-ID')}`}
+                        dateFilterAccessor={exportDateFilterAccessor}
                     />
                 )}
                 {onAdd && (

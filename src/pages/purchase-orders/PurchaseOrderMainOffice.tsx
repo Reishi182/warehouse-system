@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { Plus, FileText, Printer, Eye, Trash2, Package, Check, Ban, Calendar, Camera, User, CalendarCheck, AlertTriangle, Image, Pencil, Download, FileSpreadsheet } from 'lucide-react';
+import { Plus, FileText, Printer, Eye, Trash2, Package, Check, Ban, Calendar, Camera, User, CalendarCheck, AlertTriangle, Image, Pencil } from 'lucide-react';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import MainLayout from '@/components/layout/MainLayout';
 import PageSkeleton from '@/components/common/PageSkeleton';
@@ -52,14 +52,10 @@ import { useStoreSettings } from '@/hooks/useStoreSettings';
 import { useProductUnits } from '@/hooks/useProductUnits';
 import PrintPurchaseOrder from '@/components/print/PrintPurchaseOrder';
 import { PurchaseOrder, PODestination, Product } from '@/types';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import { useReactToPrint } from 'react-to-print';
 import { supabase } from '@/integrations/supabase/client';
-import ExcelJS from 'exceljs';
-import { saveAs } from 'file-saver';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 
 interface POItem {
     id: string;
@@ -88,20 +84,8 @@ export default function PurchaseOrderMainOffice() {
     const products = useDataStore(s => s.products);
     const productsLoading = useDataStore(s => s.loading);
     const { data: suppliers = [], isLoading: suppliersLoading } = useSuppliers();
-    
-    // Filters
-    const now = new Date();
-    const [filterStartDate, setFilterStartDate] = useState(format(startOfMonth(now), 'yyyy-MM-dd'));
-    const [filterEndDate, setFilterEndDate] = useState(format(endOfMonth(now), 'yyyy-MM-dd'));
-    
-    const queryFilters = useMemo(() => {
-        let filters: any = {};
-        if (filterStartDate) filters.startDate = filterStartDate;
-        if (filterEndDate) filters.endDate = filterEndDate;
-        return Object.keys(filters).length > 0 ? filters : undefined;
-    }, [filterStartDate, filterEndDate]);
 
-    const { data: purchaseOrders = [], isLoading: posLoading } = usePurchaseOrders(queryFilters);
+    const { data: purchaseOrders = [], isLoading: posLoading } = usePurchaseOrders();
     
     const { data: storeSettings } = useStoreSettings();
     const { data: globalUnits = [] } = useProductUnits();
@@ -414,131 +398,7 @@ export default function PurchaseOrderMainOffice() {
         setCancelReason('');
     };
 
-    const exportToExcel = async () => {
-        const workbook = new ExcelJS.Workbook();
-        const sheet = workbook.addWorksheet('Laporan PO');
 
-        const titleFont = { name: 'Times New Roman', size: 16, bold: true };
-        const headerFont = { name: 'Times New Roman', size: 12, bold: true };
-        const bodyFont = { name: 'Times New Roman', size: 11 };
-
-        sheet.mergeCells('A1:F1');
-        const titleCell = sheet.getCell('A1');
-        titleCell.value = `Laporan Pengeluaran Purchase Order`;
-        titleCell.font = titleFont;
-        titleCell.alignment = { horizontal: 'center' };
-
-        sheet.mergeCells('A2:F2');
-        const subTitleCell = sheet.getCell('A2');
-        subTitleCell.value = `Periode: ${format(new Date(filterStartDate), 'dd MMM yyyy', { locale: localeId })} - ${format(new Date(filterEndDate), 'dd MMM yyyy', { locale: localeId })}`;
-        subTitleCell.font = bodyFont;
-        subTitleCell.alignment = { horizontal: 'center' };
-
-        sheet.addRow([]);
-
-        const headerRow = sheet.addRow(['No.', 'Tanggal', 'Nomor PO', 'Supplier', 'Tujuan', 'Total (Rp)']);
-        headerRow.eachCell(cell => {
-            cell.font = headerFont;
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } };
-            cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-        });
-
-        sheet.getColumn(1).width = 5;
-        sheet.getColumn(2).width = 15;
-        sheet.getColumn(3).width = 20;
-        sheet.getColumn(4).width = 25;
-        sheet.getColumn(5).width = 15;
-        sheet.getColumn(6).width = 20;
-
-        let total = 0;
-
-        filteredPOs.forEach((po, index) => {
-            const row = sheet.addRow([
-                index + 1,
-                format(new Date(po.created_at), 'dd-MM-yyyy'),
-                po.po_number,
-                po.supplier?.name || '-',
-                po.destination.toUpperCase(),
-                po.total_amount
-            ]);
-            total += po.total_amount;
-            
-            row.eachCell((cell, colNumber) => {
-                cell.font = bodyFont;
-                cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-                if (colNumber === 6) {
-                    cell.numFmt = '#,##0';
-                }
-            });
-        });
-
-        const totalRow = sheet.addRow(['', '', '', '', 'TOTAL', total]);
-        totalRow.eachCell((cell, colNumber) => {
-            if (colNumber >= 5) {
-                cell.font = headerFont;
-                cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-                if (colNumber === 6) cell.numFmt = '#,##0';
-            }
-        });
-
-        const buffer = await workbook.xlsx.writeBuffer();
-        saveAs(new Blob([buffer]), `Laporan_PO_${filterStartDate}_to_${filterEndDate}.xlsx`);
-    };
-
-    const exportToPDF = () => {
-        const doc = new jsPDF();
-        
-        doc.setFont('times', 'bold');
-        doc.setFontSize(16);
-        doc.text('Laporan Pengeluaran Purchase Order', 105, 15, { align: 'center' });
-        
-        doc.setFont('times', 'normal');
-        doc.setFontSize(11);
-        doc.text(`Periode: ${format(new Date(filterStartDate), 'dd MMM yyyy', { locale: localeId })} - ${format(new Date(filterEndDate), 'dd MMM yyyy', { locale: localeId })}`, 105, 22, { align: 'center' });
-
-        const tableColumn = ["No.", "Tanggal", "Nomor PO", "Supplier", "Tujuan", "Total (Rp)"];
-        const tableRows: any[] = [];
-        
-        let total = 0;
-        filteredPOs.forEach((po, index) => {
-            const poData = [
-                index + 1,
-                format(new Date(po.created_at), 'dd-MM-yyyy'),
-                po.po_number,
-                po.supplier?.name || '-',
-                po.destination.toUpperCase(),
-                po.total_amount.toLocaleString('id-ID')
-            ];
-            tableRows.push(poData);
-            total += po.total_amount;
-        });
-        
-        tableRows.push(["", "", "", "", "TOTAL", total.toLocaleString('id-ID')]);
-
-        autoTable(doc, {
-            startY: 30,
-            head: [tableColumn],
-            body: tableRows,
-            theme: 'grid',
-            headStyles: { fillColor: [60, 60, 60], font: 'times', fontStyle: 'bold' },
-            bodyStyles: { font: 'times' },
-            footStyles: { font: 'times', fontStyle: 'bold', fillColor: [240, 240, 240] },
-            didParseCell: function(data) {
-                if (data.row.index === tableRows.length - 1 && data.section === 'body') {
-                    data.cell.styles.fontStyle = 'bold';
-                    data.cell.styles.fillColor = [240, 240, 240];
-                    if(data.column.index === 5) {
-                        data.cell.styles.halign = 'left';
-                    }
-                }
-                if (data.section === 'body' && data.column.index === 5 && data.row.index !== tableRows.length - 1) {
-                   data.cell.styles.halign = 'left';
-                }
-            }
-        });
-
-        doc.save(`Laporan_PO_${filterStartDate}_to_${filterEndDate}.pdf`);
-    };
 
     const columns: Column<PurchaseOrder>[] = [
         {
@@ -633,24 +493,13 @@ export default function PurchaseOrderMainOffice() {
             title="Purchase Order"
             subtitle="Kelola pembelian barang dari supplier"
             actions={
-                <div className="flex items-center gap-2 flex-wrap">
-                    <DateInput value={filterStartDate} onChange={setFilterStartDate} className="w-[140px]" />
-                    <span className="text-muted-foreground">-</span>
-                    <DateInput value={filterEndDate} onChange={setFilterEndDate} className="w-[140px]" />
-                    <Button variant="outline" className="rounded-xl" onClick={exportToPDF}>
-                        <Download className="w-4 h-4 mr-2" /> PDF
-                    </Button>
-                    <Button variant="outline" className="rounded-xl text-green-700 border-green-200 hover:bg-green-50 hover:text-green-800 dark:hover:bg-green-900/30" onClick={exportToExcel}>
-                        <FileSpreadsheet className="w-4 h-4 mr-2" /> Excel
-                    </Button>
-                    <Button
-                        onClick={openCreateDialog}
-                        className="rounded-xl text-xs sm:text-sm"
-                    >
-                        <Plus className="h-4 w-4 sm:mr-2" />
-                        <span className="hidden sm:inline">Buat PO</span>
-                    </Button>
-                </div>
+                <Button
+                    onClick={openCreateDialog}
+                    className="rounded-xl text-xs sm:text-sm"
+                >
+                    <Plus className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Buat PO</span>
+                </Button>
             }
         >
             <div className="space-y-6">
@@ -698,6 +547,9 @@ export default function PurchaseOrderMainOffice() {
                     columns={columns}
                     title="Daftar Purchase Order"
                     hideSelection
+                    exportDateFilterAccessor="created_at"
+                    exportFilename="laporan_purchase_order"
+                    exportTitle="Laporan Purchase Order"
                     emptyState={{
                         icon: <FileText className="w-10 h-10" />,
                         title: "Belum Ada Purchase Order",
