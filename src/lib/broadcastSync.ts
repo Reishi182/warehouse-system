@@ -57,10 +57,12 @@ if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
       const idleMs = Date.now() - lastActiveTimestamp;
-      // If tab was hidden for more than 30 seconds, trigger re-sync
-      if (idleMs > 30_000 && _onReconnectCallback) {
-        console.log(`[BroadcastSync] Tab was idle for ${Math.round(idleMs / 1000)}s, triggering re-sync`);
+      // If tab was hidden for more than 30 seconds OR missed a broadcast, trigger re-sync
+      const hasMissedSync = (window as any).__missed_broadcasts === true;
+      if ((idleMs > 30_000 || hasMissedSync) && _onReconnectCallback) {
+        console.log(`[BroadcastSync] Tab active again. Idle: ${Math.round(idleMs / 1000)}s, Missed updates: ${hasMissedSync}`);
         _onReconnectCallback();
+        (window as any).__missed_broadcasts = false; // reset
       }
     } else {
       lastActiveTimestamp = Date.now();
@@ -93,11 +95,11 @@ export function initBroadcastChannel(): () => void {
       // Skip self-echo (extra safety)
       if (event.sourceClientId === CLIENT_ID) return;
 
-      // Only process events from visible tab (optimization)
+      // Track if we missed it while tab was hidden
       if (document.visibilityState !== 'visible') {
-        // Mark as stale — will re-sync when tab becomes visible
-        lastActiveTimestamp = Math.min(lastActiveTimestamp, event.timestamp - 1000);
-        return;
+        // Set a global flag on the window to signal that we missed realtime events
+        // and should refetch when the tab becomes active again.
+        (window as any).__missed_broadcasts = true;
       }
 
       console.log(`[BroadcastSync] ← Received: ${event.table}.${event.eventType}`);

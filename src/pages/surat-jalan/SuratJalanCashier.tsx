@@ -80,7 +80,7 @@ export default function SuratJalanCashier() {
             let from = 0;
             let hasMore = true;
             while (hasMore) {
-                const { data } = await supabase.from('products').select('*').gt(stockColumn, 0).range(from, from + PAGE_SIZE - 1);
+                const { data } = await supabase.from('products').select('id, name, barcode, price, image_url, stock_gudang, stock_toko, has_multi_unit, main_unit, pcs_per_box, box_price, sell_by_quantity, sell_unit, bulk_quantity, bulk_price, created_at, updated_at').gt(stockColumn, 0).range(from, from + PAGE_SIZE - 1);
                 allData = allData.concat(data || []);
                 if (!data || data.length < PAGE_SIZE) { hasMore = false; } else { from += PAGE_SIZE; }
             }

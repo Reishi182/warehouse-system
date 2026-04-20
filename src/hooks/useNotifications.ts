@@ -17,32 +17,20 @@ function transformNotification(row: any): Notification {
     };
 }
 
-// Fetch notifications for a user (including global notifications without user_id)
+// Fetch notifications for a user (user-specific + global with no user_id)
 async function fetchNotifications(userId: string): Promise<Notification[]> {
-    // Fetch user-specific notifications
-    const { data: userNotifs, error: userError } = await supabase
+    // ✅ Single query with OR filter — was previously 2 separate DB round-trips
+    const { data, error } = await supabase
         .from('notifications')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
+        .select('id, user_id, title, message, type, read, created_at, link')
+        .or(`user_id.eq.${userId},user_id.is.null`)
+        .order('created_at', { ascending: false })
+        .limit(100);
 
-    if (userError) throw userError;
-
-    // Fetch global notifications (no user_id = visible to all)
-    const { data: globalNotifs, error: globalError } = await supabase
-        .from('notifications')
-        .select('*')
-        .is('user_id', null)
-        .order('created_at', { ascending: false });
-
-    if (globalError) throw globalError;
-
-    // Combine and sort by created_at
-    const allNotifs = [...(userNotifs || []), ...(globalNotifs || [])];
-    allNotifs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-    return allNotifs.map(transformNotification);
+    if (error) throw error;
+    return (data || []).map(transformNotification);
 }
+
 
 // Hook to get user notifications
 export function useNotifications(userId?: string) {

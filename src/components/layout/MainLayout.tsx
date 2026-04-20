@@ -1,7 +1,7 @@
 import { ReactNode } from 'react';
 import Sidebar from './Sidebar';
 import Header from './Header';
-import { useGlobalRealtimeUpdates } from '@/hooks/useGlobalRealtimeUpdates';
+
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -12,8 +12,6 @@ interface MainLayoutProps {
 }
 
 export default function MainLayout({ children, title, subtitle, actions }: MainLayoutProps) {
-  // Subscribe to real-time updates for all approval tables
-  useGlobalRealtimeUpdates();
   return (
     <div className="min-h-screen bg-background">
       <Sidebar />

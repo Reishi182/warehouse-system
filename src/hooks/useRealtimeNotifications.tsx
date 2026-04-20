@@ -93,7 +93,12 @@ export function useRealtimeNotifications(userId?: string) {
 
         return () => {
             if (channelRef.current) {
+                // ✅ Must remove the Supabase channel AND unregister from manager.
+                // Previously only unregisterChannel() was called, leaving the
+                // postgres_changes subscription open after unmount / logout.
                 connectionManager.unregisterChannel(channelName);
+                supabase.removeChannel(channelRef.current);
+                channelRef.current = null;
             }
         };
     }, [userId, toast, queryClient]);

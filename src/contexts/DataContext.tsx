@@ -102,7 +102,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     while (hasMore) {
       const { data, error } = await supabase
         .from('products')
-        .select('*')
+        .select('id, name, barcode, price, image_url, stock_gudang, stock_toko, has_multi_unit, main_unit, pcs_per_box, box_price, sell_by_quantity, sell_unit, bulk_quantity, bulk_price, min_stock_gudang, min_stock_toko, created_at, updated_at')
         .order('created_at', { ascending: false })
         .order('id', { ascending: true })
         .range(from, from + PAGE_SIZE - 1);
@@ -264,7 +264,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     const { data, error } = await supabase
       .from('notifications')
-      .select('*')
+      .select('id, user_id, title, message, type, read, created_at, link')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(50);

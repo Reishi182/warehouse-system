@@ -45,7 +45,7 @@ async function fetchStockLogs(products: Product[]): Promise<StockLog[]> {
         .from('stock_logs')
         .select('*')
         .order('timestamp', { ascending: false, nullsFirst: false })
-        .limit(500);
+        .limit(2000);
 
     // If error or empty, try without order (in case timestamp column doesn't exist properly)
     if (logsError || !logs || logs.length === 0) {
@@ -54,7 +54,7 @@ async function fetchStockLogs(products: Product[]): Promise<StockLog[]> {
         const fallbackResult = await supabase
             .from('stock_logs')
             .select('*')
-            .limit(500);
+            .limit(2000);
 
         logsError = fallbackResult.error;
         logs = fallbackResult.data;

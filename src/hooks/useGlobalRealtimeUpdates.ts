@@ -26,11 +26,17 @@ import { useDataStore } from '@/store/useDataStore';
  * ═══════════════════════════════════════════════════════════════════
  */
 
-export function useGlobalRealtimeUpdates(userId?: string) {
+export function useGlobalRealtimeUpdates(enabled = true) {
     const queryClient = useQueryClient();
     const channelRef = useRef<RealtimeChannel | null>(null);
 
     useEffect(() => {
+        // 🛡️ Non-leader tabs skip postgres_changes entirely.
+        // This prevents multiple tabs from each creating a subscription in
+        // the realtime.subscription table (which is the #1 cost driver).
+        // Broadcast sync handles cross-tab data propagation instead (free).
+        if (!enabled) return;
+
         // ✅ SATU postgres_changes channel HANYA untuk products
         // Products perlu postgres_changes karena stock berubah dari:
         // - Database triggers (stock reservation)
@@ -118,7 +124,7 @@ export function useGlobalRealtimeUpdates(userId?: string) {
                 channelRef.current = null;
             }
         };
-    }, [queryClient]);
+    }, [queryClient, enabled]);
 }
 
 /**
@@ -136,13 +142,21 @@ export function useTableRealtimeUpdates(
 ) {
     const queryClient = useQueryClient();
     const channelRef = useRef<RealtimeChannel | null>(null);
+    // Keep queryKeys in a ref so the effect doesn't re-run when the array
+    // identity changes (caller usually passes an inline literal).
+    const queryKeysRef = useRef(queryKeys);
+    queryKeysRef.current = queryKeys;
 
     useEffect(() => {
-        const channelName = `realtime_${table}_${Date.now()}`;
+        // ✅ Stable name — no Date.now() — prevents orphaned subscriptions
+        // when parent re-renders while this hook is still mounted.
+        const channelName = `realtime_${table}_${event}`;
         channelRef.current = supabase
             .channel(channelName)
             .on('postgres_changes', { event, schema: 'public', table }, () => {
-                queryKeys.forEach(key => queryClient.invalidateQueries({ queryKey: [key] }));
+                queryKeysRef.current.forEach(key =>
+                    queryClient.invalidateQueries({ queryKey: [key] })
+                );
             })
             .subscribe();
 
@@ -152,5 +166,5 @@ export function useTableRealtimeUpdates(
                 channelRef.current = null;
             }
         };
-    }, [queryClient, table, event]); // queryKeys intentionally omitted (stable in practice)
+    }, [queryClient, table, event]); // queryKeys handled via ref above
 }

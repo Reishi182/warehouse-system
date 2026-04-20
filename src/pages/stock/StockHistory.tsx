@@ -7,6 +7,7 @@ import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
 import { useDataStore } from '@/store/useDataStore';
 import { StockLogDetailDialog } from '@/components/stock/StockLogDetailDialog';
 import { StockLog, Location } from '@/types';
+import { useStockLogs } from '@/hooks/useStockLogs';
 import {
     ArrowDownToLine,
     ArrowUpFromLine,
@@ -20,6 +21,8 @@ import {
     Layers,
     List,
     User,
+    MapPin,
+    FileText,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { id } from 'date-fns/locale';
@@ -89,115 +92,132 @@ function GroupDetailDialog({
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
-            <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-                <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                        <div className={cn(
-                            "w-8 h-8 rounded-lg flex items-center justify-center",
-                            group.type === 'in' ? 'bg-green-100 text-green-700' :
-                                group.type === 'out' ? 'bg-red-100 text-red-700' :
-                                    'bg-blue-100 text-blue-700'
-                        )}>
-                            <TypeIcon className="w-4 h-4" />
-                        </div>
-                        Detail Pergerakan — <span className="font-mono">{group.reference_label}</span>
-                    </DialogTitle>
-                </DialogHeader>
+            <DialogContent className="max-w-2xl bg-slate-50 dark:bg-slate-900 border-none shadow-2xl p-0 overflow-hidden rounded-2xl max-h-[85vh] flex flex-col">
+                {/* Header Section */}
+                <div className={cn(
+                    "p-6 text-white grid gap-4 relative shrink-0",
+                    group.type === 'in' ? 'bg-gradient-to-r from-emerald-600 to-teal-600' :
+                        group.type === 'out' ? 'bg-gradient-to-r from-rose-600 to-red-600' :
+                            'bg-gradient-to-r from-blue-600 to-indigo-600'
+                )}>
+                    <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+                        <Package className="w-32 h-32" />
+                    </div>
+                    <div>
+                        <h2 className="text-2xl font-bold flex items-center gap-3">
+                            <span className="bg-white/20 p-2 rounded-xl backdrop-blur-sm">
+                                <TypeIcon className="w-6 h-6 text-white" />
+                            </span>
+                            Detail Pergerakan Stok
+                        </h2>
+                        <p className="text-white/80 flex items-center gap-1.5 mt-2 text-sm font-medium font-mono">
+                            <FileText className="w-4 h-4" />
+                            {group.reference_label}
+                        </p>
+                    </div>
 
-                {/* Meta */}
-                <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground border-b pb-3">
-                    <Badge className={typeInfo.color}>
-                        <TypeIcon className="w-3 h-3 mr-1" />
-                        {typeInfo.label}
-                    </Badge>
-                    <Badge variant="outline" className="uppercase">
-                        {locationLabels[group.location] || group.location}
-                    </Badge>
-                    <span>
-                        {format(parseISO(group.timestamp), 'dd MMM yyyy HH:mm', { locale: id })}
-                    </span>
-                    <span className="ml-auto font-semibold text-foreground">
-                        {group.logs.length} Produk
-                    </span>
+                    <div className="flex flex-wrap gap-3 mt-2">
+                        <div className="bg-white/10 backdrop-blur-md rounded-xl px-4 py-2 border border-white/20 flex items-center gap-2">
+                            <TypeIcon className="w-4 h-4 text-white/70" />
+                            <span className="font-semibold">{typeInfo.label}</span>
+                        </div>
+                        <div className="bg-white/10 backdrop-blur-md rounded-xl px-4 py-2 border border-white/20 flex items-center gap-2">
+                            <MapPin className="w-4 h-4 text-white/70" />
+                            <span className="font-semibold uppercase">{locationLabels[group.location] || group.location}</span>
+                        </div>
+                        <div className="bg-white/10 backdrop-blur-md rounded-xl px-4 py-2 border border-white/20 flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-white/70" />
+                            <span className="font-semibold">
+                                {format(parseISO(group.timestamp), 'dd MMM yyyy, HH:mm', { locale: id })}
+                            </span>
+                        </div>
+                        <div className="bg-white/10 backdrop-blur-md rounded-xl px-4 py-2 border border-white/20 flex items-center gap-2 ml-auto">
+                            <Package className="w-4 h-4 text-white/70" />
+                            <span className="font-bold">{group.logs.length} Produk</span>
+                        </div>
+                    </div>
                 </div>
 
-                {/* Products table */}
-                <div className="overflow-x-auto rounded-xl border">
-                    <table className="w-full text-sm">
-                        <thead>
-                            <tr className="bg-muted/60 border-b text-xs uppercase tracking-wider text-muted-foreground">
-                                <th className="text-left px-4 py-3 font-semibold">Produk</th>
-                                <th className="text-center px-3 py-3 font-semibold">Qty</th>
-                                <th className="text-left px-3 py-3 font-semibold">Catatan</th>
-                                <th className="px-3 py-3"></th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y">
-                            {group.logs.map((log, idx) => {
-                                const isMultiUnit = log.product?.has_multi_unit && log.product?.pcs_per_box;
-                                let displayQty = Math.abs(log.quantity).toString();
-                                if (isMultiUnit && log.product) {
-                                    const pcsPerBox = log.product.pcs_per_box!;
-                                    const mainUnit = (log.product.main_unit || 'box').toUpperCase();
-                                    const subUnit = (log.product.sell_unit || 'pcs').toUpperCase();
-                                    const qtyAbs = Math.abs(log.quantity);
-                                    const mainCount = Math.floor(qtyAbs / pcsPerBox);
-                                    const remainder = parseFloat((qtyAbs % pcsPerBox).toFixed(2));
-                                    if (mainCount === 0) displayQty = `${remainder} ${subUnit}`;
-                                    else if (remainder === 0) displayQty = `${mainCount} ${mainUnit}`;
-                                    else displayQty = `${mainCount} ${mainUnit} ${remainder} ${subUnit}`;
+                {/* Table Section */}
+                <div className="p-6 overflow-y-auto flex-1">
+                    <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+                        <table className="w-full text-sm">
+                            <thead>
+                                <tr className="bg-gray-50/80 dark:bg-slate-700/50 text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                    <th className="text-left px-4 py-3.5 font-semibold">Produk</th>
+                                    <th className="text-center px-4 py-3.5 font-semibold">Qty</th>
+                                    <th className="text-left px-4 py-3.5 font-semibold">Catatan</th>
+                                    <th className="px-4 py-3.5"></th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                                {group.logs.map((log, idx) => {
+                                    const isMultiUnit = log.product?.has_multi_unit && log.product?.pcs_per_box;
+                                    let displayQty = Math.abs(log.quantity).toString();
+                                    if (isMultiUnit && log.product) {
+                                        const pcsPerBox = log.product.pcs_per_box!;
+                                        const mainUnit = (log.product.main_unit || 'box').toUpperCase();
+                                        const subUnit = (log.product.sell_unit || 'pcs').toUpperCase();
+                                        const qtyAbs = Math.abs(log.quantity);
+                                        const mainCount = Math.floor(qtyAbs / pcsPerBox);
+                                        const remainder = parseFloat((qtyAbs % pcsPerBox).toFixed(2));
+                                        if (mainCount === 0) displayQty = `${remainder} ${subUnit}`;
+                                        else if (remainder === 0) displayQty = `${mainCount} ${mainUnit}`;
+                                        else displayQty = `${mainCount} ${mainUnit} ${remainder} ${subUnit}`;
                                 } else if (log.product?.sell_unit) {
                                     displayQty = `${Math.abs(log.quantity)} ${log.product.sell_unit.toUpperCase()}`;
                                 }
 
                                 return (
-                                    <tr key={log.id} className={cn(
-                                        "transition-colors hover:bg-muted/30",
-                                        idx % 2 === 0 ? "bg-background" : "bg-muted/10"
-                                    )}>
-                                        <td className="px-4 py-3">
+                                    <tr key={log.id} className="transition-colors hover:bg-gray-50 dark:hover:bg-slate-700/30">
+                                        <td className="px-4 py-3.5 min-w-[240px]">
                                             <div className="flex items-center gap-3">
                                                 {log.product?.image_url ? (
-                                                    <img src={log.product.image_url} alt="" className="w-9 h-9 rounded-lg object-cover" />
+                                                    <img src={log.product.image_url} alt="" className="w-10 h-10 rounded-lg object-cover border border-gray-100 dark:border-gray-700" />
                                                 ) : (
-                                                    <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                                                        <Package className="w-4 h-4 text-primary" />
+                                                    <div className="w-10 h-10 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center shrink-0">
+                                                        <Package className="w-5 h-5 text-indigo-500" />
                                                     </div>
                                                 )}
                                                 <div>
-                                                    <p className="font-medium line-clamp-1">{log.product?.name || 'Unknown'}</p>
-                                                    <p className="text-[10px] font-mono text-muted-foreground">{log.product?.barcode}</p>
+                                                    <p className="font-semibold text-gray-900 dark:text-gray-100 leading-snug">{log.product?.name || 'Unknown'}</p>
+                                                    <p className="text-[11px] font-mono text-gray-500 mt-0.5">{log.product?.barcode}</p>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="px-3 py-3 text-center">
+                                        <td className="px-4 py-3.5 text-center">
                                             {(() => {
                                                 const isPositive = log.type === 'in' || (log.type === 'adjustment' && log.quantity > 0);
                                                 const isNegative = log.type === 'out' || (log.type === 'adjustment' && log.quantity < 0);
-                                                const colorClass = isPositive ? 'text-green-600' : isNegative ? 'text-red-600' : 'text-gray-600';
+                                                
+                                                const bgColor = isPositive ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 
+                                                                isNegative ? 'bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400' : 
+                                                                             'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400';
+                                                
                                                 const sign = isPositive ? '+' : isNegative ? '-' : '';
+                                                
                                                 return (
-                                                    <span className={cn("font-bold", colorClass)}>
+                                                    <span className={cn("inline-flex whitespace-nowrap font-bold px-2.5 py-1 rounded-lg text-sm", bgColor)}>
                                                         {sign}{displayQty}
                                                     </span>
                                                 );
                                             })()}
                                         </td>
-                                        <td className="px-3 py-3 text-xs text-muted-foreground max-w-[160px] truncate">
+                                        <td className="px-4 py-3.5 text-sm text-gray-600 dark:text-gray-400 italic">
                                             {log.note || '—'}
                                         </td>
-                                        <td className="px-3 py-3">
+                                        <td className="px-4 py-3.5 text-right">
                                             <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-7 w-7"
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-8 shadow-sm hover:bg-slate-100 dark:hover:bg-slate-800"
                                                 onClick={() => {
                                                     onClose();
                                                     onViewSingleLog(log);
                                                 }}
                                                 title="Lihat detail lengkap"
                                             >
-                                                <Eye className="w-3.5 h-3.5" />
+                                                <Eye className="w-4 h-4 text-slate-500" />
                                             </Button>
                                         </td>
                                     </tr>
@@ -206,10 +226,11 @@ function GroupDetailDialog({
                         </tbody>
                     </table>
                 </div>
+                </div>
 
-                <DialogFooter>
-                    <Button variant="outline" onClick={onClose}>Tutup</Button>
-                </DialogFooter>
+                <div className="py-4 px-6 bg-gray-50 dark:bg-slate-800/50 border-t border-gray-100 dark:border-gray-700 flex justify-end shrink-0">
+                    <Button variant="outline" className="rounded-xl shadow-sm" onClick={onClose}>Tutup Detail</Button>
+                </div>
             </DialogContent>
         </Dialog>
     );
@@ -217,8 +238,11 @@ function GroupDetailDialog({
 
 // ─── Main Page ─────────────────────────────────────────────────
 export default function StockHistory() {
-    const stockLogs = useDataStore(s => s.stockLogs);
-    const loading = useDataStore(s => s.loading);
+    const products = useDataStore(s => s.products);
+    const { data: fullStockLogs, isLoading: isLogsLoading } = useStockLogs(products);
+    const stockLogs = fullStockLogs || [];
+
+    const loading = useDataStore(s => s.loading) || isLogsLoading;
 
     const [selectedLog, setSelectedLog] = useState<StockLog | null>(null);
     const [detailDialogOpen, setDetailDialogOpen] = useState(false);

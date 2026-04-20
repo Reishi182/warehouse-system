@@ -158,8 +158,9 @@ class ConnectionManager {
 
     async checkConnection(): Promise<boolean> {
         try {
-            // Simple ping - check if we can reach Supabase
-            const { error } = await supabase.from('notifications').select('id').limit(1);
+            // ✅ Use auth.getSession() — zero DB cost, just checks local token validity
+            // Previously hit notifications table every 30s (real DB query = egress cost)
+            const { error } = await supabase.auth.getSession();
             return !error;
         } catch {
             return false;

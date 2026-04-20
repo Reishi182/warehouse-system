@@ -179,6 +179,7 @@ export function useBroadcastSync() {
   const cleanupRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
+
     // 1. Initialize broadcast channel
     const cleanupChannel = initBroadcastChannel();
 
@@ -207,18 +208,14 @@ export function useBroadcastSync() {
       }
 
       if (event.record && (event.eventType === 'INSERT' || event.eventType === 'UPDATE')) {
-        // Try to patch the React Query cache directly
         for (const key of queryKeys) {
           const existingData = queryClient.getQueryData<any[]>([key]);
-
           if (Array.isArray(existingData)) {
             if (event.eventType === 'INSERT') {
-              // Prepend if not already in cache
               if (!existingData.some((item: any) => item.id === event.record.id)) {
                 queryClient.setQueryData([key], [event.record, ...existingData]);
               }
             } else if (event.eventType === 'UPDATE') {
-              // Replace in cache
               queryClient.setQueryData(
                 [key],
                 existingData.map((item: any) =>
@@ -227,7 +224,6 @@ export function useBroadcastSync() {
               );
             }
           } else {
-            // Cache is not an array or doesn't exist — fallback to invalidate
             queryClient.invalidateQueries({ queryKey: [key] });
           }
         }
@@ -244,14 +240,13 @@ export function useBroadcastSync() {
           }
         }
       } else {
-        // No record data — fallback to invalidate
         for (const key of queryKeys) {
           queryClient.invalidateQueries({ queryKey: [key] });
         }
       }
     });
 
-    // 3. Register reconnection handler (re-fetch everything after idle)
+    // 3. Register reconnection handler
     onReconnectNeeded(() => {
       console.log('[BroadcastSync] 🔄 Re-syncing all queries after idle/offline');
       queryClient.invalidateQueries();
@@ -267,3 +262,4 @@ export function useBroadcastSync() {
     };
   }, [queryClient]);
 }
+

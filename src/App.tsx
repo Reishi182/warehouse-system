@@ -75,6 +75,7 @@ const Guide = React.lazy(() => import("./pages/Guide"));
 import { UserRole } from '@/types';
 import { useGlobalRealtimeUpdates } from '@/hooks/useGlobalRealtimeUpdates';
 import { useBroadcastSync } from '@/hooks/useBroadcastSync';
+import { useTabLeader } from '@/hooks/useTabLeader';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -151,10 +152,15 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 function AppRoutes() {
   const { user } = useAuth();
   
-  // Call global real-time subscriptions with user.id for filtered notifications
-  useGlobalRealtimeUpdates(user?.id);
-  
-  // ✅ Broadcast sync — handles ALL tables via egress-free WebSocket broadcast
+  // Leader election: only ONE tab subscribes to postgres_changes (expensive).
+  // Broadcast sync runs on ALL tabs — it's free (WebSocket, no DB cost).
+  const isLeader = useTabLeader();
+
+  // postgres_changes for products — ONLY in the leader tab (saves realtime.subscription cost)
+  useGlobalRealtimeUpdates(isLeader);
+
+  // ✅ Broadcast sync — runs on ALL tabs (Supabase Broadcast = free, no DB hit)
+  // Must be on all tabs so broadcastTableChange() can send from any tab
   useBroadcastSync();
 
   // Role shortcuts for cleaner route definitions
