@@ -1,11 +1,11 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { Package, AlertTriangle, Warehouse, Store, ArrowDownToLine, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, ArrowUpDown, Download, FileText, FileSpreadsheet, Calendar, Clock, Loader2, Tag, Barcode } from 'lucide-react';
+import { Package, AlertTriangle, Warehouse, Store, ArrowDownToLine, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, ArrowUpDown, Download, FileText, FileSpreadsheet, Calendar, Clock, Loader2, Tag, Barcode, PackageMinus, Search, X } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import BarcodeScanner from '@/components/common/BarcodeScanner';
 import PageSkeleton from '@/components/common/PageSkeleton';
 import { AddProductDialog, EditProductDialog, StockAdjustDialog, StockInDialog } from '@/components/products';
 import { ProductManageCard } from '@/components/products/ProductManageCard';
-import { ProductFilterSidebar, StockFilter, LocationFilter, DataFilter } from '@/components/products/ProductFilterSidebar';
+import { ProductFilterSidebar, StockFilter, LocationFilter, DataFilter, StatusFilter } from '@/components/products/ProductFilterSidebar';
 import CategoryManager from '@/components/products/CategoryManager';
 import BarcodeLabelPrint from '@/components/products/BarcodeLabelPrint';
 import { exportProductStockPDF, exportProductStockExcel } from '@/lib/export';
@@ -15,6 +15,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
 import {
     Dialog,
     DialogContent,
@@ -62,6 +63,7 @@ export default function Products() {
     // Filter states
     const [searchQuery, setSearchQuery] = useState(() => sessionStorage.getItem('products_search_query') || '');
     const debouncedSearch = useDebounce(searchQuery, 300);
+    const [statusFilter, setStatusFilter] = useState<StatusFilter>(() => (sessionStorage.getItem('products_status_filter') as StatusFilter) || 'active');
     const [stockFilter, setStockFilter] = useState<StockFilter>(() => (sessionStorage.getItem('products_stock_filter') as StockFilter) || 'all');
     const [locationFilter, setLocationFilter] = useState<LocationFilter>(() => (sessionStorage.getItem('products_location_filter') as LocationFilter) || 'all');
     const [sortBy, setSortBy] = useState<SortOption>(() => (sessionStorage.getItem('products_sort_by') as SortOption) || 'name-asc');
@@ -84,6 +86,10 @@ export default function Products() {
     useEffect(() => {
         sessionStorage.setItem('products_search_query', searchQuery);
     }, [searchQuery]);
+
+    useEffect(() => {
+        sessionStorage.setItem('products_status_filter', statusFilter);
+    }, [statusFilter]);
 
     useEffect(() => {
         sessionStorage.setItem('products_stock_filter', stockFilter);
@@ -130,6 +136,7 @@ export default function Products() {
     const canEditProduct = role === 'admin' || role === 'warehouse' || role === 'cashier' || role === 'auditor' || role === 'main_office';
     const canDeleteProduct = role === 'admin' || role === 'auditor' || role === 'main_office';
     const canAdjustStock = role === 'admin' || role === 'auditor';
+    const canToggleActive = role === 'main_office' || role === 'admin';
 
     // Product counts for filter sidebar
     const productCounts = useMemo(() => ({
@@ -143,6 +150,7 @@ export default function Products() {
         noBarcode: products.filter(p => p.barcode.startsWith('TEMP-')).length,
         noStock: products.filter(p => p.stock.gudang <= 0 && p.stock.toko <= 0).length,
         noImage: products.filter(p => !p.image_url).length,
+        inactive: products.filter(p => p.is_active === false).length,
     }), [products]);
 
     // Toggle data filter
@@ -158,6 +166,13 @@ export default function Products() {
     // Filtered products
     const filteredProducts = useMemo(() => {
         let filtered = products;
+
+        // Status filter
+        if (statusFilter === 'active') {
+            filtered = filtered.filter(p => p.is_active !== false);
+        } else if (statusFilter === 'inactive') {
+            filtered = filtered.filter(p => p.is_active === false);
+        }
 
         // Search filter
         if (debouncedSearch.trim()) {
@@ -229,7 +244,7 @@ export default function Products() {
         }
 
         return sorted;
-    }, [products, debouncedSearch, stockFilter, locationFilter, sortBy, dataFilters]);
+    }, [products, debouncedSearch, statusFilter, stockFilter, locationFilter, sortBy, dataFilters]);
 
     // Paginated products
     const paginatedProducts = useMemo(() => {
@@ -251,7 +266,7 @@ export default function Products() {
             return;
         }
         setCurrentPage(1);
-    }, [debouncedSearch, stockFilter, locationFilter, pageSize, sortBy, dataFilters]);
+    }, [debouncedSearch, statusFilter, stockFilter, locationFilter, pageSize, sortBy, dataFilters]);
 
     // Handle highlight from URL (?highlight=<productId>)
     useEffect(() => {
@@ -261,6 +276,7 @@ export default function Products() {
 
         // Reset all filters to find the product
         setSearchQuery('');
+        setStatusFilter('all' as any); // Temporarily allow finding inactive if needed
         setStockFilter('all');
         setLocationFilter('all');
         setDataFilters([]);
@@ -321,11 +337,16 @@ export default function Products() {
                 description: product.name,
             });
         } else {
-            toast({
-                title: 'Produk tidak ditemukan',
-                description: 'Barcode: ' + barcode,
-                variant: 'destructive',
-            });
+            // Check if they are just typing a name (the list is already filtering via searchQuery)
+            // If the barcode is numeric or starts with TEMP-, it might be a failed scan
+            const looksLikeBarcode = /^[0-9]+$/.test(barcode) || barcode.startsWith('TEMP-');
+            if (looksLikeBarcode) {
+                toast({
+                    title: 'Produk tidak ditemukan',
+                    description: 'Barcode: ' + barcode,
+                    variant: 'destructive',
+                });
+            }
         }
     }, [getProductByBarcode, toast]);
 
@@ -364,6 +385,17 @@ export default function Products() {
         return await updateProduct(id, updates);
     };
 
+    const handleToggleActive = useCallback(async (product: Product) => {
+        const newStatus = product.is_active === false ? true : false;
+        const ok = await updateProduct(product.id, { is_active: newStatus });
+        if (ok) {
+            toast({
+                title: newStatus ? 'Produk Diaktifkan' : 'Produk Dinonaktifkan',
+                description: `${product.name} berhasil ${newStatus ? 'diaktifkan' : 'dinonaktifkan'}`,
+            });
+        }
+    }, [updateProduct, toast]);
+
     const openStockAdjustDialog = useCallback((product: Product) => {
         setStockAdjustProduct(product);
         setStockAdjustDialog(true);
@@ -387,12 +419,14 @@ export default function Products() {
 
     const resetFilters = useCallback(() => {
         setSearchQuery('');
+        setStatusFilter('active');
         setStockFilter('all');
         setLocationFilter('all');
         setDataFilters([]);
         setSortBy('name-asc');
         setCurrentPage(1);
         sessionStorage.removeItem('products_search_query');
+        sessionStorage.removeItem('products_status_filter');
         sessionStorage.removeItem('products_stock_filter');
         sessionStorage.removeItem('products_location_filter');
         sessionStorage.removeItem('products_sort_by');
@@ -593,6 +627,13 @@ export default function Products() {
                         gradient="emerald"
                         animationDelay={300}
                     />
+                    <StatsCard
+                        title="Produk Nonaktif"
+                        value={productCounts.inactive}
+                        icon={<PackageMinus className="w-5 h-5" />}
+                        gradient="red"
+                        animationDelay={400}
+                    />
                 </StatsGrid>
 
                 {/* Main Content: Sidebar + Grid */}
@@ -601,8 +642,8 @@ export default function Products() {
                     <aside className="hidden lg:block w-64 shrink-0">
                         <div className="sticky top-4 p-4 rounded-2xl border bg-card">
                             <ProductFilterSidebar
-                                searchQuery={searchQuery}
-                                onSearchChange={setSearchQuery}
+                                statusFilter={statusFilter}
+                                onStatusFilterChange={setStatusFilter}
                                 stockFilter={stockFilter}
                                 onStockFilterChange={setStockFilter}
                                 locationFilter={locationFilter}
@@ -617,91 +658,100 @@ export default function Products() {
 
                     {/* Products Grid */}
                     <div className="flex-1 min-w-0">
-                        {/* Mobile Filter Bar */}
-                        <div className="lg:hidden flex items-center gap-2 mb-4">
-                            <BarcodeScanner
-                                onScan={handleBarcodeScanned}
-                                placeholder="Scan atau cari produk..."
-                                className="flex-1"
-                            />
-                            <Sheet open={mobileFilterOpen} onOpenChange={setMobileFilterOpen}>
-                                <SheetTrigger asChild>
-                                    <Button variant="outline" size="icon" className="shrink-0 rounded-xl h-11 w-11">
-                                        <Filter className="h-4 w-4" />
-                                    </Button>
-                                </SheetTrigger>
-                                <SheetContent side="left">
-                                    <SheetHeader>
-                                        <SheetTitle>Filter Produk</SheetTitle>
-                                    </SheetHeader>
-                                    <ScrollArea className="h-[calc(100dvh-80px)] pr-4">
-                                        <ProductFilterSidebar
-                                            searchQuery={searchQuery}
-                                            onSearchChange={setSearchQuery}
-                                            stockFilter={stockFilter}
-                                            onStockFilterChange={setStockFilter}
-                                            locationFilter={locationFilter}
-                                            onLocationFilterChange={setLocationFilter}
-                                            dataFilters={dataFilters}
-                                            onDataFilterToggle={handleDataFilterToggle}
-                                            productCounts={productCounts}
-                                            onReset={resetFilters}
-                                            className="py-4"
-                                        />
-                                    </ScrollArea>
-                                </SheetContent>
-                            </Sheet>
-                        </div>
 
-                        {/* Results Count, Sort & Page Size */}
-                        <div className="flex flex-col gap-2 mb-4">
-                            {/* Row 1: Results count + Sort */}
-                            <div className="flex items-center justify-between">
-                                <p className="text-xs sm:text-sm text-muted-foreground">
-                                    Menampilkan <span className="font-medium text-foreground">{paginatedProducts.length}</span> dari{' '}
-                                    <span className="font-medium text-foreground">{filteredProducts.length}</span> produk
-                                </p>
-
-                                {/* Sort Dropdown */}
-                                <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
-                                    <SelectTrigger className="w-[120px] sm:w-[150px] h-9 rounded-xl text-xs sm:text-sm">
-                                        <ArrowUpDown className="w-3.5 h-3.5 mr-1.5 shrink-0" />
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent className="rounded-xl">
-                                        <SelectItem value="name-asc">Nama A-Z</SelectItem>
-                                        <SelectItem value="name-desc">Nama Z-A</SelectItem>
-                                        <SelectItem value="price-asc">Harga ↑</SelectItem>
-                                        <SelectItem value="price-desc">Harga ↓</SelectItem>
-                                        <SelectItem value="stock-desc">Stok ↓</SelectItem>
-                                        <SelectItem value="stock-asc">Stok ↑</SelectItem>
-                                        <SelectItem value="newest">Terbaru</SelectItem>
-                                        <SelectItem value="oldest">Terlama</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                        {/* Search Bar & Results Count */}
+                        <div className="flex flex-col gap-4 mb-4">
+                            {/* Main Search Bar with Barcode Scanner */}
+                            <div className="w-full">
+                                <BarcodeScanner
+                                    value={searchQuery}
+                                    onChange={setSearchQuery}
+                                    onScan={handleBarcodeScanned}
+                                    placeholder="Cari nama atau scan barcode produk..."
+                                    showSubmitButton={false}
+                                />
                             </div>
 
-                            {/* Row 2: Page Size Selector - always visible */}
-                            <div className="flex items-center gap-2">
-                                <span className="text-xs text-muted-foreground">Tampilkan:</span>
-                                <div className="flex items-center gap-1 p-1 bg-muted rounded-xl">
-                                    {pageSizeOptions.map((size) => (
-                                        <button
-                                            key={size}
-                                            onClick={() => setPageSize(size)}
-                                            className={cn(
-                                                "px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg text-xs font-medium transition-all",
-                                                pageSize === size
-                                                    ? "bg-background shadow-sm"
-                                                    : "hover:bg-background/50"
-                                            )}
-                                        >
-                                            {size === 'all' ? 'All' : size}
-                                        </button>
-                                    ))}
+                            {/* Controls Row */}
+                            <div className="flex flex-wrap items-center justify-between gap-4">
+                                <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+                                    <p className="text-xs sm:text-sm text-muted-foreground">
+                                        Menampilkan <span className="font-medium text-foreground">{paginatedProducts.length}</span> dari{' '}
+                                        <span className="font-medium text-foreground">{filteredProducts.length}</span> produk
+                                    </p>
+
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs text-muted-foreground">Tampilkan:</span>
+                                        <div className="flex items-center gap-1 p-1 bg-muted rounded-xl">
+                                            {pageSizeOptions.map((size) => (
+                                                <button
+                                                    key={size}
+                                                    onClick={() => setPageSize(size)}
+                                                    className={cn(
+                                                        "px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg text-xs font-medium transition-all",
+                                                        pageSize === size
+                                                            ? "bg-background shadow-sm"
+                                                            : "hover:bg-background/50"
+                                                    )}
+                                                >
+                                                    {size === 'all' ? 'All' : size}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
+
+                                {/* Sort + Mobile Filter in one group */}
+                                <div className="flex items-center gap-2 shrink-0">
+                                    {/* Mobile Filter Button - inline with sort */}
+                                    <Sheet open={mobileFilterOpen} onOpenChange={setMobileFilterOpen}>
+                                        <SheetTrigger asChild>
+                                            <Button variant="outline" size="sm" className="lg:hidden rounded-xl flex items-center gap-2 h-9">
+                                                <Filter className="h-4 w-4" />
+                                                <span>Filter</span>
+                                            </Button>
+                                        </SheetTrigger>
+                                        <SheetContent side="left">
+                                            <SheetHeader>
+                                                <SheetTitle>Filter Produk</SheetTitle>
+                                            </SheetHeader>
+                                            <ScrollArea className="h-[calc(100dvh-80px)] pr-4">
+                                                <ProductFilterSidebar
+                                                    statusFilter={statusFilter}
+                                                    onStatusFilterChange={setStatusFilter}
+                                                    stockFilter={stockFilter}
+                                                    onStockFilterChange={setStockFilter}
+                                                    locationFilter={locationFilter}
+                                                    onLocationFilterChange={setLocationFilter}
+                                                    dataFilters={dataFilters}
+                                                    onDataFilterToggle={handleDataFilterToggle}
+                                                    productCounts={productCounts}
+                                                    onReset={resetFilters}
+                                                    className="py-4"
+                                                />
+                                            </ScrollArea>
+                                        </SheetContent>
+                                    </Sheet>
+
+                                    <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+                                        <SelectTrigger className="w-[120px] sm:w-[150px] h-9 rounded-xl text-xs sm:text-sm shrink-0">
+                                            <ArrowUpDown className="w-3.5 h-3.5 mr-1.5 shrink-0" />
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent className="rounded-xl">
+                                            <SelectItem value="name-asc">Nama A-Z</SelectItem>
+                                            <SelectItem value="name-desc">Nama Z-A</SelectItem>
+                                            <SelectItem value="price-asc">Harga ↑</SelectItem>
+                                            <SelectItem value="price-desc">Harga ↓</SelectItem>
+                                            <SelectItem value="stock-desc">Stok ↓</SelectItem>
+                                            <SelectItem value="stock-asc">Stok ↑</SelectItem>
+                                            <SelectItem value="newest">Terbaru</SelectItem>
+                                            <SelectItem value="oldest">Terlama</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>{/* end sort+filter group */}
+                            </div>{/* end controls row */}
+                        </div>{/* end search+controls */}
 
                         {/* Product Grid */}
                         {paginatedProducts.length > 0 ? (
@@ -716,6 +766,8 @@ export default function Products() {
                                         canEdit={canEditProduct}
                                         canDelete={canDeleteProduct}
                                         canAdjustStock={canAdjustStock}
+                                        canToggleActive={canToggleActive}
+                                        onToggleActive={handleToggleActive}
                                         isHighlighted={product.id === highlightedProductId}
                                     />
                                 ))}

@@ -9,10 +9,11 @@ import { cn } from '@/lib/utils';
 export type StockFilter = 'all' | 'instock' | 'low' | 'outofstock';
 export type LocationFilter = 'all' | 'gudang' | 'toko';
 export type DataFilter = 'noBarcode' | 'noStock' | 'noImage';
+export type StatusFilter = 'active' | 'inactive';
 
 interface ProductFilterSidebarProps {
-    searchQuery: string;
-    onSearchChange: (query: string) => void;
+    statusFilter: StatusFilter;
+    onStatusFilterChange: (filter: StatusFilter) => void;
     stockFilter: StockFilter;
     onStockFilterChange: (filter: StockFilter) => void;
     locationFilter: LocationFilter;
@@ -27,14 +28,15 @@ interface ProductFilterSidebarProps {
         noBarcode: number;
         noStock: number;
         noImage: number;
+        inactive: number;
     };
     onReset: () => void;
     className?: string;
 }
 
 export const ProductFilterSidebar = memo(function ProductFilterSidebar({
-    searchQuery,
-    onSearchChange,
+    statusFilter,
+    onStatusFilterChange,
     stockFilter,
     onStockFilterChange,
     locationFilter,
@@ -45,7 +47,7 @@ export const ProductFilterSidebar = memo(function ProductFilterSidebar({
     onReset,
     className,
 }: ProductFilterSidebarProps) {
-    const hasActiveFilters = searchQuery || stockFilter !== 'all' || locationFilter !== 'all' || dataFilters.length > 0;
+    const hasActiveFilters = statusFilter !== 'active' || stockFilter !== 'all' || locationFilter !== 'all' || dataFilters.length > 0;
 
     return (
         <div className={cn("space-y-6", className)}>
@@ -68,25 +70,30 @@ export const ProductFilterSidebar = memo(function ProductFilterSidebar({
                 )}
             </div>
 
-            {/* Search */}
-            <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Cari Produk</Label>
-                <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                        value={searchQuery}
-                        onChange={(e) => onSearchChange(e.target.value)}
-                        placeholder="Nama atau barcode..."
-                        className="pl-9 pr-9 h-10 rounded-xl bg-muted/50"
-                    />
-                    {searchQuery && (
-                        <button
-                            onClick={() => onSearchChange('')}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-muted transition-colors"
-                        >
-                            <X className="w-3 h-3 text-muted-foreground" />
-                        </button>
-                    )}
+            {/* Status Filter */}
+            <div className="space-y-3">
+                <Label className="text-xs text-muted-foreground">Status Produk</Label>
+                <div className="space-y-2">
+                    <button
+                        onClick={() => onStatusFilterChange(statusFilter === 'active' ? 'inactive' : 'active')}
+                        className={cn(
+                            "flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-all w-full text-left",
+                            statusFilter === 'inactive'
+                                ? "bg-red-500/10 border border-red-500/30"
+                                : "hover:bg-muted/50"
+                        )}
+                    >
+                        <AlertTriangle className={cn("w-4 h-4", statusFilter === 'inactive' ? "text-red-500" : "text-muted-foreground")} />
+                        <span className="flex-1 text-sm">Produk Nonaktif</span>
+                        <span className={cn(
+                            "text-xs px-2 py-0.5 rounded-full",
+                            statusFilter === 'inactive'
+                                ? "text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/30"
+                                : "text-muted-foreground bg-muted"
+                        )}>
+                            {productCounts.inactive}
+                        </span>
+                    </button>
                 </div>
             </div>
 

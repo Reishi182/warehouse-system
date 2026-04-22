@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { Package, MoreHorizontal, Pencil, Trash2, Plus, AlertTriangle, Warehouse, Store } from 'lucide-react';
+import { Package, MoreHorizontal, Pencil, Trash2, Plus, AlertTriangle, Warehouse, Store, Eye, EyeOff } from 'lucide-react';
 import { LazyImage } from '@/components/common/LazyImage';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -22,7 +22,9 @@ interface ProductManageCardProps {
     canEdit?: boolean;
     canDelete?: boolean;
     canAdjustStock?: boolean;
+    canToggleActive?: boolean;
     isHighlighted?: boolean;
+    onToggleActive?: (product: Product) => void;
 }
 
 /**
@@ -67,7 +69,9 @@ export const ProductManageCard = memo(function ProductManageCard({
     canEdit = true,
     canDelete = true,
     canAdjustStock = true,
+    canToggleActive = false,
     isHighlighted = false,
+    onToggleActive,
 }: ProductManageCardProps) {
     const stockGudang = product.stock.gudang;
     const stockToko = product.stock.toko;
@@ -96,17 +100,24 @@ export const ProductManageCard = memo(function ProductManageCard({
                 "group relative flex flex-col rounded-2xl border bg-card overflow-hidden transition-all duration-200",
                 "hover:shadow-lg hover:border-primary/40 hover:-translate-y-0.5",
                 isOutOfStock && "opacity-70",
+                product.is_active === false && "opacity-50 grayscale-[50%]",
                 isHighlighted && "ring-2 ring-primary ring-offset-2 shadow-lg shadow-primary/20 animate-pulse"
             )}
         >
             {/* Action Menu - Top Right */}
-            <div className="absolute top-2 right-2 z-10">
+            <div className="absolute top-2 right-2 z-20">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button
                             variant="secondary"
                             size="icon"
-                            className="h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm shadow-md opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+                            className={cn(
+                                "h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm shadow-md transition-opacity",
+                                // Always visible if inactive so user can reactivate
+                                product.is_active === false
+                                    ? "opacity-100"
+                                    : "opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                            )}
                         >
                             <MoreHorizontal className="w-4 h-4" />
                         </Button>
@@ -131,6 +142,18 @@ export const ProductManageCard = memo(function ProductManageCard({
                                 <Pencil className="w-4 h-4" /> Edit Produk
                             </DropdownMenuItem>
                         )}
+                        {canToggleActive && onToggleActive && (
+                            <DropdownMenuItem
+                                onClick={() => onToggleActive(product)}
+                                className="gap-2 cursor-pointer"
+                            >
+                                {product.is_active === false ? (
+                                    <><Eye className="w-4 h-4" /> Aktifkan</>
+                                ) : (
+                                    <><EyeOff className="w-4 h-4" /> Nonaktifkan</>
+                                )}
+                            </DropdownMenuItem>
+                        )}
                         {canDelete && onDelete && (
                             <DropdownMenuItem
                                 onClick={() => onDelete(product)}
@@ -153,14 +176,20 @@ export const ProductManageCard = memo(function ProductManageCard({
                     fallbackIcon={<Package className="w-12 h-12 text-muted-foreground/20" />}
                 />
 
-                {/* Out of stock overlay */}
-                {isOutOfStock && (
-                    <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center">
+                {/* Out of stock or Inactive overlay */}
+                {product.is_active === false ? (
+                    <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10">
+                        <div className="bg-muted text-muted-foreground border border-muted-foreground/30 text-xs font-bold px-3 py-1.5 rounded-full">
+                            NONAKTIF
+                        </div>
+                    </div>
+                ) : isOutOfStock ? (
+                    <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10">
                         <div className="bg-destructive text-white text-xs font-bold px-3 py-1.5 rounded-full">
                             STOK HABIS
                         </div>
                     </div>
-                )}
+                ) : null}
 
                 {/* Low Stock Warning */}
                 {hasLowStock && !isOutOfStock && (

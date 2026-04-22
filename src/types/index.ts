@@ -18,6 +18,7 @@ export interface Product {
   barcode: string;
   price: number;
   image_url?: string | null;
+  is_active?: boolean;
   stock: {
     gudang: number;
     toko: number;

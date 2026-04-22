@@ -13,7 +13,7 @@ interface StatsCardProps {
     change?: number;
     changeLabel?: string;
     className?: string;
-    gradient?: 'blue' | 'purple' | 'orange' | 'green' | 'amber' | 'cyan' | 'violet' | 'emerald';
+    gradient?: 'blue' | 'purple' | 'orange' | 'green' | 'amber' | 'cyan' | 'violet' | 'emerald' | 'red';
     animationDelay?: number;
 }
 
@@ -65,6 +65,12 @@ const gradientStyles = {
         iconBg: 'bg-violet-500/20',
         iconColor: 'text-violet-600 dark:text-violet-400',
         valueColor: 'text-violet-600 dark:text-violet-400',
+    },
+    red: {
+        card: 'from-red-500/20 via-red-500/10 to-transparent',
+        iconBg: 'bg-red-500/20',
+        iconColor: 'text-red-600 dark:text-red-400',
+        valueColor: 'text-red-600 dark:text-red-400',
     },
 };
 
