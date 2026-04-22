@@ -106,40 +106,106 @@ function EditRequestDialog({ request, products, onEdit, onCancel }: { request: N
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button size="sm" variant="outline" className="rounded-xl gap-2 hover:bg-blue-500/10 hover:border-blue-500/50 hover:text-blue-600 transition-all ml-2">
+                <Button size="sm" variant="outline" className="rounded-xl gap-2 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-200 hover:text-blue-600 transition-all ml-2">
                     <FileText className="w-4 h-4" /> Edit
                 </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl rounded-2xl border-2">
-                <DialogHeader>
-                    <DialogTitle>Edit Permintaan Stok</DialogTitle>
-                    <DialogDescription>Ubah detail permintaan sebelum diproses oleh gudang.</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                        <Label>Alasan Permintaan</Label>
-                        <Textarea value={reason} onChange={e => setReason(e.target.value)} />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Daftar Barang</Label>
-                        {items.map((item, idx) => (
-                            <div key={item.productId} className="flex gap-2 items-end border p-3 rounded-lg bg-muted/50">
-                                <div className="flex-1">
-                                    <Label className="text-xs">Barang</Label>
-                                    <Input value={item.name} disabled className="bg-background/50" />
-                                </div>
-                                <div className="w-24">
-                                    <Label className="text-xs">Jumlah</Label>
-                                    <Input type="number" min={0.1} step="any" value={item.quantity} onChange={e => handleUpdateItem(item.productId, 'quantity', parseFloat(e.target.value) || 0)} />
-                                </div>
-                                <Button size="icon" variant="ghost" className="text-destructive hover:bg-destructive/10" onClick={() => handleRemoveItem(item.productId)}><Trash2 className="w-4 h-4" /></Button>
+            <DialogContent className="max-w-2xl bg-slate-50 dark:bg-slate-900 border-none shadow-2xl p-0 overflow-hidden rounded-2xl">
+                <div className="flex flex-col h-full max-h-[90vh]">
+                    {/* Premium Gradient Header */}
+                    <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white relative shrink-0">
+                        <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+                            <FileText className="w-32 h-32" />
+                        </div>
+                        <div className="flex justify-between items-start relative z-10">
+                            <div>
+                                <h2 className="text-2xl font-bold flex items-center gap-2">
+                                    Edit Permintaan Stok
+                                </h2>
+                                <p className="text-blue-100 mt-1 text-sm">
+                                    Ubah detail permintaan sebelum diproses oleh gudang.
+                                </p>
                             </div>
-                        ))}
+                        </div>
                     </div>
-                </div>
-                <div className="flex justify-between mt-4">
-                    <Button variant="destructive" onClick={() => { onCancel(); setOpen(false); }}>Batalkan Permintaan</Button>
-                    <Button onClick={handleSave} disabled={items.length === 0 || !reason}>Simpan Perubahan</Button>
+
+                    {/* Scrollable Content */}
+                    <div className="p-6 overflow-y-auto custom-scrollbar space-y-6">
+                        <div className="space-y-3">
+                            <Label className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                                <FileText className="w-4 h-4 text-blue-500" />
+                                Alasan Permintaan
+                            </Label>
+                            <Textarea 
+                                value={reason} 
+                                onChange={e => setReason(e.target.value)} 
+                                className="min-h-[80px] resize-none rounded-xl border-gray-200 focus:border-blue-500 focus:ring-blue-500/20"
+                            />
+                        </div>
+
+                        <div className="space-y-3">
+                            <Label className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                                <Package className="w-4 h-4 text-blue-500" />
+                                Daftar Barang
+                            </Label>
+                            <div className="space-y-3">
+                                {items.map((item, idx) => (
+                                    <div key={item.productId} className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm transition-colors hover:border-blue-200">
+                                        <div className="flex gap-4 items-end">
+                                            <div className="flex-1 space-y-1.5">
+                                                <Label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Barang</Label>
+                                                <Input value={item.name} disabled className="bg-gray-50 dark:bg-slate-900/50 rounded-lg h-9" />
+                                            </div>
+                                            <div className="w-24 space-y-1.5">
+                                                <Label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Jumlah</Label>
+                                                <Input 
+                                                    type="number" 
+                                                    min={0.1} 
+                                                    step="any" 
+                                                    value={item.quantity} 
+                                                    onChange={e => handleUpdateItem(item.productId, 'quantity', parseFloat(e.target.value) || 0)} 
+                                                    className="rounded-lg h-9"
+                                                />
+                                            </div>
+                                            <Button 
+                                                size="icon" 
+                                                variant="outline" 
+                                                className="h-9 w-9 text-red-500 hover:bg-red-50 hover:text-red-600 hover:border-red-200 rounded-lg shrink-0" 
+                                                onClick={() => handleRemoveItem(item.productId)}
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Footer Actions */}
+                    <div className="p-4 bg-gray-50 dark:bg-slate-800/80 border-t border-gray-100 dark:border-gray-700 flex justify-between gap-3 shrink-0">
+                        <Button 
+                            variant="outline" 
+                            className="text-red-600 border-red-200 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl px-4 gap-2"
+                            onClick={() => { onCancel(); setOpen(false); }}
+                        >
+                            <Ban className="w-4 h-4" />
+                            Batalkan Permintaan
+                        </Button>
+                        <div className="flex gap-2">
+                            <Button variant="outline" className="rounded-xl px-6" onClick={() => setOpen(false)}>
+                                Tutup
+                            </Button>
+                            <Button 
+                                className="rounded-xl px-6 gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                                onClick={handleSave} 
+                                disabled={items.length === 0 || !reason}
+                            >
+                                <CheckCircle className="w-4 h-4" />
+                                Simpan Perubahan
+                            </Button>
+                        </div>
+                    </div>
                 </div>
             </DialogContent>
         </Dialog>
@@ -162,131 +228,152 @@ function RequestDetailDialog({ request, onResubmit, onCancel }: { request: NewSt
                     Detail
                 </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg rounded-2xl border-2 overflow-hidden">
-                {/* Gradient overlay */}
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/5 pointer-events-none" />
-
-                <DialogHeader className="relative z-10 pb-4 border-b">
-                    <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 shadow-lg shadow-primary/10">
-                                <FileText className="w-6 h-6 text-primary" />
-                            </div>
+            <DialogContent className="max-w-2xl bg-slate-50 dark:bg-slate-900 border-none shadow-2xl p-0 overflow-hidden rounded-2xl">
+                <div className="flex flex-col h-full max-h-[90vh]">
+                    {/* Premium Gradient Header */}
+                    <div className="bg-gradient-to-r from-indigo-600 to-violet-600 p-6 text-white relative shrink-0">
+                        <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+                            <FileText className="w-32 h-32" />
+                        </div>
+                        <div className="flex justify-between items-start relative z-10">
                             <div>
-                                <DialogTitle className="text-lg">Detail Permintaan</DialogTitle>
-                                <DialogDescription className="font-mono text-sm mt-0.5">
+                                <h2 className="text-2xl font-bold flex items-center gap-2">
+                                    Detail Permintaan
+                                </h2>
+                                <p className="text-indigo-100 flex items-center gap-1.5 mt-1 font-mono text-sm">
                                     {request.request_number || 'Menunggu Nomor...'}
-                                </DialogDescription>
+                                </p>
                             </div>
-                        </div>
-                        <StatusBadge status={request.status} />
-                    </div>
-                </DialogHeader>
-
-                <div className="space-y-4 py-4 relative z-10">
-                    {/* Info Grid */}
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="p-3 rounded-xl bg-muted/30 border">
-                            <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                                <Calendar className="w-4 h-4" />
-                                <span className="text-xs font-medium uppercase tracking-wider">Tanggal</span>
+                            <div className="bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-full text-sm font-semibold border border-white/30 shadow-sm flex items-center gap-2">
+                                {request.status === 'completed' && <CheckCircle className="w-4 h-4" />}
+                                {request.status === 'rejected' && <XCircle className="w-4 h-4" />}
+                                {request.status === 'cancelled' && <Ban className="w-4 h-4" />}
+                                {request.status.includes('pending') && request.status !== 'pending_receipt' && <Clock className="w-4 h-4" />}
+                                {(request.status === 'shipped' || request.status === 'pending_receipt') && <Package className="w-4 h-4" />}
+                                {request.status === 'pending_main_office' ? 'Menunggu Approval' :
+                                 request.status === 'pending_gudang' ? 'Diproses Gudang' :
+                                 request.status === 'shipped' ? 'Dalam Pengiriman' :
+                                 request.status === 'pending_receipt' ? 'Dalam Perjalanan' :
+                                 request.status === 'completed' ? 'Selesai' :
+                                 request.status === 'rejected' ? 'Ditolak' :
+                                 request.status === 'cancelled' ? 'Dibatalkan' : request.status}
                             </div>
-                            <p className="font-semibold">
-                                {format(new Date(request.created_at), 'dd MMMM yyyy', { locale: id })}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                                {format(new Date(request.created_at), 'HH:mm')} WIB
-                            </p>
-                        </div>
-                        <div className="p-3 rounded-xl bg-muted/30 border">
-                            <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                                <User className="w-4 h-4" />
-                                <span className="text-xs font-medium uppercase tracking-wider">Kasir</span>
-                            </div>
-                            <p className="font-semibold">{request.cashier_name}</p>
                         </div>
                     </div>
 
-                    {/* Reason */}
-                    <div className="p-4 rounded-xl bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-2 border-blue-500/20">
-                        <div className="flex items-center gap-2 mb-2">
-                            <div className="p-1.5 rounded-lg bg-blue-500/20">
-                                <Eye className="w-4 h-4 text-blue-500" />
+                    {/* Scrollable Content */}
+                    <div className="p-6 overflow-y-auto custom-scrollbar space-y-6">
+                        {/* Info Grid */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                    <Calendar className="w-3.5 h-3.5 text-indigo-500" /> Tanggal
+                                </p>
+                                <p className="font-semibold text-gray-900 dark:text-gray-100">
+                                    {format(new Date(request.created_at), 'dd MMMM yyyy', { locale: id })}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                    {format(new Date(request.created_at), 'HH:mm')} WIB
+                                </p>
                             </div>
-                            <p className="text-xs font-bold text-blue-600 uppercase tracking-wider">Alasan Permintaan</p>
+                            <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                    <User className="w-3.5 h-3.5 text-indigo-500" /> Kasir
+                                </p>
+                                <p className="font-semibold text-gray-900 dark:text-gray-100">{request.cashier_name}</p>
+                            </div>
                         </div>
-                        <p className="text-sm leading-relaxed">{request.reason}</p>
-                    </div>
 
-                    {/* Rejected Reason if applicable */}
-                    {request.rejected_reason && (
-                        <div className="p-4 rounded-xl bg-gradient-to-br from-red-500/10 to-red-500/5 border-2 border-red-500/20">
-                            <div className="flex items-center gap-2 mb-2">
-                                <div className="p-1.5 rounded-lg bg-red-500/20">
+                        {/* Reason */}
+                        <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+                            <div className="bg-gray-50/80 dark:bg-slate-700/50 px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
+                                <FileText className="w-4 h-4 text-indigo-500" />
+                                <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wider">
+                                    Alasan Permintaan
+                                </h3>
+                            </div>
+                            <div className="p-4">
+                                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{request.reason}</p>
+                            </div>
+                        </div>
+
+                        {/* Rejected Reason if applicable */}
+                        {request.rejected_reason && (
+                            <div className="bg-red-50 dark:bg-red-900/10 rounded-xl border border-red-100 dark:border-red-900/30 shadow-sm overflow-hidden">
+                                <div className="bg-red-100/50 dark:bg-red-900/20 px-4 py-3 border-b border-red-100 dark:border-red-900/30 flex items-center gap-2">
                                     <XCircle className="w-4 h-4 text-red-500" />
+                                    <h3 className="text-sm font-bold text-red-700 dark:text-red-400 uppercase tracking-wider">
+                                        Alasan Penolakan
+                                    </h3>
                                 </div>
-                                <p className="text-xs font-bold text-red-600 uppercase tracking-wider">Alasan Penolakan</p>
+                                <div className="p-4">
+                                    <p className="text-sm text-red-700 dark:text-red-300 leading-relaxed">{request.rejected_reason}</p>
+                                </div>
                             </div>
-                            <p className="text-sm text-red-700 dark:text-red-300 leading-relaxed">{request.rejected_reason}</p>
-                        </div>
-                    )}
+                        )}
 
-                    {/* Items */}
-                    <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border-2 border-emerald-500/20">
-                        <div className="flex items-center gap-2 mb-3">
-                            <div className="p-1.5 rounded-lg bg-emerald-500/20">
-                                <Package className="w-4 h-4 text-emerald-500" />
-                            </div>
-                            <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider">
+                        {/* Items */}
+                        <div>
+                            <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
+                                <Package className="w-4 h-4 text-indigo-500" />
                                 Detail Barang ({request.items?.length || 0} item)
-                            </p>
-                        </div>
-                        <div className="space-y-2">
-                            {request.items?.map((item: any, idx: number) => (
-                                <div
-                                    key={idx}
-                                    className="flex items-center justify-between p-3 rounded-lg bg-background/50 border hover:bg-background transition-colors"
-                                >
-                                    <div className="flex items-center gap-2">
-                                        <Sparkles className="w-4 h-4 text-primary" />
-                                        <span className="font-medium text-sm">{item.product?.name}</span>
-                                    </div>
-                                    <Badge className="bg-primary/10 text-primary border-primary/20">
-                                        {item.quantity} {item.unit}
-                                    </Badge>
+                            </h3>
+                            <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+                                <div className="divide-y divide-gray-100 dark:divide-gray-700">
+                                    {request.items?.map((item: any, idx: number) => (
+                                        <div key={idx} className="flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors">
+                                            <div className="flex items-center gap-3">
+                                                <div className="bg-indigo-50 dark:bg-indigo-500/10 p-2 rounded-lg">
+                                                    <Sparkles className="w-4 h-4 text-indigo-500" />
+                                                </div>
+                                                <span className="font-semibold text-gray-900 dark:text-gray-100">{item.product?.name}</span>
+                                            </div>
+                                            <div className="text-right flex items-center gap-2">
+                                                <span className="inline-flex items-center justify-center bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 font-bold px-3 py-1.5 rounded-lg min-w-[3rem]">
+                                                    {item.quantity}
+                                                </span>
+                                                <span className="text-sm font-medium text-gray-500 uppercase w-8 text-left">{item.unit || 'pcs'}</span>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
-                            ))}
+                            </div>
                         </div>
                     </div>
 
-                    {/* Cancel button for pending requests */}
-                    {(request.status === 'pending_main_office' || request.status === 'pending_gudang') && (
-                        <Button
-                            variant="outline"
-                            className="w-full rounded-xl h-12 border-2 border-destructive/50 text-destructive hover:bg-destructive/10 hover:border-destructive transition-all"
-                            onClick={() => {
-                                onCancel();
-                                setOpen(false);
-                            }}
-                        >
-                            <Ban className="w-5 h-5 mr-2" />
-                            Batalkan Permintaan
+                    {/* Footer Actions */}
+                    <div className="p-4 bg-gray-50 dark:bg-slate-800/80 border-t border-gray-100 dark:border-gray-700 flex justify-end gap-3 shrink-0">
+                        <Button variant="outline" className="rounded-xl px-6" onClick={() => setOpen(false)}>
+                            Tutup
                         </Button>
-                    )}
+                        
+                        {(request.status === 'pending_main_office' || request.status === 'pending_gudang') && (
+                            <Button
+                                variant="outline"
+                                className="text-red-600 border-red-200 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl px-6 gap-2"
+                                onClick={() => {
+                                    onCancel();
+                                    setOpen(false);
+                                }}
+                            >
+                                <Ban className="w-4 h-4" />
+                                Batalkan Permintaan
+                            </Button>
+                        )}
 
-                    {/* Resubmit button for rejected requests */}
-                    {request.status === 'rejected' && (
-                        <Button
-                            className="w-full rounded-xl h-12 bg-gradient-to-r from-primary to-primary/80 shadow-lg shadow-primary/20 hover:shadow-xl transition-all"
-                            onClick={() => {
-                                onResubmit();
-                                setOpen(false);
-                            }}
-                        >
-                            <RefreshCw className="w-5 h-5 mr-2" />
-                            Ajukan Ulang Permintaan
-                        </Button>
-                    )}
+                        {request.status === 'rejected' && (
+                            <Button
+                                className="rounded-xl px-6 gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
+                                onClick={() => {
+                                    onResubmit();
+                                    setOpen(false);
+                                }}
+                            >
+                                <RefreshCw className="w-4 h-4" />
+                                Ajukan Ulang
+                            </Button>
+                        )}
+                    </div>
                 </div>
             </DialogContent>
         </Dialog>

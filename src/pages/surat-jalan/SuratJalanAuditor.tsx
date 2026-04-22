@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
 import {
     ClipboardCheck,
     Check,
@@ -69,6 +70,50 @@ export default function SuratJalanAuditor() {
             }
         );
     };
+
+    // ── BeautifulTable columns for history ─────────────────────────────────
+    const historyColumns: Column<any>[] = [
+        {
+            header: 'No. Surat Jalan',
+            accessorKey: 'number',
+            cell: (row) => <span className="font-semibold">{row.number}</span>,
+        },
+        {
+            header: 'Penerima',
+            accessorKey: 'recipient_name',
+            cell: (row) => (
+                <div>
+                    <p className="font-medium">{row.recipient_name}</p>
+                    <p className="text-xs text-muted-foreground truncate max-w-[200px]">{row.recipient_address}</p>
+                </div>
+            ),
+        },
+        {
+            header: 'Status',
+            accessorKey: 'status',
+            filterable: true,
+            cell: (row) =>
+                row.status === 'completed' ? (
+                    <Badge className="rounded-full bg-green-100 text-green-700 hover:bg-green-100">
+                        <CheckCircle2 className="w-3 h-3 mr-1" />
+                        Selesai
+                    </Badge>
+                ) : (
+                    <Badge className="rounded-full bg-red-100 text-red-700 hover:bg-red-100">
+                        <XCircle className="w-3 h-3 mr-1" />
+                        Dibatalkan
+                    </Badge>
+                ),
+        },
+        {
+            header: 'Tanggal',
+            accessorKey: 'created_at',
+            cell: (row) =>
+                row.created_at
+                    ? format(new Date(row.created_at), 'dd MMM yyyy', { locale: idLocale })
+                    : '-',
+        },
+    ];
 
     return (
         <MainLayout title="Verifikasi Pengiriman B2B" subtitle="Audit dan verifikasi pengiriman barang keluar">
@@ -218,64 +263,20 @@ export default function SuratJalanAuditor() {
                     </CardContent>
                 </Card>
 
-                {/* History Section */}
-                <Card className="rounded-2xl border-0 shadow-lg">
-                    <CardHeader className="pb-3">
-                        <CardTitle className="flex items-center gap-2 text-lg">
-                            <div className="p-2 rounded-xl bg-muted">
-                                <FileText className="w-5 h-5 text-muted-foreground" />
-                            </div>
-                            Riwayat Verifikasi
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                        {history.length === 0 ? (
-                            <div className="text-center py-8 text-muted-foreground">
-                                <FileText className="w-10 h-10 mx-auto mb-2 opacity-20" />
-                                <p>Belum ada riwayat verifikasi</p>
-                            </div>
-                        ) : (
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-sm">
-                                    <thead className="bg-muted/50">
-                                        <tr>
-                                            <th className="px-4 py-3 text-left font-medium text-muted-foreground">No. Surat Jalan</th>
-                                            <th className="px-4 py-3 text-left font-medium text-muted-foreground">Penerima</th>
-                                            <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
-                                            <th className="px-4 py-3 text-left font-medium text-muted-foreground">Tanggal</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y">
-                                        {history.map((sj: any) => (
-                                            <tr key={sj.id} className="hover:bg-muted/30 transition-colors">
-                                                <td className="px-4 py-3">
-                                                    <span className="font-semibold">{sj.number}</span>
-                                                </td>
-                                                <td className="px-4 py-3">{sj.recipient_name}</td>
-                                                <td className="px-4 py-3">
-                                                    {sj.status === 'completed' ? (
-                                                        <Badge className="rounded-full bg-green-100 text-green-700 hover:bg-green-100">
-                                                            <CheckCircle2 className="w-3 h-3 mr-1" />
-                                                            Selesai
-                                                        </Badge>
-                                                    ) : (
-                                                        <Badge className="rounded-full bg-red-100 text-red-700 hover:bg-red-100">
-                                                            <XCircle className="w-3 h-3 mr-1" />
-                                                            Dibatalkan
-                                                        </Badge>
-                                                    )}
-                                                </td>
-                                                <td className="px-4 py-3 text-muted-foreground">
-                                                    {format(new Date(sj.created_at), 'dd MMM yyyy', { locale: idLocale })}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+                {/* History — BeautifulTable */}
+                <BeautifulTable
+                    data={history}
+                    columns={historyColumns}
+                    title="Riwayat Verifikasi"
+                    subtitle="Surat jalan yang telah selesai atau dibatalkan"
+                    variant="premium"
+                    hideSelection
+                    emptyState={{
+                        icon: <FileText className="w-8 h-8 text-white" />,
+                        title: 'Belum Ada Riwayat',
+                        description: 'Riwayat verifikasi akan muncul di sini.',
+                    }}
+                />
             </div>
 
             {/* Confirmation Dialog */}

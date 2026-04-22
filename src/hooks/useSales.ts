@@ -167,6 +167,15 @@ export function useCreateSale() {
 
             // Update stock atomically and create logs
             for (const item of items) {
+                // Fetch current stock before decrement for logging
+                const stockField = `stock_${stockLocation}`;
+                const { data: prodData } = await supabase
+                    .from('products')
+                    .select(stockField)
+                    .eq('id', item.productId)
+                    .single();
+                const stockBefore = (prodData as any)?.[stockField] || 0;
+
                 // Atomic decrement — raises exception if stock insufficient
                 const { error: decrementError } = await supabase.rpc('atomic_decrement_stock', {
                     p_product_id: item.productId,
@@ -190,6 +199,8 @@ export function useCreateSale() {
                     location: stockLocation,
                     user_id: cashierId,
                     note: `Penjualan ${saleNumber}`,
+                    stock_before: stockBefore,
+                    stock_after: stockBefore - item.quantity,
                 });
             }
 

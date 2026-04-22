@@ -255,6 +255,8 @@ async function syncSaleToServer(sale: OfflineSale): Promise<boolean> {
                 location: sale.stockLocation,
                 user_id: sale.cashierId,
                 note: `Penjualan ${sale.saleNumber} (offline sync)`,
+                stock_before: currentStock,
+                stock_after: newStock,
             });
         }
 

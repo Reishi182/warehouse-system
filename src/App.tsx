@@ -40,7 +40,6 @@ const SuratJalanAuditor = React.lazy(() => import('@/pages/surat-jalan/SuratJala
 const InvoiceMainOffice = React.lazy(() => import('@/pages/invoices/InvoiceMainOffice'));
 const Suppliers = React.lazy(() => import('@/pages/suppliers/Suppliers'));
 const PurchaseOrderMainOffice = React.lazy(() => import('@/pages/purchase-orders/PurchaseOrderMainOffice'));
-const PurchaseOrderAuditor = React.lazy(() => import('@/pages/purchase-orders/PurchaseOrderAuditor'));
 const PurchaseOrderReceipt = React.lazy(() => import('@/pages/purchase-orders/PurchaseOrderReceipt'));
 const PODiscrepancyReport = React.lazy(() => import('@/pages/purchase-orders/PODiscrepancyReport'));
 const GeneralTransactions = React.lazy(() => import('@/pages/finance/GeneralTransactions'));
@@ -334,7 +333,7 @@ function AppRoutes() {
         {/* Supplier & Purchase Order Routes */}
         <Route path="/suppliers" element={<ProtectedRoute allowedRoles={['main_office', 'admin']}><Suppliers /></ProtectedRoute>} />
         <Route path="/purchase-orders" element={<ProtectedRoute allowedRoles={['main_office', 'admin']}><PurchaseOrderMainOffice /></ProtectedRoute>} />
-        <Route path="/purchase-orders/approval" element={<ProtectedRoute allowedRoles={['main_office', 'admin']}><PurchaseOrderAuditor /></ProtectedRoute>} />
+
         <Route path="/purchase-orders/receipt" element={<ProtectedRoute allowedRoles={['warehouse', 'cashier', 'admin']}><PurchaseOrderReceipt /></ProtectedRoute>} />
         <Route path="/purchase-orders/discrepancy" element={<ProtectedRoute allowedRoles={['main_office', 'auditor', 'admin']}><PODiscrepancyReport /></ProtectedRoute>} />
 

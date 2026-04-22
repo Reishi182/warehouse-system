@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Package, Check, Eye, Camera, Wallet, AlertTriangle } from 'lucide-react';
+import { Package, Check, Eye, Camera, Wallet, AlertTriangle, FileText, Calendar } from 'lucide-react';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import MainLayout from '@/components/layout/MainLayout';
 import PageSkeleton from '@/components/common/PageSkeleton';
@@ -321,54 +321,104 @@ export default function PurchaseOrderReceipt() {
 
                 {/* View Dialog */}
                 <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
-                    <DialogContent className="max-w-2xl">
-                        <DialogHeader>
-                            <DialogTitle>Detail Purchase Order</DialogTitle>
-                        </DialogHeader>
+                    <DialogContent className="max-w-3xl bg-slate-50 dark:bg-slate-900 border-none shadow-2xl p-0 overflow-hidden rounded-2xl">
                         {selectedPOLoading ? (
-                            <div className="py-8 text-center text-muted-foreground">Memuat...</div>
+                            <div className="py-12 flex flex-col items-center justify-center space-y-4">
+                                <div className="w-8 h-8 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin"></div>
+                                <p className="text-muted-foreground animate-pulse">Memuat detail Purchase Order...</p>
+                            </div>
                         ) : selectedPO ? (
-                            <div className="space-y-4 mt-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <p className="text-sm text-muted-foreground">No. PO</p>
-                                        <p className="font-mono font-bold">{selectedPO.po_number}</p>
+                            <div className="flex flex-col h-full max-h-[90vh]">
+                                {/* Premium Gradient Header */}
+                                <div className="bg-gradient-to-r from-indigo-600 to-violet-600 p-6 text-white relative shrink-0">
+                                    <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+                                        <FileText className="w-32 h-32" />
                                     </div>
-                                    <div>
-                                        <p className="text-sm text-muted-foreground">Supplier</p>
-                                        <p className="font-medium">{selectedPO.supplier?.name || '-'}</p>
+                                    <div className="flex justify-between items-start relative z-10">
+                                        <div>
+                                            <h2 className="text-2xl font-bold flex items-center gap-2">
+                                                Detail Purchase Order
+                                            </h2>
+                                            <p className="text-indigo-100 flex items-center gap-1.5 mt-1 font-mono text-sm">
+                                                {selectedPO.po_number}
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
 
-                                {/* Items */}
-                                <Card>
-                                    <CardHeader className="pb-3">
-                                        <CardTitle className="text-base">Daftar Barang</CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="space-y-2">
-                                            {selectedPO.items?.map(item => (
-                                                <div key={item.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                                                    <div>
-                                                        <p className="font-medium">{item.product_name}</p>
-                                                    </div>
-                                                    <div className="text-right">
-                                                        <p className="font-bold">{item.quantity} {item.unit?.toUpperCase() || 'PCS'}</p>
-                                                    </div>
-                                                </div>
-                                            ))}
+                                {/* Scrollable Content */}
+                                <div className="p-6 overflow-y-auto custom-scrollbar space-y-6">
+                                    {/* Info Grid */}
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                                <Package className="w-3.5 h-3.5 text-indigo-500" /> Supplier
+                                            </p>
+                                            <p className="font-semibold text-gray-900 dark:text-gray-100">{selectedPO.supplier?.name || '-'}</p>
                                         </div>
-                                    </CardContent>
-                                </Card>
+                                        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                                <Calendar className="w-3.5 h-3.5 text-indigo-500" /> Tanggal Dibuat
+                                            </p>
+                                            <p className="font-semibold text-gray-900 dark:text-gray-100">
+                                                {format(new Date(selectedPO.created_at), 'dd MMM yyyy', { locale: localeId })}
+                                            </p>
+                                        </div>
+                                    </div>
 
-                                <div className="flex gap-3 justify-end pt-4">
-                                    <Button variant="outline" onClick={() => setIsViewOpen(false)}>
+                                    {/* Items List */}
+                                    <div>
+                                        <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
+                                            <Package className="w-4 h-4 text-indigo-500" />
+                                            Daftar Barang Pesanan
+                                        </h3>
+                                        <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+                                            <div className="divide-y divide-gray-100 dark:divide-gray-700">
+                                                {selectedPO.items?.map(item => {
+                                                    const isBonus = (item as any).is_bonus === true;
+                                                    const isFree = !isBonus && item.unit_price === 0;
+                                                    return (
+                                                        <div key={item.id} className={`flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors ${isBonus ? 'bg-green-50/50 dark:bg-green-900/10' : ''}`}>
+                                                            <div>
+                                                                <div className="flex items-center gap-2 flex-wrap">
+                                                                    <p className="font-semibold text-gray-900 dark:text-gray-100">{item.product_name}</p>
+                                                                    {isBonus && (
+                                                                        <span className="text-[10px] px-1.5 py-0.5 bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 rounded-full font-bold uppercase tracking-wider">Bonus</span>
+                                                                    )}
+                                                                    {isFree && (
+                                                                        <span className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded-full font-bold uppercase tracking-wider">Gratis</span>
+                                                                    )}
+                                                                    {(item as any).is_new_product && (
+                                                                        <span className="text-[10px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-full font-bold uppercase tracking-wider">Baru</span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <span className="inline-flex items-center justify-center bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 font-bold px-3 py-1.5 rounded-lg min-w-[3rem]">
+                                                                    {item.quantity}
+                                                                </span>
+                                                                <span className="ml-2 text-sm font-medium text-gray-500 uppercase">{item.unit?.toUpperCase() || 'PCS'}</span>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Footer Actions */}
+                                <div className="p-4 bg-gray-50 dark:bg-slate-800/80 border-t border-gray-100 dark:border-gray-700 flex justify-end gap-3 shrink-0">
+                                    <Button variant="outline" className="rounded-xl px-6" onClick={() => setIsViewOpen(false)}>
                                         Tutup
                                     </Button>
-                                    <Button onClick={() => {
-                                        setIsViewOpen(false);
-                                        openConfirmDialog(selectedPO);
-                                    }} className="gap-1">
+                                    <Button 
+                                        className="rounded-xl px-6 gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
+                                        onClick={() => {
+                                            setIsViewOpen(false);
+                                            openConfirmDialog(selectedPO);
+                                        }}
+                                    >
                                         <Check className="w-4 h-4" />
                                         Konfirmasi Penerimaan
                                     </Button>

@@ -272,6 +272,8 @@ export function useApproveStockOpnameSession() {
           note: `Stok Opname ${session.session_number}: ${item.system_stock} → ${item.actual_stock}${item.note ? ` (${item.note})` : ''} | Disetujui: ${approverName}`,
           reference_type: 'stock_opname',
           reference_id: sessionId,
+          stock_before: currentStock,
+          stock_after: newStock,
         });
 
         // Mark item as approved

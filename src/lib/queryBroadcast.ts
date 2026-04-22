@@ -53,6 +53,7 @@ const QUERY_KEY_TO_TABLE: Record<string, string> = {
   'store_settings': 'store_settings',
   'stock-logs': 'stock_logs',
   'activity-logs': 'activity_logs',
+  'product-audit-logs': 'product_audit_logs',
   'notifications': 'notifications',
   'po_receipt': 'po_receipts',
   'goods-receipts': 'stock_shipments',

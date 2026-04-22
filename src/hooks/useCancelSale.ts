@@ -80,6 +80,8 @@ export function useCancelSale() {
                         location: input.stockLocation,
                         user_id: input.cancelledBy,
                         note: `Cancel penjualan ${input.saleNumber} - ${input.reason}`,
+                        stock_before: currentStock,
+                        stock_after: newStock,
                     });
                 } catch {
                     failedItems.push(item.product_name);

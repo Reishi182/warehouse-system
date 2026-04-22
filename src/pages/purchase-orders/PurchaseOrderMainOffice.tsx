@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import UnitSelector from '@/components/common/UnitSelector';
+import StatusBadge from '@/components/common/StatusBadge';
 import {
     Select,
     SelectContent,
@@ -70,7 +71,7 @@ interface POItem {
 }
 
 const statusLabels: Record<string, { label: string; color: string }> = {
-    pending_auditor: { label: 'Menunggu Auditor', color: 'bg-yellow-100 text-yellow-700' },
+
     approved: { label: 'Disetujui', color: 'bg-blue-100 text-blue-700' },
     rejected: { label: 'Ditolak', color: 'bg-red-100 text-red-700' },
     pending_receipt: { label: 'Menunggu Penerimaan', color: 'bg-purple-100 text-purple-700' },
@@ -454,7 +455,7 @@ export default function PurchaseOrderMainOffice() {
                     <Button size="sm" variant="outline" onClick={() => handleViewPO(item)}>
                         <Eye className="w-4 h-4" />
                     </Button>
-                    {['pending_receipt', 'pending_auditor', 'rejected'].includes(item.status) && (
+                    {['pending_receipt', 'rejected'].includes(item.status) && (
                         <Button size="sm" variant="outline" onClick={() => handleEditPO(item)}>
                             <Pencil className="w-4 h-4" />
                         </Button>
@@ -464,7 +465,7 @@ export default function PurchaseOrderMainOffice() {
                             <Printer className="w-4 h-4" />
                         </Button>
                     )}
-                    {['pending_receipt', 'pending_auditor', 'approved'].includes(item.status) && (
+                    {['pending_receipt', 'approved'].includes(item.status) && (
                         <Button
                             size="sm"
                             variant="outline"
@@ -503,17 +504,11 @@ export default function PurchaseOrderMainOffice() {
             }
         >
             <div className="space-y-6">
-                <StatsGrid columns={4}>
+                <StatsGrid columns={3}>
                     <StatsCard
                         title="Total PO"
                         value={purchaseOrders.length}
                         icon={<FileText className="w-5 h-5" />}
-                    />
-                    <StatsCard
-                        title="Pending"
-                        value={purchaseOrders.filter(p => p.status === 'pending_auditor').length}
-                        icon={<Eye className="w-5 h-5" />}
-                        subtitleType="warning"
                     />
                     <StatsCard
                         title="Menunggu"
@@ -534,7 +529,7 @@ export default function PurchaseOrderMainOffice() {
                     <Tabs value={activeTab} onValueChange={setActiveTab}>
                         <TabsList>
                             <TabsTrigger value="all">Semua</TabsTrigger>
-                            <TabsTrigger value="pending_auditor">Pending</TabsTrigger>
+
                             <TabsTrigger value="pending_receipt">Menunggu</TabsTrigger>
                             <TabsTrigger value="completed">Selesai</TabsTrigger>
                         </TabsList>
@@ -915,228 +910,300 @@ export default function PurchaseOrderMainOffice() {
 
                 {/* View PO Dialog */}
                 <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
-                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                        <DialogHeader>
-                            <DialogTitle>Detail Purchase Order</DialogTitle>
-                        </DialogHeader>
+                    <DialogContent className="max-w-4xl bg-slate-50 dark:bg-slate-900 border-none shadow-2xl p-0 overflow-hidden rounded-2xl">
                         {selectedPOLoading ? (
-                            <div className="py-8 text-center text-muted-foreground">Memuat...</div>
+                            <div className="py-12 flex flex-col items-center justify-center space-y-4">
+                                <div className="w-8 h-8 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin"></div>
+                                <p className="text-muted-foreground animate-pulse">Memuat detail Purchase Order...</p>
+                            </div>
                         ) : selectedPO ? (
-                            <div className="space-y-4 mt-4" id="print-area">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <p className="text-sm text-muted-foreground">No. PO</p>
-                                        <p className="font-mono font-bold">{selectedPO.po_number}</p>
+                            <div className="flex flex-col h-full max-h-[90vh]">
+                                {/* Premium Gradient Header */}
+                                <div className="bg-gradient-to-r from-indigo-600 to-violet-600 p-6 text-white relative shrink-0">
+                                    <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+                                        <FileText className="w-32 h-32" />
                                     </div>
-                                    <div>
-                                        <p className="text-sm text-muted-foreground">Status</p>
-                                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${statusLabels[selectedPO.status]?.color || ''}`}>
-                                            {statusLabels[selectedPO.status]?.label || selectedPO.status}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        <p className="text-sm text-muted-foreground">Supplier</p>
-                                        <p className="font-medium">{selectedPO.supplier?.name || '-'}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-sm text-muted-foreground">Tujuan</p>
-                                        <p className="font-medium capitalize">{selectedPO.destination}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-sm text-muted-foreground">Tanggal</p>
-                                        <p>{format(new Date(selectedPO.created_at), 'dd MMMM yyyy', { locale: localeId })}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-sm text-muted-foreground">Dibuat Oleh</p>
-                                        <p>{selectedPO.created_by_name || '-'}</p>
+                                    <div className="flex justify-between items-start relative z-10">
+                                        <div>
+                                            <h2 className="text-2xl font-bold flex items-center gap-2">
+                                                Detail Purchase Order
+                                            </h2>
+                                            <p className="text-indigo-100 flex items-center gap-1.5 mt-1 font-mono text-sm">
+                                                {selectedPO.po_number}
+                                            </p>
+                                        </div>
+                                        <StatusBadge status={selectedPO.status} className="bg-white/20 text-white border-white/30 backdrop-blur-md shadow-sm" showIcon />
                                     </div>
                                 </div>
 
-                                {/* Items */}
-                                <div className="border rounded-lg overflow-hidden">
-                                    <table className="w-full text-sm">
-                                        <thead className="bg-muted/50">
-                                            <tr>
-                                                <th className="text-left p-3">Produk</th>
-                                                <th className="text-right p-3">Qty</th>
-                                                <th className="text-right p-3">Harga Satuan</th>
-                                                <th className="text-right p-3">Total</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {selectedPO.items?.map(item => {
-                                                const isBonus = (item as any).is_bonus === true;
-                                                const isFree = !isBonus && item.unit_price === 0;
-                                                return (
-                                                    <tr key={item.id} className={`border-t ${isBonus ? 'bg-green-50 dark:bg-green-900/20' : ''}`}>
-                                                        <td className="p-3">
-                                                            <div className="flex items-center gap-2 flex-wrap">
-                                                                <span>{item.product_name}</span>
-                                                                {isBonus && (
-                                                                    <span className="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 rounded font-semibold">🎁 BONUS</span>
-                                                                )}
-                                                                {isFree && (
-                                                                    <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded">GRATIS</span>
-                                                                )}
-                                                                {(item as any).is_new_product && (
-                                                                    <span className="text-xs px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded">Baru</span>
-                                                                )}
-                                                            </div>
-                                                        </td>
-                                                        <td className="text-right p-3">{item.quantity} <span className="text-xs text-muted-foreground uppercase">{item.unit || 'pcs'}</span></td>
-                                                        <td className="text-right p-3">
-                                                            {isBonus ? <span className="text-green-600 dark:text-green-400 text-xs font-medium">Gratis</span> : `Rp ${item.unit_price.toLocaleString('id-ID')}`}
-                                                        </td>
-                                                        <td className="text-right p-3 font-medium">
-                                                            {isBonus ? <span className="text-green-600 dark:text-green-400 text-xs">-</span> : `Rp ${item.total_price.toLocaleString('id-ID')}`}
-                                                        </td>
+                                {/* Scrollable Content */}
+                                <div className="p-6 overflow-y-auto custom-scrollbar space-y-6">
+                                    {/* Info Grid */}
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                                <Package className="w-3.5 h-3.5 text-indigo-500" /> Supplier
+                                            </p>
+                                            <p className="font-semibold text-gray-900 dark:text-gray-100">{selectedPO.supplier?.name || '-'}</p>
+                                        </div>
+                                        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                                <Eye className="w-3.5 h-3.5 text-indigo-500" /> Tujuan
+                                            </p>
+                                            <p className="font-semibold text-gray-900 dark:text-gray-100 capitalize">{selectedPO.destination}</p>
+                                        </div>
+                                        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                                <Calendar className="w-3.5 h-3.5 text-indigo-500" /> Tanggal PO
+                                            </p>
+                                            <p className="font-semibold text-gray-900 dark:text-gray-100">
+                                                {format(new Date(selectedPO.created_at), 'dd MMM yyyy', { locale: localeId })}
+                                            </p>
+                                        </div>
+                                        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                                <User className="w-3.5 h-3.5 text-indigo-500" /> Dibuat Oleh
+                                            </p>
+                                            <p className="font-semibold text-gray-900 dark:text-gray-100">{selectedPO.created_by_name || '-'}</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Items Table */}
+                                    <div>
+                                        <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
+                                            <Package className="w-4 h-4 text-indigo-500" />
+                                            Daftar Barang Pesanan
+                                        </h3>
+                                        <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+                                            <table className="w-full text-sm text-left">
+                                                <thead className="bg-gray-50/80 dark:bg-slate-700/50 text-gray-600 dark:text-gray-300">
+                                                    <tr>
+                                                        <th className="px-4 py-3 font-semibold border-b border-gray-100 dark:border-gray-700">Produk</th>
+                                                        <th className="px-4 py-3 font-semibold border-b border-gray-100 dark:border-gray-700 text-center">Qty</th>
+                                                        <th className="px-4 py-3 font-semibold border-b border-gray-100 dark:border-gray-700 text-right">Harga Satuan</th>
+                                                        <th className="px-4 py-3 font-semibold border-b border-gray-100 dark:border-gray-700 text-right">Total</th>
                                                     </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                        <tfoot className="bg-muted/30">
-                                            <tr>
-                                                <td colSpan={3} className="text-right p-3 font-semibold pt-2">Total</td>
-                                                <td className="text-right p-3 font-bold pt-2">Rp {selectedPO.total_amount.toLocaleString('id-ID')}</td>
-                                            </tr>
-                                        </tfoot>
-                                    </table>
-                                </div>
-
-                                {selectedPO.notes && (
-                                    <div>
-                                        <p className="text-sm text-muted-foreground">Catatan PO</p>
-                                        <p>{selectedPO.notes}</p>
-                                    </div>
-                                )}
-
-                                {selectedPO.rejected_reason && (
-                                    <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
-                                        <p className="text-sm text-red-600 dark:text-red-400">Alasan Ditolak</p>
-                                        <p className="text-red-700 dark:text-red-300">{selectedPO.rejected_reason}</p>
-                                    </div>
-                                )}
-
-                                {/* ===== RECEIPT INFO SECTION ===== */}
-                                {(selectedPO.status === 'completed' || selectedPO.status === 'completed_with_discrepancy') && (
-                                    <Card className="border-green-200 dark:border-green-800">
-                                        <CardHeader className="pb-3">
-                                            <CardTitle className="text-base flex items-center gap-2 text-green-700 dark:text-green-400">
-                                                <Check className="w-4 h-4" />
-                                                Informasi Penerimaan
-                                            </CardTitle>
-                                        </CardHeader>
-                                        <CardContent>
-                                            {receiptLoading ? (
-                                                <div className="py-4 text-center text-muted-foreground text-sm">Memuat data penerimaan...</div>
-                                            ) : poReceipt ? (
-                                                <div className="space-y-4">
-                                                    {/* Receiver info */}
-                                                    <div className="grid grid-cols-2 gap-4">
-                                                        <div className="flex items-start gap-2">
-                                                            <User className="w-4 h-4 text-muted-foreground mt-0.5" />
-                                                            <div>
-                                                                <p className="text-xs text-muted-foreground">Diterima Oleh</p>
-                                                                <p className="font-medium">{poReceipt.received_by_name || '-'}</p>
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex items-start gap-2">
-                                                            <CalendarCheck className="w-4 h-4 text-muted-foreground mt-0.5" />
-                                                            <div>
-                                                                <p className="text-xs text-muted-foreground">Tanggal Penerimaan</p>
-                                                                <p className="font-medium">
-                                                                    {poReceipt.received_at
-                                                                        ? format(new Date(poReceipt.received_at), 'dd MMMM yyyy, HH:mm', { locale: localeId })
-                                                                        : format(new Date(poReceipt.created_at), 'dd MMMM yyyy, HH:mm', { locale: localeId })
-                                                                    }
-                                                                </p>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Discrepancy details */}
-                                                    {poReceipt.has_discrepancy && (
-                                                        <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-                                                            <div className="flex items-start gap-2">
-                                                                <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                                                                <div>
-                                                                    <p className="font-medium text-amber-800 dark:text-amber-200">Terdapat Selisih Penerimaan</p>
-                                                                    <div className="grid grid-cols-3 gap-2 mt-2 text-sm">
-                                                                        <div>
-                                                                            <p className="text-amber-600 dark:text-amber-400">Dipesan</p>
-                                                                            <p className="font-bold text-amber-800 dark:text-amber-200">{poReceipt.total_ordered} unit</p>
-                                                                        </div>
-                                                                        <div>
-                                                                            <p className="text-amber-600 dark:text-amber-400">Diterima</p>
-                                                                            <p className="font-bold text-amber-800 dark:text-amber-200">{poReceipt.total_received} unit</p>
-                                                                        </div>
-                                                                        {(poReceipt.total_damaged ?? 0) > 0 && (
-                                                                            <div>
-                                                                                <p className="text-red-600 dark:text-red-400">Rusak</p>
-                                                                                <p className="font-bold text-red-700 dark:text-red-300">{poReceipt.total_damaged} unit</p>
-                                                                            </div>
+                                                </thead>
+                                                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                                                    {selectedPO.items?.map(item => {
+                                                        const isBonus = (item as any).is_bonus === true;
+                                                        const isFree = !isBonus && item.unit_price === 0;
+                                                        return (
+                                                            <tr key={item.id} className={`hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors ${isBonus ? 'bg-green-50/50 dark:bg-green-900/10' : ''}`}>
+                                                                <td className="px-4 py-3">
+                                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                                        <span className="font-medium text-gray-900 dark:text-gray-100">{item.product_name}</span>
+                                                                        {isBonus && (
+                                                                            <span className="text-[10px] px-1.5 py-0.5 bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 rounded-full font-bold uppercase tracking-wider">Bonus</span>
                                                                         )}
+                                                                        {isFree && (
+                                                                            <span className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded-full font-bold uppercase tracking-wider">Gratis</span>
+                                                                        )}
+                                                                        {(item as any).is_new_product && (
+                                                                            <span className="text-[10px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-full font-bold uppercase tracking-wider">Baru</span>
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-4 py-3 text-center">
+                                                                    <span className="inline-flex items-center justify-center bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 font-bold px-2.5 py-1 rounded-lg min-w-[3rem]">
+                                                                        {item.quantity}
+                                                                    </span>
+                                                                    <span className="ml-1.5 text-xs text-gray-500 uppercase">{item.unit || 'pcs'}</span>
+                                                                </td>
+                                                                <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-400">
+                                                                    {isBonus ? <span className="text-green-600 dark:text-green-400 text-xs font-medium italic">Gratis</span> : `Rp ${item.unit_price.toLocaleString('id-ID')}`}
+                                                                </td>
+                                                                <td className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-gray-100">
+                                                                    {isBonus ? <span className="text-green-600 dark:text-green-400 text-xs">-</span> : `Rp ${item.total_price.toLocaleString('id-ID')}`}
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                                <tfoot className="bg-indigo-50/50 dark:bg-indigo-900/10">
+                                                    <tr>
+                                                        <td colSpan={3} className="px-4 py-4 text-right font-bold text-gray-700 dark:text-gray-300">Total Pembelian</td>
+                                                        <td className="px-4 py-4 text-right font-black text-lg text-indigo-700 dark:text-indigo-400">Rp {selectedPO.total_amount.toLocaleString('id-ID')}</td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
+                                    </div>
+
+                                    {/* Notes & Rejections */}
+                                    {selectedPO.notes && (
+                                        <div className="bg-amber-50 dark:bg-amber-900/10 rounded-xl border border-amber-100 dark:border-amber-900/30 p-4 shadow-sm">
+                                            <h3 className="text-xs font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                                <FileText className="w-4 h-4" /> Catatan Purchase Order
+                                            </h3>
+                                            <p className="text-sm font-medium text-amber-900 dark:text-amber-200">{selectedPO.notes}</p>
+                                        </div>
+                                    )}
+
+                                    {selectedPO.rejected_reason && (
+                                        <div className="bg-red-50 dark:bg-red-900/10 rounded-xl border border-red-100 dark:border-red-900/30 p-4 shadow-sm">
+                                            <h3 className="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                                <Ban className="w-4 h-4" /> Alasan Penolakan
+                                            </h3>
+                                            <p className="text-sm font-medium text-red-800 dark:text-red-300">{selectedPO.rejected_reason}</p>
+                                        </div>
+                                    )}
+
+                                    {/* ===== RECEIPT INFO SECTION ===== */}
+                                    {(selectedPO.status === 'completed' || selectedPO.status === 'completed_with_discrepancy') && (
+                                        <div className="mt-8">
+                                            <h3 className="text-sm font-bold text-emerald-700 dark:text-emerald-400 mb-3 flex items-center gap-2">
+                                                <Check className="w-5 h-5 bg-emerald-100 dark:bg-emerald-900/50 rounded-full p-0.5" />
+                                                Informasi Penerimaan Barang
+                                            </h3>
+                                            
+                                            <div className="bg-white dark:bg-slate-800 rounded-xl border-2 border-emerald-100 dark:border-emerald-900/30 shadow-sm p-5 relative overflow-hidden">
+                                                <div className="absolute top-0 right-0 p-6 opacity-5 pointer-events-none">
+                                                    <Check className="w-32 h-32 text-emerald-500" />
+                                                </div>
+                                                
+                                                {receiptLoading ? (
+                                                    <div className="py-8 text-center text-emerald-600 dark:text-emerald-400 text-sm flex flex-col items-center justify-center">
+                                                        <div className="w-6 h-6 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin mb-2"></div>
+                                                        Memuat data penerimaan...
+                                                    </div>
+                                                ) : poReceipt ? (
+                                                    <div className="space-y-6 relative z-10">
+                                                        {/* Receiver info grid */}
+                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                            <div className="flex items-center gap-3 bg-emerald-50/50 dark:bg-emerald-900/10 p-3 rounded-xl border border-emerald-100/50 dark:border-emerald-800/30">
+                                                                <div className="p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
+                                                                    <User className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                                                                </div>
+                                                                <div>
+                                                                    <p className="text-[11px] font-bold text-emerald-600/70 dark:text-emerald-400/70 uppercase tracking-wider">Diterima Oleh</p>
+                                                                    <p className="font-semibold text-emerald-900 dark:text-emerald-100">{poReceipt.received_by_name || '-'}</p>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center gap-3 bg-emerald-50/50 dark:bg-emerald-900/10 p-3 rounded-xl border border-emerald-100/50 dark:border-emerald-800/30">
+                                                                <div className="p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
+                                                                    <CalendarCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                                                                </div>
+                                                                <div>
+                                                                    <p className="text-[11px] font-bold text-emerald-600/70 dark:text-emerald-400/70 uppercase tracking-wider">Tanggal Penerimaan</p>
+                                                                    <p className="font-semibold text-emerald-900 dark:text-emerald-100">
+                                                                        {poReceipt.received_at
+                                                                            ? format(new Date(poReceipt.received_at), 'dd MMM yyyy, HH:mm', { locale: localeId })
+                                                                            : format(new Date(poReceipt.created_at), 'dd MMM yyyy, HH:mm', { locale: localeId })
+                                                                        }
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Discrepancy details */}
+                                                        {poReceipt.has_discrepancy && (
+                                                            <div className="p-4 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-xl shadow-inner">
+                                                                <div className="flex items-start gap-3">
+                                                                    <div className="p-2 bg-orange-100 dark:bg-orange-900/50 rounded-full shrink-0">
+                                                                        <AlertTriangle className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                                                                    </div>
+                                                                    <div className="flex-1">
+                                                                        <p className="font-bold text-orange-800 dark:text-orange-200 mb-2">Peringatan: Terdapat Selisih Penerimaan</p>
+                                                                        <div className="grid grid-cols-3 gap-3">
+                                                                            <div className="bg-white/60 dark:bg-slate-800/60 rounded-lg p-2 text-center border border-orange-100 dark:border-orange-800">
+                                                                                <p className="text-[10px] uppercase font-bold text-orange-600/80 dark:text-orange-400/80 mb-0.5">Dipesan</p>
+                                                                                <p className="font-bold text-orange-900 dark:text-orange-100">{poReceipt.total_ordered} unit</p>
+                                                                            </div>
+                                                                            <div className="bg-white/60 dark:bg-slate-800/60 rounded-lg p-2 text-center border border-orange-100 dark:border-orange-800">
+                                                                                <p className="text-[10px] uppercase font-bold text-orange-600/80 dark:text-orange-400/80 mb-0.5">Diterima</p>
+                                                                                <p className="font-bold text-orange-900 dark:text-orange-100">{poReceipt.total_received} unit</p>
+                                                                            </div>
+                                                                            {(poReceipt.total_damaged ?? 0) > 0 && (
+                                                                                <div className="bg-red-50/80 dark:bg-red-900/40 rounded-lg p-2 text-center border border-red-200 dark:border-red-800">
+                                                                                    <p className="text-[10px] uppercase font-bold text-red-600/80 dark:text-red-400/80 mb-0.5">Rusak</p>
+                                                                                    <p className="font-bold text-red-700 dark:text-red-300">{poReceipt.total_damaged} unit</p>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
                                                                     </div>
                                                                 </div>
                                                             </div>
-                                                        </div>
-                                                    )}
+                                                        )}
 
-                                                    {/* Receipt notes */}
-                                                    {poReceipt.notes && (
-                                                        <div>
-                                                            <p className="text-xs text-muted-foreground mb-1">Catatan Penerimaan</p>
-                                                            <p className="text-sm bg-muted/40 p-2 rounded">{poReceipt.notes}</p>
-                                                        </div>
-                                                    )}
+                                                        {/* Receipt notes */}
+                                                        {poReceipt.notes && (
+                                                            <div className="bg-emerald-50/50 dark:bg-emerald-900/10 p-4 rounded-xl border border-emerald-100/50 dark:border-emerald-800/30">
+                                                                <p className="text-xs font-bold text-emerald-700/70 dark:text-emerald-400/70 uppercase tracking-wider mb-2">Catatan Penerimaan</p>
+                                                                <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100">{poReceipt.notes}</p>
+                                                            </div>
+                                                        )}
 
-                                                    {/* Photo & Signature Evidence */}
-                                                    <div className="grid grid-cols-2 gap-4">
-                                                        {/* Photo evidence */}
-                                                        <div>
-                                                            <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
-                                                                <Camera className="w-3 h-3" />
-                                                                Foto Bukti Penerimaan
-                                                            </p>
-                                                            {poReceipt.photo_url ? (
-                                                                <img
-                                                                    src={poReceipt.photo_url}
-                                                                    alt="Bukti penerimaan"
-                                                                    className="rounded-lg border cursor-pointer hover:opacity-80 transition-opacity max-h-40 w-full object-cover"
-                                                                    onClick={() => setPhotoModalUrl(poReceipt.photo_url!)}
-                                                                />
-                                                            ) : (
-                                                                <div className="flex items-center justify-center h-24 bg-muted/30 rounded-lg border border-dashed text-muted-foreground text-xs">
-                                                                    <Image className="w-4 h-4 mr-1" />
-                                                                    Tidak ada foto
-                                                                </div>
-                                                            )}
-                                                        </div>
+                                                        {/* Photo & Signature Evidence */}
+                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                            {/* Photo evidence */}
+                                                            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-100 dark:border-slate-700">
+                                                                <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                                                                    <Camera className="w-4 h-4 text-indigo-500" /> Foto Bukti Penerimaan
+                                                                </p>
+                                                                {poReceipt.photo_url ? (
+                                                                    <div className="relative group rounded-lg overflow-hidden border-2 border-slate-200 dark:border-slate-700">
+                                                                        <img
+                                                                            src={poReceipt.photo_url}
+                                                                            alt="Bukti penerimaan"
+                                                                            className="w-full h-40 object-cover cursor-pointer transition-transform duration-300 group-hover:scale-105"
+                                                                            onClick={() => setPhotoModalUrl(poReceipt.photo_url!)}
+                                                                        />
+                                                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                                                                            <Eye className="w-8 h-8 text-white" />
+                                                                        </div>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="flex flex-col items-center justify-center h-40 bg-slate-100/50 dark:bg-slate-800/50 rounded-lg border-2 border-dashed border-slate-200 dark:border-slate-700 text-slate-400">
+                                                                        <Camera className="w-8 h-8 mb-2 opacity-50" />
+                                                                        <span className="text-xs font-medium">Tidak ada foto bukti</span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
 
-                                                        {/* Signature */}
-                                                        <div>
-                                                            <p className="text-xs text-muted-foreground mb-2">✍️ Tanda Tangan</p>
-                                                            {poReceipt.signature_url ? (
-                                                                <img
-                                                                    src={poReceipt.signature_url}
-                                                                    alt="Tanda tangan penerima"
-                                                                    className="rounded-lg border bg-white p-2 max-h-40 w-full object-contain cursor-pointer hover:opacity-80 transition-opacity"
-                                                                    onClick={() => setPhotoModalUrl(poReceipt.signature_url!)}
-                                                                />
-                                                            ) : (
-                                                                <div className="flex items-center justify-center h-24 bg-muted/30 rounded-lg border border-dashed text-muted-foreground text-xs">
-                                                                    Tidak ada tanda tangan
-                                                                </div>
-                                                            )}
+                                                            {/* Signature */}
+                                                            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-100 dark:border-slate-700">
+                                                                <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                                                                    ✍️ Tanda Tangan Penerima
+                                                                </p>
+                                                                {poReceipt.signature_url ? (
+                                                                    <div className="relative group rounded-lg overflow-hidden border-2 border-slate-200 dark:border-slate-700 bg-white">
+                                                                        <img
+                                                                            src={poReceipt.signature_url}
+                                                                            alt="Tanda tangan penerima"
+                                                                            className="w-full h-40 object-contain p-4 cursor-pointer transition-transform duration-300 group-hover:scale-105"
+                                                                            onClick={() => setPhotoModalUrl(poReceipt.signature_url!)}
+                                                                        />
+                                                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                                                                            <Eye className="w-8 h-8 text-white" />
+                                                                        </div>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="flex flex-col items-center justify-center h-40 bg-slate-100/50 dark:bg-slate-800/50 rounded-lg border-2 border-dashed border-slate-200 dark:border-slate-700 text-slate-400">
+                                                                        <span className="text-2xl mb-2 opacity-50">✍️</span>
+                                                                        <span className="text-xs font-medium">Tidak ada tanda tangan</span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            ) : (
-                                                <p className="text-sm text-muted-foreground py-2">Data penerimaan tidak ditemukan</p>
-                                            )}
-                                        </CardContent>
-                                    </Card>
-                                )}
+                                                ) : (
+                                                    <div className="py-8 text-center bg-emerald-50 dark:bg-emerald-900/10 rounded-xl border border-emerald-100 dark:border-emerald-800/30">
+                                                        <Package className="w-10 h-10 text-emerald-300 mx-auto mb-2" />
+                                                        <p className="text-emerald-700 dark:text-emerald-400 font-medium">Data penerimaan tidak tersedia</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Footer Actions */}
+                                <div className="p-4 bg-gray-50 dark:bg-slate-800/80 border-t border-gray-100 dark:border-gray-700 flex justify-end shrink-0">
+                                    <Button variant="outline" className="rounded-xl px-6" onClick={() => setIsViewOpen(false)}>
+                                        Tutup Detail
+                                    </Button>
+                                </div>
                             </div>
                         ) : null}
                     </DialogContent>

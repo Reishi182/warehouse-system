@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
 import { Package, Truck, CheckCircle, List, Clock, Camera, PenTool, User, AlertCircle } from 'lucide-react';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import {
@@ -359,42 +360,66 @@ export default function SuratJalanWarehouse() {
                     </div>
                 )}
 
-                {/* Completed History */}
-                {completedOrders.length > 0 && (
-                    <div>
-                        <h3 className="text-lg font-bold mb-4 text-muted-foreground">Riwayat Selesai</h3>
-                        <div className="grid gap-3 opacity-75">
-                            {completedOrders.slice(0, 10).map((sj: any) => (
-                                <div key={sj.id} className="bg-card border rounded-lg p-4 hover:bg-muted/50 transition-colors">
-                                    <div className="flex justify-between items-center">
-                                        <div className="flex items-center gap-3">
-                                            <div className="h-10 w-10 rounded-lg bg-green-100 flex items-center justify-center">
-                                                <CheckCircle className="h-5 w-5 text-green-600" />
-                                            </div>
-                                            <div>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-bold">{sj.number}</span>
-                                                    <StatusBadge status={sj.status} showIcon />
-                                                </div>
-                                                <p className="text-sm text-muted-foreground">{sj.recipient_name}</p>
-                                            </div>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="text-sm text-muted-foreground">
-                                                {sj.completed_at && format(new Date(sj.completed_at), 'dd MMM yyyy', { locale: idLocale })}
-                                            </p>
-                                            {sj.sender_name && sj.receiver_name && (
-                                                <p className="text-xs text-green-600">
-                                                    ✓ {sj.sender_name} → {sj.receiver_name}
-                                                </p>
-                                            )}
-                                        </div>
-                                    </div>
+                {/* Completed History — BeautifulTable */}
+                {(() => {
+                    const completedColumns: Column<any>[] = [
+                        {
+                            header: 'No. Surat Jalan',
+                            accessorKey: 'number',
+                            cell: (row) => <span className="font-semibold">{row.number}</span>,
+                        },
+                        {
+                            header: 'Penerima',
+                            accessorKey: 'recipient_name',
+                            cell: (row) => (
+                                <div>
+                                    <p className="font-medium">{row.recipient_name}</p>
+                                    <p className="text-xs text-muted-foreground">{row.recipient_address}</p>
                                 </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
+                            ),
+                        },
+                        {
+                            header: 'Pengirim → Penerima',
+                            accessorKey: 'sender_name',
+                            cell: (row) =>
+                                row.sender_name && row.receiver_name ? (
+                                    <span className="text-xs text-green-600 font-medium">
+                                        ✓ {row.sender_name} → {row.receiver_name}
+                                    </span>
+                                ) : (
+                                    <span className="text-xs text-muted-foreground">-</span>
+                                ),
+                        },
+                        {
+                            header: 'Tanggal Selesai',
+                            accessorKey: 'completed_at',
+                            cell: (row) =>
+                                row.completed_at
+                                    ? format(new Date(row.completed_at), 'dd MMM yyyy', { locale: idLocale })
+                                    : '-',
+                        },
+                        {
+                            header: 'Status',
+                            accessorKey: 'status',
+                            cell: (row) => <StatusBadge status={row.status} showIcon />,
+                        },
+                    ];
+                    return (
+                        <BeautifulTable
+                            data={completedOrders}
+                            columns={completedColumns}
+                            title="Riwayat Selesai"
+                            subtitle="Daftar pengiriman yang telah diselesaikan"
+                            variant="premium"
+                            hideSelection
+                            emptyState={{
+                                icon: <CheckCircle className="w-8 h-8 text-white" />,
+                                title: 'Belum Ada Riwayat',
+                                description: 'Pengiriman yang selesai akan muncul di sini.',
+                            }}
+                        />
+                    );
+                })()}
             </div>
 
             {/* Complete Order Dialog */}

@@ -194,6 +194,8 @@ function ApprovalDetailDialog({
                     note: `Stok Opname ${session.session_number}: ${item.system_stock} → ${item.actual_stock}${item.note ? ` (${item.note})` : ''} | Disetujui: ${profile.name}`,
                     reference_type: 'stock_opname',
                     reference_id: session.id,
+                    stock_before: currentStock,
+                    stock_after: newStock,
                 });
 
                 // Mark item approved

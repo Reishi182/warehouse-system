@@ -913,6 +913,70 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       description: `Update produk: ${prev?.name || 'Produk'}${updates.name ? ` → ${updates.name}` : ''}`,
     });
 
+    // ── Product Audit Logs (field-level diff) ──
+    if (prev && user && profile) {
+      const auditRows: any[] = [];
+      const trackFields: { key: string; action: string; getOld: () => any; getNew: () => any }[] = [
+        { key: 'name', action: 'update_field', getOld: () => prev.name, getNew: () => updates.name },
+        { key: 'barcode', action: 'update_field', getOld: () => prev.barcode, getNew: () => updates.barcode },
+        { key: 'price', action: 'update_field', getOld: () => prev.price, getNew: () => updates.price },
+        { key: 'image_url', action: 'update_field', getOld: () => prev.image_url, getNew: () => updates.image_url },
+        { key: 'sell_unit', action: 'update_field', getOld: () => prev.sell_unit, getNew: () => updates.sell_unit },
+        { key: 'has_multi_unit', action: 'update_field', getOld: () => prev.has_multi_unit, getNew: () => updates.has_multi_unit },
+        { key: 'main_unit', action: 'update_field', getOld: () => prev.main_unit, getNew: () => updates.main_unit },
+        { key: 'pcs_per_box', action: 'update_field', getOld: () => prev.pcs_per_box, getNew: () => updates.pcs_per_box },
+        { key: 'box_price', action: 'update_field', getOld: () => prev.box_price, getNew: () => updates.box_price },
+        { key: 'bulk_quantity', action: 'update_field', getOld: () => prev.bulk_quantity, getNew: () => updates.bulk_quantity },
+        { key: 'bulk_price', action: 'update_field', getOld: () => prev.bulk_price, getNew: () => updates.bulk_price },
+      ];
+
+      for (const f of trackFields) {
+        const newVal = f.getNew();
+        if (newVal === undefined) continue;
+        const oldVal = f.getOld();
+        if (String(oldVal ?? '') !== String(newVal ?? '')) {
+          auditRows.push({
+            product_id: id,
+            product_name: updates.name || prev.name,
+            action: f.action,
+            field_name: f.key,
+            old_value: oldVal != null ? String(oldVal) : null,
+            new_value: newVal != null ? String(newVal) : null,
+            user_id: user.id,
+            user_name: profile.name,
+            user_role: profile.role,
+          });
+        }
+      }
+
+      // Stock changes tracked separately
+      if (updates.stock) {
+        if (prev.stock.gudang !== updates.stock.gudang) {
+          auditRows.push({
+            product_id: id, product_name: updates.name || prev.name,
+            action: 'update_stock', field_name: 'stock_gudang',
+            old_value: String(prev.stock.gudang), new_value: String(updates.stock.gudang),
+            user_id: user.id, user_name: profile.name, user_role: profile.role,
+          });
+        }
+        if (prev.stock.toko !== updates.stock.toko) {
+          auditRows.push({
+            product_id: id, product_name: updates.name || prev.name,
+            action: 'update_stock', field_name: 'stock_toko',
+            old_value: String(prev.stock.toko), new_value: String(updates.stock.toko),
+            user_id: user.id, user_name: profile.name, user_role: profile.role,
+          });
+        }
+      }
+
+      if (auditRows.length > 0) {
+        supabase.from('product_audit_logs').insert(auditRows).then(({ error: auditErr }) => {
+          if (auditErr) console.error('[ProductAudit] Failed to insert audit logs:', auditErr);
+          else broadcastTableChange('product_audit_logs', 'INSERT', ['product-audit-logs']);
+        });
+      }
+    }
+
     // ✅ Products will auto-update via postgres_changes smart-patch
     // But we also apply an optimistic update here so the UI updates immediately for the sender
     const store = useDataStore.getState();
@@ -979,6 +1043,24 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       entityId: id,
       description: `Hapus produk: ${product?.name || 'Produk'}`,
     });
+
+    // ── Product Audit Log for deletion ──
+    if (user && profile) {
+      supabase.from('product_audit_logs').insert({
+        product_id: id,
+        product_name: product?.name || 'Produk',
+        action: 'delete',
+        field_name: null,
+        old_value: product ? JSON.stringify({ name: product.name, barcode: product.barcode, price: product.price }) : null,
+        new_value: null,
+        user_id: user.id,
+        user_name: profile.name,
+        user_role: profile.role,
+      }).then(({ error: auditErr }) => {
+        if (auditErr) console.error('[ProductAudit] Failed to insert delete audit log:', auditErr);
+        else broadcastTableChange('product_audit_logs', 'INSERT', ['product-audit-logs']);
+      });
+    }
 
     await addNotification({
       title: 'Produk Dihapus',

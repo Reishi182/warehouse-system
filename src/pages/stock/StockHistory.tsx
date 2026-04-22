@@ -6,8 +6,11 @@ import { Badge } from '@/components/ui/badge';
 import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
 import { useDataStore } from '@/store/useDataStore';
 import { StockLogDetailDialog } from '@/components/stock/StockLogDetailDialog';
-import { StockLog, Location } from '@/types';
+import { StockLog, Location, ProductAuditLog } from '@/types';
 import { useStockLogs } from '@/hooks/useStockLogs';
+import { useProductAuditLogs } from '@/hooks/useProductAuditLogs';
+import { useRole } from '@/contexts/AuthContext';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     ArrowDownToLine,
     ArrowUpFromLine,
@@ -23,6 +26,11 @@ import {
     User,
     MapPin,
     FileText,
+    Pencil,
+    Trash2,
+    ArrowRightLeft,
+    Shield,
+    History,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { id } from 'date-fns/locale';
@@ -52,9 +60,13 @@ const typeLabels: Record<string, { label: string; color: string; icon: React.Ele
 const referenceTypeLabels: Record<string, string> = {
     purchase_order: 'Purchase Order',
     stock_request: 'Permintaan Stok',
+    stock_return: 'Retur Stok',
     sale: 'Penjualan',
     adjustment: 'Penyesuaian Manual',
     stock_opname: 'Stok Opname',
+    marketplace_order: 'Marketplace',
+    tokopedia_order: 'Tokopedia',
+    po_claim: 'Klaim PO',
 };
 
 // ─── Grouped row type ─────────────────────────────────────────
@@ -251,6 +263,148 @@ export default function StockHistory() {
 
     // View mode: 'grouped' (per PO/ref) or 'flat' (per product)
     const [viewMode, setViewMode] = useState<'grouped' | 'flat'>('grouped');
+
+    // Role check — audit tab only visible for main_office
+    const role = useRole();
+    const showAuditTab = role === 'main_office';
+
+    // Audit logs
+    const { data: auditLogsData, isLoading: isAuditLoading } = useProductAuditLogs();
+    const auditLogs = auditLogsData || [];
+
+    // ─── Audit log field labels ─────────────────────────────────
+    const fieldLabels: Record<string, string> = {
+        name: 'Nama Produk',
+        barcode: 'Barcode',
+        price: 'Harga Jual',
+        image_url: 'Foto Produk',
+        sell_unit: 'Sub-Unit',
+        has_multi_unit: 'Multi-Unit',
+        main_unit: 'Unit Besar',
+        pcs_per_box: 'Isi per Unit Besar',
+        box_price: 'Harga per Unit Besar',
+        bulk_quantity: 'Minimal Grosir',
+        bulk_price: 'Harga Grosir',
+        stock_gudang: 'Stok Gudang',
+        stock_toko: 'Stok Toko',
+    };
+
+    const actionConfig: Record<string, { label: string; color: string; icon: React.ElementType }> = {
+        update_field: { label: 'Edit', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300', icon: Pencil },
+        update_stock: { label: 'Edit Stok', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300', icon: ArrowRightLeft },
+        delete: { label: 'Hapus', color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300', icon: Trash2 },
+    };
+
+    const roleLabels: Record<string, string> = {
+        admin: 'Admin',
+        warehouse: 'Gudang',
+        cashier: 'Kasir',
+        main_office: 'Kantor Pusat',
+        auditor: 'Auditor',
+    };
+
+    // ─── Audit log columns ──────────────────────────────────────
+    const auditColumns: Column<ProductAuditLog>[] = [
+        {
+            header: 'Waktu',
+            accessorKey: 'created_at',
+            cell: (log) => (
+                <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-muted-foreground" />
+                    <div>
+                        <p className="font-medium">{format(parseISO(log.created_at), 'dd MMM yyyy', { locale: id })}</p>
+                        <p className="text-xs text-muted-foreground">{format(parseISO(log.created_at), 'HH:mm', { locale: id })}</p>
+                    </div>
+                </div>
+            )
+        },
+        {
+            header: 'Produk',
+            accessorKey: 'product_name' as any,
+            cell: (log) => (
+                <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                        <Package className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                    <span className="font-medium">{log.product_name}</span>
+                </div>
+            )
+        },
+        {
+            header: 'Aksi',
+            accessorKey: 'action' as any,
+            filterable: true,
+            filterOptions: [
+                { label: 'Edit Field', value: 'update_field' },
+                { label: 'Edit Stok', value: 'update_stock' },
+                { label: 'Hapus Produk', value: 'delete' },
+            ],
+            cell: (log) => {
+                const cfg = actionConfig[log.action] || actionConfig.update_field;
+                const Icon = cfg.icon;
+                return (
+                    <Badge className={cfg.color}>
+                        <Icon className="w-3 h-3 mr-1" />
+                        {cfg.label}
+                    </Badge>
+                );
+            }
+        },
+        {
+            header: 'Detail Perubahan',
+            cell: (log) => {
+                if (log.action === 'delete') {
+                    return <span className="text-red-600 dark:text-red-400 font-medium text-sm">Produk dihapus</span>;
+                }
+                const label = fieldLabels[log.field_name || ''] || log.field_name || '-';
+                const oldVal = log.old_value ?? '-';
+                const newVal = log.new_value ?? '-';
+
+                // Format price values
+                const formatVal = (val: string, field: string | null) => {
+                    if (val === '-' || val === 'null') return '-';
+                    if (field === 'price' || field === 'box_price' || field === 'bulk_price') {
+                        const num = parseInt(val);
+                        return isNaN(num) ? val : `Rp ${num.toLocaleString('id-ID')}`;
+                    }
+                    if (field === 'has_multi_unit') return val === 'true' ? 'Aktif' : 'Nonaktif';
+                    return val;
+                };
+
+                return (
+                    <div className="text-sm">
+                        <p className="text-xs text-muted-foreground mb-0.5 font-medium">{label}</p>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 px-1.5 py-0.5 rounded text-xs font-mono line-through">
+                                {formatVal(oldVal, log.field_name)}
+                            </span>
+                            <span className="text-muted-foreground">→</span>
+                            <span className="bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400 px-1.5 py-0.5 rounded text-xs font-mono font-semibold">
+                                {formatVal(newVal, log.field_name)}
+                            </span>
+                        </div>
+                    </div>
+                );
+            }
+        },
+        {
+            header: 'User',
+            cell: (log) => (
+                <div className="flex items-center gap-2">
+                    <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                        <User className="w-3.5 h-3.5 text-primary" />
+                    </div>
+                    <div>
+                        <p className="text-sm font-medium leading-tight">{log.user_name}</p>
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 mt-0.5">
+                            <Shield className="w-2.5 h-2.5 mr-0.5" />
+                            {roleLabels[log.user_role] || log.user_role}
+                        </Badge>
+                    </div>
+                </div>
+            )
+        },
+    ];
 
     // Stats
     const stats = useMemo(() => {
@@ -601,149 +755,205 @@ export default function StockHistory() {
 
     return (
         <MainLayout title="History Stok" subtitle="Riwayat pergerakan stok">
-            <div className="space-y-6">
-                {/* Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <Card className="overflow-hidden">
-                        <CardContent className="flex items-center gap-4 p-4">
-                            <div className="p-3 rounded-xl bg-primary/10">
-                                <Activity className="w-6 h-6 text-primary" />
-                            </div>
-                            <div>
-                                <p className="text-sm text-muted-foreground">Total Transaksi</p>
-                                <p className="text-2xl font-bold">{stats.total}</p>
-                            </div>
-                        </CardContent>
-                    </Card>
-                    <Card className="overflow-hidden">
-                        <CardContent className="flex items-center gap-4 p-4">
-                            <div className="p-3 rounded-xl bg-green-100 dark:bg-green-900/30">
-                                <TrendingUp className="w-6 h-6 text-green-600" />
-                            </div>
-                            <div>
-                                <p className="text-sm text-muted-foreground">Total Masuk</p>
-                                <p className="text-2xl font-bold text-green-600">+{stats.totalIn}</p>
-                            </div>
-                        </CardContent>
-                    </Card>
-                    <Card className="overflow-hidden">
-                        <CardContent className="flex items-center gap-4 p-4">
-                            <div className="p-3 rounded-xl bg-red-100 dark:bg-red-900/30">
-                                <TrendingDown className="w-6 h-6 text-red-600" />
-                            </div>
-                            <div>
-                                <p className="text-sm text-muted-foreground">Total Keluar</p>
-                                <p className="text-2xl font-bold text-red-600">-{stats.totalOut}</p>
-                            </div>
-                        </CardContent>
-                    </Card>
-                    <Card className="overflow-hidden">
-                        <CardContent className="flex items-center gap-4 p-4">
-                            <div className="p-3 rounded-xl bg-blue-100 dark:bg-blue-900/30">
-                                <RefreshCw className="w-6 h-6 text-blue-600" />
-                            </div>
-                            <div>
-                                <p className="text-sm text-muted-foreground">Penyesuaian</p>
-                                <p className="text-2xl font-bold text-blue-600">{stats.totalAdjustment}</p>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
-
-                {/* View Mode Toggle */}
-                <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">Tampilan:</span>
-                    <div className="flex items-center gap-1 p-1 bg-muted rounded-xl">
-                        <button
-                            onClick={() => setViewMode('grouped')}
-                            className={cn(
-                                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                                viewMode === 'grouped' ? "bg-background shadow-sm" : "hover:bg-background/50"
-                            )}
-                        >
-                            <Layers className="w-3.5 h-3.5" />
-                            Per Transaksi (PO)
-                        </button>
-                        <button
-                            onClick={() => setViewMode('flat')}
-                            className={cn(
-                                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                                viewMode === 'flat' ? "bg-background shadow-sm" : "hover:bg-background/50"
-                            )}
-                        >
-                            <List className="w-3.5 h-3.5" />
-                            Per Produk
-                        </button>
-                    </div>
-                </div>
-
-                {/* Table */}
-                {viewMode === 'grouped' ? (
-                    <BeautifulTable<GroupedLog>
-                        data={groupedLogs}
-                        columns={groupedColumns}
-                        title="Riwayat Pergerakan Stok"
-                        subtitle="Dikelompokkan per transaksi/PO — klik Detail untuk melihat produk di dalamnya"
-                        isLoading={loading}
-                        hideSelection
-                        hideExport
-                        emptyState={{
-                            icon: <Package className="w-7 h-7" />,
-                            title: 'Tidak ada data',
-                            description: 'Belum ada pergerakan stok yang tercatat.',
-                        }}
-                        globalFilterFn={(g, query) => {
-                            const q = query.toLowerCase();
-                            // First check top-level group fields
-                            if (
-                                (g.reference_label?.toLowerCase().includes(q) ?? false) ||
-                                (g.actor_name?.toLowerCase().includes(q) ?? false) ||
-                                (g.user?.name?.toLowerCase().includes(q) ?? false) ||
-                                (g.note?.toLowerCase().includes(q) ?? false) ||
-                                g.type.toLowerCase().includes(q) ||
-                                g.location.toLowerCase().includes(q)
-                            ) {
-                                return true;
-                            }
-                            
-                            // Then check if any log in this group matches the product name/barcode
-                            return g.logs.some(log => 
-                                (log.product?.name?.toLowerCase().includes(q) ?? false) ||
-                                (log.product?.barcode?.toLowerCase().includes(q) ?? false) ||
-                                (log.note?.toLowerCase().includes(q) ?? false)
-                            );
-                        }}
-                    />
-                ) : (
-                    <BeautifulTable<StockLog>
-                        data={stockLogs}
-                        columns={flatColumns}
-                        title="Riwayat Pergerakan Stok"
-                        subtitle="Detail per produk"
-                        isLoading={loading}
-                        hideSelection
-                        exportFilename="stock-history"
-                        exportTitle="Riwayat Stok"
-                        emptyState={{
-                            icon: <Package className="w-7 h-7" />,
-                            title: 'Tidak ada data',
-                            description: 'Belum ada pergerakan stok yang tercatat.',
-                        }}
-                        globalFilterFn={(log, query) => {
-                            const q = query.toLowerCase();
-                            return (
-                                (log.product?.name?.toLowerCase().includes(q) ?? false) ||
-                                (log.product?.barcode?.toLowerCase().includes(q) ?? false) ||
-                                (log.note?.toLowerCase().includes(q) ?? false) ||
-                                (log.actor_name?.toLowerCase().includes(q) ?? false) ||
-                                (log.user?.name?.toLowerCase().includes(q) ?? false) ||
-                                log.type.toLowerCase().includes(q) ||
-                                log.location.toLowerCase().includes(q)
-                            );
-                        }}
-                    />
+            <Tabs defaultValue="stock" className="space-y-6">
+                {/* Tab List — only show if audit tab is available */}
+                {showAuditTab && (
+                    <TabsList className="grid w-full max-w-md grid-cols-2">
+                        <TabsTrigger value="stock" className="gap-1.5">
+                            <Activity className="w-4 h-4" />
+                            Pergerakan Stok
+                        </TabsTrigger>
+                        <TabsTrigger value="audit" className="gap-1.5">
+                            <History className="w-4 h-4" />
+                            Riwayat Edit Produk
+                        </TabsTrigger>
+                    </TabsList>
                 )}
-            </div>
+
+                {/* ─── Tab 1: Stock Movement (existing content) ─── */}
+                <TabsContent value="stock" className="space-y-6 mt-0">
+                    {/* Stats Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        {/* Card: Total Transaksi */}
+                        <Card className="overflow-hidden relative group hover:shadow-md hover:border-amber-500/30 dark:hover:border-amber-400/30 transition-all duration-300">
+                            <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                            <CardContent className="flex items-center gap-5 p-5 relative z-10">
+                                <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-500/10 shadow-sm border border-amber-100 dark:border-amber-500/20 group-hover:scale-110 transition-transform duration-300">
+                                    <Activity className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium text-muted-foreground mb-1">Total Transaksi</p>
+                                    <p className="text-3xl font-bold tracking-tight">{stats.total.toLocaleString('id-ID')}</p>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Card: Total Masuk */}
+                        <Card className="overflow-hidden relative group hover:shadow-md hover:border-emerald-500/30 dark:hover:border-emerald-400/30 transition-all duration-300">
+                            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                            <CardContent className="flex items-center gap-5 p-5 relative z-10">
+                                <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 shadow-sm border border-emerald-100 dark:border-emerald-500/20 group-hover:scale-110 transition-transform duration-300">
+                                    <TrendingUp className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium text-muted-foreground mb-1">Total Masuk</p>
+                                    <p className="text-3xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">+{stats.totalIn.toLocaleString('id-ID')}</p>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Card: Total Keluar */}
+                        <Card className="overflow-hidden relative group hover:shadow-md hover:border-rose-500/30 dark:hover:border-rose-400/30 transition-all duration-300">
+                            <div className="absolute inset-0 bg-gradient-to-br from-rose-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                            <CardContent className="flex items-center gap-5 p-5 relative z-10">
+                                <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-500/10 shadow-sm border border-rose-100 dark:border-rose-500/20 group-hover:scale-110 transition-transform duration-300">
+                                    <TrendingDown className="w-6 h-6 text-rose-600 dark:text-rose-400" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium text-muted-foreground mb-1">Total Keluar</p>
+                                    <p className="text-3xl font-bold tracking-tight text-rose-600 dark:text-rose-400">-{stats.totalOut.toLocaleString('id-ID')}</p>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Card: Penyesuaian */}
+                        <Card className="overflow-hidden relative group hover:shadow-md hover:border-blue-500/30 dark:hover:border-blue-400/30 transition-all duration-300">
+                            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                            <CardContent className="flex items-center gap-5 p-5 relative z-10">
+                                <div className="p-3.5 rounded-2xl bg-blue-50 dark:bg-blue-500/10 shadow-sm border border-blue-100 dark:border-blue-500/20 group-hover:scale-110 transition-transform duration-300">
+                                    <RefreshCw className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium text-muted-foreground mb-1">Penyesuaian</p>
+                                    <p className="text-3xl font-bold tracking-tight text-blue-600 dark:text-blue-400">{stats.totalAdjustment.toLocaleString('id-ID')}</p>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* View Mode Toggle */}
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">Tampilan:</span>
+                        <div className="flex items-center gap-1 p-1 bg-muted rounded-xl">
+                            <button
+                                onClick={() => setViewMode('grouped')}
+                                className={cn(
+                                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                                    viewMode === 'grouped' ? "bg-background shadow-sm" : "hover:bg-background/50"
+                                )}
+                            >
+                                <Layers className="w-3.5 h-3.5" />
+                                Per Transaksi (PO)
+                            </button>
+                            <button
+                                onClick={() => setViewMode('flat')}
+                                className={cn(
+                                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                                    viewMode === 'flat' ? "bg-background shadow-sm" : "hover:bg-background/50"
+                                )}
+                            >
+                                <List className="w-3.5 h-3.5" />
+                                Per Produk
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Table */}
+                    {viewMode === 'grouped' ? (
+                        <BeautifulTable<GroupedLog>
+                            data={groupedLogs}
+                            columns={groupedColumns}
+                            title="Riwayat Pergerakan Stok"
+                            subtitle="Dikelompokkan per transaksi/PO — klik Detail untuk melihat produk di dalamnya"
+                            isLoading={loading}
+                            hideSelection
+                            hideExport
+                            emptyState={{
+                                icon: <Package className="w-7 h-7" />,
+                                title: 'Tidak ada data',
+                                description: 'Belum ada pergerakan stok yang tercatat.',
+                            }}
+                            globalFilterFn={(g, query) => {
+                                const q = query.toLowerCase();
+                                if (
+                                    (g.reference_label?.toLowerCase().includes(q) ?? false) ||
+                                    (g.actor_name?.toLowerCase().includes(q) ?? false) ||
+                                    (g.user?.name?.toLowerCase().includes(q) ?? false) ||
+                                    (g.note?.toLowerCase().includes(q) ?? false) ||
+                                    g.type.toLowerCase().includes(q) ||
+                                    g.location.toLowerCase().includes(q)
+                                ) {
+                                    return true;
+                                }
+                                return g.logs.some(log =>
+                                    (log.product?.name?.toLowerCase().includes(q) ?? false) ||
+                                    (log.product?.barcode?.toLowerCase().includes(q) ?? false) ||
+                                    (log.note?.toLowerCase().includes(q) ?? false)
+                                );
+                            }}
+                        />
+                    ) : (
+                        <BeautifulTable<StockLog>
+                            data={stockLogs}
+                            columns={flatColumns}
+                            title="Riwayat Pergerakan Stok"
+                            subtitle="Detail per produk"
+                            isLoading={loading}
+                            hideSelection
+                            exportFilename="stock-history"
+                            exportTitle="Riwayat Stok"
+                            emptyState={{
+                                icon: <Package className="w-7 h-7" />,
+                                title: 'Tidak ada data',
+                                description: 'Belum ada pergerakan stok yang tercatat.',
+                            }}
+                            globalFilterFn={(log, query) => {
+                                const q = query.toLowerCase();
+                                return (
+                                    (log.product?.name?.toLowerCase().includes(q) ?? false) ||
+                                    (log.product?.barcode?.toLowerCase().includes(q) ?? false) ||
+                                    (log.note?.toLowerCase().includes(q) ?? false) ||
+                                    (log.actor_name?.toLowerCase().includes(q) ?? false) ||
+                                    (log.user?.name?.toLowerCase().includes(q) ?? false) ||
+                                    log.type.toLowerCase().includes(q) ||
+                                    log.location.toLowerCase().includes(q)
+                                );
+                            }}
+                        />
+                    )}
+                </TabsContent>
+
+                {/* ─── Tab 2: Product Audit Log (main_office only) ─── */}
+                {showAuditTab && (
+                    <TabsContent value="audit" className="space-y-6 mt-0">
+                        <BeautifulTable<ProductAuditLog>
+                            data={auditLogs}
+                            columns={auditColumns}
+                            title="Riwayat Edit Produk"
+                            subtitle="Log perubahan produk — siapa mengubah apa, kapan, dan detail perubahannya"
+                            isLoading={isAuditLoading}
+                            hideSelection
+                            hideExport
+                            emptyState={{
+                                icon: <History className="w-7 h-7" />,
+                                title: 'Belum ada riwayat',
+                                description: 'Belum ada perubahan produk yang tercatat. Log akan muncul setelah ada edit produk.',
+                            }}
+                            globalFilterFn={(log, query) => {
+                                const q = query.toLowerCase();
+                                return (
+                                    log.product_name.toLowerCase().includes(q) ||
+                                    log.user_name.toLowerCase().includes(q) ||
+                                    log.action.toLowerCase().includes(q) ||
+                                    (log.field_name?.toLowerCase().includes(q) ?? false) ||
+                                    (log.old_value?.toLowerCase().includes(q) ?? false) ||
+                                    (log.new_value?.toLowerCase().includes(q) ?? false)
+                                );
+                            }}
+                        />
+                    </TabsContent>
+                )}
+            </Tabs>
 
             {/* Group Detail Dialog */}
             <GroupDetailDialog

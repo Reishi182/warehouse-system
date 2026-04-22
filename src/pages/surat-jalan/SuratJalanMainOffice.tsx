@@ -8,10 +8,10 @@ import { ClickableImage } from '@/components/common/ImageLightbox';
 import { useSuratJalanB2B } from '@/hooks/useSuratJalanB2B';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-;
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
+import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
 import {
     Dialog,
     DialogContent,
@@ -20,7 +20,7 @@ import {
     DialogDescription,
     DialogFooter,
 } from '@/components/ui/dialog';
-import { FileText, CheckCircle, Clock, Package, TruckIcon, Eye, ThumbsUp, ThumbsDown, Ban } from 'lucide-react';
+import { FileText, CheckCircle, Clock, Package, TruckIcon, Eye, ThumbsUp, ThumbsDown, Ban, User, Camera } from 'lucide-react';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 
@@ -49,10 +49,8 @@ export default function SuratJalanMainOffice() {
     const approved = suratJalans.filter((sj: any) => sj.status === 'approved');
     const processing = suratJalans.filter((sj: any) => sj.status === 'processing');
     const completed = suratJalans.filter((sj: any) => sj.status === 'completed');
-    const rejected = suratJalans.filter((sj: any) => sj.status === 'rejected');
 
     const stats = {
-        pendingReview: pendingReview.length,
         approved: approved.length,
         processing: processing.length,
         completed: completed.length,
@@ -104,18 +102,87 @@ export default function SuratJalanMainOffice() {
         });
     };
 
+    // ── BeautifulTable columns ──────────────────────────────────────────────
+    const tableColumns: Column<any>[] = [
+        {
+            header: 'No. Surat Jalan',
+            accessorKey: 'number',
+            cell: (row) => <span className="font-semibold">{row.number}</span>,
+        },
+        {
+            header: 'Penerima',
+            accessorKey: 'recipient_name',
+            cell: (row) => (
+                <div>
+                    <p className="font-medium">{row.recipient_name}</p>
+                    <p className="text-xs text-muted-foreground truncate max-w-[200px]">{row.recipient_address}</p>
+                </div>
+            ),
+        },
+        {
+            header: 'Tanggal',
+            accessorKey: 'created_at',
+            cell: (row) =>
+                row.created_at
+                    ? format(new Date(row.created_at), 'dd MMM yyyy', { locale: idLocale })
+                    : '-',
+        },
+        {
+            header: 'Lokasi',
+            accessorKey: 'source_location',
+            cell: (row) => <LocationBadge location={row.source_location} />,
+        },
+        {
+            header: 'Status',
+            accessorKey: 'status',
+            filterable: true,
+            cell: (row) => <StatusBadge status={row.status} showIcon />,
+        },
+        {
+            header: 'Aksi',
+            accessorKey: 'id',
+            sortable: false,
+            cell: (row) => (
+                <div className="flex items-center gap-2">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="hover:bg-primary/10 hover:text-primary transition-colors"
+                        onClick={() => handleViewDetail(row)}
+                    >
+                        <Eye className="w-4 h-4 mr-1" />
+                        Detail
+                    </Button>
+                    {row.status === 'pending_review' && (
+                        <>
+                            <Button
+                                size="sm"
+                                className="bg-green-600 hover:bg-green-700 text-white"
+                                onClick={() => handleOpenReview(row, true)}
+                            >
+                                <ThumbsUp className="w-3.5 h-3.5 mr-1" />
+                                Setujui
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="border-red-300 text-red-600 hover:bg-red-50"
+                                onClick={() => handleOpenReview(row, false)}
+                            >
+                                <ThumbsDown className="w-3.5 h-3.5 mr-1" />
+                                Tolak
+                            </Button>
+                        </>
+                    )}
+                </div>
+            ),
+        },
+    ];
 
     return (
         <MainLayout title="Review Surat Jalan" subtitle="Review dan approve surat jalan dari Kasir">
             <div className="space-y-6">
-                <StatsGrid columns={4}>
-                    <StatsCard
-                        title="Perlu Review"
-                        value={stats.pendingReview}
-                        icon={<Clock className="w-5 h-5" />}
-                        subtitle={stats.pendingReview > 0 ? "butuh perhatian" : undefined}
-                        subtitleType="warning"
-                    />
+                <StatsGrid columns={3}>
                     <StatsCard
                         title="Disetujui"
                         value={stats.approved}
@@ -210,55 +277,20 @@ export default function SuratJalanMainOffice() {
                     </div>
                 )}
 
-                {/* Empty State for Pending */}
-                {pendingReview.length === 0 && (
-                    <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-6 text-center">
-                        <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-3" />
-                        <h3 className="font-bold text-green-800 dark:text-green-200">Tidak Ada Yang Perlu Direview</h3>
-                        <p className="text-sm text-green-600 dark:text-green-400">Semua surat jalan sudah ditinjau</p>
-                    </div>
-                )}
-
-                {/* All Orders Overview */}
-                <div>
-                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                        <FileText className="h-5 w-5 text-primary" />
-                        Semua Surat Jalan
-                    </h3>
-                    <div className="grid gap-3">
-                        {suratJalans.map((sj: any) => (
-                            <div
-                                key={sj.id}
-                                className="bg-card border rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer"
-                                onClick={() => handleViewDetail(sj)}
-                            >
-                                <div className="flex justify-between items-center">
-                                    <div className="flex items-center gap-3">
-                                        <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center">
-                                            <FileText className="h-5 w-5 text-white" />
-                                        </div>
-                                        <div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="font-bold">{sj.number}</span>
-                                                <StatusBadge status={sj.status} showIcon />
-                                            </div>
-                                            <p className="text-sm text-muted-foreground">{sj.recipient_name}</p>
-                                        </div>
-                                    </div>
-                                    <div className="text-right text-sm text-muted-foreground">
-                                        {format(new Date(sj.created_at), 'dd MMM yyyy', { locale: idLocale })}
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-
-                        {suratJalans.length === 0 && (
-                            <div className="text-center py-8 bg-muted/20 rounded-lg border border-dashed">
-                                <p className="text-muted-foreground">Belum ada surat jalan</p>
-                            </div>
-                        )}
-                    </div>
-                </div>
+                {/* All Surat Jalan — BeautifulTable */}
+                <BeautifulTable
+                    data={suratJalans}
+                    columns={tableColumns}
+                    title="Semua Surat Jalan"
+                    subtitle="Daftar seluruh surat jalan"
+                    variant="premium"
+                    hideSelection
+                    emptyState={{
+                        icon: <FileText className="w-8 h-8 text-white" />,
+                        title: 'Belum Ada Surat Jalan',
+                        description: 'Surat jalan yang dibuat kasir akan muncul di sini.',
+                    }}
+                />
             </div>
 
             {/* Review Dialog */}
@@ -309,143 +341,235 @@ export default function SuratJalanMainOffice() {
 
             {/* Detail Dialog */}
             <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
-                <DialogContent className="max-w-2xl rounded-2xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle>Detail Surat Jalan</DialogTitle>
-                    </DialogHeader>
-
+                <DialogContent className="max-w-3xl bg-slate-50 dark:bg-slate-900 border-none shadow-2xl p-0 overflow-hidden rounded-2xl">
                     {selectedSj && (
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-3">
-                                <span className="text-2xl font-bold">{selectedSj.number}</span>
-                                <StatusBadge status={selectedSj.status} showIcon />
+                        <div className="flex flex-col h-full max-h-[90vh]">
+                            {/* Premium Gradient Header */}
+                            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white relative shrink-0">
+                                <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+                                    <FileText className="w-32 h-32" />
+                                </div>
+                                <div className="flex justify-between items-start relative z-10">
+                                    <div>
+                                        <h2 className="text-2xl font-bold flex items-center gap-2">
+                                            Detail Surat Jalan
+                                        </h2>
+                                        <p className="text-blue-100 flex items-center gap-1.5 mt-1 font-mono text-sm">
+                                            {selectedSj.number || 'Memuat...'}
+                                        </p>
+                                    </div>
+                                    <div className="bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-full text-sm font-semibold border border-white/30 shadow-sm flex items-center gap-2">
+                                        {selectedSj.status === 'completed' && <CheckCircle className="w-4 h-4" />}
+                                        {selectedSj.status === 'processing' && <TruckIcon className="w-4 h-4" />}
+                                        {selectedSj.status === 'pending_review' && <Clock className="w-4 h-4" />}
+                                        {selectedSj.status === 'approved' && <CheckCircle className="w-4 h-4" />}
+                                        {selectedSj.status === 'pending_review' ? 'Menunggu Review' :
+                                         selectedSj.status === 'approved' ? 'Disetujui' :
+                                         selectedSj.status === 'processing' ? 'Dalam Pengiriman' :
+                                         selectedSj.status === 'completed' ? 'Selesai' :
+                                         selectedSj.status === 'rejected' ? 'Ditolak' : selectedSj.status}
+                                    </div>
+                                </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4 bg-muted p-4 rounded-lg">
-                                <div>
-                                    <p className="text-sm text-muted-foreground">Penerima</p>
-                                    <p className="font-semibold">{selectedSj.recipient_name}</p>
+                            {/* Scrollable Content */}
+                            <div className="p-6 overflow-y-auto custom-scrollbar space-y-6">
+                                {/* Info Grid 1 */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                            <Clock className="w-3.5 h-3.5 text-blue-500" /> Tanggal Dibuat
+                                        </p>
+                                        <p className="font-semibold text-gray-900 dark:text-gray-100">
+                                            {selectedSj.created_at ? format(new Date(selectedSj.created_at), 'dd MMM yyyy', { locale: idLocale }) : '-'}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground mt-0.5">
+                                            {selectedSj.created_at ? format(new Date(selectedSj.created_at), 'HH:mm', { locale: idLocale }) : '-'} WIB
+                                        </p>
+                                    </div>
+                                    <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                            <Package className="w-3.5 h-3.5 text-blue-500" /> Informasi Pengiriman
+                                        </p>
+                                        <div className="mt-1">
+                                            <LocationBadge location={selectedSj.source_location} />
+                                        </div>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="text-sm text-muted-foreground">Alamat</p>
-                                    <p className="font-semibold">{selectedSj.recipient_address || '-'}</p>
+
+                                {/* Info Grid 2 */}
+                                <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+                                    <div className="bg-gray-50/80 dark:bg-slate-700/50 px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
+                                        <User className="w-4 h-4 text-blue-500" />
+                                        <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wider">
+                                            Informasi Penerima
+                                        </h3>
+                                    </div>
+                                    <div className="p-4 grid grid-cols-2 gap-4">
+                                        <div>
+                                            <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider mb-1">Nama Penerima</p>
+                                            <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">{selectedSj.recipient_name}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider mb-1">Nomor Telepon</p>
+                                            <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">{selectedSj.recipient_phone || '-'}</p>
+                                        </div>
+                                        <div className="col-span-2">
+                                            <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider mb-1">Alamat Lengkap</p>
+                                            <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">{selectedSj.recipient_address || '-'}</p>
+                                        </div>
+                                    </div>
                                 </div>
+
+                                {/* Review Notes */}
+                                {selectedSj.review_notes && (
+                                    <div className="bg-indigo-50 dark:bg-indigo-900/10 rounded-xl border border-indigo-100 dark:border-indigo-900/30 shadow-sm overflow-hidden">
+                                        <div className="bg-indigo-100/50 dark:bg-indigo-900/20 px-4 py-3 border-b border-indigo-100 dark:border-indigo-900/30 flex items-center gap-2">
+                                            <FileText className="w-4 h-4 text-indigo-500" />
+                                            <h3 className="text-sm font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider">
+                                                Catatan Review
+                                            </h3>
+                                        </div>
+                                        <div className="p-4">
+                                            <p className="text-sm text-indigo-900 dark:text-indigo-100 italic leading-relaxed">"{selectedSj.review_notes}"</p>
+                                            {selectedSj.reviewed_at && (
+                                                <p className="text-xs text-indigo-600/70 dark:text-indigo-400/70 mt-2">
+                                                    Direview pada {format(new Date(selectedSj.reviewed_at), 'dd MMM yyyy, HH:mm', { locale: idLocale })}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Items Table */}
                                 <div>
-                                    <p className="text-sm text-muted-foreground">Telepon</p>
-                                    <p className="font-semibold">{selectedSj.recipient_phone || '-'}</p>
+                                    <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
+                                        <Package className="w-4 h-4 text-blue-500" />
+                                        Daftar Barang Dikirim ({selectedSj.items?.length || 0} item)
+                                    </h3>
+                                    <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+                                        <div className="divide-y divide-gray-100 dark:divide-gray-700">
+                                            {selectedSj.items?.map((item: any, idx: number) => (
+                                                <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors gap-3">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="bg-blue-50 dark:bg-blue-500/10 p-2 rounded-lg">
+                                                            <Package className="w-4 h-4 text-blue-500" />
+                                                        </div>
+                                                        <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">
+                                                            {item.product_name || 'Produk tidak diketahui'}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto pl-11 sm:pl-0">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="inline-flex items-center justify-center bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 font-bold px-3 py-1 rounded-lg min-w-[3rem]">
+                                                                {item.quantity}
+                                                            </span>
+                                                            <span className="text-xs font-medium text-gray-500 uppercase w-8 text-left">{item.unit || 'pcs'}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {(!selectedSj.items || selectedSj.items.length === 0) && (
+                                                <div className="p-8 text-center text-muted-foreground text-sm">
+                                                    Tidak ada data barang
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="text-sm text-muted-foreground">Lokasi Barang</p>
-                                    <p className="font-semibold">{selectedSj.source_location === 'toko' ? '🏪 Toko' : '📦 Gudang'}</p>
-                                </div>
-                                <div>
-                                    <p className="text-sm text-muted-foreground">Dibuat</p>
-                                    <p className="font-semibold">{format(new Date(selectedSj.created_at), 'dd MMM yyyy, HH:mm', { locale: idLocale })}</p>
-                                </div>
-                                {selectedSj.reviewed_at && (
-                                    <div>
-                                        <p className="text-sm text-muted-foreground">Direview</p>
-                                        <p className="font-semibold">{format(new Date(selectedSj.reviewed_at), 'dd MMM yyyy, HH:mm', { locale: idLocale })}</p>
+
+                                {/* Delivery Proof */}
+                                {selectedSj.status === 'completed' && (
+                                    <div className="bg-emerald-50 dark:bg-emerald-900/10 rounded-xl border border-emerald-100 dark:border-emerald-900/30 shadow-sm overflow-hidden mt-6">
+                                        <div className="bg-emerald-100/50 dark:bg-emerald-900/20 px-4 py-3 border-b border-emerald-100 dark:border-emerald-900/30 flex items-center gap-2">
+                                            <CheckCircle className="w-5 h-5 text-emerald-600" />
+                                            <h3 className="text-sm font-bold text-emerald-800 dark:text-emerald-400 uppercase tracking-wider">
+                                                Bukti Pengiriman Selesai
+                                            </h3>
+                                        </div>
+                                        
+                                        <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div className="space-y-4">
+                                                <div className="bg-white/80 dark:bg-slate-800/80 p-4 rounded-xl border border-emerald-100/50 dark:border-emerald-800/30">
+                                                    <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium mb-1">Nama Pengirim</p>
+                                                    <p className="font-semibold text-sm">{selectedSj.sender_name || '-'}</p>
+                                                    
+                                                    {selectedSj.sender_signature_url && (
+                                                        <div className="mt-3">
+                                                            <p className="text-xs text-emerald-600/70 dark:text-emerald-400/70 mb-2">Tanda Tangan:</p>
+                                                            <div className="bg-white rounded-lg p-2 border border-emerald-100 inline-block">
+                                                                <ClickableImage
+                                                                    src={selectedSj.sender_signature_url}
+                                                                    alt="TTD Pengirim"
+                                                                    imgClassName="max-h-20 object-contain cursor-pointer hover:opacity-80 transition-opacity"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="space-y-4">
+                                                <div className="bg-white/80 dark:bg-slate-800/80 p-4 rounded-xl border border-emerald-100/50 dark:border-emerald-800/30">
+                                                    <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium mb-1">Nama Penerima</p>
+                                                    <p className="font-semibold text-sm">{selectedSj.receiver_name || '-'}</p>
+                                                    
+                                                    {selectedSj.receiver_signature_url && (
+                                                        <div className="mt-3">
+                                                            <p className="text-xs text-emerald-600/70 dark:text-emerald-400/70 mb-2">Tanda Tangan:</p>
+                                                            <div className="bg-white rounded-lg p-2 border border-emerald-100 inline-block">
+                                                                <ClickableImage
+                                                                    src={selectedSj.receiver_signature_url}
+                                                                    alt="TTD Penerima"
+                                                                    imgClassName="max-h-20 object-contain cursor-pointer hover:opacity-80 transition-opacity"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {selectedSj.delivery_photo_url && (
+                                            <div className="px-6 pb-6 pt-0">
+                                                <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300 mb-3 flex items-center gap-2">
+                                                    <Camera className="w-4 h-4" />
+                                                    Foto Bukti Pengiriman
+                                                </p>
+                                                <div className="inline-block rounded-xl overflow-hidden border-4 border-white shadow-md">
+                                                    <ClickableImage
+                                                        src={selectedSj.delivery_photo_url}
+                                                        alt="Bukti pengiriman"
+                                                        imgClassName="max-h-64 object-cover cursor-pointer hover:scale-105 transition-transform duration-300"
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
 
-                            {selectedSj.review_notes && (
-                                <div className="bg-blue-50 p-3 rounded-lg">
-                                    <p className="text-sm font-medium text-blue-700">Catatan Review:</p>
-                                    <p className="text-sm text-blue-600">{selectedSj.review_notes}</p>
-                                </div>
-                            )}
-
-                            <div>
-                                <h4 className="font-semibold mb-2">Daftar Barang</h4>
-                                <div className="border rounded-lg overflow-hidden">
-                                    <table className="w-full text-sm">
-                                        <thead className="bg-muted">
-                                            <tr>
-                                                <th className="px-4 py-2 text-left">Produk</th>
-                                                <th className="px-4 py-2 text-center">Qty</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y">
-                                            {selectedSj.items?.map((item: any) => (
-                                                <tr key={item.id}>
-                                                    <td className="px-4 py-2">{item.product_name}</td>
-                                                    <td className="px-4 py-2 text-center font-mono font-bold">{item.quantity}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
+                            {/* Footer */}
+                            <div className="p-4 bg-gray-50 dark:bg-slate-800/80 border-t border-gray-100 dark:border-gray-700 flex justify-end gap-3 shrink-0">
+                                {['pending_review', 'approved', 'processing'].includes(selectedSj.status) && (
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => {
+                                            setDetailDialogOpen(false);
+                                            handleCancelSJ(selectedSj);
+                                        }}
+                                        className="rounded-xl text-red-600 border-red-200 hover:bg-red-50 dark:hover:bg-red-900/20 gap-2"
+                                    >
+                                        <Ban className="mr-1 h-4 w-4" />
+                                        Batalkan SJ
+                                    </Button>
+                                )}
+                                <Button variant="outline" className="rounded-xl px-6" onClick={() => setDetailDialogOpen(false)}>
+                                    Tutup
+                                </Button>
                             </div>
-
-                            {/* Delivery Proof (if completed) */}
-                            {selectedSj.status === 'completed' && (
-                                <div className="bg-green-50 p-4 rounded-lg space-y-3">
-                                    <h4 className="font-semibold text-green-800">Bukti Pengiriman</h4>
-                                    <div className="grid grid-cols-2 gap-4 text-sm">
-                                        <div>
-                                            <p className="text-green-700">Nama Pengirim:</p>
-                                            <p className="font-semibold">{selectedSj.sender_name || '-'}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-green-700">Nama Penerima:</p>
-                                            <p className="font-semibold">{selectedSj.receiver_name || '-'}</p>
-                                        </div>
-                                    </div>
-                                    {selectedSj.delivery_photo_url && (
-                                        <div>
-                                            <p className="text-green-700 text-sm mb-1">Foto Bukti: <span className="text-xs text-muted-foreground">(klik untuk zoom)</span></p>
-                                            <ClickableImage
-                                                src={selectedSj.delivery_photo_url}
-                                                alt="Bukti pengiriman"
-                                                imgClassName="rounded-lg max-h-40 object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                                            />
-                                        </div>
-                                    )}
-                                    <div className="grid grid-cols-2 gap-4">
-                                        {selectedSj.sender_signature_url && (
-                                            <div>
-                                                <p className="text-green-700 text-sm mb-1">Tanda Tangan Pengirim:</p>
-                                                <ClickableImage
-                                                    src={selectedSj.sender_signature_url}
-                                                    alt="TTD Pengirim"
-                                                    imgClassName="rounded-lg border bg-white max-h-24 cursor-pointer hover:opacity-90 transition-opacity"
-                                                />
-                                            </div>
-                                        )}
-                                        {selectedSj.receiver_signature_url && (
-                                            <div>
-                                                <p className="text-green-700 text-sm mb-1">Tanda Tangan Penerima:</p>
-                                                <ClickableImage
-                                                    src={selectedSj.receiver_signature_url}
-                                                    alt="TTD Penerima"
-                                                    imgClassName="rounded-lg border bg-white max-h-24 cursor-pointer hover:opacity-90 transition-opacity"
-                                                />
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     )}
-
-                    <DialogFooter className="gap-2">
-                        {selectedSj && ['pending_review', 'approved', 'processing'].includes(selectedSj.status) && (
-                            <Button
-                                variant="outline"
-                                onClick={() => {
-                                    setDetailDialogOpen(false);
-                                    handleCancelSJ(selectedSj);
-                                }}
-                                className="text-destructive hover:text-destructive"
-                            >
-                                <Ban className="mr-2 h-4 w-4" />
-                                Batalkan SJ
-                            </Button>
-                        )}
-                        <Button variant="outline" onClick={() => setDetailDialogOpen(false)}>Tutup</Button>
-                    </DialogFooter>
                 </DialogContent>
             </Dialog>
 

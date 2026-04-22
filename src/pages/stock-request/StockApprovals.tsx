@@ -8,6 +8,7 @@ import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 ;
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import StatusBadge from '@/components/common/StatusBadge';
 import { FileText, Printer, Eye, Calendar, User as UserIcon, Package, Target } from 'lucide-react';
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
@@ -43,9 +44,9 @@ export default function StockApprovals() {
     const { requests } = useStockRequests();
     const [detailRequest, setDetailRequest] = useState<StockRequest | null>(null);
 
-    const pastRequests = requests.filter((r: StockRequest) => r.status !== 'pending_main_office');
+    const allRequests = requests;
 
-    // Column definitions for past requests table
+    // Column definitions for requests table
     const historyColumns: Column<StockRequest>[] = [
         {
             header: 'Tanggal',
@@ -72,9 +73,7 @@ export default function StockApprovals() {
             header: 'Status',
             accessorKey: 'status',
             cell: (item: StockRequest) => (
-                <Badge variant={item.status === 'rejected' ? 'destructive' : 'default'} className="capitalize">
-                    {item.status.replace(/_/g, ' ')}
-                </Badge>
+                <StatusBadge status={item.status} showIcon />
             )
         },
         {
@@ -107,20 +106,26 @@ export default function StockApprovals() {
 
     return (
         <MainLayout
-            title="Persetujuan Stok"
-            subtitle="Kelola permintaan stok masuk dari kasir"
+            title="Riwayat Permintaan Stok"
+            subtitle="Lihat semua riwayat permintaan stok dari kasir"
         >
             <div className="space-y-6">
-                <StatsGrid columns={2}>
+                <StatsGrid columns={3}>
                     <StatsCard
-                        title="Disetujui / Diproses"
-                        value={pastRequests.filter((r: StockRequest) => !['pending_main_office', 'rejected'].includes(r.status)).length}
+                        title="Selesai"
+                        value={allRequests.filter((r: StockRequest) => r.status.includes('completed')).length}
                         icon={<FileText className="w-5 h-5" />}
                         subtitleType="success"
                     />
                     <StatsCard
-                        title="Ditolak"
-                        value={pastRequests.filter((r: StockRequest) => r.status === 'rejected').length}
+                        title="Pending"
+                        value={allRequests.filter((r: StockRequest) => r.status.includes('pending') || r.status === 'approved').length}
+                        icon={<Calendar className="w-5 h-5" />}
+                        subtitleType="neutral"
+                    />
+                    <StatsCard
+                        title="Batal / Ditolak"
+                        value={allRequests.filter((r: StockRequest) => r.status === 'rejected' || r.status === 'cancelled').length}
                         icon={<Target className="w-5 h-5" />}
                         subtitleType="error"
                     />
@@ -128,9 +133,9 @@ export default function StockApprovals() {
 
                 {/* History Table using BeautifulTable */}
                 <BeautifulTable
-                    data={pastRequests}
+                    data={allRequests}
                     columns={historyColumns}
-                    title="Riwayat Persetujuan"
+                    title="Riwayat Permintaan"
                     hideSelection
                     hideExport
                     variant="premium"

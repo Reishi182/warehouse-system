@@ -146,9 +146,18 @@ export function useSuratJalanB2B() {
             // Auto-deduct stock immediately (bypass warehouse)
             if (location === 'gudang') {
                 for (const item of itemsToInsert) {
+                    const actualQty = (item as any)._actualQty || item.quantity;
+                    // Fetch current stock before RPC for logging
+                    const { data: prodBefore } = await supabase
+                        .from('products')
+                        .select('stock_gudang')
+                        .eq('id', item.product_id)
+                        .single();
+                    const stockBefore = prodBefore?.stock_gudang || 0;
+
                     const { error: commitError } = await supabase.rpc('commit_stock_issue', {
                         p_product_id: item.product_id,
-                        p_quantity: (item as any)._actualQty || item.quantity
+                        p_quantity: actualQty
                     });
                     if (commitError) throw new Error(`Gagal memotong stok gudang: ${commitError.message}`);
 
@@ -156,10 +165,12 @@ export function useSuratJalanB2B() {
                     await supabase.from('stock_logs').insert({
                         product_id: item.product_id,
                         type: 'out',
-                        quantity: (item as any)._actualQty || item.quantity,
+                        quantity: actualQty,
                         location: 'gudang',
                         user_id: data.userId,
                         note: `Surat Jalan B2B Langsung - ${item.product_name || 'Produk'} (Input: ${item.quantity} ${item.unit || 'pcs'})`,
+                        stock_before: stockBefore,
+                        stock_after: stockBefore - actualQty,
                     });
                 }
             } else {
@@ -190,6 +201,8 @@ export function useSuratJalanB2B() {
                             location: 'toko',
                             user_id: data.userId,
                             note: `Surat Jalan B2B Langsung - ${item.product_name || 'Produk'} (Input: ${item.quantity} ${item.unit || 'pcs'})`,
+                            stock_before: currentStock,
+                            stock_after: newStock,
                         });
                     }
                 }
@@ -400,6 +413,14 @@ export function useSuratJalanB2B() {
                     : item.quantity;
 
                 if (sourceLocation === 'gudang') {
+                    // Fetch current stock before RPC for logging
+                    const { data: prodBefore } = await supabase
+                        .from('products')
+                        .select('stock_gudang')
+                        .eq('id', item.product_id)
+                        .single();
+                    const stockBefore = prodBefore?.stock_gudang || 0;
+
                     // Gudang: use RPC to commit stock
                     const { error: commitError } = await supabase.rpc('commit_stock_issue', {
                         p_product_id: item.product_id,
@@ -415,6 +436,8 @@ export function useSuratJalanB2B() {
                         location: 'gudang',
                         user_id: completedBy,
                         note: `Surat Jalan B2B - ${item.product_name || 'Produk'} (Input: ${item.quantity} ${item.unit || 'pcs'})`,
+                        stock_before: stockBefore,
+                        stock_after: stockBefore - actualQty,
                     });
                 } else {
                     // Toko: directly deduct stock_toko
@@ -443,6 +466,8 @@ export function useSuratJalanB2B() {
                             location: 'toko',
                             user_id: completedBy,
                             note: `Surat Jalan B2B - ${item.product_name || 'Produk'} (Input: ${item.quantity} ${item.unit || 'pcs'})`,
+                            stock_before: currentStock,
+                            stock_after: newStock,
                         });
                     }
                 }

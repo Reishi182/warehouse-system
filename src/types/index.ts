@@ -251,6 +251,20 @@ export interface StockLog {
   stock_after?: number | null;
 }
 
+export interface ProductAuditLog {
+  id: string;
+  product_id: string | null;
+  product_name: string;
+  action: string;       // 'update_field' | 'delete' | 'update_stock'
+  field_name: string | null;
+  old_value: string | null;
+  new_value: string | null;
+  user_id: string | null;
+  user_name: string;
+  user_role: string;
+  created_at: string;
+}
+
 export interface Notification {
   id: string;
   user_id: string | null;

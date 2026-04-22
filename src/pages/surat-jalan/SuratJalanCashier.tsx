@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Package, Truck, CheckCircle, Plus, Trash2, Clock, FileText, Eye } from 'lucide-react';
+import { Package, Truck, CheckCircle, Plus, Trash2, Clock, FileText, Eye, User, Paperclip } from 'lucide-react';
 import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import {
@@ -525,83 +525,140 @@ export default function SuratJalanCashier() {
 
             {/* Detail Dialog */}
             <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
-                <DialogContent className="max-w-2xl rounded-3xl">
-                    <DialogHeader>
-                        <DialogTitle>Detail Surat Jalan: {selectedSjDetail?.number}</DialogTitle>
-                        <DialogDescription>
-                            Dikirim kepada {selectedSjDetail?.recipient_name}
-                        </DialogDescription>
-                    </DialogHeader>
+                <DialogContent className="max-w-3xl bg-slate-50 dark:bg-slate-900 border-none shadow-2xl p-0 overflow-hidden rounded-2xl">
                     {selectedSjDetail && (
-                        <div className="space-y-4 py-4">
-                            <div className="bg-muted/30 rounded-xl p-4 flex gap-4 text-sm border">
-                                <div>
-                                    <p className="text-muted-foreground mb-1 text-xs">Penerima</p>
-                                    <p className="font-semibold">{selectedSjDetail.recipient_name}</p>
-                                    <p className="text-muted-foreground">{selectedSjDetail.recipient_address}</p>
+                        <div className="flex flex-col h-full max-h-[90vh]">
+                            {/* Premium Gradient Header */}
+                            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white relative shrink-0">
+                                <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+                                    <FileText className="w-32 h-32" />
                                 </div>
-                                <div className="ml-auto text-right">
-                                    <div className="mb-3">
-                                        <p className="text-muted-foreground mb-1 text-xs">Tanggal</p>
-                                        <p className="font-medium">
-                                            {selectedSjDetail.completed_at ? format(new Date(selectedSjDetail.completed_at), 'dd MMM yyyy', { locale: idLocale }) : '-'}
+                                <div className="flex justify-between items-start relative z-10">
+                                    <div>
+                                        <h2 className="text-2xl font-bold flex items-center gap-2">
+                                            Detail Surat Jalan
+                                        </h2>
+                                        <p className="text-blue-100 flex items-center gap-1.5 mt-1 font-mono text-sm">
+                                            {selectedSjDetail.number || 'Memuat...'}
                                         </p>
                                     </div>
-                                    <div>
-                                        <p className="text-muted-foreground mb-1 text-xs">Kontak</p>
-                                        <p className="font-medium">{selectedSjDetail.recipient_phone || '-'}</p>
+                                    <div className="bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-full text-sm font-semibold border border-white/30 shadow-sm flex items-center gap-2">
+                                        {selectedSjDetail.status === 'completed' && <CheckCircle className="w-4 h-4" />}
+                                        {selectedSjDetail.status === 'processing' && <Truck className="w-4 h-4" />}
+                                        {selectedSjDetail.status === 'pending_review' && <Clock className="w-4 h-4" />}
+                                        {selectedSjDetail.status === 'approved' && <CheckCircle className="w-4 h-4" />}
+                                        {selectedSjDetail.status === 'pending_review' ? 'Menunggu Review' :
+                                         selectedSjDetail.status === 'approved' ? 'Disetujui' :
+                                         selectedSjDetail.status === 'processing' ? 'Dalam Pengiriman' :
+                                         selectedSjDetail.status === 'completed' ? 'Selesai' :
+                                         selectedSjDetail.status === 'rejected' ? 'Ditolak' : selectedSjDetail.status}
                                     </div>
                                 </div>
                             </div>
-                            
-                            <h4 className="font-semibold text-sm">Daftar Barang Dikirim</h4>
-                            <div className="border rounded-xl overflow-hidden">
-                                <table className="w-full text-sm">
-                                    <thead className="bg-gray-50">
-                                        <tr>
-                                            <th className="px-4 py-3 text-left font-medium text-gray-500">Nama Barang</th>
-                                            <th className="px-4 py-3 text-center font-medium text-gray-500 w-24">Jumlah</th>
-                                            <th className="px-4 py-3 text-center font-medium text-gray-500 w-32">Lokasi</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y">
-                                        {selectedSjDetail.items?.map((item: any) => (
-                                            <tr key={item.id} className="hover:bg-muted/50">
-                                                <td className="px-4 py-3">
-                                                    <p className="font-medium">{item.product?.name || item.product_name || 'Produk tidak diketahui'}</p>
-                                                </td>
-                                                <td className="px-4 py-3 text-center font-medium">
-                                                    {item.quantity} <span className="text-muted-foreground">{item.unit || ''}</span>
-                                                </td>
-                                                <td className="px-4 py-3 text-center">
-                                                    <LocationBadge location={item.from_location} />
-                                                </td>
-                                            </tr>
-                                        ))}
-                                        {(!selectedSjDetail.items || selectedSjDetail.items.length === 0) && (
-                                            <tr>
-                                                <td colSpan={3} className="px-4 py-8 text-center text-muted-foreground">
-                                                    Tidak ada data barang
-                                                </td>
-                                            </tr>
+
+                            {/* Scrollable Content */}
+                            <div className="p-6 overflow-y-auto custom-scrollbar space-y-6">
+                                {/* Info Grid 1 */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                            <Clock className="w-3.5 h-3.5 text-blue-500" /> Tanggal
+                                        </p>
+                                        <p className="font-semibold text-gray-900 dark:text-gray-100">
+                                            {selectedSjDetail.completed_at ? format(new Date(selectedSjDetail.completed_at), 'dd MMM yyyy', { locale: idLocale }) : format(new Date(selectedSjDetail.created_at), 'dd MMM yyyy', { locale: idLocale })}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground mt-0.5">
+                                            {selectedSjDetail.completed_at ? format(new Date(selectedSjDetail.completed_at), 'HH:mm', { locale: idLocale }) : format(new Date(selectedSjDetail.created_at), 'HH:mm', { locale: idLocale })} WIB
+                                        </p>
+                                    </div>
+                                    <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                            <FileText className="w-3.5 h-3.5 text-blue-500" /> Dokumen & Referensi
+                                        </p>
+                                        <p className="font-semibold text-gray-900 dark:text-gray-100 mb-2">{selectedSjDetail.items?.length || 0} Produk</p>
+                                        {selectedSjDetail.customer_po_url && (
+                                            <a 
+                                                href={selectedSjDetail.customer_po_url} 
+                                                target="_blank" 
+                                                rel="noreferrer"
+                                                className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 font-medium text-xs rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
+                                            >
+                                                <Paperclip className="w-3 h-3" />
+                                                Lampiran PO
+                                            </a>
                                         )}
-                                    </tbody>
-                                </table>
-                            </div>
-                            
-                            {selectedSjDetail.customer_po_url && (
-                                <div className="mt-4">
-                                    <h4 className="font-semibold text-sm mb-2">Lampiran PO</h4>
-                                    <a 
-                                        href={selectedSjDetail.customer_po_url} 
-                                        target="_blank" 
-                                        rel="noreferrer"
-                                        className="text-primary text-sm hover:underline flex items-center gap-1"
-                                    >
-                                        <FileText className="w-4 h-4" /> Lihat Dokumen PO
-                                    </a>
+                                    </div>
                                 </div>
-                            )}
+
+                                {/* Info Grid 2 */}
+                                <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+                                    <div className="bg-gray-50/80 dark:bg-slate-700/50 px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
+                                        <User className="w-4 h-4 text-blue-500" />
+                                        <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wider">
+                                            Informasi Penerima
+                                        </h3>
+                                    </div>
+                                    <div className="p-4 grid grid-cols-2 gap-4">
+                                        <div>
+                                            <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider mb-1">Nama Penerima</p>
+                                            <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">{selectedSjDetail.recipient_name}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider mb-1">Nomor Telepon</p>
+                                            <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">{selectedSjDetail.recipient_phone || '-'}</p>
+                                        </div>
+                                        <div className="col-span-2">
+                                            <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider mb-1">Alamat Lengkap</p>
+                                            <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">{selectedSjDetail.recipient_address || '-'}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Items */}
+                                <div>
+                                    <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
+                                        <Package className="w-4 h-4 text-blue-500" />
+                                        Daftar Barang Dikirim ({selectedSjDetail.items?.length || 0} item)
+                                    </h3>
+                                    <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+                                        <div className="divide-y divide-gray-100 dark:divide-gray-700">
+                                            {selectedSjDetail.items?.map((item: any, idx: number) => (
+                                                <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors gap-3">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="bg-blue-50 dark:bg-blue-500/10 p-2 rounded-lg">
+                                                            <Package className="w-4 h-4 text-blue-500" />
+                                                        </div>
+                                                        <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">
+                                                            {item.product?.name || item.product_name || 'Produk tidak diketahui'}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto pl-11 sm:pl-0">
+                                                        <LocationBadge location={item.from_location} />
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="inline-flex items-center justify-center bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 font-bold px-3 py-1 rounded-lg min-w-[3rem]">
+                                                                {item.quantity}
+                                                            </span>
+                                                            <span className="text-xs font-medium text-gray-500 uppercase w-8 text-left">{item.unit || 'pcs'}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {(!selectedSjDetail.items || selectedSjDetail.items.length === 0) && (
+                                                <div className="p-8 text-center text-muted-foreground text-sm">
+                                                    Tidak ada data barang
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Footer */}
+                            <div className="p-4 bg-gray-50 dark:bg-slate-800/80 border-t border-gray-100 dark:border-gray-700 flex justify-end shrink-0">
+                                <Button variant="outline" className="rounded-xl px-6" onClick={() => setDetailDialogOpen(false)}>
+                                    Tutup
+                                </Button>
+                            </div>
                         </div>
                     )}
                 </DialogContent>

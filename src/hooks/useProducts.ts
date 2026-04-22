@@ -247,6 +247,15 @@ export function useAddStock() {
             location: Location;
             userId?: string;
         }) => {
+            // Fetch current stock before atomic increment for logging
+            const stockField = `stock_${location}`;
+            const { data: prodData } = await supabase
+                .from('products')
+                .select(stockField)
+                .eq('id', productId)
+                .single();
+            const stockBefore = (prodData as any)?.[stockField] || 0;
+
             // Atomic increment — no read-then-write race condition
             const { error: incrementError } = await supabase.rpc('atomic_increment_stock', {
                 p_product_id: productId,
@@ -264,6 +273,8 @@ export function useAddStock() {
                 location,
                 user_id: userId,
                 note: `Penambahan stok di ${location}`,
+                stock_before: stockBefore,
+                stock_after: stockBefore + quantity,
             });
 
             if (logError) throw logError;

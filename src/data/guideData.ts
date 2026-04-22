@@ -220,23 +220,7 @@ export const guideData: GuideProcedure[] = [
             { step: 8, title: 'Submit Opname', description: 'Submit untuk proses penyesuaian stok' },
         ],
     },
-    {
-        id: 'po-approval',
-        title: 'Approval Purchase Order',
-        description: 'Prosedur menyetujui atau menolak Purchase Order',
-        icon: FileCheck,
-        category: 'Purchase Order',
-        roles: ['auditor', 'admin'],
-        href: '/purchase-orders/approval',
-        steps: [
-            { step: 1, title: 'Buka Menu Approval PO', description: 'Navigasi ke Purchase Order > Approval PO' },
-            { step: 2, title: 'Review PO Pending', description: 'Lihat daftar PO yang menunggu approval' },
-            { step: 3, title: 'Pilih PO', description: 'Klik pada PO untuk melihat detail' },
-            { step: 4, title: 'Verifikasi Data', description: 'Periksa supplier, produk, jumlah, dan harga' },
-            { step: 5, title: 'Approve/Reject', description: 'Klik Approve untuk menyetujui atau Reject untuk menolak' },
-            { step: 6, title: 'Isi Alasan (jika reject)', description: 'Jika menolak, isi alasan penolakan' },
-        ],
-    },
+
     {
         id: 'b2b-verification',
         title: 'Verifikasi Pengiriman B2B',

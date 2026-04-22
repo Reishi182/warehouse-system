@@ -192,14 +192,18 @@ export function useUpdateSuratJalanStatus() {
                         .single();
 
                     if (product) {
-                        const fromStock = Math.max(0, (product[fromField] || 0) - item.quantity);
+                        const fromStockBefore = product[fromField] || 0;
+                        const fromStock = Math.max(0, fromStockBefore - item.quantity);
                         const updateData: any = { [fromField]: fromStock };
+
+                        const toField = `stock_${item.to_location}`;
+                        const toStockBefore = ['gudang', 'toko'].includes(item.to_location) ? (product[toField] || 0) : 0;
+                        let toStockAfter = toStockBefore;
 
                         // Only increase destination stock if it's an internal location
                         if (['gudang', 'toko'].includes(item.to_location)) {
-                            const toField = `stock_${item.to_location}`;
-                            const toStock = (product[toField] || 0) + item.quantity;
-                            updateData[toField] = toStock;
+                            toStockAfter = toStockBefore + item.quantity;
+                            updateData[toField] = toStockAfter;
                         }
 
                         await supabase
@@ -215,6 +219,8 @@ export function useUpdateSuratJalanStatus() {
                                 quantity: item.quantity,
                                 location: item.from_location,
                                 note: `Transfer ke ${item.to_location} via ${suratJalan.number}`,
+                                stock_before: fromStockBefore,
+                                stock_after: fromStock,
                             },
                             {
                                 product_id: item.product_id,
@@ -222,6 +228,8 @@ export function useUpdateSuratJalanStatus() {
                                 quantity: item.quantity,
                                 location: item.to_location,
                                 note: `Transfer dari ${item.from_location} via ${suratJalan.number}`,
+                                stock_before: toStockBefore,
+                                stock_after: toStockAfter,
                             },
                         ]);
                     }

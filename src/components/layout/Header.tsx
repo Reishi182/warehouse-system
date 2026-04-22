@@ -26,7 +26,7 @@ const ROUTE_MAP: Record<string, { segments: { label: string; href?: string }[] }
   // Purchase Order
   '/suppliers': { segments: [{ label: 'Purchase Order' }, { label: 'Supplier' }] },
   '/purchase-orders': { segments: [{ label: 'Purchase Order' }, { label: 'Buat PO' }] },
-  '/purchase-orders/approval': { segments: [{ label: 'Purchase Order' }, { label: 'Approval PO' }] },
+
   '/purchase-orders/receipt': { segments: [{ label: 'Purchase Order' }, { label: 'Penerimaan PO' }] },
   '/purchase-orders/discrepancy': { segments: [{ label: 'Purchase Order' }, { label: 'Selisih & Klaim' }] },
   '/direct-orders': { segments: [{ label: 'Purchase Order' }, { label: 'Direct Order' }] },

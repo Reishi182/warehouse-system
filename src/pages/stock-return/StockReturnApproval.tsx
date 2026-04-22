@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Check, X, Package, Clock, AlertCircle, Eye, Sparkles, FileText, Calendar, User, ShoppingCart } from 'lucide-react';
+import { Check, X, Package, Clock, AlertCircle, Eye, Sparkles, FileText, Calendar, User, ShoppingCart, RefreshCw, XCircle } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import StatusBadge from '@/components/common/StatusBadge';
 import { Button } from '@/components/ui/button';
@@ -33,91 +33,98 @@ function ReturnDetailDialog({ stockReturn }: { stockReturn: StockReturn }) {
                     <Eye className="w-4 h-4" /> Detail
                 </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg rounded-2xl border-2 overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/5 pointer-events-none" />
-                <DialogHeader className="relative z-10 pb-4 border-b">
-                    <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 shadow-lg shadow-primary/10">
-                                <FileText className="w-6 h-6 text-primary" />
-                            </div>
-                            <div>
-                                <DialogTitle className="text-lg">Detail Retur Stok</DialogTitle>
-                                <DialogDescription className="font-mono text-sm mt-0.5">
-                                    {stockReturn.return_number || 'Menunggu Nomor...'}
-                                </DialogDescription>
-                            </div>
-                        </div>
-                        <StatusBadge status={stockReturn.status} showIcon />
+            <DialogContent className="max-w-2xl bg-slate-50 dark:bg-slate-900 border-none shadow-2xl p-0 overflow-hidden rounded-2xl">
+                <div className="bg-gradient-to-r from-amber-500 to-orange-600 p-6 text-white grid gap-4 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-8 opacity-10">
+                        <RefreshCw className="w-32 h-32" />
                     </div>
-                </DialogHeader>
-
-                <div className="space-y-4 py-4 relative z-10">
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="p-3 rounded-xl bg-muted/30 border">
-                            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                    <div className="flex justify-between items-start relative z-10">
+                        <div>
+                            <h2 className="text-2xl font-bold">Detail Retur Stok</h2>
+                            <p className="text-amber-100 flex items-center gap-1.5 mt-1 text-sm font-medium">
+                                <FileText className="w-4 h-4" />
+                                {stockReturn.return_number || 'Menunggu Nomor...'}
+                            </p>
+                        </div>
+                        <StatusBadge status={stockReturn.status} className="bg-white/20 text-white border-white/30 backdrop-blur-md" showIcon />
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-4 pt-2 relative z-10">
+                        <div className="bg-white/10 backdrop-blur-md rounded-xl px-4 py-2 border border-white/20">
+                            <span className="text-xs text-amber-200 block mb-0.5">Kasir Pengaju</span>
+                            <span className="font-semibold flex items-center gap-1.5">
+                                <User className="w-4 h-4" /> {stockReturn.cashier_name}
+                            </span>
+                        </div>
+                        <div className="bg-white/10 backdrop-blur-md rounded-xl px-4 py-2 border border-white/20">
+                            <span className="text-xs text-amber-200 block mb-0.5">Waktu Pengajuan</span>
+                            <span className="font-semibold flex items-center gap-1.5">
                                 <Calendar className="w-4 h-4" />
-                                <span className="text-xs font-medium uppercase tracking-wider">Tanggal</span>
-                            </div>
-                            <p className="font-semibold">{format(new Date(stockReturn.created_at), 'dd MMM yyyy', { locale: idLocale })}</p>
-                        </div>
-                        <div className="p-3 rounded-xl bg-muted/30 border">
-                            <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                                <User className="w-4 h-4" />
-                                <span className="text-xs font-medium uppercase tracking-wider">Kasir</span>
-                            </div>
-                            <p className="font-semibold">{stockReturn.cashier_name}</p>
+                                {stockReturn.created_at ? format(new Date(stockReturn.created_at), 'dd MMM yyyy, HH:mm', { locale: idLocale }) : '-'}
+                            </span>
                         </div>
                     </div>
+                </div>
 
-                    <div className="p-4 rounded-xl bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-2 border-blue-500/20">
-                        <div className="flex items-center gap-2 mb-2">
-                            <div className="p-1.5 rounded-lg bg-blue-500/20">
-                                <Eye className="w-4 h-4 text-blue-500" />
-                            </div>
-                            <p className="text-xs font-bold text-blue-600 uppercase tracking-wider">Alasan Retur</p>
-                        </div>
-                        <p className="text-sm leading-relaxed">{stockReturn.reason}</p>
+                <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                    {/* Alasan Retur */}
+                    <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-100 dark:border-gray-700 p-4 shadow-sm">
+                        <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                            <Eye className="w-4 h-4 text-amber-500" /> Alasan Retur
+                        </h3>
+                        <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{stockReturn.reason}</p>
                     </div>
 
                     {stockReturn.rejected_reason && (
-                        <div className="p-4 rounded-xl bg-gradient-to-br from-red-500/10 to-red-500/5 border-2 border-red-500/20">
-                            <div className="flex items-center gap-2 mb-2">
-                                <div className="p-1.5 rounded-lg bg-red-500/20">
-                                    <XCircle className="w-4 h-4 text-red-500" />
-                                </div>
-                                <p className="text-xs font-bold text-red-600 uppercase tracking-wider">Alasan Penolakan</p>
-                            </div>
-                            <p className="text-sm text-red-700 dark:text-red-300 leading-relaxed">{stockReturn.rejected_reason}</p>
+                        <div className="bg-red-50 dark:bg-red-900/10 rounded-xl border border-red-100 dark:border-red-900/30 p-4 shadow-sm">
+                            <h3 className="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                <XCircle className="w-4 h-4" /> Alasan Penolakan
+                            </h3>
+                            <p className="text-sm font-medium text-red-800 dark:text-red-300">{stockReturn.rejected_reason}</p>
                         </div>
                     )}
 
-                    <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border-2 border-emerald-500/20">
-                        <div className="flex items-center gap-2 mb-3">
-                            <div className="p-1.5 rounded-lg bg-emerald-500/20">
-                                <Package className="w-4 h-4 text-emerald-500" />
-                            </div>
-                            <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider">
-                                Detail Barang ({stockReturn.items?.length || 0} item)
-                            </p>
-                        </div>
-                        <div className="space-y-2 max-h-[250px] overflow-y-auto">
-                            {stockReturn.items?.map((item: any, idx: number) => (
-                                <div key={idx} className="flex flex-col gap-1 p-3 rounded-lg bg-background/50 border hover:bg-background transition-colors">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <Sparkles className="w-4 h-4 text-primary" />
-                                            <span className="font-medium text-sm">{item.product?.name}</span>
-                                        </div>
-                                        <Badge className="bg-primary/10 text-primary border-primary/20">
-                                            {item.quantity} {item.unit}
-                                        </Badge>
-                                    </div>
-                                    {item.note && <p className="text-xs text-muted-foreground ml-6 italic">"{item.note}"</p>}
-                                </div>
-                            ))}
+                    {/* Detail Barang */}
+                    <div>
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
+                            <Package className="w-4 h-4 text-amber-500" />
+                            Daftar Barang yang Diretur
+                        </h3>
+                        <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+                            <table className="w-full text-sm text-left">
+                                <thead className="bg-gray-50/80 dark:bg-slate-700/50 text-gray-600 dark:text-gray-300">
+                                    <tr>
+                                        <th className="px-4 py-3 font-semibold border-b border-gray-100 dark:border-gray-700">Nama Produk</th>
+                                        <th className="px-4 py-3 font-semibold border-b border-gray-100 dark:border-gray-700 text-center">Jumlah</th>
+                                        <th className="px-4 py-3 font-semibold border-b border-gray-100 dark:border-gray-700">Catatan</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                                    {stockReturn.items?.map((item: any, idx: number) => (
+                                        <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors">
+                                            <td className="px-4 py-3 font-medium text-gray-900 dark:text-white flex items-center gap-2">
+                                                <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                                                {item.product?.name}
+                                            </td>
+                                            <td className="px-4 py-3 text-center">
+                                                <span className="inline-flex items-center justify-center bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 font-bold px-2.5 py-1 rounded-lg min-w-[3rem]">
+                                                    {item.quantity}
+                                                </span>
+                                                <span className="ml-1.5 text-xs text-gray-500">{item.unit}</span>
+                                            </td>
+                                            <td className="px-4 py-3 text-gray-600 dark:text-gray-400 italic">
+                                                {item.note || '-'}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
+                </div>
+
+                <div className="py-4 px-6 bg-gray-50 dark:bg-slate-800/50 border-t border-gray-100 dark:border-gray-700 flex justify-end items-center">
+                    <Button variant="outline" className="rounded-xl" onClick={() => setOpen(false)}>Tutup Detail</Button>
                 </div>
             </DialogContent>
         </Dialog>

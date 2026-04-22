@@ -281,6 +281,8 @@ export function useAddTabTransaction() {
                         location: stockLocation,
                         user_id: cashierId,
                         note: `Tab ${tabNumber} - Transaksi ${txNumber}`,
+                        stock_before: product[stockField] || 0,
+                        stock_after: newStock,
                     });
                 }
             }
@@ -494,6 +496,8 @@ export function useCancelTab() {
                             location: stockLocation,
                             user_id: cancelledBy,
                             note: `Tab ${tabData.tab_number} dibatalkan - stok dikembalikan`,
+                            stock_before: product[stockField] || 0,
+                            stock_after: newStock,
                         });
                     }
                 }
@@ -591,6 +595,8 @@ export function useDeleteTabTransaction() {
                         location: stockLocation,
                         user_id: deletedBy,
                         note: `Transaksi dihapus dari Tab ${tabData.tab_number} - stok dikembalikan`,
+                        stock_before: product[stockField] || 0,
+                        stock_after: newStock,
                     });
                 }
             }

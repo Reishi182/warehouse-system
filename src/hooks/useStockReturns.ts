@@ -123,6 +123,16 @@ export function useStockReturns() {
 
             // 3. Update stock: decrease toko, increase gudang (atomic)
             for (const item of items || []) {
+                // Fetch current stock levels BEFORE transfer for accurate logging
+                const { data: prodData } = await supabase
+                    .from('products')
+                    .select('stock_toko, stock_gudang')
+                    .eq('id', item.product_id)
+                    .single();
+
+                const stockTokoBefore = prodData?.stock_toko || 0;
+                const stockGudangBefore = prodData?.stock_gudang || 0;
+
                 const { error: transferError } = await supabase.rpc('atomic_transfer_stock', {
                     p_product_id: item.product_id,
                     p_quantity: item.quantity,
@@ -140,7 +150,9 @@ export function useStockReturns() {
                     user_id: data.mainOfficeId,
                     note: `Akses cepat - Retur ke gudang - ${docNum}`,
                     reference_type: 'stock_return',
-                    reference_id: data.returnId
+                    reference_id: data.returnId,
+                    stock_before: stockTokoBefore,
+                    stock_after: stockTokoBefore - item.quantity
                 });
 
                 await supabase.from('stock_logs').insert({
@@ -151,7 +163,9 @@ export function useStockReturns() {
                     user_id: data.mainOfficeId,
                     note: `Akses cepat - Terima retur dari toko - ${docNum}`,
                     reference_type: 'stock_return',
-                    reference_id: data.returnId
+                    reference_id: data.returnId,
+                    stock_before: stockGudangBefore,
+                    stock_after: stockGudangBefore + item.quantity
                 });
             }
 

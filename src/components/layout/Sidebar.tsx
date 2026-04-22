@@ -104,7 +104,7 @@ const navGroups: NavItem[] = [
     children: [
       { label: 'Supplier', icon: Building2, href: '/suppliers', roles: ['main_office'] },
       { label: 'Buat PO', icon: FileText, href: '/purchase-orders', roles: ['main_office'] },
-      { label: 'Approval PO', icon: ClipboardCheck, href: '/purchase-orders/approval', roles: ['main_office'] },
+
       { label: 'Penerimaan PO', icon: ArrowDownToLine, href: '/purchase-orders/receipt', roles: ['warehouse', 'cashier'] },
       { label: 'Selisih & Klaim', icon: AlertTriangle, href: '/purchase-orders/discrepancy', roles: ['main_office', 'auditor'] },
       { label: 'Direct Order', icon: Truck, href: '/direct-orders', roles: ['main_office'] },

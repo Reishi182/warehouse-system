@@ -182,6 +182,8 @@ export function useReceiveMarketplaceOrder() {
                                 location: order.destination,
                                 user_id: input.receivedBy,
                                 note: `Terima pesanan marketplace - ${order.order_number}`,
+                                stock_before: currentStock || 0,
+                                stock_after: (currentStock || 0) + actualReceived,
                             });
                         }
                     }

@@ -67,6 +67,7 @@ const typeConfig: Record<string, { label: string; color: string; bgColor: string
 
 const referenceTypeLabels: Record<string, string> = {
     stock_request: 'Permintaan Stok',
+    stock_return: 'Retur Stok',
     purchase_order: 'Purchase Order',
     sale: 'Penjualan',
     return: 'Retur',
@@ -74,6 +75,9 @@ const referenceTypeLabels: Record<string, string> = {
     transfer: 'Transfer Stok',
     initial: 'Stok Awal',
     stock_opname: 'Stok Opname',
+    marketplace_order: 'Marketplace',
+    tokopedia_order: 'Tokopedia',
+    po_claim: 'Klaim PO',
 };
 
 // Parse "X → Y" pattern from note for stock before/after fallback
@@ -122,6 +126,13 @@ function getActorLabels(referenceType: string | null | undefined): {
                 primary: 'Diterima Oleh',
                 secondary: 'Diminta Oleh',
                 primaryIcon: ArrowDownToLine,
+                secondaryIcon: ShoppingCart,
+            };
+        case 'stock_return':
+            return {
+                primary: 'Diproses Oleh',
+                secondary: 'Diajukan Oleh',
+                primaryIcon: ArrowUpFromLine,
                 secondaryIcon: ShoppingCart,
             };
         case 'sale':
