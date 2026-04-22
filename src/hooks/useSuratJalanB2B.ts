@@ -1,10 +1,12 @@
 
+import { useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { sendNotificationToRole, sendNotificationToUser } from '@/hooks/useRealtimeNotifications';
 import { broadcastTableChange } from '@/lib/broadcastSync';
 import { invalidateAndBroadcast } from '@/lib/queryBroadcast';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 // Status flow: pending_review -> approved/rejected -> processing -> completed
 export type SuratJalanB2BStatus = 'pending_review' | 'approved' | 'rejected' | 'processing' | 'completed' | 'cancelled';
@@ -12,6 +14,77 @@ export type SuratJalanB2BStatus = 'pending_review' | 'approved' | 'rejected' | '
 export function useSuratJalanB2B() {
     const { toast } = useToast();
     const queryClient = useQueryClient();
+    const channelRef = useRef<RealtimeChannel | null>(null);
+
+    // ── Realtime subscription: surat_jalan ──────────────────────────
+    // Menggunakan postgres_changes agar setiap INSERT/UPDATE pada tabel
+    // surat_jalan langsung ter-reflect di daftar tanpa perlu refresh.
+    useEffect(() => {
+        const fetchFullSj = async (id: string) => {
+            const { data } = await supabase
+                .from('surat_jalan')
+                .select(`
+                    *,
+                    items:surat_jalan_items(
+                        *,
+                        product:products(*)
+                    ),
+                    issue_note:goods_issue_notes(*)
+                `)
+                .eq('id', id)
+                .single();
+            return data;
+        };
+
+        const channel = supabase
+            .channel('realtime_surat_jalan_b2b_v1')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'surat_jalan' },
+                async (payload: any) => {
+                    if (payload.eventType === 'INSERT' && payload.new?.id) {
+                        const fullSj = await fetchFullSj(payload.new.id);
+                        if (fullSj) {
+                            queryClient.setQueryData<any[]>(['surat-jalan-b2b'], (prev) => {
+                                if (!prev) return [fullSj];
+                                if (prev.some((sj: any) => sj.id === fullSj.id)) return prev;
+                                return [fullSj, ...prev];
+                            });
+                        }
+                    } else if (payload.eventType === 'UPDATE' && payload.new?.id) {
+                        const fullSj = await fetchFullSj(payload.new.id);
+                        if (fullSj) {
+                            queryClient.setQueryData<any[]>(['surat-jalan-b2b'], (prev) => {
+                                if (!prev) return [fullSj];
+                                const exists = prev.some((sj: any) => sj.id === fullSj.id);
+                                if (!exists) return [fullSj, ...prev];
+                                return prev.map((sj: any) => sj.id === fullSj.id ? fullSj : sj);
+                            });
+                        }
+                    } else if (payload.eventType === 'DELETE' && payload.old?.id) {
+                        queryClient.setQueryData<any[]>(['surat-jalan-b2b'], (prev) => {
+                            if (!prev) return [];
+                            return prev.filter((sj: any) => sj.id !== payload.old.id);
+                        });
+                    }
+                }
+            )
+            .subscribe((status) => {
+                if (status === 'SUBSCRIBED') {
+                    console.log('[SuratJalanB2B] ✅ Realtime aktif — daftar surat jalan otomatis sinkron');
+                }
+            });
+
+        channelRef.current = channel;
+
+        return () => {
+            if (channelRef.current) {
+                supabase.removeChannel(channelRef.current);
+                channelRef.current = null;
+            }
+        };
+    }, [queryClient]);
+
 
     // Fetch all B2B Surat Jalan
     const { data: suratJalans = [], isLoading } = useQuery({
@@ -227,8 +300,39 @@ export function useSuratJalanB2B() {
 
             return sj;
         },
-        onSuccess: async () => {
-            invalidateAndBroadcast(queryClient, ['surat-jalan-b2b', 'products']);
+        onSuccess: async (newSj) => {
+            // Langsung ambil data lengkap SJ baru (dengan relasi items & products)
+            // dan tambahkan ke cache React Query — ini yang membuat daftar
+            // langsung update TANPA perlu refresh halaman.
+            if (newSj?.id) {
+                const { data: fullSj } = await supabase
+                    .from('surat_jalan')
+                    .select(`
+                        *,
+                        items:surat_jalan_items(
+                            *,
+                            product:products(*)
+                        ),
+                        issue_note:goods_issue_notes(*)
+                    `)
+                    .eq('id', newSj.id)
+                    .single();
+
+                if (fullSj) {
+                    queryClient.setQueryData<any[]>(['surat-jalan-b2b'], (prev) => {
+                        if (!prev) return [fullSj];
+                        // Hindari duplikat jika realtime subscription sudah menambahkan
+                        if (prev.some((sj: any) => sj.id === fullSj.id)) return prev;
+                        return [fullSj, ...prev];
+                    });
+                }
+            }
+
+            // Invalidate untuk sinkronisasi penuh di background
+            queryClient.invalidateQueries({ queryKey: ['surat-jalan-b2b'] });
+            queryClient.invalidateQueries({ queryKey: ['products'] });
+
+            // Broadcast ke client lain (tab/device berbeda)
             broadcastTableChange('surat_jalan', 'INSERT', ['surat-jalan-b2b', 'products']);
             toast({ title: 'Surat Jalan Selesai', description: 'Dokumen dibuat dan stok otomatis terpotong' });
         }
