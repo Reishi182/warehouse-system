@@ -69,6 +69,172 @@ const referenceTypeLabels: Record<string, string> = {
     po_claim: 'Klaim PO',
 };
 
+// ─── Grouped audit log type ──────────────────────────────────
+interface GroupedAuditLog {
+    product_id: string | null;
+    product_name: string;
+    logs: ProductAuditLog[];
+    latest_at: string;
+    unique_users: string[];
+}
+
+// ─── Audit Detail Dialog ───────────────────────────────────────
+function AuditDetailDialog({
+    group,
+    open,
+    onClose,
+    fieldLabels,
+    actionConfig,
+    roleLabels,
+}: {
+    group: GroupedAuditLog | null;
+    open: boolean;
+    onClose: () => void;
+    fieldLabels: Record<string, string>;
+    actionConfig: Record<string, { label: string; color: string; icon: React.ElementType }>;
+    roleLabels: Record<string, string>;
+}) {
+    if (!group) return null;
+
+    return (
+        <Dialog open={open} onOpenChange={onClose}>
+            <DialogContent className="max-w-2xl bg-slate-50 dark:bg-slate-900 border-none shadow-2xl p-0 overflow-hidden rounded-2xl max-h-[85vh] flex flex-col">
+                {/* Header */}
+                <div className="p-6 text-white grid gap-4 relative shrink-0 bg-gradient-to-r from-violet-600 to-indigo-600">
+                    <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+                        <History className="w-32 h-32" />
+                    </div>
+                    <div>
+                        <h2 className="text-2xl font-bold flex items-center gap-3">
+                            <span className="bg-white/20 p-2 rounded-xl backdrop-blur-sm">
+                                <History className="w-6 h-6 text-white" />
+                            </span>
+                            Riwayat Perubahan Produk
+                        </h2>
+                        <p className="text-white/80 mt-2 text-sm font-semibold">{group.product_name}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-3">
+                        <div className="bg-white/10 backdrop-blur-md rounded-xl px-4 py-2 border border-white/20 flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-white/70" />
+                            <span className="font-semibold">{group.logs.length} Perubahan</span>
+                        </div>
+                        <div className="bg-white/10 backdrop-blur-md rounded-xl px-4 py-2 border border-white/20 flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-white/70" />
+                            <span className="font-semibold">
+                                {format(parseISO(group.latest_at), 'dd MMM yyyy, HH:mm', { locale: id })}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Log list */}
+                <div className="p-6 overflow-y-auto flex-1 space-y-3">
+                    {group.logs.map((log) => {
+                        const cfg = actionConfig[log.action] || actionConfig.update_field;
+                        const Icon = cfg.icon;
+                        const label = fieldLabels[log.field_name || ''] || log.field_name || '-';
+                        const isImageField = log.field_name === 'image_url';
+
+                        const renderVal = (val: string | null, field: string | null) => {
+                            if (!val || val === 'null') return '-';
+                            if (field === 'price' || field === 'box_price' || field === 'bulk_price') {
+                                const num = parseInt(val);
+                                return isNaN(num) ? val : `Rp ${num.toLocaleString('id-ID')}`;
+                            }
+                            if (field === 'has_multi_unit') return val === 'true' ? 'Aktif' : 'Nonaktif';
+                            if (val.length > 60) return val.substring(0, 60) + '…';
+                            return val;
+                        };
+
+                        return (
+                            <div key={log.id} className="bg-white dark:bg-slate-800 rounded-xl border border-gray-100 dark:border-gray-700 p-4 shadow-sm">
+                                <div className="flex items-start justify-between gap-3 mb-3">
+                                    <div className="flex items-center gap-2">
+                                        <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg ${cfg.color}`}>
+                                            <Icon className="w-3 h-3" />
+                                            {cfg.label}
+                                        </span>
+                                        {log.action !== 'delete' && (
+                                            <span className="text-xs text-muted-foreground font-medium">{label}</span>
+                                        )}
+                                    </div>
+                                    <div className="text-right shrink-0">
+                                        <p className="text-xs font-medium text-gray-700 dark:text-gray-300">{log.user_name}</p>
+                                        <p className="text-[10px] text-muted-foreground">{roleLabels[log.user_role] || log.user_role}</p>
+                                        <p className="text-[10px] text-muted-foreground">
+                                            {format(parseISO(log.created_at), 'dd MMM yyyy HH:mm', { locale: id })}
+                                        </p>
+                                    </div>
+                                </div>
+                                {log.action === 'delete' ? (
+                                    <p className="text-sm text-red-600 dark:text-red-400 font-medium">Produk dihapus dari sistem.</p>
+                                ) : isImageField ? (
+                                    /* ── Foto: tampilkan gambar sebelum → sesudah ── */
+                                    <div className="flex items-center gap-5 mt-1">
+                                        <div className="flex flex-col items-center gap-1.5">
+                                            <span className="text-[10px] uppercase font-bold tracking-wider text-red-500">Sebelum</span>
+                                            {log.old_value && log.old_value !== 'null' ? (
+                                                <img
+                                                    src={log.old_value}
+                                                    alt="Foto sebelum"
+                                                    className="w-24 h-24 object-cover rounded-xl border-2 border-red-200 dark:border-red-800 shadow"
+                                                    onError={(e) => {
+                                                        (e.currentTarget as HTMLImageElement).replaceWith(
+                                                            Object.assign(document.createElement('div'), { className: 'w-24 h-24 rounded-xl border-2 border-dashed border-red-200 dark:border-red-800 flex items-center justify-center bg-red-50 text-red-300 text-xs text-center p-2', textContent: 'Gagal muat' })
+                                                        );
+                                                    }}
+                                                />
+                                            ) : (
+                                                <div className="w-24 h-24 rounded-xl border-2 border-dashed border-red-200 dark:border-red-800 flex items-center justify-center bg-red-50 dark:bg-red-500/10">
+                                                    <Package className="w-8 h-8 text-red-300" />
+                                                </div>
+                                            )}
+                                        </div>
+                                        <span className="text-muted-foreground text-2xl self-center">→</span>
+                                        <div className="flex flex-col items-center gap-1.5">
+                                            <span className="text-[10px] uppercase font-bold tracking-wider text-green-600">Sesudah</span>
+                                            {log.new_value && log.new_value !== 'null' ? (
+                                                <img
+                                                    src={log.new_value}
+                                                    alt="Foto sesudah"
+                                                    className="w-24 h-24 object-cover rounded-xl border-2 border-green-200 dark:border-green-800 shadow"
+                                                    onError={(e) => {
+                                                        (e.currentTarget as HTMLImageElement).replaceWith(
+                                                            Object.assign(document.createElement('div'), { className: 'w-24 h-24 rounded-xl border-2 border-dashed border-green-200 dark:border-green-800 flex items-center justify-center bg-green-50 text-green-300 text-xs text-center p-2', textContent: 'Gagal muat' })
+                                                        );
+                                                    }}
+                                                />
+                                            ) : (
+                                                <div className="w-24 h-24 rounded-xl border-2 border-dashed border-green-200 dark:border-green-800 flex items-center justify-center bg-green-50 dark:bg-green-500/10">
+                                                    <Package className="w-8 h-8 text-green-300" />
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 px-2 py-1 rounded-lg text-xs font-mono line-through">
+                                            {renderVal(log.old_value, log.field_name)}
+                                        </span>
+                                        <span className="text-muted-foreground text-sm">→</span>
+                                        <span className="bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400 px-2 py-1 rounded-lg text-xs font-mono font-semibold">
+                                            {renderVal(log.new_value, log.field_name)}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+
+                <div className="py-4 px-6 bg-gray-50 dark:bg-slate-800/50 border-t border-gray-100 dark:border-gray-700 flex justify-end shrink-0">
+                    <Button variant="outline" className="rounded-xl shadow-sm" onClick={onClose}>Tutup</Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 // ─── Grouped row type ─────────────────────────────────────────
 interface GroupedLog {
     id: string; // reference_id or first log id
@@ -261,6 +427,10 @@ export default function StockHistory() {
     const [groupDetailOpen, setGroupDetailOpen] = useState(false);
     const [selectedGroup, setSelectedGroup] = useState<GroupedLog | null>(null);
 
+    // Audit detail dialog
+    const [auditDetailOpen, setAuditDetailOpen] = useState(false);
+    const [selectedAuditGroup, setSelectedAuditGroup] = useState<GroupedAuditLog | null>(null);
+
     // View mode: 'grouped' (per PO/ref) or 'flat' (per product)
     const [viewMode, setViewMode] = useState<'grouped' | 'flat'>('grouped');
 
@@ -271,6 +441,29 @@ export default function StockHistory() {
     // Audit logs
     const { data: auditLogsData, isLoading: isAuditLoading } = useProductAuditLogs();
     const auditLogs = auditLogsData || [];
+
+    // ─── Group audit logs by product ────────────────────────────
+    const groupedAuditLogs = useMemo<GroupedAuditLog[]>(() => {
+        const map = new Map<string, GroupedAuditLog>();
+        auditLogs.forEach(log => {
+            const key = log.product_id || log.product_name;
+            if (map.has(key)) {
+                const g = map.get(key)!;
+                g.logs.push(log);
+                if (log.created_at > g.latest_at) g.latest_at = log.created_at;
+                if (!g.unique_users.includes(log.user_name)) g.unique_users.push(log.user_name);
+            } else {
+                map.set(key, {
+                    product_id: log.product_id,
+                    product_name: log.product_name,
+                    logs: [log],
+                    latest_at: log.created_at,
+                    unique_users: [log.user_name],
+                });
+            }
+        });
+        return Array.from(map.values()).sort((a, b) => b.latest_at.localeCompare(a.latest_at));
+    }, [auditLogs]);
 
     // ─── Audit log field labels ─────────────────────────────────
     const fieldLabels: Record<string, string> = {
@@ -303,17 +496,17 @@ export default function StockHistory() {
         auditor: 'Auditor',
     };
 
-    // ─── Audit log columns ──────────────────────────────────────
-    const auditColumns: Column<ProductAuditLog>[] = [
+    // ─── Grouped Audit log columns ──────────────────────────────
+    const auditColumns: Column<GroupedAuditLog>[] = [
         {
-            header: 'Waktu',
-            accessorKey: 'created_at',
-            cell: (log) => (
+            header: 'Terakhir Diubah',
+            accessorKey: 'latest_at' as any,
+            cell: (g) => (
                 <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-muted-foreground" />
                     <div>
-                        <p className="font-medium">{format(parseISO(log.created_at), 'dd MMM yyyy', { locale: id })}</p>
-                        <p className="text-xs text-muted-foreground">{format(parseISO(log.created_at), 'HH:mm', { locale: id })}</p>
+                        <p className="font-medium">{format(parseISO(g.latest_at), 'dd MMM yyyy', { locale: id })}</p>
+                        <p className="text-xs text-muted-foreground">{format(parseISO(g.latest_at), 'HH:mm', { locale: id })}</p>
                     </div>
                 </div>
             )
@@ -321,87 +514,50 @@ export default function StockHistory() {
         {
             header: 'Produk',
             accessorKey: 'product_name' as any,
-            cell: (log) => (
+            cell: (g) => (
                 <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
                         <Package className="w-4 h-4 text-muted-foreground" />
                     </div>
-                    <span className="font-medium">{log.product_name}</span>
+                    <span className="font-semibold">{g.product_name}</span>
                 </div>
             )
         },
         {
-            header: 'Aksi',
-            accessorKey: 'action' as any,
-            filterable: true,
-            filterOptions: [
-                { label: 'Edit Field', value: 'update_field' },
-                { label: 'Edit Stok', value: 'update_stock' },
-                { label: 'Hapus Produk', value: 'delete' },
-            ],
-            cell: (log) => {
-                const cfg = actionConfig[log.action] || actionConfig.update_field;
-                const Icon = cfg.icon;
-                return (
-                    <Badge className={cfg.color}>
-                        <Icon className="w-3 h-3 mr-1" />
-                        {cfg.label}
-                    </Badge>
-                );
-            }
+            header: 'Jumlah Perubahan',
+            filterable: false,
+            cell: (g) => (
+                <Badge variant="secondary" className="gap-1">
+                    <History className="w-3 h-3" />
+                    {g.logs.length} perubahan
+                </Badge>
+            )
         },
         {
-            header: 'Detail Perubahan',
-            cell: (log) => {
-                if (log.action === 'delete') {
-                    return <span className="text-red-600 dark:text-red-400 font-medium text-sm">Produk dihapus</span>;
-                }
-                const label = fieldLabels[log.field_name || ''] || log.field_name || '-';
-                const oldVal = log.old_value ?? '-';
-                const newVal = log.new_value ?? '-';
-
-                // Format price values
-                const formatVal = (val: string, field: string | null) => {
-                    if (val === '-' || val === 'null') return '-';
-                    if (field === 'price' || field === 'box_price' || field === 'bulk_price') {
-                        const num = parseInt(val);
-                        return isNaN(num) ? val : `Rp ${num.toLocaleString('id-ID')}`;
-                    }
-                    if (field === 'has_multi_unit') return val === 'true' ? 'Aktif' : 'Nonaktif';
-                    return val;
-                };
-
-                return (
-                    <div className="text-sm">
-                        <p className="text-xs text-muted-foreground mb-0.5 font-medium">{label}</p>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 px-1.5 py-0.5 rounded text-xs font-mono line-through">
-                                {formatVal(oldVal, log.field_name)}
-                            </span>
-                            <span className="text-muted-foreground">→</span>
-                            <span className="bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400 px-1.5 py-0.5 rounded text-xs font-mono font-semibold">
-                                {formatVal(newVal, log.field_name)}
-                            </span>
-                        </div>
-                    </div>
-                );
-            }
-        },
-        {
-            header: 'User',
-            cell: (log) => (
+            header: 'Diubah Oleh',
+            filterable: false,
+            cell: (g) => (
                 <div className="flex items-center gap-2">
                     <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                         <User className="w-3.5 h-3.5 text-primary" />
                     </div>
-                    <div>
-                        <p className="text-sm font-medium leading-tight">{log.user_name}</p>
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 mt-0.5">
-                            <Shield className="w-2.5 h-2.5 mr-0.5" />
-                            {roleLabels[log.user_role] || log.user_role}
-                        </Badge>
-                    </div>
+                    <span className="text-sm font-medium">{g.unique_users.join(', ')}</span>
                 </div>
+            )
+        },
+        {
+            header: 'Detail',
+            filterable: false,
+            cell: (g) => (
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 gap-1.5 text-xs"
+                    onClick={(e) => { e.stopPropagation(); setSelectedAuditGroup(g); setAuditDetailOpen(true); }}
+                >
+                    <Eye className="w-3.5 h-3.5" />
+                    Lihat Detail
+                </Button>
             )
         },
     ];
@@ -926,11 +1082,11 @@ export default function StockHistory() {
                 {/* ─── Tab 2: Product Audit Log (main_office only) ─── */}
                 {showAuditTab && (
                     <TabsContent value="audit" className="space-y-6 mt-0">
-                        <BeautifulTable<ProductAuditLog>
-                            data={auditLogs}
+                        <BeautifulTable<GroupedAuditLog>
+                            data={groupedAuditLogs}
                             columns={auditColumns}
                             title="Riwayat Edit Produk"
-                            subtitle="Log perubahan produk — siapa mengubah apa, kapan, dan detail perubahannya"
+                            subtitle="Dikelompokkan per produk — klik Lihat Detail untuk melihat semua perubahan"
                             isLoading={isAuditLoading}
                             hideSelection
                             hideExport
@@ -939,15 +1095,17 @@ export default function StockHistory() {
                                 title: 'Belum ada riwayat',
                                 description: 'Belum ada perubahan produk yang tercatat. Log akan muncul setelah ada edit produk.',
                             }}
-                            globalFilterFn={(log, query) => {
+                            globalFilterFn={(g, query) => {
                                 const q = query.toLowerCase();
                                 return (
-                                    log.product_name.toLowerCase().includes(q) ||
-                                    log.user_name.toLowerCase().includes(q) ||
-                                    log.action.toLowerCase().includes(q) ||
-                                    (log.field_name?.toLowerCase().includes(q) ?? false) ||
-                                    (log.old_value?.toLowerCase().includes(q) ?? false) ||
-                                    (log.new_value?.toLowerCase().includes(q) ?? false)
+                                    g.product_name.toLowerCase().includes(q) ||
+                                    g.unique_users.some(u => u.toLowerCase().includes(q)) ||
+                                    g.logs.some(l =>
+                                        l.action.toLowerCase().includes(q) ||
+                                        (l.field_name?.toLowerCase().includes(q) ?? false) ||
+                                        (l.old_value?.toLowerCase().includes(q) ?? false) ||
+                                        (l.new_value?.toLowerCase().includes(q) ?? false)
+                                    )
                                 );
                             }}
                         />
@@ -961,6 +1119,16 @@ export default function StockHistory() {
                 open={groupDetailOpen}
                 onClose={() => { setGroupDetailOpen(false); setSelectedGroup(null); }}
                 onViewSingleLog={handleViewDetail}
+            />
+
+            {/* Audit Detail Dialog */}
+            <AuditDetailDialog
+                group={selectedAuditGroup}
+                open={auditDetailOpen}
+                onClose={() => { setAuditDetailOpen(false); setSelectedAuditGroup(null); }}
+                fieldLabels={fieldLabels}
+                actionConfig={actionConfig}
+                roleLabels={roleLabels}
             />
 
             {/* Single Log Detail Dialog */}
