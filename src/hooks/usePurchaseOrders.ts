@@ -829,3 +829,96 @@ export function usePOReceipt(purchaseOrderId: string) {
         enabled: !!purchaseOrderId,
     });
 }
+
+
+// ── Edit harga PO yang sudah completed ──────────────────────────────────────
+// Hanya mengupdate unit_price & total_price per item + recalculate total_amount.
+// Tidak menyentuh stok sama sekali — aman untuk PO berstatus completed / completed_with_discrepancy.
+
+export interface UpdatePOPricesInput {
+    poId: string;
+    discount1Percent?: number;
+    discount2Percent?: number;
+    items: Array<{
+        itemId: string;
+        unitPrice: number;
+        quantity: number;
+        isBonus: boolean;
+    }>;
+}
+
+export function useUpdatePOPrices() {
+    const queryClient = useQueryClient();
+    const { toast } = useToast();
+
+    return useMutation({
+        mutationFn: async (input: UpdatePOPricesInput) => {
+            // 1. Pastikan PO boleh diedit (hanya completed / completed_with_discrepancy)
+            const { data: po, error: fetchErr } = await supabase
+                .from('purchase_orders')
+                .select('status, po_number, discount_1_percent, discount_2_percent')
+                .eq('id', input.poId)
+                .single();
+
+            if (fetchErr) throw fetchErr;
+
+            const editableStatuses = ['completed', 'completed_with_discrepancy'];
+            if (!editableStatuses.includes(po.status)) {
+                throw new Error('Hanya PO yang sudah selesai yang dapat diedit harganya.');
+            }
+
+            // 2. Update unit_price & total_price tiap item
+            for (const item of input.items) {
+                if (item.isBonus) continue; // item bonus harganya tetap 0
+                const totalPrice = item.unitPrice * item.quantity;
+                const { error: itemErr } = await supabase
+                    .from('purchase_order_items')
+                    .update({
+                        unit_price: item.unitPrice,
+                        total_price: totalPrice,
+                    })
+                    .eq('id', item.itemId);
+                if (itemErr) throw itemErr;
+            }
+
+            // 3. Hitung ulang total_amount PO
+            const d1 = input.discount1Percent ?? po.discount_1_percent ?? 0;
+            const d2 = input.discount2Percent ?? po.discount_2_percent ?? 0;
+
+            let newTotal = input.items.reduce(
+                (sum, it) => sum + (it.isBonus ? 0 : it.unitPrice * it.quantity),
+                0
+            );
+            if (d1) newTotal = newTotal - newTotal * (d1 / 100);
+            if (d2) newTotal = newTotal - newTotal * (d2 / 100);
+
+            const { error: poErr } = await supabase
+                .from('purchase_orders')
+                .update({
+                    total_amount: newTotal,
+                    discount_1_percent: d1,
+                    discount_2_percent: d2,
+                    updated_at: new Date().toISOString(),
+                })
+                .eq('id', input.poId);
+
+            if (poErr) throw poErr;
+            return { poNumber: po.po_number, newTotal };
+        },
+        onSuccess: (result, variables) => {
+            invalidateAndBroadcast(queryClient, ['purchase_orders']);
+            queryClient.invalidateQueries({ queryKey: ['purchase_order', variables.poId] });
+            toast({
+                title: 'Harga Diperbarui',
+                description: `Harga PO ${result.poNumber} berhasil dikoreksi. Total baru: Rp ${result.newTotal.toLocaleString('id-ID')}`,
+            });
+        },
+        onError: (error: Error) => {
+            toast({
+                title: 'Gagal',
+                description: error.message,
+                variant: 'destructive',
+            });
+        },
+    });
+}

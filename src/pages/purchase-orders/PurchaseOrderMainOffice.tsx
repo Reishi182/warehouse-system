@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { Plus, FileText, Printer, Eye, Trash2, Package, Check, Ban, Calendar, Camera, User, CalendarCheck, AlertTriangle, Image, Pencil } from 'lucide-react';
+import { Plus, FileText, Printer, Eye, Trash2, Package, Check, Ban, Calendar, Camera, User, CalendarCheck, AlertTriangle, Image, Pencil, DollarSign } from 'lucide-react';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import MainLayout from '@/components/layout/MainLayout';
 import PageSkeleton from '@/components/common/PageSkeleton';
@@ -48,6 +48,8 @@ import {
     useUpdatePurchaseOrder,
     useCancelPurchaseOrder,
     usePOReceipt,
+    useUpdatePOPrices,
+    UpdatePOPricesInput,
 } from '@/hooks/usePurchaseOrders';
 import { useStoreSettings } from '@/hooks/useStoreSettings';
 import { useProductUnits } from '@/hooks/useProductUnits';
@@ -93,6 +95,7 @@ export default function PurchaseOrderMainOffice() {
     const createPO = useCreatePurchaseOrder();
     const updatePO = useUpdatePurchaseOrder();
     const cancelPO = useCancelPurchaseOrder();
+    const updatePOPrices = useUpdatePOPrices();
 
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [editPOId, setEditPOId] = useState<string | null>(null);
@@ -105,6 +108,65 @@ export default function PurchaseOrderMainOffice() {
     const [poToCancel, setPOToCancel] = useState<PurchaseOrder | null>(null);
     const [photoModalUrl, setPhotoModalUrl] = useState<string | null>(null);
     const printRef = useRef<HTMLDivElement>(null);
+
+    // ── State untuk dialog edit harga PO completed ──
+    const [isEditPriceOpen, setIsEditPriceOpen] = useState(false);
+    const [editPricePO, setEditPricePO] = useState<PurchaseOrder | null>(null);
+    interface EditPriceItem { itemId: string; productName: string; quantity: number; unitPrice: number; isBonus: boolean; unit: string; }
+    const [editPriceItems, setEditPriceItems] = useState<EditPriceItem[]>([]);
+    const [editDiscount1, setEditDiscount1] = useState(0);
+    const [editDiscount2, setEditDiscount2] = useState(0);
+
+    const handleOpenEditPrice = async (po: PurchaseOrder) => {
+        setEditPricePO(po);
+        setEditDiscount1(po.discount_1_percent ?? 0);
+        setEditDiscount2(po.discount_2_percent ?? 0);
+        try {
+            const { data: poItems } = await supabase
+                .from('purchase_order_items')
+                .select('*')
+                .eq('purchase_order_id', po.id);
+            if (poItems) {
+                setEditPriceItems(poItems.map((it: any) => ({
+                    itemId: it.id,
+                    productName: it.product_name,
+                    quantity: it.quantity,
+                    unitPrice: it.unit_price ?? 0,
+                    isBonus: it.is_bonus ?? false,
+                    unit: it.unit || 'pcs',
+                })));
+            }
+        } catch (err) {
+            console.error('Gagal memuat item PO:', err);
+        }
+        setIsEditPriceOpen(true);
+    };
+
+    const handleSaveEditPrice = async () => {
+        if (!editPricePO) return;
+        const payload: UpdatePOPricesInput = {
+            poId: editPricePO.id,
+            discount1Percent: editDiscount1,
+            discount2Percent: editDiscount2,
+            items: editPriceItems.map(it => ({
+                itemId: it.itemId,
+                unitPrice: it.unitPrice,
+                quantity: it.quantity,
+                isBonus: it.isBonus,
+            })),
+        };
+        await updatePOPrices.mutateAsync(payload);
+        setIsEditPriceOpen(false);
+        setEditPricePO(null);
+        setEditPriceItems([]);
+    };
+
+    const editPriceTotal = useMemo(() => {
+        let total = editPriceItems.reduce((s, it) => s + (it.isBonus ? 0 : it.unitPrice * it.quantity), 0);
+        if (editDiscount1) total = total - total * (editDiscount1 / 100);
+        if (editDiscount2) total = total - total * (editDiscount2 / 100);
+        return total;
+    }, [editPriceItems, editDiscount1, editDiscount2]);
 
     // Print handler using react-to-print
     const handlePrintAction = useReactToPrint({
@@ -458,6 +520,17 @@ export default function PurchaseOrderMainOffice() {
                     {['pending_receipt', 'rejected'].includes(item.status) && (
                         <Button size="sm" variant="outline" onClick={() => handleEditPO(item)}>
                             <Pencil className="w-4 h-4" />
+                        </Button>
+                    )}
+                    {['completed', 'completed_with_discrepancy'].includes(item.status) && (
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleOpenEditPrice(item)}
+                            title="Koreksi Harga"
+                            className="text-amber-600 hover:text-amber-700 border-amber-300 hover:border-amber-400"
+                        >
+                            <DollarSign className="w-4 h-4" />
                         </Button>
                     )}
                     {(item.status === 'pending_receipt' || item.status === 'completed') && (
@@ -1298,6 +1371,83 @@ export default function PurchaseOrderMainOffice() {
                             className="w-full rounded-lg"
                         />
                     )}
+                </DialogContent>
+            </Dialog>
+            {/* Edit Price PO Dialog */}
+            <Dialog open={isEditPriceOpen} onOpenChange={setIsEditPriceOpen}>
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <DollarSign className="w-5 h-5 text-amber-500" />
+                            Koreksi Harga PO Selesai
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 mt-2">
+                        <div className="bg-amber-50 dark:bg-amber-900/10 p-3 rounded-lg border border-amber-200 dark:border-amber-800 text-sm text-amber-800 dark:text-amber-300">
+                            <strong>Perhatian:</strong> Perubahan ini hanya akan mengubah harga satuan dan total nilai PO. Stok gudang/toko tidak akan terpengaruh.
+                        </div>
+
+                        <div className="space-y-3 mt-4">
+                            {editPriceItems.map((item, idx) => (
+                                <div key={item.itemId} className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-800 border">
+                                    <div className="flex-1 min-w-0">
+                                        <p className="font-medium truncate">{item.productName}</p>
+                                        <p className="text-xs text-muted-foreground">{item.quantity} {item.unit}</p>
+                                    </div>
+                                    {item.isBonus ? (
+                                        <div className="text-sm font-semibold text-green-600 px-4">BONUS</div>
+                                    ) : (
+                                        <>
+                                            <div className="flex items-center gap-2">
+                                                <Label className="text-xs w-12">Satuan</Label>
+                                                <Input 
+                                                    isCurrency 
+                                                    value={item.unitPrice} 
+                                                    onChange={(e) => {
+                                                        const newPrice = parseInt(e.target.value) || 0;
+                                                        setEditPriceItems(prev => prev.map(it => it.itemId === item.itemId ? { ...it, unitPrice: newPrice } : it));
+                                                    }}
+                                                    className="w-32"
+                                                />
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Label className="text-xs w-12 text-right">Total</Label>
+                                                <Input 
+                                                    isCurrency 
+                                                    value={item.unitPrice * item.quantity} 
+                                                    onChange={(e) => {
+                                                        const newTotal = parseInt(e.target.value) || 0;
+                                                        const newPrice = Math.round(newTotal / item.quantity);
+                                                        setEditPriceItems(prev => prev.map(it => it.itemId === item.itemId ? { ...it, unitPrice: newPrice } : it));
+                                                    }}
+                                                    className="w-32 font-semibold"
+                                                />
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="flex justify-end gap-4 border-t pt-4">
+                            <div className="flex flex-col items-end">
+                                <span className="text-sm text-muted-foreground">Total Keseluruhan</span>
+                                <span className="text-lg font-bold">Rp {editPriceTotal.toLocaleString('id-ID')}</span>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end gap-3 pt-2">
+                            <Button variant="outline" onClick={() => setIsEditPriceOpen(false)}>
+                                Batal
+                            </Button>
+                            <Button 
+                                onClick={handleSaveEditPrice} 
+                                disabled={updatePOPrices.isPending}
+                            >
+                                {updatePOPrices.isPending ? 'Menyimpan...' : 'Simpan Koreksi Harga'}
+                            </Button>
+                        </div>
+                    </div>
                 </DialogContent>
             </Dialog>
         </MainLayout>
