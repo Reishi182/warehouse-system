@@ -109,10 +109,19 @@ export default function PurchaseOrderMainOffice() {
     const [photoModalUrl, setPhotoModalUrl] = useState<string | null>(null);
     const printRef = useRef<HTMLDivElement>(null);
 
-    // ── State untuk dialog edit harga PO completed ──
+    // ── State untuk dialog edit harga & stok PO completed ──
     const [isEditPriceOpen, setIsEditPriceOpen] = useState(false);
     const [editPricePO, setEditPricePO] = useState<PurchaseOrder | null>(null);
-    interface EditPriceItem { itemId: string; productName: string; quantity: number; unitPrice: number; isBonus: boolean; unit: string; }
+    interface EditPriceItem {
+        itemId: string;
+        productId: string;
+        productName: string;
+        quantity: number;
+        originalQuantity: number;  // qty saat pertama kali dialog dibuka
+        unitPrice: number;
+        isBonus: boolean;
+        unit: string;
+    }
     const [editPriceItems, setEditPriceItems] = useState<EditPriceItem[]>([]);
     const [editDiscount1, setEditDiscount1] = useState(0);
     const [editDiscount2, setEditDiscount2] = useState(0);
@@ -129,8 +138,10 @@ export default function PurchaseOrderMainOffice() {
             if (poItems) {
                 setEditPriceItems(poItems.map((it: any) => ({
                     itemId: it.id,
+                    productId: it.product_id || '',
                     productName: it.product_name,
                     quantity: it.quantity,
+                    originalQuantity: it.quantity,  // simpan qty asli
                     unitPrice: it.unit_price ?? 0,
                     isBonus: it.is_bonus ?? false,
                     unit: it.unit || 'pcs',
@@ -148,11 +159,16 @@ export default function PurchaseOrderMainOffice() {
             poId: editPricePO.id,
             discount1Percent: editDiscount1,
             discount2Percent: editDiscount2,
+            updatedBy: user?.id || '',
+            updatedByName: profile?.name || '',
             items: editPriceItems.map(it => ({
                 itemId: it.itemId,
                 unitPrice: it.unitPrice,
                 quantity: it.quantity,
+                originalQuantity: it.originalQuantity,
                 isBonus: it.isBonus,
+                productId: it.productId,
+                unit: it.unit,
             })),
         };
         await updatePOPrices.mutateAsync(payload);
@@ -1373,62 +1389,115 @@ export default function PurchaseOrderMainOffice() {
                     )}
                 </DialogContent>
             </Dialog>
-            {/* Edit Price PO Dialog */}
+            {/* Edit Price/Stock PO Dialog */}
             <Dialog open={isEditPriceOpen} onOpenChange={setIsEditPriceOpen}>
                 <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <DollarSign className="w-5 h-5 text-amber-500" />
-                            Koreksi Harga PO Selesai
+                            Koreksi Harga & Stok PO Selesai
                         </DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 mt-2">
-                        <div className="bg-amber-50 dark:bg-amber-900/10 p-3 rounded-lg border border-amber-200 dark:border-amber-800 text-sm text-amber-800 dark:text-amber-300">
-                            <strong>Perhatian:</strong> Perubahan ini hanya akan mengubah harga satuan dan total nilai PO. Stok gudang/toko tidak akan terpengaruh.
+                        {/* Info banner */}
+                        <div className="bg-amber-50 dark:bg-amber-900/10 p-3 rounded-lg border border-amber-200 dark:border-amber-800 text-sm text-amber-800 dark:text-amber-300 space-y-1">
+                            <p><strong>Koreksi Harga:</strong> Hanya mengubah nilai PO, stok tidak terpengaruh.</p>
+                            <p><strong>Koreksi Qty:</strong> Jika qty diubah, stok gudang/toko akan disesuaikan otomatis dan tercatat di log stok.</p>
                         </div>
 
-                        <div className="space-y-3 mt-4">
-                            {editPriceItems.map((item, idx) => (
-                                <div key={item.itemId} className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-800 border">
-                                    <div className="flex-1 min-w-0">
-                                        <p className="font-medium truncate">{item.productName}</p>
-                                        <p className="text-xs text-muted-foreground">{item.quantity} {item.unit}</p>
+                        {/* Item rows */}
+                        <div className="space-y-2 mt-4">
+                            {editPriceItems.map((item) => {
+                                const qtyChanged = item.quantity !== item.originalQuantity;
+                                const qtyDelta = item.quantity - item.originalQuantity;
+                                return (
+                                    <div
+                                        key={item.itemId}
+                                        className={`flex items-center gap-3 p-3 rounded-lg border ${
+                                            qtyChanged
+                                                ? 'bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-700'
+                                                : 'bg-slate-50 dark:bg-slate-800 border-transparent'
+                                        }`}
+                                    >
+                                        {/* Nama produk */}
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-medium truncate">{item.productName}</p>
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                {item.isBonus && (
+                                                    <span className="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full">🎁 BONUS</span>
+                                                )}
+                                                {qtyChanged && (
+                                                    <span className={`text-xs font-semibold ${
+                                                        qtyDelta > 0 ? 'text-blue-600' : 'text-red-600'
+                                                    }`}>
+                                                        {qtyDelta > 0 ? `+${qtyDelta}` : qtyDelta} stok ({qtyDelta > 0 ? 'tambah' : 'kurang'})
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Qty */}
+                                        <div className="flex items-center gap-1.5 shrink-0">
+                                            <Label className="text-xs text-muted-foreground">Qty</Label>
+                                            <Input
+                                                type="number"
+                                                min={0}
+                                                value={item.quantity}
+                                                onChange={(e) => {
+                                                    const newQty = parseInt(e.target.value) || 0;
+                                                    setEditPriceItems(prev => prev.map(it =>
+                                                        it.itemId === item.itemId ? { ...it, quantity: newQty } : it
+                                                    ));
+                                                }}
+                                                className="w-20 text-center"
+                                                title={`Qty asli: ${item.originalQuantity} ${item.unit}`}
+                                            />
+                                            <span className="text-xs text-muted-foreground">{item.unit}</span>
+                                        </div>
+
+                                        {item.isBonus ? (
+                                            <div className="text-sm font-semibold text-green-600 px-4">BONUS</div>
+                                        ) : (
+                                            <>
+                                                {/* Harga satuan */}
+                                                <div className="flex items-center gap-1.5 shrink-0">
+                                                    <Label className="text-xs w-12 text-right">Satuan</Label>
+                                                    <Input
+                                                        isCurrency
+                                                        value={item.unitPrice}
+                                                        onChange={(e) => {
+                                                            const newPrice = parseInt(e.target.value) || 0;
+                                                            setEditPriceItems(prev => prev.map(it =>
+                                                                it.itemId === item.itemId ? { ...it, unitPrice: newPrice } : it
+                                                            ));
+                                                        }}
+                                                        className="w-32"
+                                                    />
+                                                </div>
+                                                {/* Harga total */}
+                                                <div className="flex items-center gap-1.5 shrink-0">
+                                                    <Label className="text-xs w-10 text-right">Total</Label>
+                                                    <Input
+                                                        isCurrency
+                                                        value={item.unitPrice * item.quantity}
+                                                        onChange={(e) => {
+                                                            const newTotal = parseInt(e.target.value) || 0;
+                                                            const newPrice = item.quantity > 0 ? Math.round(newTotal / item.quantity) : 0;
+                                                            setEditPriceItems(prev => prev.map(it =>
+                                                                it.itemId === item.itemId ? { ...it, unitPrice: newPrice } : it
+                                                            ));
+                                                        }}
+                                                        className="w-32 font-semibold"
+                                                    />
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
-                                    {item.isBonus ? (
-                                        <div className="text-sm font-semibold text-green-600 px-4">BONUS</div>
-                                    ) : (
-                                        <>
-                                            <div className="flex items-center gap-2">
-                                                <Label className="text-xs w-12">Satuan</Label>
-                                                <Input 
-                                                    isCurrency 
-                                                    value={item.unitPrice} 
-                                                    onChange={(e) => {
-                                                        const newPrice = parseInt(e.target.value) || 0;
-                                                        setEditPriceItems(prev => prev.map(it => it.itemId === item.itemId ? { ...it, unitPrice: newPrice } : it));
-                                                    }}
-                                                    className="w-32"
-                                                />
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <Label className="text-xs w-12 text-right">Total</Label>
-                                                <Input 
-                                                    isCurrency 
-                                                    value={item.unitPrice * item.quantity} 
-                                                    onChange={(e) => {
-                                                        const newTotal = parseInt(e.target.value) || 0;
-                                                        const newPrice = Math.round(newTotal / item.quantity);
-                                                        setEditPriceItems(prev => prev.map(it => it.itemId === item.itemId ? { ...it, unitPrice: newPrice } : it));
-                                                    }}
-                                                    className="w-32 font-semibold"
-                                                />
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
 
+                        {/* Total */}
                         <div className="flex justify-end gap-4 border-t pt-4">
                             <div className="flex flex-col items-end">
                                 <span className="text-sm text-muted-foreground">Total Keseluruhan</span>
@@ -1436,15 +1505,36 @@ export default function PurchaseOrderMainOffice() {
                             </div>
                         </div>
 
+                        {/* Stock change summary */}
+                        {editPriceItems.some(it => it.quantity !== it.originalQuantity) && (
+                            <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-700 rounded-lg p-3 text-sm">
+                                <p className="font-semibold text-blue-800 dark:text-blue-300 mb-1">⚠️ Perubahan Stok yang akan diterapkan:</p>
+                                <ul className="space-y-0.5">
+                                    {editPriceItems.filter(it => it.quantity !== it.originalQuantity).map(it => {
+                                        const delta = it.quantity - it.originalQuantity;
+                                        return (
+                                            <li key={it.itemId} className="text-blue-700 dark:text-blue-300">
+                                                • {it.productName}: {it.originalQuantity} → {it.quantity} {it.unit}
+                                                <span className={`ml-1 font-semibold ${delta > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                    ({delta > 0 ? '+' : ''}{delta})
+                                                </span>
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            </div>
+                        )}
+
+                        {/* Actions */}
                         <div className="flex justify-end gap-3 pt-2">
                             <Button variant="outline" onClick={() => setIsEditPriceOpen(false)}>
                                 Batal
                             </Button>
-                            <Button 
-                                onClick={handleSaveEditPrice} 
+                            <Button
+                                onClick={handleSaveEditPrice}
                                 disabled={updatePOPrices.isPending}
                             >
-                                {updatePOPrices.isPending ? 'Menyimpan...' : 'Simpan Koreksi Harga'}
+                                {updatePOPrices.isPending ? 'Menyimpan...' : 'Simpan Koreksi'}
                             </Button>
                         </div>
                     </div>

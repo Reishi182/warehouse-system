@@ -831,19 +831,25 @@ export function usePOReceipt(purchaseOrderId: string) {
 }
 
 
-// ── Edit harga PO yang sudah completed ──────────────────────────────────────
-// Hanya mengupdate unit_price & total_price per item + recalculate total_amount.
-// Tidak menyentuh stok sama sekali — aman untuk PO berstatus completed / completed_with_discrepancy.
+// ── Edit harga & stok PO yang sudah completed ────────────────────────────────
+// Mengupdate unit_price, total_price, dan (opsional) quantity per item.
+// Jika quantity berubah, stok produk di-adjust sesuai selisih dan stock_log baru dibuat.
+// Aman untuk PO berstatus completed / completed_with_discrepancy.
 
 export interface UpdatePOPricesInput {
     poId: string;
     discount1Percent?: number;
     discount2Percent?: number;
+    updatedBy: string;       // user_id untuk stock_log
+    updatedByName: string;  // nama untuk catatan
     items: Array<{
         itemId: string;
         unitPrice: number;
-        quantity: number;
+        quantity: number;       // qty baru
+        originalQuantity: number; // qty asli (untuk hitung selisih stok)
         isBonus: boolean;
+        productId?: string;     // dibutuhkan jika qty berubah
+        unit?: string;          // satuan item (untuk multiplier multi-unit)
     }>;
 }
 
@@ -856,7 +862,7 @@ export function useUpdatePOPrices() {
             // 1. Pastikan PO boleh diedit (hanya completed / completed_with_discrepancy)
             const { data: po, error: fetchErr } = await supabase
                 .from('purchase_orders')
-                .select('status, po_number, discount_1_percent, discount_2_percent')
+                .select('status, po_number, destination, discount_1_percent, discount_2_percent')
                 .eq('id', input.poId)
                 .single();
 
@@ -867,18 +873,84 @@ export function useUpdatePOPrices() {
                 throw new Error('Hanya PO yang sudah selesai yang dapat diedit harganya.');
             }
 
-            // 2. Update unit_price & total_price tiap item
+            const destination = po.destination as 'gudang' | 'toko';
+            const stockField = destination === 'gudang' ? 'stock_gudang' : 'stock_toko';
+
+            // 2. Update tiap item — harga + (jika berubah) qty & stok
             for (const item of input.items) {
-                if (item.isBonus) continue; // item bonus harganya tetap 0
-                const totalPrice = item.unitPrice * item.quantity;
+                const qtyChanged = item.quantity !== item.originalQuantity;
+                const qtyDelta = item.quantity - item.originalQuantity; // positif = tambah, negatif = kurangi
+
+                // Update purchase_order_items
+                const itemUpdatePayload: Record<string, any> = {
+                    quantity: item.quantity,
+                    total_price: item.isBonus ? 0 : item.unitPrice * item.quantity,
+                };
+                if (!item.isBonus) {
+                    itemUpdatePayload.unit_price = item.unitPrice;
+                }
+
                 const { error: itemErr } = await supabase
                     .from('purchase_order_items')
-                    .update({
-                        unit_price: item.unitPrice,
-                        total_price: totalPrice,
-                    })
+                    .update(itemUpdatePayload)
                     .eq('id', item.itemId);
                 if (itemErr) throw itemErr;
+
+                // Jika qty berubah dan ada productId → adjust stok produk
+                if (qtyChanged && item.productId && qtyDelta !== 0) {
+                    // Ambil data produk (stok saat ini + multi-unit info)
+                    const { data: product, error: prodErr } = await supabase
+                        .from('products')
+                        .select('stock_gudang, stock_toko, has_multi_unit, main_unit, pcs_per_box')
+                        .eq('id', item.productId)
+                        .single();
+
+                    if (prodErr) {
+                        console.error('Gagal mengambil data produk untuk koreksi stok:', prodErr);
+                        continue;
+                    }
+
+                    // Hitung multiplier untuk produk multi-unit
+                    let multiplier = 1;
+                    if (product.has_multi_unit && product.pcs_per_box) {
+                        const mainUnitLower = (product.main_unit || 'box').toLowerCase();
+                        const itemUnitLower = (item.unit || '').toLowerCase();
+                        if (itemUnitLower === mainUnitLower) {
+                            multiplier = product.pcs_per_box;
+                        }
+                    }
+
+                    const actualDelta = qtyDelta * multiplier;
+                    const currentStock = destination === 'gudang'
+                        ? (product.stock_gudang || 0)
+                        : (product.stock_toko || 0);
+                    const newStock = Math.max(0, currentStock + actualDelta);
+
+                    // Update stok produk
+                    const { error: stockErr } = await supabase
+                        .from('products')
+                        .update({ [stockField]: newStock })
+                        .eq('id', item.productId);
+
+                    if (stockErr) {
+                        console.error('Gagal update stok produk:', stockErr);
+                        continue;
+                    }
+
+                    // Catat ke stock_logs sebagai koreksi
+                    await supabase.from('stock_logs').insert([{
+                        product_id: item.productId,
+                        type: actualDelta > 0 ? 'in' : 'out',
+                        quantity: Math.abs(actualDelta),
+                        location: destination,
+                        user_id: input.updatedBy,
+                        note: `Koreksi qty PO: ${po.po_number} (${item.originalQuantity} → ${item.quantity} ${item.unit || 'pcs'})`,
+                        reference_type: 'purchase_order',
+                        reference_id: input.poId,
+                        stock_before: currentStock,
+                        stock_after: newStock,
+                    }]);
+                }
             }
 
             // 3. Hitung ulang total_amount PO
@@ -903,14 +975,20 @@ export function useUpdatePOPrices() {
                 .eq('id', input.poId);
 
             if (poErr) throw poErr;
-            return { poNumber: po.po_number, newTotal };
+
+            const stockChanged = input.items.some(it => it.quantity !== it.originalQuantity && it.productId);
+            return { poNumber: po.po_number, newTotal, stockChanged };
         },
         onSuccess: (result, variables) => {
-            invalidateAndBroadcast(queryClient, ['purchase_orders']);
+            const keys: string[] = ['purchase_orders'];
+            if (result.stockChanged) keys.push('products', 'stock_logs');
+            invalidateAndBroadcast(queryClient, keys);
             queryClient.invalidateQueries({ queryKey: ['purchase_order', variables.poId] });
             toast({
-                title: 'Harga Diperbarui',
-                description: `Harga PO ${result.poNumber} berhasil dikoreksi. Total baru: Rp ${result.newTotal.toLocaleString('id-ID')}`,
+                title: 'PO Diperbarui',
+                description: `PO ${result.poNumber} berhasil dikoreksi. Total baru: Rp ${result.newTotal.toLocaleString('id-ID')}${
+                    result.stockChanged ? '. Stok telah disesuaikan.' : ''
+                }`,
             });
         },
         onError: (error: Error) => {
