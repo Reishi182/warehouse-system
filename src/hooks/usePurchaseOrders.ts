@@ -1000,3 +1000,171 @@ export function useUpdatePOPrices() {
         },
     });
 }
+
+// ── Pindah lokasi tujuan PO yang sudah completed ─────────────────────────────
+// Memindahkan stok dari lokasi lama ke lokasi baru untuk semua item PO.
+// Setiap item menghasilkan 2 stock_log: 'out' dari lama + 'in' ke baru.
+// Aman: stok tidak bisa minus (di-clamp ke 0).
+
+export interface UpdatePODestinationInput {
+    poId: string;
+    newDestination: 'gudang' | 'toko';
+    updatedBy: string;
+    updatedByName: string;
+}
+
+export function useUpdatePODestination() {
+    const queryClient = useQueryClient();
+    const { toast } = useToast();
+
+    return useMutation({
+        mutationFn: async (input: UpdatePODestinationInput) => {
+            // 1. Ambil data PO (status + destination lama)
+            const { data: po, error: poFetchErr } = await supabase
+                .from('purchase_orders')
+                .select('status, po_number, destination')
+                .eq('id', input.poId)
+                .single();
+
+            if (poFetchErr) throw poFetchErr;
+
+            // 2. Hanya boleh untuk PO completed / completed_with_discrepancy
+            const editableStatuses = ['completed', 'completed_with_discrepancy'];
+            if (!editableStatuses.includes(po.status)) {
+                throw new Error('Hanya PO yang sudah selesai yang dapat diubah lokasinya.');
+            }
+
+            const oldDest = po.destination as 'gudang' | 'toko';
+            const newDest = input.newDestination;
+
+            if (oldDest === newDest) {
+                throw new Error('Lokasi tujuan baru sama dengan yang lama.');
+            }
+
+            const oldStockField = oldDest === 'gudang' ? 'stock_gudang' : 'stock_toko';
+            const newStockField = newDest === 'gudang' ? 'stock_gudang' : 'stock_toko';
+
+            // 3. Ambil semua item PO
+            const { data: items, error: itemsErr } = await supabase
+                .from('purchase_order_items')
+                .select('id, product_id, product_name, quantity, unit, is_bonus')
+                .eq('purchase_order_id', input.poId);
+
+            if (itemsErr) throw itemsErr;
+
+            // 4. Untuk tiap item yang punya product_id — pindah stok
+            for (const item of (items || [])) {
+                if (!item.product_id) continue; // produk baru tanpa id, lewati
+
+                const { data: product, error: prodErr } = await supabase
+                    .from('products')
+                    .select('stock_gudang, stock_toko, has_multi_unit, main_unit, pcs_per_box')
+                    .eq('id', item.product_id)
+                    .single();
+
+                if (prodErr) {
+                    console.error('Gagal ambil produk:', prodErr);
+                    continue;
+                }
+
+                // Hitung multiplier multi-unit
+                let multiplier = 1;
+                if (product.has_multi_unit && product.pcs_per_box) {
+                    const mainUnitLower = (product.main_unit || 'box').toLowerCase();
+                    const itemUnitLower = (item.unit || '').toLowerCase();
+                    if (itemUnitLower === mainUnitLower) {
+                        multiplier = product.pcs_per_box;
+                    }
+                }
+
+                const actualQty = item.quantity * multiplier;
+
+                const oldStock = oldDest === 'gudang'
+                    ? (product.stock_gudang || 0)
+                    : (product.stock_toko || 0);
+                const newStockOld = Math.max(0, oldStock - actualQty); // kurangi dari lama
+
+                const newStockCurrent = newDest === 'gudang'
+                    ? (product.stock_gudang || 0)
+                    : (product.stock_toko || 0);
+                const newStockNew = newStockCurrent + actualQty; // tambah ke baru
+
+                const unitText = multiplier > 1
+                    ? ` (${item.quantity} ${item.unit} × ${multiplier})`
+                    : ` ${item.unit}`;
+
+                // Update kedua kolom stok sekaligus
+                const { error: stockUpdateErr } = await supabase
+                    .from('products')
+                    .update({
+                        [oldStockField]: newStockOld,
+                        [newStockField]: newStockNew,
+                    })
+                    .eq('id', item.product_id);
+
+                if (stockUpdateErr) {
+                    console.error('Gagal update stok:', stockUpdateErr);
+                    continue;
+                }
+
+                const logNote = `Pindah lokasi PO: ${po.po_number} (${oldDest} → ${newDest})${unitText}`;
+
+                // Log OUT dari lokasi lama
+                await supabase.from('stock_logs').insert([{
+                    product_id: item.product_id,
+                    type: 'out',
+                    quantity: actualQty,
+                    location: oldDest,
+                    user_id: input.updatedBy,
+                    note: logNote,
+                    reference_type: 'purchase_order',
+                    reference_id: input.poId,
+                    stock_before: oldStock,
+                    stock_after: newStockOld,
+                }]);
+
+                // Log IN ke lokasi baru
+                await supabase.from('stock_logs').insert([{
+                    product_id: item.product_id,
+                    type: 'in',
+                    quantity: actualQty,
+                    location: newDest,
+                    user_id: input.updatedBy,
+                    note: logNote,
+                    reference_type: 'purchase_order',
+                    reference_id: input.poId,
+                    stock_before: newStockCurrent,
+                    stock_after: newStockNew,
+                }]);
+            }
+
+            // 5. Update destination di PO
+            const { error: poUpdateErr } = await supabase
+                .from('purchase_orders')
+                .update({
+                    destination: newDest,
+                    updated_at: new Date().toISOString(),
+                })
+                .eq('id', input.poId);
+
+            if (poUpdateErr) throw poUpdateErr;
+
+            return { poNumber: po.po_number, oldDest, newDest };
+        },
+        onSuccess: (result, variables) => {
+            invalidateAndBroadcast(queryClient, ['purchase_orders', 'products', 'stock_logs']);
+            queryClient.invalidateQueries({ queryKey: ['purchase_order', variables.poId] });
+            toast({
+                title: 'Lokasi Diperbarui',
+                description: `PO ${result.poNumber}: lokasi dipindah dari ${result.oldDest} → ${result.newDest}. Stok telah disesuaikan.`,
+            });
+        },
+        onError: (error: Error) => {
+            toast({
+                title: 'Gagal',
+                description: error.message,
+                variant: 'destructive',
+            });
+        },
+    });
+}

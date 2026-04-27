@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { Plus, FileText, Printer, Eye, Trash2, Package, Check, Ban, Calendar, Camera, User, CalendarCheck, AlertTriangle, Image, Pencil, DollarSign } from 'lucide-react';
+import { Plus, FileText, Printer, Eye, Trash2, Package, Check, Ban, Calendar, Camera, User, CalendarCheck, AlertTriangle, Image, Pencil, DollarSign, MapPin } from 'lucide-react';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import MainLayout from '@/components/layout/MainLayout';
 import PageSkeleton from '@/components/common/PageSkeleton';
@@ -50,6 +50,7 @@ import {
     usePOReceipt,
     useUpdatePOPrices,
     UpdatePOPricesInput,
+    useUpdatePODestination,
 } from '@/hooks/usePurchaseOrders';
 import { useStoreSettings } from '@/hooks/useStoreSettings';
 import { useProductUnits } from '@/hooks/useProductUnits';
@@ -96,6 +97,7 @@ export default function PurchaseOrderMainOffice() {
     const updatePO = useUpdatePurchaseOrder();
     const cancelPO = useCancelPurchaseOrder();
     const updatePOPrices = useUpdatePOPrices();
+    const updatePODestination = useUpdatePODestination();
 
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [editPOId, setEditPOId] = useState<string | null>(null);
@@ -108,6 +110,30 @@ export default function PurchaseOrderMainOffice() {
     const [poToCancel, setPOToCancel] = useState<PurchaseOrder | null>(null);
     const [photoModalUrl, setPhotoModalUrl] = useState<string | null>(null);
     const printRef = useRef<HTMLDivElement>(null);
+
+    // ── State untuk dialog pindah lokasi PO completed ──
+    const [isMoveDestionationOpen, setIsMoveDestinationOpen] = useState(false);
+    const [moveDestPO, setMoveDestPO] = useState<PurchaseOrder | null>(null);
+    const [newDestination, setNewDestination] = useState<'gudang' | 'toko'>('gudang');
+
+    const handleOpenMoveDestination = (po: PurchaseOrder) => {
+        setMoveDestPO(po);
+        // default ke lokasi lawan dari yang sekarang
+        setNewDestination(po.destination === 'gudang' ? 'toko' : 'gudang');
+        setIsMoveDestinationOpen(true);
+    };
+
+    const handleConfirmMoveDestination = async () => {
+        if (!moveDestPO) return;
+        await updatePODestination.mutateAsync({
+            poId: moveDestPO.id,
+            newDestination,
+            updatedBy: user?.id || '',
+            updatedByName: profile?.name || '',
+        });
+        setIsMoveDestinationOpen(false);
+        setMoveDestPO(null);
+    };
 
     // ── State untuk dialog edit harga & stok PO completed ──
     const [isEditPriceOpen, setIsEditPriceOpen] = useState(false);
@@ -543,10 +569,21 @@ export default function PurchaseOrderMainOffice() {
                             size="sm"
                             variant="outline"
                             onClick={() => handleOpenEditPrice(item)}
-                            title="Koreksi Harga"
+                            title="Koreksi Harga & Stok"
                             className="text-amber-600 hover:text-amber-700 border-amber-300 hover:border-amber-400"
                         >
                             <DollarSign className="w-4 h-4" />
+                        </Button>
+                    )}
+                    {['completed', 'completed_with_discrepancy'].includes(item.status) && (
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleOpenMoveDestination(item)}
+                            title="Pindah Lokasi Tujuan"
+                            className="text-indigo-600 hover:text-indigo-700 border-indigo-300 hover:border-indigo-400"
+                        >
+                            <MapPin className="w-4 h-4" />
                         </Button>
                     )}
                     {(item.status === 'pending_receipt' || item.status === 'completed') && (
@@ -1535,6 +1572,76 @@ export default function PurchaseOrderMainOffice() {
                                 disabled={updatePOPrices.isPending}
                             >
                                 {updatePOPrices.isPending ? 'Menyimpan...' : 'Simpan Koreksi'}
+                            </Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Pindah Lokasi Tujuan PO Dialog */}
+            <Dialog open={isMoveDestionationOpen} onOpenChange={setIsMoveDestinationOpen}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <MapPin className="w-5 h-5 text-indigo-500" />
+                            Pindah Lokasi Tujuan PO
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 mt-2">
+                        {/* Warning */}
+                        <div className="bg-indigo-50 dark:bg-indigo-900/10 p-3 rounded-lg border border-indigo-200 dark:border-indigo-800 text-sm text-indigo-800 dark:text-indigo-300 space-y-1">
+                            <p>
+                                <strong>PO:</strong> {moveDestPO?.po_number}
+                            </p>
+                            <p>
+                                <strong>Lokasi saat ini:</strong>{' '}
+                                <span className="capitalize font-semibold">{moveDestPO?.destination}</span>
+                            </p>
+                            <p className="pt-1 text-indigo-700 dark:text-indigo-400">
+                                ⚠️ Seluruh stok item PO ini akan <strong>dipindah otomatis</strong> ke lokasi baru dan tercatat di log stok.
+                            </p>
+                        </div>
+
+                        {/* Pilih lokasi baru */}
+                        <div className="space-y-2">
+                            <Label>Lokasi Tujuan Baru</Label>
+                            <Select
+                                value={newDestination}
+                                onValueChange={(v) => setNewDestination(v as 'gudang' | 'toko')}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="gudang" disabled={moveDestPO?.destination === 'gudang'}>
+                                        Gudang {moveDestPO?.destination === 'gudang' ? '(saat ini)' : ''}
+                                    </SelectItem>
+                                    <SelectItem value="toko" disabled={moveDestPO?.destination === 'toko'}>
+                                        Toko {moveDestPO?.destination === 'toko' ? '(saat ini)' : ''}
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {/* Ringkasan perubahan */}
+                        <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-800 p-3 rounded-lg border text-sm">
+                            <span className="font-semibold capitalize">{moveDestPO?.destination}</span>
+                            <span className="text-muted-foreground">→</span>
+                            <span className="font-semibold text-indigo-600 capitalize">{newDestination}</span>
+                            <span className="text-xs text-muted-foreground ml-auto">semua item PO</span>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex justify-end gap-3 pt-2">
+                            <Button variant="outline" onClick={() => setIsMoveDestinationOpen(false)}>
+                                Batal
+                            </Button>
+                            <Button
+                                onClick={handleConfirmMoveDestination}
+                                disabled={updatePODestination.isPending || newDestination === moveDestPO?.destination}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                            >
+                                {updatePODestination.isPending ? 'Memindahkan...' : 'Ya, Pindahkan Stok'}
                             </Button>
                         </div>
                     </div>
