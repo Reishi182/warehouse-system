@@ -24,6 +24,9 @@ function transformSale(row: any, items: SaleItem[]): Sale {
         credit_customer_name: row.credit_customer_name,
         credit_settled_at: row.credit_settled_at,
         credit_payment_method: row.credit_payment_method as PaymentMethod | null,
+        is_cancelled: row.status === 'canceled',
+        cancelled_at: row.canceled_at,
+        cancelled_reason: row.cancel_reason,
         created_at: row.created_at,
         items: items.filter(item => item.sale_id === row.id),
     };
@@ -218,6 +221,54 @@ export function useCreateSale() {
         onError: (error: Error) => {
             toast({
                 title: 'Gagal mencatat penjualan',
+                description: error.message,
+                variant: 'destructive',
+            });
+        },
+    });
+}
+
+// Hook to cancel a sale
+export function useCancelSale() {
+    const queryClient = useQueryClient();
+    const { toast } = useToast();
+
+    return useMutation({
+        mutationFn: async ({
+            saleId,
+            reason,
+            userId,
+            userName,
+        }: {
+            saleId: string;
+            reason: string;
+            userId: string;
+            userName: string;
+        }) => {
+            if (!reason || reason.trim() === '') {
+                throw new Error('Alasan pembatalan harus diisi');
+            }
+
+            const { data, error } = await supabase.rpc('cancel_sale', {
+                p_sale_id: saleId,
+                p_cancel_reason: reason,
+                p_user_id: userId,
+                p_user_name: userName,
+            });
+
+            if (error) throw error;
+            return data;
+        },
+        onSuccess: () => {
+            invalidateAndBroadcast(queryClient, ['sales', 'products', 'stock-logs', 'cash-history']);
+            toast({
+                title: 'Transaksi dibatalkan',
+                description: 'Stok barang telah dikembalikan',
+            });
+        },
+        onError: (error: Error) => {
+            toast({
+                title: 'Gagal membatalkan transaksi',
                 description: error.message,
                 variant: 'destructive',
             });

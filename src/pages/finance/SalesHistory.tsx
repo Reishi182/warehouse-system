@@ -6,6 +6,8 @@ import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
 ;
 import { useSalesHistory } from '@/hooks/useSalesHistory';
 import { Sale } from '@/types';
+import { useAuth } from '@/contexts/AuthContext';
+import { useCancelSale } from '@/hooks/useSales';
 
 type SaleWithStatus = Sale & { _status: string };
 import { format, parseISO, startOfMonth } from 'date-fns';
@@ -55,6 +57,11 @@ function toISODate(d: Date) {
 }
 
 export default function SalesHistory() {
+    const { user } = useAuth();
+    const cancelSaleMutation = useCancelSale();
+    const [cancelReason, setCancelReason] = useState('');
+    const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+
     // Fetch ALL sales directly from Supabase (no DataContext limit)
     const { sales, loading, totalCount } = useSalesHistory();
     const { data: storeSettings } = useStoreSettings();
@@ -89,6 +96,22 @@ export default function SalesHistory() {
     const openDetail = (sale: Sale) => {
         setDetailSale(sale);
         setDetailOpen(true);
+    };
+
+    const handleCancelSale = () => {
+        if (!detailSale || !user) return;
+        cancelSaleMutation.mutate({
+            saleId: detailSale.id,
+            reason: cancelReason,
+            userId: user.id,
+            userName: user.name,
+        }, {
+            onSuccess: () => {
+                setCancelDialogOpen(false);
+                setDetailOpen(false);
+                setCancelReason('');
+            }
+        });
     };
 
     // Get unique cashiers
@@ -499,16 +522,70 @@ export default function SalesHistory() {
                             </div>
 
                             {/* Actions */}
-                            <div className="flex justify-end gap-2 pt-2">
-                                <Button variant="outline" onClick={() => setDetailOpen(false)} className="rounded-xl">
-                                    Tutup
-                                </Button>
-                                <Button onClick={() => { setDetailOpen(false); openPrintDialog(detailSale); }} className="rounded-xl gap-2">
-                                    <Printer className="h-4 w-4" /> Cetak Struk
-                                </Button>
+                            <div className="flex justify-between items-center pt-2">
+                                <div>
+                                    {!detailSale.is_cancelled && !detailSale.is_exchanged && (
+                                        <Button
+                                            variant="destructive"
+                                            className="rounded-xl gap-2"
+                                            onClick={() => setCancelDialogOpen(true)}
+                                        >
+                                            <XCircle className="h-4 w-4" /> Batalkan Transaksi
+                                        </Button>
+                                    )}
+                                </div>
+                                <div className="flex gap-2">
+                                    <Button variant="outline" onClick={() => setDetailOpen(false)} className="rounded-xl">
+                                        Tutup
+                                    </Button>
+                                    <Button onClick={() => { setDetailOpen(false); openPrintDialog(detailSale); }} className="rounded-xl gap-2">
+                                        <Printer className="h-4 w-4" /> Cetak Struk
+                                    </Button>
+                                </div>
                             </div>
                         </div>
                     )}
+                </DialogContent>
+            </Dialog>
+
+            {/* Cancel Dialog */}
+            <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+                <DialogContent className="sm:max-w-md rounded-2xl">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-red-600">
+                            <AlertTriangle className="h-5 w-5" />
+                            Batalkan Transaksi
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="p-4 bg-red-50 text-red-800 rounded-xl text-sm border border-red-100">
+                            Apakah Anda yakin ingin membatalkan transaksi <strong>{detailSale?.sale_number}</strong>?
+                            Stok barang akan otomatis dikembalikan ke lokasi asal. Tindakan ini tidak dapat dibatalkan.
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Alasan Pembatalan</label>
+                            <textarea
+                                value={cancelReason}
+                                onChange={(e) => setCancelReason(e.target.value)}
+                                className="w-full rounded-xl border border-gray-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 min-h-[100px]"
+                                placeholder="Contoh: Barang rusak, retur pelanggan..."
+                                required
+                            />
+                        </div>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                        <Button variant="outline" onClick={() => setCancelDialogOpen(false)} className="rounded-xl">
+                            Batal
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={handleCancelSale}
+                            disabled={!cancelReason.trim() || cancelSaleMutation.isPending}
+                            className="rounded-xl"
+                        >
+                            {cancelSaleMutation.isPending ? 'Memproses...' : 'Konfirmasi Pembatalan'}
+                        </Button>
+                    </div>
                 </DialogContent>
             </Dialog>
 
