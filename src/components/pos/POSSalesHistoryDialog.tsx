@@ -470,8 +470,8 @@ export function POSSalesHistoryDialog({ open, onOpenChange, onCreateReturn }: PO
 
                                                         {/* Action Buttons */}
                                                         <div className="flex flex-wrap gap-2 mt-3 pt-2 border-t">
-                                                            {/* Cancel Button - only for today's active sales */}
-                                                            {!sale.is_cancelled && !sale.is_exchanged && sale.created_at.slice(0, 10) === toISODate(new Date()) && (
+                                                            {/* Cancel Button - for all active (non-cancelled, non-exchanged) sales */}
+                                                            {!sale.is_cancelled && !sale.is_exchanged && (
                                                                 <Button
                                                                     variant="outline"
                                                                     size="sm"
@@ -482,7 +482,7 @@ export function POSSalesHistoryDialog({ open, onOpenChange, onCreateReturn }: PO
                                                                     className="text-xs h-7 rounded-lg text-red-600 border-red-300 hover:bg-red-50"
                                                                 >
                                                                     <XCircle className="h-3 w-3 mr-1" />
-                                                                    Cancel
+                                                                    Batal
                                                                 </Button>
                                                             )}
 
