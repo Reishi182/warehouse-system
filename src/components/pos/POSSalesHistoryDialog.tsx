@@ -234,12 +234,6 @@ export function POSSalesHistoryDialog({ open, onOpenChange, onCreateReturn }: PO
         cancelSale.mutate({
             saleId: saleToCancel.id,
             saleNumber: saleToCancel.sale_number,
-            items: saleToCancel.items?.map(i => ({
-                product_id: i.product_id,
-                product_name: i.product_name,
-                quantity: i.quantity,
-            })) || [],
-            stockLocation: (saleToCancel.stock_location || 'toko') as any,
             reason: cancelReason.trim(),
             cancelledBy: profile.user_id,
             cancelledByName: profile.name,
