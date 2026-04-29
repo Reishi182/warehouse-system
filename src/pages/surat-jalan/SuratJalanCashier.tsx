@@ -23,13 +23,7 @@ import {
     DialogFooter,
     DialogTrigger,
 } from '@/components/ui/dialog';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
+import SearchableSelect from '@/components/common/SearchableSelect';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Product, Customer } from '@/types';
@@ -298,18 +292,19 @@ export default function SuratJalanCashier() {
                             {/* Customer Selection */}
                             <div className="space-y-2">
                                 <Label>Pilih Pelanggan</Label>
-                                <Select value={selectedCustomerId} onValueChange={handleCustomerSelect}>
-                                    <SelectTrigger className="rounded-xl h-11 bg-white border-gray-200">
-                                        <SelectValue placeholder="Pilih Pelanggan..." />
-                                    </SelectTrigger>
-                                    <SelectContent className="rounded-xl max-h-[200px]">
-                                        {customers.map(c => (
-                                            <SelectItem key={c.id} value={c.id} className="rounded-lg my-1 cursor-pointer">
-                                                {c.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <SearchableSelect
+                                    options={customers.map(c => ({
+                                        value: c.id,
+                                        label: c.name,
+                                        description: c.phone || c.email || undefined
+                                    }))}
+                                    value={selectedCustomerId}
+                                    onValueChange={handleCustomerSelect}
+                                    placeholder="Pilih Pelanggan..."
+                                    searchPlaceholder="Cari pelanggan..."
+                                    emptyMessage="Pelanggan tidak ditemukan"
+                                    className="rounded-xl h-11 bg-white border-gray-200"
+                                />
                             </div>
 
                             {/* Custom Number & PO Attachment */}
