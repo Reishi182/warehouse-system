@@ -289,8 +289,14 @@ export default function EditProductDialog({
                             min={0}
                             value={price}
                             onChange={(e) => setPrice(parseInt(e.target.value) || 0)}
+                            disabled={userRole === 'warehouse'}
+                            className={userRole === 'warehouse' ? 'opacity-50 cursor-not-allowed' : ''}
                         />
-                        <p className="text-xs text-muted-foreground">Harga jual per {subUnitLabel}</p>
+                        {userRole === 'warehouse' ? (
+                            <p className="text-xs text-amber-600">⚠️ Role Gudang tidak dapat mengubah harga</p>
+                        ) : (
+                            <p className="text-xs text-muted-foreground">Harga jual per {subUnitLabel}</p>
+                        )}
                     </div>
 
                     {/* Sub Unit */}
@@ -512,6 +518,8 @@ export default function EditProductDialog({
                                             value={boxPrice ?? ''}
                                             onChange={(e) => setBoxPrice(parseInt(e.target.value) || null)}
                                             placeholder={computedBoxPrice ? `Auto: ${computedBoxPrice.toLocaleString('id-ID')}` : 'Opsional'}
+                                            disabled={userRole === 'warehouse'}
+                                            className={userRole === 'warehouse' ? 'opacity-50 cursor-not-allowed' : ''}
                                         />
                                     </div>
                                 </div>
@@ -564,6 +572,8 @@ export default function EditProductDialog({
                                         setBulkPrice(val === '' ? null : parseInt(val));
                                     }}
                                     placeholder="Total: 10000"
+                                    disabled={userRole === 'warehouse'}
+                                    className={userRole === 'warehouse' ? 'opacity-50 cursor-not-allowed' : ''}
                                 />
                             </div>
                             {bulkQuantity && bulkPrice ? (

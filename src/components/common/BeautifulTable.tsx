@@ -75,6 +75,7 @@ export function BeautifulTable<T extends { id: string }>({
     globalFilterFn: customGlobalFilterFn,
     syncPaginationWithUrl = true,
     paginationUrlParam = 'page',
+    onRowClick,
 }: BeautifulTableProps<T>) {
     const [searchParams, setSearchParams] = useSearchParams();
 
@@ -625,13 +626,15 @@ export function BeautifulTable<T extends { id: string }>({
                                 table.getRowModel().rows.map((row) => (
                                     <TableRow
                                         key={row.id}
+                                        onClick={() => onRowClick?.(row.original)}
                                         className={cn(
                                             "transition-all duration-200",
                                             "border-b border-gray-100 dark:border-gray-800",
                                             row.getIsSelected()
                                                 ? "bg-primary/5"
                                                 : "bg-white dark:bg-gray-900",
-                                            !row.getIsSelected() && "hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                                            !row.getIsSelected() && "hover:bg-gray-50 dark:hover:bg-gray-800/50",
+                                            onRowClick && "cursor-pointer"
                                         )}
                                     >
                                         {row.getVisibleCells().map((cell, idx) => (

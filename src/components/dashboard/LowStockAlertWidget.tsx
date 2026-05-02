@@ -16,11 +16,14 @@ import {
     Warehouse,
     Store,
     ChevronRight,
-    X,
-    TrendingDown
+    TrendingDown,
+    Bell,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
+import StockThresholdDialog from '@/components/products/StockThresholdDialog';
+import { useDataStore } from '@/store/useDataStore';
+import { Product } from '@/types';
 
 interface LowStockAlertWidgetProps {
     /** Maximum number of products to show in the widget */
@@ -37,8 +40,13 @@ export function LowStockAlertWidget({
     className
 }: LowStockAlertWidgetProps) {
     const { lowStockProducts, lowStockCount, thresholds } = useLowStockProducts();
+    const allProducts = useDataStore(s => s.products);
     const [showAllDialog, setShowAllDialog] = useState(false);
+    const [thresholdProduct, setThresholdProduct] = useState<Product | null>(null);
     const navigate = useNavigate();
+
+    const findFullProduct = (id: string): Product | null =>
+        allProducts.find(p => p.id === id) ?? null;
 
     if (lowStockCount === 0) {
         return compact ? null : (
@@ -100,10 +108,12 @@ export function LowStockAlertWidget({
                         {visibleProducts.map((product) => (
                             <div
                                 key={product.id}
-                                className="flex items-center justify-between px-4 py-3 hover:bg-orange-50/50 dark:hover:bg-orange-900/10 transition-colors cursor-pointer"
-                                onClick={() => navigate('/products')}
+                                className="flex items-center justify-between px-4 py-3 hover:bg-orange-50/50 dark:hover:bg-orange-900/10 transition-colors group"
                             >
-                                <div className="flex items-center gap-3 flex-1 min-w-0">
+                                <div
+                                    className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
+                                    onClick={() => navigate('/products')}
+                                >
                                     <div className="w-10 h-10 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center flex-shrink-0">
                                         <TrendingDown className="w-5 h-5 text-orange-500" />
                                     </div>
@@ -111,13 +121,13 @@ export function LowStockAlertWidget({
                                         <p className="font-medium truncate text-sm">
                                             {product.name}
                                         </p>
-                                        <p className="text-xs text-muted-foreground font-mono">
-                                            {product.barcode}
+                                        <p className="text-xs text-muted-foreground">
+                                            Min: Gudang≥{product.thresholdGudang} · Toko≥{product.thresholdToko}
                                         </p>
                                     </div>
                                 </div>
 
-                                <div className="flex gap-2 flex-shrink-0">
+                                <div className="flex items-center gap-2 flex-shrink-0 ml-2">
                                     {product.isLowGudang && (
                                         <Badge
                                             variant="outline"
@@ -146,6 +156,14 @@ export function LowStockAlertWidget({
                                             {product.stockToko}
                                         </Badge>
                                     )}
+                                    {/* Edit threshold button */}
+                                    <button
+                                        title="Atur batas stok"
+                                        onClick={() => setThresholdProduct(findFullProduct(product.id))}
+                                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-orange-100 dark:hover:bg-orange-900/40 text-orange-500"
+                                    >
+                                        <Bell className="w-3.5 h-3.5" />
+                                    </button>
                                 </div>
                             </div>
                         ))}
@@ -191,15 +209,15 @@ export function LowStockAlertWidget({
                             {lowStockProducts.map((product) => (
                                 <div
                                     key={product.id}
-                                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+                                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors group"
                                 >
                                     <div className="min-w-0 flex-1">
                                         <p className="font-medium truncate">{product.name}</p>
                                         <p className="text-xs text-muted-foreground font-mono">
-                                            {product.barcode}
+                                            Min: Gudang≥{product.thresholdGudang} · Toko≥{product.thresholdToko}
                                         </p>
                                     </div>
-                                    <div className="flex gap-2 flex-shrink-0 ml-3">
+                                    <div className="flex items-center gap-2 flex-shrink-0 ml-3">
                                         <Badge
                                             variant="outline"
                                             className={cn(
@@ -224,6 +242,17 @@ export function LowStockAlertWidget({
                                             <Store className="w-3 h-3" />
                                             {product.stockToko}
                                         </Badge>
+                                        {/* Edit threshold */}
+                                        <button
+                                            title="Atur batas stok"
+                                            onClick={() => {
+                                                setThresholdProduct(findFullProduct(product.id));
+                                                setShowAllDialog(false);
+                                            }}
+                                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-orange-100 dark:hover:bg-orange-900/40 text-orange-500"
+                                        >
+                                            <Bell className="w-3.5 h-3.5" />
+                                        </button>
                                     </div>
                                 </div>
                             ))}
@@ -240,6 +269,13 @@ export function LowStockAlertWidget({
                     </div>
                 </DialogContent>
             </Dialog>
+
+            {/* Stock Threshold Dialog */}
+            <StockThresholdDialog
+                product={thresholdProduct}
+                open={!!thresholdProduct}
+                onOpenChange={(v) => { if (!v) setThresholdProduct(null); }}
+            />
         </>
     );
 }

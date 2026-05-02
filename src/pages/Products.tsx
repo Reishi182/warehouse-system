@@ -137,6 +137,7 @@ export default function Products() {
     const canDeleteProduct = role === 'admin' || role === 'auditor' || role === 'main_office';
     const canAdjustStock = role === 'admin' || role === 'auditor';
     const canToggleActive = role === 'main_office' || role === 'admin';
+    const canSetThreshold = role === 'admin' || role === 'warehouse' || role === 'main_office';
 
     // Product counts for filter sidebar
     const productCounts = useMemo(() => ({
@@ -767,6 +768,7 @@ export default function Products() {
                                         canDelete={canDeleteProduct}
                                         canAdjustStock={canAdjustStock}
                                         canToggleActive={canToggleActive}
+                                        canSetThreshold={canSetThreshold}
                                         onToggleActive={handleToggleActive}
                                         isHighlighted={product.id === highlightedProductId}
                                     />

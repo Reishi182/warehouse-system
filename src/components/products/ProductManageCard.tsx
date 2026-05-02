@@ -1,5 +1,6 @@
-import React, { memo } from 'react';
-import { Package, MoreHorizontal, Pencil, Trash2, Plus, AlertTriangle, Warehouse, Store, Eye, EyeOff } from 'lucide-react';
+import React, { memo, useState } from 'react';
+import { Package, MoreHorizontal, Pencil, Trash2, Plus, AlertTriangle, Warehouse, Store, Eye, EyeOff, Bell } from 'lucide-react';
+import StockThresholdDialog from './StockThresholdDialog';
 import { LazyImage } from '@/components/common/LazyImage';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +24,7 @@ interface ProductManageCardProps {
     canDelete?: boolean;
     canAdjustStock?: boolean;
     canToggleActive?: boolean;
+    canSetThreshold?: boolean;
     isHighlighted?: boolean;
     onToggleActive?: (product: Product) => void;
 }
@@ -70,9 +72,11 @@ export const ProductManageCard = memo(function ProductManageCard({
     canDelete = true,
     canAdjustStock = true,
     canToggleActive = false,
+    canSetThreshold = false,
     isHighlighted = false,
     onToggleActive,
 }: ProductManageCardProps) {
+    const [thresholdDialogOpen, setThresholdDialogOpen] = useState(false);
     const stockGudang = product.stock.gudang;
     const stockToko = product.stock.toko;
     const totalStock = stockGudang + stockToko;
@@ -154,6 +158,14 @@ export const ProductManageCard = memo(function ProductManageCard({
                                 )}
                             </DropdownMenuItem>
                         )}
+                        {canSetThreshold && (
+                            <DropdownMenuItem
+                                onClick={() => setThresholdDialogOpen(true)}
+                                className="gap-2 cursor-pointer"
+                            >
+                                <Bell className="w-4 h-4 text-orange-500" /> Atur Batas Stok
+                            </DropdownMenuItem>
+                        )}
                         {canDelete && onDelete && (
                             <DropdownMenuItem
                                 onClick={() => onDelete(product)}
@@ -226,6 +238,13 @@ export const ProductManageCard = memo(function ProductManageCard({
                     )}
                 </div>
             </div>
+
+            {/* Threshold Dialog */}
+            <StockThresholdDialog
+                product={product}
+                open={thresholdDialogOpen}
+                onOpenChange={setThresholdDialogOpen}
+            />
 
             {/* Product Info */}
             <div className="p-3 sm:p-4 flex-1 flex flex-col">

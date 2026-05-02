@@ -48,6 +48,8 @@ export interface BeautifulTableProps<T> {
     syncPaginationWithUrl?: boolean;
     /** The URL parameter name to use when syncing. Useful if multiple tables are on the same page. Default is "page". */
     paginationUrlParam?: string;
+    /** Called when a data row is clicked. Receives the row's original data. */
+    onRowClick?: (row: T) => void;
 }
 
 export interface TableHeaderProps<T> {

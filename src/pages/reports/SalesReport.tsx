@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { TransactionDetailDialog } from '@/components/sales/TransactionDetailDialog';
 import MainLayout from '@/components/layout/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -255,6 +256,7 @@ async function fetchComparisonData(date: Date, period: PeriodType): Promise<Sale
 export default function SalesReport() {
     const [period, setPeriod] = useState<PeriodType>('daily');
     const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+    const [detailSale, setDetailSale] = useState<Sale | null>(null);
     const parsedDate = selectedDate ? parseISO(selectedDate) : new Date();
 
     // Fetch sales for selected period
@@ -450,353 +452,285 @@ export default function SalesReport() {
     return (
         <MainLayout title={getPageTitle()} subtitle="Analisis penjualan per periode">
             <div className="space-y-6">
-                {/* Period Selector & Date Selector */}
-                <Card>
-                    <CardContent className="py-4 space-y-4">
+                <div ref={printRef} className="space-y-6">
+                {/* ── Period Selector ── */}
+                <div className="rounded-2xl border bg-gradient-to-br from-card via-card to-muted/30 shadow-sm overflow-hidden">
+                    <div className="p-5 space-y-4">
                         {/* Period Tabs */}
                         <Tabs value={period} onValueChange={(val) => setPeriod(val as PeriodType)}>
-                            <TabsList className="grid grid-cols-3 w-full max-w-md">
-                                <TabsTrigger value="daily" className="gap-2">
-                                    <Calendar className="w-4 h-4" />
+                            <TabsList className="grid grid-cols-3 w-full max-w-sm h-10 bg-muted/60 rounded-xl">
+                                <TabsTrigger value="daily" className="gap-2 rounded-lg text-sm">
+                                    <Calendar className="w-3.5 h-3.5" />
                                     Harian
                                 </TabsTrigger>
-                                <TabsTrigger value="monthly" className="gap-2">
-                                    <CalendarDays className="w-4 h-4" />
+                                <TabsTrigger value="monthly" className="gap-2 rounded-lg text-sm">
+                                    <CalendarDays className="w-3.5 h-3.5" />
                                     Bulanan
                                 </TabsTrigger>
-                                <TabsTrigger value="yearly" className="gap-2">
-                                    <CalendarRange className="w-4 h-4" />
+                                <TabsTrigger value="yearly" className="gap-2 rounded-lg text-sm">
+                                    <CalendarRange className="w-3.5 h-3.5" />
                                     Tahunan
                                 </TabsTrigger>
                             </TabsList>
                         </Tabs>
 
-                        {/* Date Selector & Actions */}
-                        <div className="flex flex-wrap items-center justify-between gap-4">
-                            <div className="flex items-center gap-3">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
                                 {period === 'yearly' ? (
-                                    <YearInput
-                                        value={selectedDate}
-                                        onChange={(val) => setSelectedDate(val)}
-                                        className="w-full sm:w-[200px]"
-                                    />
+                                    <YearInput value={selectedDate} onChange={setSelectedDate} className="w-[160px]" />
                                 ) : period === 'monthly' ? (
-                                    <MonthInput
-                                        value={selectedDate}
-                                        onChange={(val) => setSelectedDate(val)}
-                                        className="w-full sm:w-[220px]"
-                                    />
+                                    <MonthInput value={selectedDate} onChange={setSelectedDate} className="w-[200px]" />
                                 ) : (
-                                    <DateInput
-                                        value={selectedDate}
-                                        onChange={(val) => setSelectedDate(val)}
-                                        className="w-full sm:w-[200px]"
-                                    />
+                                    <DateInput value={selectedDate} onChange={setSelectedDate} className="w-[180px]" />
                                 )}
-                                <Button
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={() => setSelectedDate(format(new Date(), 'yyyy-MM-dd'))}
-                                    title="Hari ini"
-                                >
+                                <Button variant="outline" size="icon" onClick={() => setSelectedDate(format(new Date(), 'yyyy-MM-dd'))} title="Hari ini" className="rounded-xl">
                                     <Clock className="w-4 h-4" />
                                 </Button>
                             </div>
-
                             <div className="flex gap-2">
-                                <Button variant="outline" onClick={() => refetch()}>
-                                    <RefreshCw className="w-4 h-4 mr-2" />
-                                    Refresh
+                                <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-2 rounded-xl">
+                                    <RefreshCw className="w-3.5 h-3.5" /> Refresh
                                 </Button>
-                                <Button variant="default" onClick={() => handlePrint()}>
-                                    <Printer className="w-4 h-4 mr-2" />
-                                    Print Laporan
+                                <Button size="sm" onClick={() => handlePrint()} className="gap-2 rounded-xl bg-gradient-to-r from-primary to-primary/80 shadow-lg shadow-primary/25">
+                                    <Printer className="w-3.5 h-3.5" /> Print Laporan
                                 </Button>
                             </div>
                         </div>
-                    </CardContent>
-                </Card>
-
-                {/* Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                    <Card className="relative overflow-hidden">
-                        <CardContent className="p-6">
-                            <div className="flex items-start justify-between">
-                                <div>
-                                    <p className="text-sm text-muted-foreground">Total Penjualan</p>
-                                    <p className="text-3xl font-bold mt-1">
-                                        {formatRupiah(stats.totalSales)}
-                                    </p>
-                                    {changes.sales !== null && (
-                                        <div className={cn(
-                                            "flex items-center gap-1 mt-2 text-sm",
-                                            changes.sales >= 0 ? "text-green-600" : "text-red-600"
-                                        )}>
-                                            {changes.sales >= 0 ? (
-                                                <ArrowUp className="w-4 h-4" />
-                                            ) : (
-                                                <ArrowDown className="w-4 h-4" />
-                                            )}
-                                            {Math.abs(changes.sales).toFixed(1)}% vs {getPeriodLabel()}
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="p-3 rounded-xl bg-green-100 dark:bg-green-900/30">
-                                    <DollarSign className="w-6 h-6 text-green-600" />
-                                </div>
-                            </div>
-                        </CardContent>
-                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-green-500 to-emerald-500" />
-                    </Card>
-
-                    <Card className="relative overflow-hidden">
-                        <CardContent className="p-6">
-                            <div className="flex items-start justify-between">
-                                <div>
-                                    <p className="text-sm text-muted-foreground">Total Transaksi</p>
-                                    <p className="text-3xl font-bold mt-1">{stats.totalTransactions}</p>
-                                    {changes.transactions !== null && (
-                                        <div className={cn(
-                                            "flex items-center gap-1 mt-2 text-sm",
-                                            changes.transactions >= 0 ? "text-green-600" : "text-red-600"
-                                        )}>
-                                            {changes.transactions >= 0 ? (
-                                                <ArrowUp className="w-4 h-4" />
-                                            ) : (
-                                                <ArrowDown className="w-4 h-4" />
-                                            )}
-                                            {Math.abs(changes.transactions).toFixed(1)}% vs {getPeriodLabel()}
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="p-3 rounded-xl bg-blue-100 dark:bg-blue-900/30">
-                                    <ShoppingCart className="w-6 h-6 text-blue-600" />
-                                </div>
-                            </div>
-                        </CardContent>
-                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-cyan-500" />
-                    </Card>
-
-                    <Card className="relative overflow-hidden">
-                        <CardContent className="p-6">
-                            <div className="flex items-start justify-between">
-                                <div>
-                                    <p className="text-sm text-muted-foreground">Rata-rata Transaksi</p>
-                                    <p className="text-3xl font-bold mt-1">
-                                        {formatRupiah(stats.averageTransaction)}
-                                    </p>
-                                    {changes.average !== null && (
-                                        <div className={cn(
-                                            "flex items-center gap-1 mt-2 text-sm",
-                                            changes.average >= 0 ? "text-green-600" : "text-red-600"
-                                        )}>
-                                            {changes.average >= 0 ? (
-                                                <ArrowUp className="w-4 h-4" />
-                                            ) : (
-                                                <ArrowDown className="w-4 h-4" />
-                                            )}
-                                            {Math.abs(changes.average).toFixed(1)}% vs {getPeriodLabel()}
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="p-3 rounded-xl bg-purple-100 dark:bg-purple-900/30">
-                                    <TrendingUp className="w-6 h-6 text-purple-600" />
-                                </div>
-                            </div>
-                        </CardContent>
-                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 to-pink-500" />
-                    </Card>
-
-                    <Card className="relative overflow-hidden">
-                        <CardContent className="p-6">
-                            <div className="flex items-start justify-between">
-                                <div>
-                                    <p className="text-sm text-muted-foreground">Total Item Terjual</p>
-                                    <p className="text-3xl font-bold mt-1">{stats.totalItems}</p>
-                                </div>
-                                <div className="p-3 rounded-xl bg-orange-100 dark:bg-orange-900/30">
-                                    <Package className="w-6 h-6 text-orange-600" />
-                                </div>
-                            </div>
-                        </CardContent>
-                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 to-amber-500" />
-                    </Card>
-
-                    <Card className="relative overflow-hidden">
-                        <CardContent className="p-6">
-                            <div className="flex items-start justify-between">
-                                <div>
-                                    <p className="text-sm text-muted-foreground">Total Diskon</p>
-                                    <p className="text-3xl font-bold mt-1">
-                                        {formatRupiah(stats.totalDiscount)}
-                                    </p>
-                                    {changes.discount !== null && (
-                                        <div className={cn(
-                                            "flex items-center gap-1 mt-2 text-sm",
-                                            changes.discount >= 0 ? "text-red-600" : "text-green-600"
-                                        )}>
-                                            {changes.discount >= 0 ? (
-                                                <ArrowUp className="w-4 h-4" />
-                                            ) : (
-                                                <ArrowDown className="w-4 h-4" />
-                                            )}
-                                            {Math.abs(changes.discount).toFixed(1)}% vs {getPeriodLabel()}
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="p-3 rounded-xl bg-rose-100 dark:bg-rose-900/30">
-                                    <Percent className="w-6 h-6 text-rose-600" />
-                                </div>
-                            </div>
-                        </CardContent>
-                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-rose-500 to-pink-500" />
-                    </Card>
-
+                    </div>
                 </div>
 
-                {/* Piutang + Payment Methods Side by Side */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Total Piutang Card */}
-                    <Card className="relative overflow-hidden border-orange-200 dark:border-orange-800">
-                        <CardContent className="p-6">
-                            <div className="flex items-start justify-between">
-                                <div>
-                                    <p className="text-sm text-muted-foreground">Piutang Belum Lunas</p>
-                                    <p className={cn(
-                                        "text-3xl font-bold mt-1",
-                                        stats.totalCredit > 0 ? "text-orange-600" : "text-muted-foreground"
-                                    )}>
-                                        {formatRupiah(stats.totalCreditAmount)}
-                                    </p>
-                                    <div className={cn(
-                                        "flex items-center gap-1 mt-2 text-sm",
-                                        stats.totalCredit > 0 ? "text-orange-600" : "text-muted-foreground"
-                                    )}>
-                                        <AlertCircle className="w-4 h-4" />
-                                        {stats.totalCredit} transaksi piutang
-                                    </div>
-                                </div>
-                                <div className={cn(
-                                    "p-3 rounded-xl",
-                                    stats.totalCredit > 0
-                                        ? "bg-orange-100 dark:bg-orange-900/30"
-                                        : "bg-muted"
-                                )}>
-                                    <AlertCircle className={cn(
-                                        "w-6 h-6",
-                                        stats.totalCredit > 0 ? "text-orange-600" : "text-muted-foreground"
-                                    )} />
-                                </div>
+                {/* ── Stats Cards ── */}
+                <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+                    {/* Total Penjualan */}
+                    <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-emerald-500 to-green-600 p-5 text-white shadow-lg shadow-emerald-500/20">
+                        <div className="absolute -right-4 -top-4 w-20 h-20 rounded-full bg-white/10" />
+                        <div className="absolute right-4 bottom-4 opacity-20"><DollarSign className="w-10 h-10" /></div>
+                        <p className="text-emerald-100 text-xs font-medium uppercase tracking-wide">Total Penjualan</p>
+                        <p className="text-2xl font-black mt-1 leading-tight">{formatRupiah(stats.totalSales)}</p>
+                        {changes.sales !== null && (
+                            <div className={cn('flex items-center gap-1 mt-2 text-xs font-medium', changes.sales >= 0 ? 'text-emerald-100' : 'text-red-200')}>
+                                {changes.sales >= 0 ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
+                                {Math.abs(changes.sales).toFixed(1)}% vs {getPeriodLabel()}
                             </div>
-                        </CardContent>
-                        <div className={cn(
-                            "absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r",
-                            stats.totalCredit > 0
-                                ? "from-orange-500 to-amber-500"
-                                : "from-muted to-muted"
-                        )} />
-                    </Card>
+                        )}
+                    </div>
+
+                    {/* Total Transaksi */}
+                    <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-blue-500 to-cyan-600 p-5 text-white shadow-lg shadow-blue-500/20">
+                        <div className="absolute -right-4 -top-4 w-20 h-20 rounded-full bg-white/10" />
+                        <div className="absolute right-4 bottom-4 opacity-20"><ShoppingCart className="w-10 h-10" /></div>
+                        <p className="text-blue-100 text-xs font-medium uppercase tracking-wide">Total Transaksi</p>
+                        <p className="text-2xl font-black mt-1">{stats.totalTransactions}</p>
+                        {changes.transactions !== null && (
+                            <div className={cn('flex items-center gap-1 mt-2 text-xs font-medium', changes.transactions >= 0 ? 'text-blue-100' : 'text-red-200')}>
+                                {changes.transactions >= 0 ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
+                                {Math.abs(changes.transactions).toFixed(1)}% vs {getPeriodLabel()}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Rata-rata */}
+                    <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-violet-500 to-purple-600 p-5 text-white shadow-lg shadow-violet-500/20">
+                        <div className="absolute -right-4 -top-4 w-20 h-20 rounded-full bg-white/10" />
+                        <div className="absolute right-4 bottom-4 opacity-20"><TrendingUp className="w-10 h-10" /></div>
+                        <p className="text-violet-100 text-xs font-medium uppercase tracking-wide">Rata-rata/Transaksi</p>
+                        <p className="text-2xl font-black mt-1 leading-tight">{formatRupiah(stats.averageTransaction)}</p>
+                        {changes.average !== null && (
+                            <div className={cn('flex items-center gap-1 mt-2 text-xs font-medium', changes.average >= 0 ? 'text-violet-100' : 'text-red-200')}>
+                                {changes.average >= 0 ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
+                                {Math.abs(changes.average).toFixed(1)}% vs {getPeriodLabel()}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Total Item */}
+                    <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-orange-500 to-amber-500 p-5 text-white shadow-lg shadow-orange-500/20">
+                        <div className="absolute -right-4 -top-4 w-20 h-20 rounded-full bg-white/10" />
+                        <div className="absolute right-4 bottom-4 opacity-20"><Package className="w-10 h-10" /></div>
+                        <p className="text-orange-100 text-xs font-medium uppercase tracking-wide">Item Terjual</p>
+                        <p className="text-2xl font-black mt-1">{stats.totalItems.toLocaleString('id-ID')}</p>
+                        <p className="text-orange-100 text-xs mt-2">dari {stats.totalTransactions} transaksi</p>
+                    </div>
+
+                    {/* Diskon */}
+                    <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-rose-500 to-pink-600 p-5 text-white shadow-lg shadow-rose-500/20">
+                        <div className="absolute -right-4 -top-4 w-20 h-20 rounded-full bg-white/10" />
+                        <div className="absolute right-4 bottom-4 opacity-20"><Percent className="w-10 h-10" /></div>
+                        <p className="text-rose-100 text-xs font-medium uppercase tracking-wide">Total Diskon</p>
+                        <p className="text-2xl font-black mt-1 leading-tight">{formatRupiah(stats.totalDiscount)}</p>
+                        {changes.discount !== null && (
+                            <div className={cn('flex items-center gap-1 mt-2 text-xs font-medium', changes.discount <= 0 ? 'text-rose-100' : 'text-yellow-200')}>
+                                {changes.discount >= 0 ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
+                                {Math.abs(changes.discount).toFixed(1)}% vs {getPeriodLabel()}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* ── Piutang + Payment Methods ── */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+                    {/* Piutang Card */}
+                    <div className={cn(
+                        'relative overflow-hidden rounded-2xl border p-5 transition-all',
+                        stats.totalCredit > 0
+                            ? 'bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/20 border-amber-400'
+                            : 'bg-card border-border'
+                    )}>
+                        <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-white/10" />
+                        <div className="absolute right-4 bottom-4 opacity-15">
+                            <AlertCircle className="w-12 h-12" />
+                        </div>
+                        <p className={cn('text-xs font-semibold uppercase tracking-widest', stats.totalCredit > 0 ? 'text-amber-100' : 'text-muted-foreground')}>
+                            Piutang Belum Lunas
+                        </p>
+                        <p className={cn('text-3xl font-black mt-1', stats.totalCredit > 0 ? 'text-white' : 'text-muted-foreground')}>
+                            {formatRupiah(stats.totalCreditAmount)}
+                        </p>
+                        <div className={cn('flex items-center gap-1.5 mt-2 text-xs font-medium', stats.totalCredit > 0 ? 'text-amber-100' : 'text-muted-foreground')}>
+                            <AlertCircle className="w-3.5 h-3.5" />
+                            {stats.totalCredit > 0 ? `${stats.totalCredit} transaksi piutang aktif` : '0 transaksi piutang'}
+                        </div>
+                    </div>
 
                     {/* Payment Methods */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <CreditCard className="w-5 h-5" />
-                                Metode Pembayaran
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="p-4 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800">
-                                    <div className="flex items-center gap-3 mb-3">
-                                        <div className="p-2 rounded-lg bg-green-500 text-white">
-                                            <Banknote className="w-5 h-5" />
+                    <div className="rounded-2xl border bg-card p-5 space-y-4">
+                        <div className="flex items-center gap-2">
+                            <div className="p-2 rounded-xl bg-primary/10">
+                                <CreditCard className="w-4 h-4 text-primary" />
+                            </div>
+                            <p className="font-bold text-sm">Metode Pembayaran</p>
+                        </div>
+                        <div className="space-y-3">
+                            {/* Cash */}
+                            <div className="space-y-1.5">
+                                <div className="flex items-center justify-between text-sm">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-6 h-6 rounded-lg bg-emerald-500 flex items-center justify-center">
+                                            <Banknote className="w-3.5 h-3.5 text-white" />
                                         </div>
-                                        <span className="font-semibold">Cash</span>
+                                        <span className="font-medium">Tunai</span>
                                     </div>
-                                    <p className="text-2xl font-bold text-green-600">
-                                        {formatRupiah(stats.cashSales)}
-                                    </p>
-                                    <p className="text-sm text-muted-foreground mt-1">
-                                        {stats.totalSales > 0
-                                            ? ((stats.cashSales / stats.totalSales) * 100).toFixed(1)
-                                            : 0}% dari total
-                                    </p>
+                                    <div className="text-right">
+                                        <span className="font-bold text-emerald-600">{formatRupiah(stats.cashSales)}</span>
+                                        <span className="text-muted-foreground text-xs ml-1.5">
+                                            {stats.totalSales > 0 ? ((stats.cashSales / stats.totalSales) * 100).toFixed(1) : 0}%
+                                        </span>
+                                    </div>
                                 </div>
-
-                                <div className="p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800">
-                                    <div className="flex items-center gap-3 mb-3">
-                                        <div className="p-2 rounded-lg bg-blue-500 text-white">
-                                            <CreditCard className="w-5 h-5" />
-                                        </div>
-                                        <span className="font-semibold">Transfer</span>
-                                    </div>
-                                    <p className="text-2xl font-bold text-blue-600">
-                                        {formatRupiah(stats.transferSales)}
-                                    </p>
-                                    <p className="text-sm text-muted-foreground mt-1">
-                                        {stats.totalSales > 0
-                                            ? ((stats.transferSales / stats.totalSales) * 100).toFixed(1)
-                                            : 0}% dari total
-                                    </p>
+                                <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full bg-gradient-to-r from-emerald-500 to-green-400 rounded-full transition-all duration-700"
+                                        style={{ width: `${stats.totalSales > 0 ? (stats.cashSales / stats.totalSales) * 100 : 0}%` }}
+                                    />
                                 </div>
                             </div>
-                        </CardContent>
-                    </Card>
+                            {/* Transfer */}
+                            <div className="space-y-1.5">
+                                <div className="flex items-center justify-between text-sm">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-6 h-6 rounded-lg bg-blue-500 flex items-center justify-center">
+                                            <CreditCard className="w-3.5 h-3.5 text-white" />
+                                        </div>
+                                        <span className="font-medium">Transfer</span>
+                                    </div>
+                                    <div className="text-right">
+                                        <span className="font-bold text-blue-600">{formatRupiah(stats.transferSales)}</span>
+                                        <span className="text-muted-foreground text-xs ml-1.5">
+                                            {stats.totalSales > 0 ? ((stats.transferSales / stats.totalSales) * 100).toFixed(1) : 0}%
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full transition-all duration-700"
+                                        style={{ width: `${stats.totalSales > 0 ? (stats.transferSales / stats.totalSales) * 100 : 0}%` }}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                {/* Cashier Performance */}
+                {/* ── Cashier Performance ── */}
                 {stats.cashierPerformance.length > 0 && (
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <User className="w-5 h-5" />
-                                Performa Kasir
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {stats.cashierPerformance.map((cashier, index) => (
+                    <div className="rounded-2xl border bg-card overflow-hidden">
+                        {/* Header */}
+                        <div className="px-5 py-4 border-b flex items-center justify-between bg-gradient-to-r from-muted/40 to-card">
+                            <div className="flex items-center gap-2">
+                                <div className="p-2 rounded-xl bg-primary/10">
+                                    <User className="w-4 h-4 text-primary" />
+                                </div>
+                                <div>
+                                    <p className="font-bold text-sm">Performa Kasir</p>
+                                    <p className="text-xs text-muted-foreground">{stats.cashierPerformance.length} kasir aktif</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {stats.cashierPerformance.map((cashier, index) => {
+                                const maxAmount = stats.cashierPerformance[0].amount;
+                                const pct = maxAmount > 0 ? (cashier.amount / maxAmount) * 100 : 0;
+                                const medals = ['🥇', '🥈', '🥉'];
+                                return (
                                     <div
                                         key={cashier.name}
                                         className={cn(
-                                            "p-4 rounded-xl border transition-all",
+                                            'relative rounded-xl border p-4 transition-all hover:-translate-y-0.5 hover:shadow-md',
                                             index === 0
-                                                ? "bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200 dark:from-amber-900/20 dark:to-orange-900/20 dark:border-amber-800"
-                                                : "bg-muted/30 hover:bg-muted/50"
+                                                ? 'bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-amber-200 dark:border-amber-800 shadow-sm shadow-amber-500/10'
+                                                : index === 1
+                                                    ? 'bg-gradient-to-br from-slate-50 to-gray-50 dark:from-slate-900/20 dark:to-gray-900/20 border-slate-200 dark:border-slate-700'
+                                                    : index === 2
+                                                        ? 'bg-gradient-to-br from-orange-50 to-amber-50/50 dark:from-orange-950/20 dark:to-amber-950/20 border-orange-200/70 dark:border-orange-900'
+                                                        : 'bg-muted/30 border-border'
                                         )}
                                     >
                                         <div className="flex items-center gap-3 mb-3">
                                             <div className={cn(
-                                                "w-10 h-10 rounded-full flex items-center justify-center text-white font-bold",
-                                                index === 0 ? "bg-gradient-to-br from-amber-500 to-orange-500" :
-                                                    index === 1 ? "bg-gradient-to-br from-gray-400 to-gray-500" :
-                                                        index === 2 ? "bg-gradient-to-br from-amber-700 to-amber-800" :
-                                                            "bg-primary/20 text-primary"
+                                                'w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm shadow-sm',
+                                                index === 0 ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white' :
+                                                    index === 1 ? 'bg-gradient-to-br from-slate-400 to-gray-500 text-white' :
+                                                        index === 2 ? 'bg-gradient-to-br from-amber-600 to-amber-700 text-white' :
+                                                            'bg-muted text-muted-foreground'
                                             )}>
-                                                {index < 3 ? index + 1 : cashier.name.slice(0, 2).toUpperCase()}
+                                                {index < 3 ? medals[index] : cashier.name.slice(0, 2).toUpperCase()}
                                             </div>
-                                            <div>
-                                                <p className="font-semibold">{cashier.name}</p>
-                                                <p className="text-xs text-muted-foreground">
-                                                    {cashier.transactions} transaksi
-                                                </p>
+                                            <div className="min-w-0 flex-1">
+                                                <p className="font-semibold text-sm truncate">{cashier.name}</p>
+                                                <p className="text-xs text-muted-foreground">{cashier.transactions} transaksi</p>
                                             </div>
                                         </div>
-                                        <p className="text-xl font-bold text-primary">
+                                        <p className={cn(
+                                            'text-xl font-black',
+                                            index === 0 ? 'text-amber-600 dark:text-amber-400' : 'text-foreground'
+                                        )}>
                                             {formatRupiah(cashier.amount)}
                                         </p>
+                                        {/* Progress bar */}
+                                        <div className="mt-2.5 h-1 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden">
+                                            <div
+                                                className={cn(
+                                                    'h-full rounded-full transition-all duration-700',
+                                                    index === 0 ? 'bg-gradient-to-r from-amber-500 to-orange-400' :
+                                                        index === 1 ? 'bg-gradient-to-r from-slate-400 to-gray-400' :
+                                                            'bg-gradient-to-r from-primary/60 to-primary/40'
+                                                )}
+                                                style={{ width: `${pct}%` }}
+                                            />
+                                        </div>
                                     </div>
-                                ))}
-                            </div>
-                        </CardContent>
-                    </Card>
+                                );
+                            })}
+                        </div>
+                    </div>
                 )}
 
                 {/* Recent Transactions - BeautifulTable */}
                 <BeautifulTable
                     data={sales}
                     columns={transactionColumns}
+                    onRowClick={(row) => setDetailSale(row)}
                     title="Transaksi Terbaru"
                     subtitle={`${sales.filter(s => !s.is_cancelled && !s.is_exchanged).length} transaksi pada ${getDateDisplay()}`}
                     isLoading={isLoading}
@@ -811,12 +745,19 @@ export default function SalesReport() {
                         description: 'Tidak ada transaksi pada tanggal ini',
                     }}
                 />
-            </div>
+
+                {/* Transaction Detail Dialog */}
+                <TransactionDetailDialog
+                    sale={detailSale}
+                    open={!!detailSale}
+                    onOpenChange={(v) => { if (!v) setDetailSale(null); }}
+                />
+            </div>{/* end printRef */}
+            </div>{/* end space-y-6 outer */}
 
             {/* Hidden Printable Receipt */}
             <div className="hidden">
                 <div
-                    ref={printRef}
                     className="p-4 bg-white text-black font-mono text-sm"
                     style={{ width: '80mm', margin: '0 auto' }}
                 >

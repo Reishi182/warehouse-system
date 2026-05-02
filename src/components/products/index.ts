@@ -4,3 +4,4 @@ export { default as AddProductDialog } from './AddProductDialog';
 export { default as EditProductDialog } from './EditProductDialog';
 export { StockAdjustDialog } from './StockAdjustDialog';
 export { StockInDialog } from './StockInDialog';
+export { default as StockThresholdDialog } from './StockThresholdDialog';
