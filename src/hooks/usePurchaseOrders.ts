@@ -810,6 +810,197 @@ export function useCancelPurchaseOrder() {
     });
 }
 
+// ── Batalkan PO yang sudah Completed (dengan rollback stok) ──────────────────
+// Membatalkan PO yang sudah selesai. Stok di-rollback berdasarkan stock_logs
+// untuk memastikan akurasi (memperhitungkan selisih penerimaan, koreksi qty,
+// dan perpindahan lokasi).
+
+interface CancelCompletedPOInput {
+    poId: string;
+    cancelledBy: string;
+    cancelledByName: string;
+    reason: string; // wajib karena ini operasi destruktif
+}
+
+export function useCancelCompletedPurchaseOrder() {
+    const queryClient = useQueryClient();
+    const { toast } = useToast();
+
+    return useMutation({
+        mutationFn: async (input: CancelCompletedPOInput) => {
+            // 1. Validasi: PO harus berstatus completed / completed_with_discrepancy
+            const { data: po, error: fetchError } = await supabase
+                .from('purchase_orders')
+                .select('po_number, status, destination, created_by')
+                .eq('id', input.poId)
+                .single();
+
+            if (fetchError) throw fetchError;
+
+            const completedStatuses = ['completed', 'completed_with_discrepancy'];
+            if (!completedStatuses.includes(po.status)) {
+                throw new Error('Fitur ini hanya untuk PO yang sudah selesai.');
+            }
+
+            // 2. Ambil semua stock_logs terkait PO ini untuk menghitung net impact per produk per lokasi
+            const { data: logs, error: logsError } = await supabase
+                .from('stock_logs')
+                .select('product_id, type, quantity, location')
+                .eq('reference_type', 'purchase_order')
+                .eq('reference_id', input.poId);
+
+            if (logsError) throw logsError;
+
+            // Hitung net impact per produk per lokasi
+            const netImpact: Record<string, { gudang: number; toko: number }> = {};
+            for (const log of (logs || [])) {
+                if (!log.product_id) continue;
+                if (!netImpact[log.product_id]) {
+                    netImpact[log.product_id] = { gudang: 0, toko: 0 };
+                }
+                const delta = log.type === 'in' ? log.quantity : -log.quantity;
+                const loc = log.location as 'gudang' | 'toko';
+                if (loc === 'gudang' || loc === 'toko') {
+                    netImpact[log.product_id][loc] += delta;
+                }
+            }
+
+            // 3. Reverse stok untuk setiap produk yang terdampak
+            const reversedProducts: string[] = [];
+            for (const [productId, impact] of Object.entries(netImpact)) {
+                // Ambil stok terkini
+                const { data: product, error: prodError } = await supabase
+                    .from('products')
+                    .select('stock_gudang, stock_toko, name')
+                    .eq('id', productId)
+                    .single();
+
+                if (prodError) {
+                    console.error(`Gagal ambil produk ${productId}:`, prodError);
+                    continue;
+                }
+
+                const updates: Record<string, number> = {};
+                const logEntries: any[] = [];
+
+                // Reverse gudang impact
+                if (impact.gudang !== 0) {
+                    const currentGudang = product.stock_gudang || 0;
+                    const newGudang = Math.max(0, currentGudang - impact.gudang);
+                    updates.stock_gudang = newGudang;
+
+                    logEntries.push({
+                        product_id: productId,
+                        type: impact.gudang > 0 ? 'out' : 'in',
+                        quantity: Math.abs(impact.gudang),
+                        location: 'gudang',
+                        user_id: input.cancelledBy,
+                        note: `Pembatalan PO Selesai: ${po.po_number} — Rollback stok gudang`,
+                        reference_type: 'purchase_order',
+                        reference_id: input.poId,
+                        stock_before: currentGudang,
+                        stock_after: newGudang,
+                    });
+                }
+
+                // Reverse toko impact
+                if (impact.toko !== 0) {
+                    const currentToko = product.stock_toko || 0;
+                    const newToko = Math.max(0, currentToko - impact.toko);
+                    updates.stock_toko = newToko;
+
+                    logEntries.push({
+                        product_id: productId,
+                        type: impact.toko > 0 ? 'out' : 'in',
+                        quantity: Math.abs(impact.toko),
+                        location: 'toko',
+                        user_id: input.cancelledBy,
+                        note: `Pembatalan PO Selesai: ${po.po_number} — Rollback stok toko`,
+                        reference_type: 'purchase_order',
+                        reference_id: input.poId,
+                        stock_before: currentToko,
+                        stock_after: newToko,
+                    });
+                }
+
+                // Update stok produk
+                if (Object.keys(updates).length > 0) {
+                    const { error: updateErr } = await supabase
+                        .from('products')
+                        .update(updates)
+                        .eq('id', productId);
+
+                    if (updateErr) {
+                        console.error(`Gagal update stok produk ${productId}:`, updateErr);
+                        continue;
+                    }
+
+                    // Insert stock_log entries
+                    if (logEntries.length > 0) {
+                        await supabase.from('stock_logs').insert(logEntries);
+                    }
+
+                    reversedProducts.push(product.name || productId);
+                }
+            }
+
+            // 4. Update status PO ke cancelled
+            const { error: cancelErr } = await supabase
+                .from('purchase_orders')
+                .update({
+                    status: 'cancelled',
+                    cancelled_by: input.cancelledBy,
+                    cancelled_by_name: input.cancelledByName,
+                    cancelled_at: new Date().toISOString(),
+                    cancelled_reason: input.reason || null,
+                    updated_at: new Date().toISOString(),
+                })
+                .eq('id', input.poId);
+
+            if (cancelErr) throw cancelErr;
+
+            return {
+                poNumber: po.po_number,
+                reversedCount: reversedProducts.length,
+                reversedProducts,
+                createdBy: po.created_by,
+            };
+        },
+        onSuccess: (result, variables) => {
+            invalidateAndBroadcast(queryClient, ['purchase_orders', 'products', 'stock_logs']);
+            toast({
+                title: '🚫 PO Selesai Dibatalkan',
+                description: `PO ${result.poNumber} dibatalkan. ${result.reversedCount} produk stoknya telah di-rollback.`,
+            });
+
+            // Notifikasi ke seluruh main_office & warehouse
+            sendNotificationToRole(['main_office', 'warehouse'], {
+                title: '🚫 PO Selesai Dibatalkan',
+                message: `PO ${result.poNumber} yang sudah selesai telah dibatalkan oleh ${variables.cancelledByName}. Stok ${result.reversedCount} produk telah di-rollback.`,
+                type: 'warning',
+                link: '/purchase-orders',
+            });
+
+            // Notify the creator if different from canceller
+            if (result.createdBy && result.createdBy !== variables.cancelledBy) {
+                sendNotificationToUser(result.createdBy, {
+                    title: '🚫 PO Dibatalkan',
+                    message: `PO ${result.poNumber} yang sudah selesai telah dibatalkan. Stok telah di-rollback.`,
+                    type: 'warning',
+                    link: '/purchase-orders',
+                });
+            }
+        },
+        onError: (error: Error) => {
+            toast({
+                title: 'Gagal Membatalkan PO',
+                description: error.message,
+                variant: 'destructive',
+            });
+        },
+    });
+}
+
 // Fetch PO receipt data (receiver info, photo, signature, discrepancy)
 export function usePOReceipt(purchaseOrderId: string) {
     return useQuery({

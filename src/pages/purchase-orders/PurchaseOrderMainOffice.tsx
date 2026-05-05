@@ -47,6 +47,7 @@ import {
     useCreatePurchaseOrder,
     useUpdatePurchaseOrder,
     useCancelPurchaseOrder,
+    useCancelCompletedPurchaseOrder,
     usePOReceipt,
     useUpdatePOPrices,
     UpdatePOPricesInput,
@@ -96,6 +97,7 @@ export default function PurchaseOrderMainOffice() {
     const createPO = useCreatePurchaseOrder();
     const updatePO = useUpdatePurchaseOrder();
     const cancelPO = useCancelPurchaseOrder();
+    const cancelCompletedPO = useCancelCompletedPurchaseOrder();
     const updatePOPrices = useUpdatePOPrices();
     const updatePODestination = useUpdatePODestination();
 
@@ -489,15 +491,30 @@ export default function PurchaseOrderMainOffice() {
         setIsCancelDialogOpen(true);
     };
 
+    const isCompletedCancel = poToCancel && ['completed', 'completed_with_discrepancy'].includes(poToCancel.status);
+
     const confirmCancelPO = async () => {
         if (!poToCancel) return;
-        await cancelPO.mutateAsync({
-            poId: poToCancel.id,
-            cancelledBy: user?.id || '',
-            cancelledByName: profile?.name || '',
-            reason: cancelReason || undefined,
-        });
-        setIsCancelDialogOpen(false);
+
+        if (isCompletedCancel) {
+            // PO sudah selesai → gunakan hook khusus yang rollback stok
+            if (!cancelReason.trim()) return; // alasan wajib untuk completed
+            await cancelCompletedPO.mutateAsync({
+                poId: poToCancel.id,
+                cancelledBy: user?.id || '',
+                cancelledByName: profile?.name || '',
+                reason: cancelReason,
+            });
+        } else {
+            // PO belum selesai → cancel biasa
+            await cancelPO.mutateAsync({
+                poId: poToCancel.id,
+                cancelledBy: user?.id || '',
+                cancelledByName: profile?.name || '',
+                reason: cancelReason || undefined,
+            });
+        }
+
         setIsCancelDialogOpen(false);
         setPOToCancel(null);
         setCancelReason('');
@@ -598,6 +615,17 @@ export default function PurchaseOrderMainOffice() {
                             onClick={() => handleCancelPO(item)}
                             className="text-destructive hover:text-destructive"
                             title="Batalkan PO"
+                        >
+                            <Ban className="w-4 h-4" />
+                        </Button>
+                    )}
+                    {['completed', 'completed_with_discrepancy'].includes(item.status) && (
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleCancelPO(item)}
+                            className="text-red-600 hover:text-red-700 border-red-300 hover:border-red-400 hover:bg-red-50"
+                            title="Batalkan PO Selesai (Rollback Stok)"
                         >
                             <Ban className="w-4 h-4" />
                         </Button>
@@ -1380,19 +1408,55 @@ export default function PurchaseOrderMainOffice() {
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2 text-destructive">
                             <Ban className="w-5 h-5" />
-                            Batalkan Purchase Order
+                            {isCompletedCancel ? 'Batalkan PO yang Sudah Selesai' : 'Batalkan Purchase Order'}
                         </DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 mt-4">
+                        {/* Warning khusus untuk PO completed */}
+                        {isCompletedCancel && (
+                            <div className="bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-800 rounded-lg p-3 space-y-2">
+                                <div className="flex items-start gap-2">
+                                    <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                                    <div>
+                                        <p className="font-semibold text-red-800 dark:text-red-200">⚠️ Peringatan: Operasi Berbahaya</p>
+                                        <p className="text-sm text-red-700 dark:text-red-300 mt-1">
+                                            PO ini sudah <strong>selesai</strong> dan stok sudah ditambahkan ke sistem.
+                                            Membatalkan PO ini akan:
+                                        </p>
+                                        <ul className="text-sm text-red-700 dark:text-red-300 mt-1 space-y-0.5 list-disc list-inside">
+                                            <li><strong>Mengurangi stok</strong> semua produk yang sudah diterima</li>
+                                            <li>Mencatat perubahan stok di <strong>log stok</strong></li>
+                                            <li>Mengubah status PO menjadi <strong>Dibatalkan</strong></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         <p className="text-muted-foreground">
                             Anda yakin ingin membatalkan PO <span className="font-semibold text-foreground">{poToCancel?.po_number}</span>?
                         </p>
+
+                        {/* Info PO */}
+                        {poToCancel && (
+                            <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1">
+                                <p><span className="text-muted-foreground">Supplier:</span> <span className="font-medium">{poToCancel.supplier?.name || '-'}</span></p>
+                                <p><span className="text-muted-foreground">Total:</span> <span className="font-medium">Rp {poToCancel.total_amount.toLocaleString('id-ID')}</span></p>
+                                <p><span className="text-muted-foreground">Tujuan:</span> <span className="font-medium capitalize">{poToCancel.destination}</span></p>
+                            </div>
+                        )}
+
                         <div className="space-y-2">
-                            <Label>Alasan Pembatalan (opsional)</Label>
+                            <Label>
+                                Alasan Pembatalan {isCompletedCancel ? <span className="text-red-500">* (wajib)</span> : '(opsional)'}
+                            </Label>
                             <Textarea
                                 value={cancelReason}
                                 onChange={(e) => setCancelReason(e.target.value)}
-                                placeholder="Masukkan alasan pembatalan..."
+                                placeholder={isCompletedCancel
+                                    ? 'Jelaskan alasan pembatalan PO yang sudah selesai ini...'
+                                    : 'Masukkan alasan pembatalan...'
+                                }
                                 rows={3}
                             />
                         </div>
@@ -1403,9 +1467,18 @@ export default function PurchaseOrderMainOffice() {
                             <Button
                                 variant="destructive"
                                 onClick={confirmCancelPO}
-                                disabled={cancelPO.isPending}
+                                disabled={
+                                    cancelPO.isPending ||
+                                    cancelCompletedPO.isPending ||
+                                    (isCompletedCancel && !cancelReason.trim())
+                                }
                             >
-                                {cancelPO.isPending ? 'Membatalkan...' : 'Ya, Batalkan PO'}
+                                {(cancelPO.isPending || cancelCompletedPO.isPending)
+                                    ? 'Membatalkan...'
+                                    : isCompletedCancel
+                                        ? 'Ya, Batalkan & Rollback Stok'
+                                        : 'Ya, Batalkan PO'
+                                }
                             </Button>
                         </div>
                     </div>
