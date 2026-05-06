@@ -55,6 +55,7 @@ export function useGlobalRealtimeUpdates(enabled = true) {
                         barcode: p.barcode,
                         price: p.price,
                         image_url: p.image_url,
+                        is_active: p.is_active ?? true,
                         stock: { gudang: p.stock_gudang, toko: p.stock_toko },
                         has_multi_unit: p.has_multi_unit ?? false,
                         main_unit: p.main_unit ?? null,

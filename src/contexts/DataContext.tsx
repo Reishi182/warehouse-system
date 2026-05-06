@@ -102,7 +102,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     while (hasMore) {
       const { data, error } = await supabase
         .from('products')
-        .select('id, name, barcode, price, image_url, stock_gudang, stock_toko, has_multi_unit, main_unit, pcs_per_box, box_price, sell_by_quantity, sell_unit, bulk_quantity, bulk_price, min_stock_gudang, min_stock_toko, created_at, updated_at')
+        .select('id, name, barcode, price, image_url, is_active, stock_gudang, stock_toko, has_multi_unit, main_unit, pcs_per_box, box_price, sell_by_quantity, sell_unit, bulk_quantity, bulk_price, min_stock_gudang, min_stock_toko, created_at, updated_at')
         .order('created_at', { ascending: false })
         .order('id', { ascending: true })
         .range(from, from + PAGE_SIZE - 1);
@@ -138,6 +138,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       sell_unit: p.sell_unit ?? 'pcs',
       bulk_quantity: p.bulk_quantity ?? null,
       bulk_price: p.bulk_price ?? null,
+      is_active: p.is_active ?? true,
       created_at: p.created_at,
       updated_at: p.updated_at
     })));
@@ -877,6 +878,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (updates.sell_unit !== undefined) updateData.sell_unit = updates.sell_unit;
     if (updates.bulk_quantity !== undefined) updateData.bulk_quantity = updates.bulk_quantity;
     if (updates.bulk_price !== undefined) updateData.bulk_price = updates.bulk_price;
+    if (updates.is_active !== undefined) updateData.is_active = updates.is_active;
 
     console.log('[updateProduct] Sending update:', { id, updateData });
 

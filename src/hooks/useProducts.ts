@@ -28,6 +28,7 @@ function transformProduct(row: any): Product {
         hpp: row.hpp ?? 0,
         min_stock_gudang: row.min_stock_gudang ?? 0,
         min_stock_toko: row.min_stock_toko ?? 0,
+        is_active: row.is_active ?? true,
         created_at: row.created_at,
         updated_at: row.updated_at,
     };
