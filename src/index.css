@@ -527,6 +527,12 @@
     display: none;
     /* Chrome, Safari and Opera */
   }
+
+  /* Fix cmdk dropdown scroll inside popovers */
+  [cmdk-list] {
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+  }
 }
 
 /* Print Styles - Optimized for thermal receipt printers */

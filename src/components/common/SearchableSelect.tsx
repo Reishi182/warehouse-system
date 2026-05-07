@@ -47,6 +47,12 @@ export function SearchableSelect({
 }: SearchableSelectProps) {
     const [open, setOpen] = React.useState(false);
 
+    // Sort options alphabetically A-Z by label
+    const sortedOptions = React.useMemo(
+        () => [...options].sort((a, b) => a.label.localeCompare(b.label, 'id')),
+        [options]
+    );
+
     const selectedOption = options.find((opt) => opt.value === value);
 
     return (
@@ -70,10 +76,10 @@ export function SearchableSelect({
             <PopoverContent className="w-[--radix-popover-trigger-width] p-0 z-[100]" align="start">
                 <Command>
                     <CommandInput placeholder={searchPlaceholder} />
-                    <CommandList>
+                    <CommandList className="max-h-[280px] overflow-y-auto">
                         <CommandEmpty>{emptyMessage}</CommandEmpty>
                         <CommandGroup>
-                            {options.map((option) => (
+                            {sortedOptions.map((option) => (
                                 <CommandItem
                                     key={option.value}
                                     value={option.label}
