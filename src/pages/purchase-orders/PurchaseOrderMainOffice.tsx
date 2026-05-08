@@ -91,7 +91,7 @@ export default function PurchaseOrderMainOffice() {
     const { data: suppliers = [], isLoading: suppliersLoading } = useSuppliers();
 
     const { data: purchaseOrders = [], isLoading: posLoading } = usePurchaseOrders();
-    
+
     const { data: storeSettings } = useStoreSettings();
     const { data: globalUnits = [] } = useProductUnits();
     const createPO = useCreatePurchaseOrder();
@@ -243,8 +243,8 @@ export default function PurchaseOrderMainOffice() {
     // Auto-populate unit when a product is selected
     useEffect(() => {
         if (selectedProduct) {
-            const defaultUnit = selectedProduct.has_multi_unit && selectedProduct.main_unit 
-                ? selectedProduct.main_unit 
+            const defaultUnit = selectedProduct.has_multi_unit && selectedProduct.main_unit
+                ? selectedProduct.main_unit
                 : (selectedProduct.sell_unit || 'pcs');
             setSelectedUnit(defaultUnit);
         } else {
@@ -455,7 +455,7 @@ export default function PurchaseOrderMainOffice() {
                 .from('purchase_order_items')
                 .select('*')
                 .eq('purchase_order_id', po.id);
-                
+
             if (poItems) {
                 setItems(poItems.map((item: any) => ({
                     id: crypto.randomUUID(), // local UI id
@@ -705,6 +705,18 @@ export default function PurchaseOrderMainOffice() {
                         description: "Buat PO pertama untuk mulai pemesanan ke supplier.",
                         actionLabel: "Buat PO Baru",
                         onAction: openCreateDialog
+                    }}
+                    globalFilterFn={(item: PurchaseOrder, filterValue: string) => {
+                        const search = filterValue.toLowerCase();
+                        const status = statusLabels[item.status]?.label || item.status;
+                        return (
+                            item.po_number?.toLowerCase().includes(search) ||
+                            item.supplier?.name?.toLowerCase().includes(search) ||
+                            item.destination?.toLowerCase().includes(search) ||
+                            status.toLowerCase().includes(search) ||
+                            item.total_amount?.toString().includes(search) ||
+                            item.notes?.toLowerCase().includes(search) || false
+                        );
                     }}
                 />
 
@@ -1018,7 +1030,7 @@ export default function PurchaseOrderMainOffice() {
                                             <div className="pt-3 border-t space-y-1">
                                                 {items.some(i => i.isBonus) && (
                                                     <div className="flex justify-between text-sm text-green-600 dark:text-green-400">
-                                                        <span>Item Bonus ({items.filter(i => i.isBonus).reduce((a,i) => a + i.quantity, 0)} pcs, tidak dihitung)</span>
+                                                        <span>Item Bonus ({items.filter(i => i.isBonus).reduce((a, i) => a + i.quantity, 0)} pcs, tidak dihitung)</span>
                                                         <span className="font-medium">🎁 Gratis</span>
                                                     </div>
                                                 )}
@@ -1210,12 +1222,12 @@ export default function PurchaseOrderMainOffice() {
                                                 <Check className="w-5 h-5 bg-emerald-100 dark:bg-emerald-900/50 rounded-full p-0.5" />
                                                 Informasi Penerimaan Barang
                                             </h3>
-                                            
+
                                             <div className="bg-white dark:bg-slate-800 rounded-xl border-2 border-emerald-100 dark:border-emerald-900/30 shadow-sm p-5 relative overflow-hidden">
                                                 <div className="absolute top-0 right-0 p-6 opacity-5 pointer-events-none">
                                                     <Check className="w-32 h-32 text-emerald-500" />
                                                 </div>
-                                                
+
                                                 {receiptLoading ? (
                                                     <div className="py-8 text-center text-emerald-600 dark:text-emerald-400 text-sm flex flex-col items-center justify-center">
                                                         <div className="w-6 h-6 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin mb-2"></div>
@@ -1523,11 +1535,10 @@ export default function PurchaseOrderMainOffice() {
                                 return (
                                     <div
                                         key={item.itemId}
-                                        className={`flex items-center gap-3 p-3 rounded-lg border ${
-                                            qtyChanged
+                                        className={`flex items-center gap-3 p-3 rounded-lg border ${qtyChanged
                                                 ? 'bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-700'
                                                 : 'bg-slate-50 dark:bg-slate-800 border-transparent'
-                                        }`}
+                                            }`}
                                     >
                                         {/* Nama produk */}
                                         <div className="flex-1 min-w-0">
@@ -1537,9 +1548,8 @@ export default function PurchaseOrderMainOffice() {
                                                     <span className="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full">🎁 BONUS</span>
                                                 )}
                                                 {qtyChanged && (
-                                                    <span className={`text-xs font-semibold ${
-                                                        qtyDelta > 0 ? 'text-blue-600' : 'text-red-600'
-                                                    }`}>
+                                                    <span className={`text-xs font-semibold ${qtyDelta > 0 ? 'text-blue-600' : 'text-red-600'
+                                                        }`}>
                                                         {qtyDelta > 0 ? `+${qtyDelta}` : qtyDelta} stok ({qtyDelta > 0 ? 'tambah' : 'kurang'})
                                                     </span>
                                                 )}
