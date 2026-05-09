@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Plus, Package, X, Upload, Layers } from 'lucide-react';
+import { Plus, Package, X, Upload, Layers, Camera } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -81,6 +81,7 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
     const [subStockToko, setSubStockToko] = useState(0);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const cameraInputRef = useRef<HTMLInputElement>(null);
 
     // Auto-suggest main unit label
     const mainUnitLabel = SELL_UNITS.find(u => u.value === mainUnit)?.label ?? (mainUnit || '').toUpperCase();
@@ -616,19 +617,37 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
                                     </button>
                                 </div>
                             ) : (
-                                <button
-                                    type="button"
-                                    onClick={() => fileInputRef.current?.click()}
-                                    className="w-20 h-20 rounded-xl border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors"
-                                >
-                                    <Upload className="w-5 h-5" />
-                                    <span className="text-[10px] mt-1">Upload</span>
-                                </button>
+                                <div className="flex gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="w-20 h-20 rounded-xl border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+                                    >
+                                        <Upload className="w-5 h-5" />
+                                        <span className="text-[10px] mt-1">Galeri</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => cameraInputRef.current?.click()}
+                                        className="w-20 h-20 rounded-xl border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+                                    >
+                                        <Camera className="w-5 h-5" />
+                                        <span className="text-[10px] mt-1">Kamera</span>
+                                    </button>
+                                </div>
                             )}
                             <input
                                 ref={fileInputRef}
                                 type="file"
                                 accept="image/*"
+                                onChange={handleImageChange}
+                                className="hidden"
+                            />
+                            <input
+                                ref={cameraInputRef}
+                                type="file"
+                                accept="image/*"
+                                capture="environment"
                                 onChange={handleImageChange}
                                 className="hidden"
                             />

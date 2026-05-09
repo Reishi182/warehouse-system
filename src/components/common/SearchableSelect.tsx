@@ -74,9 +74,9 @@ export function SearchableSelect({
                 </Button>
             </PopoverTrigger>
             <PopoverContent className="w-[--radix-popover-trigger-width] p-0 z-[100]" align="start">
-                <Command>
+                <Command className="h-auto">
                     <CommandInput placeholder={searchPlaceholder} />
-                    <CommandList style={{ maxHeight: "280px", overflowY: "auto" }}>
+                    <CommandList className="max-h-[280px] overflow-y-auto">
                         <CommandEmpty>{emptyMessage}</CommandEmpty>
                         <CommandGroup>
                             {sortedOptions.map((option) => (
