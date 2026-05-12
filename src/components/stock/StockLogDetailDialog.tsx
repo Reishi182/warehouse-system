@@ -31,6 +31,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+import ProductImage from '@/components/common/ProductImage';
 
 interface StockLogDetailDialogProps {
     log: StockLog | null;
@@ -249,17 +250,13 @@ export function StockLogDetailDialog({ log, open, onOpenChange }: StockLogDetail
                 <div className="p-6 overflow-y-auto flex-1 space-y-6">
                     {/* Product Info Target */}
                     <div className="flex items-center gap-4 p-4 bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
-                        {log.product?.image_url ? (
-                            <img
-                                src={log.product.image_url}
-                                alt={log.product.name}
-                                className="w-16 h-16 rounded-xl object-cover border border-gray-100 dark:border-gray-700 shadow-sm"
-                            />
-                        ) : (
-                            <div className="w-16 h-16 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center border border-indigo-100 dark:border-indigo-500/20 shadow-sm shrink-0">
-                                <Package className="w-8 h-8 text-indigo-500" />
-                            </div>
-                        )}
+                        <ProductImage
+                            src={log.product?.image_url}
+                            size="medium"
+                            className="w-16 h-16 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm"
+                            placeholderClassName="w-16 h-16 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 shadow-sm shrink-0"
+                            lazy={false}
+                        />
                         <div className="flex-1">
                             <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100 leading-tight mb-1">{log.product?.name || 'Produk Tidak Diketahui'}</h3>
                             <p className="inline-flex px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-700 text-xs font-mono text-gray-600 dark:text-gray-300">

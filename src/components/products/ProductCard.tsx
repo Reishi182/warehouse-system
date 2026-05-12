@@ -1,4 +1,5 @@
-import { Package, Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
+import ProductImage from '@/components/common/ProductImage';
 import { Button } from '@/components/ui/button';
 import {
     AlertDialog,
@@ -29,17 +30,13 @@ export default function ProductCard({ product, canManage, onEdit, onDelete }: Pr
         <div className={cn('glass-card rounded-3xl p-4 animate-slide-up', lowStock && 'border border-warning/30 bg-warning/5')}>
             <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3 min-w-0">
-                    {product.image_url ? (
-                        <img
-                            src={product.image_url}
-                            alt={product.name}
-                            className="w-12 h-12 rounded-lg object-cover border flex-shrink-0"
-                        />
-                    ) : (
-                        <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                            <Package className="w-6 h-6 text-muted-foreground" />
-                        </div>
-                    )}
+                    <ProductImage
+                        src={product.image_url}
+                        alt={product.name}
+                        size="thumb"
+                        className="w-12 h-12 rounded-lg border flex-shrink-0"
+                        placeholderClassName="w-12 h-12 rounded-lg flex-shrink-0"
+                    />
                     <div className="min-w-0">
                         <p className="font-semibold truncate">{product.name}</p>
                         <code className="text-xs bg-muted px-2 py-1 rounded inline-block mt-1">

@@ -1,6 +1,7 @@
 
 import { useState } from 'react';
-import { Package, ArrowRight, Check, X, Trash2 } from 'lucide-react';
+import { ArrowRight, Check, X, Trash2 } from 'lucide-react';
+import ProductImage from '@/components/common/ProductImage';
 import MainLayout from '@/components/layout/MainLayout';
 import BarcodeScanner from '@/components/common/BarcodeScanner';
 import PageSkeleton from '@/components/common/PageSkeleton';
@@ -255,13 +256,12 @@ export default function StockRequests() {
       header: 'Produk',
       cell: (item: any) => (
         <div className="flex items-center gap-3">
-          {item.product?.image_url ? (
-            <img src={item.product.image_url} alt={item.product?.name} className="w-10 h-10 rounded-lg object-cover bg-gray-50 border border-gray-100" />
-          ) : (
-            <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
-              <Package className="w-5 h-5" />
-            </div>
-          )}
+          <ProductImage
+            src={item.product?.image_url}
+            size="thumb"
+            className="w-10 h-10 rounded-lg border border-gray-100"
+            placeholderClassName="w-10 h-10 rounded-lg bg-indigo-50"
+          />
           <div>
             <p className="font-semibold text-gray-900">{item.product?.name || 'Unknown'}</p>
             <p className="text-xs text-gray-500">{item.product?.barcode}</p>
@@ -403,7 +403,7 @@ export default function StockRequests() {
                         <div className="flex justify-between items-start">
                           <div className="flex gap-3">
                             <div className="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center">
-                              <Package className="w-5 h-5 text-indigo-600" />
+                               <span className="text-indigo-600 text-xs font-bold">📦</span>
                             </div>
                             <div>
                               <p className="font-semibold text-sm">{item.product?.name}</p>

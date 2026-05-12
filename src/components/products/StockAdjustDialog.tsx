@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Package, Plus, Minus } from 'lucide-react';
+import { Plus, Minus } from 'lucide-react';
+import ProductImage from '@/components/common/ProductImage';
 import { Product } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -56,13 +57,12 @@ export function StockAdjustDialog({
                 <div className="space-y-4">
                     {/* Product Info */}
                     <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl">
-                        {product.image_url ? (
-                            <img src={product.image_url} alt="" className="w-12 h-12 rounded-lg object-cover" />
-                        ) : (
-                            <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                                <Package className="w-6 h-6 text-primary" />
-                            </div>
-                        )}
+                        <ProductImage
+                            src={product.image_url}
+                            size="thumb"
+                            className="w-12 h-12 rounded-lg"
+                            placeholderClassName="w-12 h-12 rounded-lg bg-primary/10"
+                        />
                         <div>
                             <p className="font-semibold">{product.name}</p>
                             <p className="text-xs text-muted-foreground">{product.barcode}</p>

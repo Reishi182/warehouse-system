@@ -3,20 +3,13 @@ import MainLayout from '@/components/layout/MainLayout';
 import PageSkeleton from '@/components/common/PageSkeleton';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
+import { useState, useMemo } from 'react';
+import MainLayout from '@/components/layout/MainLayout';
+import PageSkeleton from '@/components/common/PageSkeleton';
+import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
+import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
 import { DateInput } from '@/components/common/DatePicker';
 import { useDataStore } from '@/store/useDataStore';
-import { useStockLogs } from '@/hooks/useStockLogs';
-import { Product, StockLog } from '@/types';
-import { format, parseISO } from 'date-fns';
-import { id as idLocale } from 'date-fns/locale';
-import { Package, TrendingUp, TrendingDown, Boxes, Calendar, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-
-function toISODate(d: Date) {
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
 }
 
@@ -55,13 +48,12 @@ export default function DailyStockReport() {
             sortKey: 'name',
             cell: (item) => (
                 <div className="flex items-center gap-3">
-                    {item.image_url ? (
-                        <img src={item.image_url} alt={item.name} className="h-10 w-10 rounded-lg object-cover" />
-                    ) : (
-                        <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center">
-                            <Package className="h-5 w-5 text-indigo-500" />
-                        </div>
-                    )}
+                    <ProductImage
+                        src={item.image_url}
+                        size="thumb"
+                        className="h-10 w-10 rounded-lg"
+                        placeholderClassName="h-10 w-10 rounded-lg bg-gradient-to-br from-indigo-100 to-purple-100"
+                    />
                     <div>
                         <p className="font-medium text-gray-900 dark:text-white">{item.name}</p>
                         <p className="text-xs text-gray-500">{item.barcode}</p>

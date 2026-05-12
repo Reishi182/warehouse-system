@@ -1,4 +1,5 @@
-import { Package, Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
+import ProductImage from '@/components/common/ProductImage';
 import { Button } from '@/components/ui/button';
 import {
     AlertDialog,
@@ -29,17 +30,13 @@ export default function ProductTableRow({ product, canManage, onEdit, onDelete }
         <tr className={cn(lowStock && 'bg-warning/5')}>
             <td>
                 <div className="flex items-center gap-3">
-                    {product.image_url ? (
-                        <img
-                            src={product.image_url}
-                            alt={product.name}
-                            className="w-10 h-10 rounded-lg object-cover border"
-                        />
-                    ) : (
-                        <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                            <Package className="w-5 h-5 text-muted-foreground" />
-                        </div>
-                    )}
+                    <ProductImage
+                        src={product.image_url}
+                        alt={product.name}
+                        size="thumb"
+                        className="w-10 h-10 rounded-lg border"
+                        placeholderClassName="w-10 h-10 rounded-lg"
+                    />
                     <div>
                         <div className="flex flex-col gap-1 items-start mt-1">
                             <p className="font-medium text-sm leading-none">{product.name}</p>
