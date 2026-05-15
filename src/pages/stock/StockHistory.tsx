@@ -36,6 +36,7 @@ import { format, parseISO } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
+import ProductImage from '@/components/common/ProductImage';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -350,13 +351,13 @@ function GroupDetailDialog({
                                     <tr key={log.id} className="transition-colors hover:bg-gray-50 dark:hover:bg-slate-700/30">
                                         <td className="px-4 py-3.5 min-w-[240px]">
                                             <div className="flex items-center gap-3">
-                                                {log.product?.image_url ? (
-                                                    <img src={log.product.image_url} alt="" className="w-10 h-10 rounded-lg object-cover border border-gray-100 dark:border-gray-700" />
-                                                ) : (
-                                                    <div className="w-10 h-10 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center shrink-0">
-                                                        <Package className="w-5 h-5 text-indigo-500" />
-                                                    </div>
-                                                )}
+                                                <ProductImage
+                                                    src={log.product?.image_url}
+                                                    alt={log.product?.name}
+                                                    size="thumb"
+                                                    className="w-10 h-10 rounded-lg border border-gray-100 dark:border-gray-700"
+                                                    placeholderClassName="w-10 h-10 rounded-lg bg-indigo-50 dark:bg-indigo-500/10"
+                                                />
                                                 <div>
                                                     <p className="font-semibold text-gray-900 dark:text-gray-100 leading-snug">{log.product?.name || 'Unknown'}</p>
                                                     <p className="text-[11px] font-mono text-gray-500 mt-0.5">{log.product?.barcode}</p>
@@ -581,8 +582,10 @@ export default function StockHistory() {
             const invMatch = log.note?.match(/INV\/[\w\d/-]+/i);
             const sjMatch = log.note?.match(/SJ\/[\w\d/-]+/i) || log.note?.match(/SJ-[\w\d-]+/i);
             const retMatch = log.note?.match(/RET\/[\w\d/-]+/i) || log.note?.match(/RET-[\w\d-]+/i);
+            const reqMatch = log.note?.match(/REQ-[\w\d-]+/i);
+            const rtrMatch = log.note?.match(/RTR-[\w\d-]+/i);
             
-            const extractedRef = poMatch?.[0] || opMatch?.[0] || sjMatch?.[0] || retMatch?.[0] || invMatch?.[0] || null;
+            const extractedRef = poMatch?.[0] || opMatch?.[0] || sjMatch?.[0] || retMatch?.[0] || reqMatch?.[0] || rtrMatch?.[0] || invMatch?.[0] || null;
 
             // Priority: reference_id > extracted note label > individual log.id
             const groupKey = log.reference_id || extractedRef || log.id;
@@ -681,13 +684,13 @@ export default function StockHistory() {
             header: 'Produk',
             cell: (log) => (
                 <div className="flex items-center gap-3">
-                    {log.product?.image_url ? (
-                        <img src={log.product.image_url} alt={log.product.name} className="w-10 h-10 rounded-lg object-cover" />
-                    ) : (
-                        <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                            <Package className="w-5 h-5 text-muted-foreground" />
-                        </div>
-                    )}
+                    <ProductImage
+                        src={log.product?.image_url}
+                        alt={log.product?.name}
+                        size="thumb"
+                        className="w-10 h-10 rounded-lg"
+                        placeholderClassName="w-10 h-10 rounded-lg bg-muted"
+                    />
                     <div>
                         <p className="font-medium">{log.product?.name || 'Unknown'}</p>
                         <p className="text-xs text-muted-foreground">{log.product?.barcode}</p>
@@ -743,6 +746,23 @@ export default function StockHistory() {
                         {sign}{displayQty}
                     </span>
                 );
+            }
+        },
+        {
+            header: 'Sumber',
+            accessorKey: 'reference_type',
+            filterable: true,
+            filterOptions: [
+                { label: 'Purchase Order', value: 'purchase_order' },
+                { label: 'Permintaan Stok', value: 'stock_request' },
+                { label: 'Retur Stok', value: 'stock_return' },
+                { label: 'Penjualan', value: 'sale' },
+                { label: 'Stok Opname', value: 'stock_opname' },
+                { label: 'Penyesuaian Manual', value: 'adjustment' },
+            ],
+            cell: (log) => {
+                const label = referenceTypeLabels[log.reference_type || ''] || log.reference_type || '-';
+                return <Badge variant="outline" className="text-xs">{label}</Badge>;
             }
         },
         {
@@ -851,6 +871,23 @@ export default function StockHistory() {
                     {g.logs.length} produk
                 </Badge>
             )
+        },
+        {
+            header: 'Sumber',
+            accessorKey: 'reference_type',
+            filterable: true,
+            filterOptions: [
+                { label: 'Purchase Order', value: 'purchase_order' },
+                { label: 'Permintaan Stok', value: 'stock_request' },
+                { label: 'Retur Stok', value: 'stock_return' },
+                { label: 'Penjualan', value: 'sale' },
+                { label: 'Stok Opname', value: 'stock_opname' },
+                { label: 'Penyesuaian Manual', value: 'adjustment' },
+            ],
+            cell: (g) => {
+                const label = referenceTypeLabels[g.reference_type || ''] || g.reference_type || '-';
+                return <Badge variant="outline" className="text-xs">{label}</Badge>;
+            }
         },
         {
             header: 'Lokasi',
@@ -1117,7 +1154,10 @@ export default function StockHistory() {
             <GroupDetailDialog
                 group={selectedGroup}
                 open={groupDetailOpen}
-                onClose={() => { setGroupDetailOpen(false); setSelectedGroup(null); }}
+                onClose={() => {
+                    setGroupDetailOpen(false);
+                    setTimeout(() => setSelectedGroup(null), 300);
+                }}
                 onViewSingleLog={handleViewDetail}
             />
 
@@ -1125,7 +1165,10 @@ export default function StockHistory() {
             <AuditDetailDialog
                 group={selectedAuditGroup}
                 open={auditDetailOpen}
-                onClose={() => { setAuditDetailOpen(false); setSelectedAuditGroup(null); }}
+                onClose={() => {
+                    setAuditDetailOpen(false);
+                    setTimeout(() => setSelectedAuditGroup(null), 300);
+                }}
                 fieldLabels={fieldLabels}
                 actionConfig={actionConfig}
                 roleLabels={roleLabels}

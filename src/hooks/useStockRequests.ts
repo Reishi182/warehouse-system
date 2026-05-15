@@ -6,6 +6,7 @@ import { NewStockRequest } from '@/types';
 import { sendNotificationToRole, sendNotificationToUser } from '@/hooks/useRealtimeNotifications';
 import { broadcastTableChange } from '@/lib/broadcastSync';
 import { invalidateAndBroadcast } from '@/lib/queryBroadcast';
+import { convertToBaseUnit } from '@/lib/unitConversion';
 
 export function useStockRequests() {
     const { toast } = useToast();
@@ -74,17 +75,25 @@ export function useStockRequests() {
                 note: item.note
             }));
 
-            // 4. Reserve Stock with rollback support
+            // 4. Fetch product multi-unit data for conversion
+            const { data: prodRows } = await supabase
+                .from('products')
+                .select('id, has_multi_unit, main_unit, pcs_per_box')
+                .in('id', data.items.map(i => i.productId));
+            const prodMap = new Map((prodRows || []).map(p => [p.id, p]));
+
+            // 5. Reserve Stock with rollback support (converted to base units)
             const reservedItems: { productId: string; quantity: number }[] = [];
             try {
                 for (const item of data.items) {
+                    const baseQty = convertToBaseUnit(item.quantity, item.unit, prodMap.get(item.productId) || {});
                     const { error: reserveError } = await supabase.rpc('reserve_stock', {
                         p_product_id: item.productId,
-                        p_quantity: item.quantity
+                        p_quantity: baseQty
                     });
 
                     if (reserveError) throw reserveError;
-                    reservedItems.push({ productId: item.productId, quantity: item.quantity });
+                    reservedItems.push({ productId: item.productId, quantity: baseQty });
                 }
 
                 const { error: itemsError } = await supabase
@@ -186,19 +195,20 @@ export function useStockRequests() {
             if (error) throw error;
 
             // RELEASE STOCK RESERVATION
-            // 1. Fetch Items
+            // 1. Fetch Items with product multi-unit data
             const { data: items, error: itemsError } = await supabase
                 .from('stock_request_items')
-                .select('*')
+                .select('*, product:products(id, has_multi_unit, main_unit, pcs_per_box)')
                 .eq('stock_request_id', data.requestId);
 
             if (itemsError) throw itemsError;
 
-            // 2. Release Stock
+            // 2. Release Stock (converted to base units)
             for (const item of items || []) {
+                const baseQty = convertToBaseUnit(item.quantity, item.unit, item.product || {});
                 const { error: releaseError } = await supabase.rpc('release_stock_reservation', {
                     p_product_id: item.product_id,
-                    p_quantity: item.quantity
+                    p_quantity: baseQty
                 });
                 if (releaseError) throw releaseError;
             }
@@ -233,15 +243,16 @@ export function useStockRequests() {
             // Bug fix #15: Validate stock availability before resubmitting
             const { data: items, error: itemsError } = await supabase
                 .from('stock_request_items')
-                .select('*, product:products(name, stock_gudang, stock_reserved)')
+                .select('*, product:products(name, stock_gudang, stock_reserved, has_multi_unit, main_unit, pcs_per_box)')
                 .eq('stock_request_id', requestId);
 
             if (itemsError) throw itemsError;
 
             for (const item of items || []) {
                 const available = (item.product?.stock_gudang || 0) - (item.product?.stock_reserved || 0);
-                if (item.quantity > available) {
-                    throw new Error(`Stok ${item.product?.name || 'produk'} tidak cukup (tersedia: ${available}, diminta: ${item.quantity})`);
+                const baseQty = convertToBaseUnit(item.quantity, item.unit, item.product || {});
+                if (baseQty > available) {
+                    throw new Error(`Stok ${item.product?.name || 'produk'} tidak cukup (tersedia: ${available}, diminta: ${baseQty})`);
                 }
             }
 
@@ -274,11 +285,12 @@ export function useStockRequests() {
 
             if (error) throw error;
 
-            // RE-RESERVE STOCK
+            // RE-RESERVE STOCK (converted to base units)
             for (const item of items || []) {
+                const baseQty = convertToBaseUnit(item.quantity, item.unit, item.product || {});
                 const { error: reserveError } = await supabase.rpc('reserve_stock', {
                     p_product_id: item.product_id,
-                    p_quantity: item.quantity
+                    p_quantity: baseQty
                 });
                 if (reserveError) throw reserveError;
             }
@@ -321,19 +333,20 @@ export function useStockRequests() {
             if (!updated) throw new Error('Gagal mengubah status. Pastikan Anda memiliki akses untuk membatalkan permintaan ini.');
 
             // RELEASE STOCK RESERVATION
-            // 1. Fetch Items
+            // 1. Fetch Items with product multi-unit data
             const { data: items, error: itemsError } = await supabase
                 .from('stock_request_items')
-                .select('*')
+                .select('*, product:products(id, has_multi_unit, main_unit, pcs_per_box)')
                 .eq('stock_request_id', requestId);
 
             if (itemsError) throw itemsError;
 
-            // 2. Release Stock
+            // 2. Release Stock (converted to base units)
             for (const item of items || []) {
+                const baseQty = convertToBaseUnit(item.quantity, item.unit, item.product || {});
                 const { error: releaseError } = await supabase.rpc('release_stock_reservation', {
                     p_product_id: item.product_id,
-                    p_quantity: item.quantity
+                    p_quantity: baseQty
                 });
                 if (releaseError) throw releaseError;
             }
@@ -369,18 +382,19 @@ export function useStockRequests() {
                 throw new Error('Hanya permintaan yang belum diproses Gudang / Dikirim yang dapat diedit');
             }
 
-            // 1. Release OLD reservations
+            // 1. Release OLD reservations (with unit conversion)
             const { data: oldItems, error: oldItemsError } = await supabase
                 .from('stock_request_items')
-                .select('*')
+                .select('*, product:products(id, has_multi_unit, main_unit, pcs_per_box)')
                 .eq('stock_request_id', data.requestId);
 
             if (oldItemsError) throw oldItemsError;
 
             for (const item of oldItems || []) {
+                const baseQty = convertToBaseUnit(item.quantity, item.unit, item.product || {});
                 const { error: releaseError } = await supabase.rpc('release_stock_reservation', {
                     p_product_id: item.product_id,
-                    p_quantity: item.quantity
+                    p_quantity: baseQty
                 });
                 if (releaseError) throw releaseError;
             }
@@ -410,16 +424,24 @@ export function useStockRequests() {
                 note: item.note
             }));
 
+            // Fetch product multi-unit data for new items
+            const { data: newProdRows } = await supabase
+                .from('products')
+                .select('id, has_multi_unit, main_unit, pcs_per_box')
+                .in('id', data.items.map(i => i.productId));
+            const newProdMap = new Map((newProdRows || []).map(p => [p.id, p]));
+
             const reservedItems: { productId: string; quantity: number }[] = [];
             try {
                 for (const item of data.items) {
+                    const baseQty = convertToBaseUnit(item.quantity, item.unit, newProdMap.get(item.productId) || {});
                     const { error: reserveError } = await supabase.rpc('reserve_stock', {
                         p_product_id: item.productId,
-                        p_quantity: item.quantity
+                        p_quantity: baseQty
                     });
 
                     if (reserveError) throw reserveError;
-                    reservedItems.push({ productId: item.productId, quantity: item.quantity });
+                    reservedItems.push({ productId: item.productId, quantity: baseQty });
                 }
 
                 const { error: newItemsError } = await supabase

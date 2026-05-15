@@ -22,14 +22,7 @@ import {
     Truck
 } from 'lucide-react';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogDescription,
-    DialogFooter,
-} from '@/components/ui/dialog';
+import { AppModal } from '@/components/ui/app-modal';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 
@@ -280,21 +273,21 @@ export default function SuratJalanAuditor() {
             </div>
 
             {/* Confirmation Dialog */}
-            <Dialog open={!!selectedSj} onOpenChange={(open) => !open && setSelectedSj(null)}>
-                <DialogContent className="max-w-md rounded-2xl">
-                    <DialogHeader>
-                        <div className="mx-auto p-3 rounded-full bg-amber-100 mb-4">
-                            <AlertTriangle className="w-8 h-8 text-amber-600" />
-                        </div>
-                        <DialogTitle className="text-center text-xl">Konfirmasi Verifikasi</DialogTitle>
-                        <DialogDescription className="text-center">
+            <AppModal open={!!selectedSj} onClose={() => setSelectedSj(null)} hideHeader>
+                <div className="flex flex-col h-full items-center p-6 space-y-6">
+                    <div className="p-3 rounded-full bg-amber-100 mt-2">
+                        <AlertTriangle className="w-8 h-8 text-amber-600" />
+                    </div>
+                    <div className="text-center space-y-2">
+                        <h2 className="text-xl font-bold">Konfirmasi Verifikasi</h2>
+                        <p className="text-sm text-muted-foreground px-4">
                             Tindakan ini akan <strong>mengurangi stok gudang</strong> secara permanen dan menyelesaikan
                             proses pesanan ini.
-                        </DialogDescription>
-                    </DialogHeader>
+                        </p>
+                    </div>
 
                     {selectedSj && (
-                        <div className="p-4 rounded-xl bg-muted/50 space-y-2">
+                        <div className="w-full p-4 rounded-xl bg-muted/50 space-y-2">
                             <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">No. Surat Jalan</span>
                                 <span className="font-semibold">{selectedSj.number}</span>
@@ -310,7 +303,7 @@ export default function SuratJalanAuditor() {
                         </div>
                     )}
 
-                    <DialogFooter className="gap-2 sm:gap-0">
+                    <div className="w-full flex justify-end gap-2 mt-2">
                         <Button variant="outline" onClick={() => setSelectedSj(null)} className="rounded-xl">
                             Batal
                         </Button>
@@ -321,9 +314,9 @@ export default function SuratJalanAuditor() {
                         >
                             {verifyIssueNote.isPending ? 'Memproses...' : 'Ya, Setujui Pengeluaran'}
                         </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                    </div>
+                </div>
+            </AppModal>
         </MainLayout>
     );
 }

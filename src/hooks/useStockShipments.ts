@@ -6,6 +6,7 @@ import { StockShipment } from '@/types';
 import { sendNotificationToUser } from '@/hooks/useRealtimeNotifications';
 import { broadcastTableChange } from '@/lib/broadcastSync';
 import { invalidateAndBroadcast } from '@/lib/queryBroadcast';
+import { convertToBaseUnit } from '@/lib/unitConversion';
 
 export function useStockShipments() {
     const { toast } = useToast();
@@ -68,9 +69,28 @@ export function useStockShipments() {
 
             if (itemsError) throw itemsError;
 
-            // Reduce Stock in Gudang AND Release Reservation
+            // Fetch request number for stock log notes
+            const { data: reqData } = await supabase
+                .from('stock_requests')
+                .select('request_number')
+                .eq('id', data.requestId)
+                .single();
+            const reqNumber = reqData?.request_number || '';
+
+            // Fetch product multi-unit data for conversion
+            const shipProductIds = itemsToInsert.map(i => i.product_id);
+            const { data: shipProdRows } = await supabase
+                .from('products')
+                .select('id, has_multi_unit, main_unit, pcs_per_box')
+                .in('id', shipProductIds);
+            const shipProdMap = new Map((shipProdRows || []).map(p => [p.id, p]));
+
+            // Reduce Stock in Gudang AND Release Reservation (converted to base units)
             for (const item of itemsToInsert) {
-                // NEW: Get current stock gudang before deduction
+                const prod = shipProdMap.get(item.product_id) || {};
+                const baseQty = convertToBaseUnit(item.quantity_shipped, item.unit || '', prod);
+
+                // Get current stock gudang before deduction
                 const { data: gudangData } = await supabase
                     .from('products')
                     .select('stock_gudang')
@@ -81,26 +101,26 @@ export function useStockShipments() {
                 // Reduce Stock in Gudang AND Release Reservation
                 const { error: commitError } = await supabase.rpc('commit_stock_issue', {
                     p_product_id: item.product_id,
-                    p_quantity: item.quantity_shipped
+                    p_quantity: baseQty
                 });
 
                 if (commitError) throw commitError;
 
-                // NEW: Auto-log stock history for Gudang
+                // Auto-log stock history for Gudang
                 await supabase.from('stock_logs').insert({
                     product_id: item.product_id,
                     type: 'out',
-                    quantity: item.quantity_shipped,
+                    quantity: baseQty,
                     location: 'gudang',
                     user_id: data.shippedBy,
-                    note: `Akses cepat - kirim barang otomatis ke toko`,
+                    note: `Permintaan stok ${reqNumber} - kirim ke toko${item.unit ? ` (${item.quantity_shipped} ${item.unit})` : ''}`,
                     reference_type: 'stock_request',
                     reference_id: data.requestId,
                     stock_before: stockGudangBefore,
-                    stock_after: stockGudangBefore - item.quantity_shipped
+                    stock_after: stockGudangBefore - baseQty
                 });
 
-                // NEW: Get current stock toko before increment for accurate logging
+                // Get current stock toko before increment for accurate logging
                 const { data: prodData } = await supabase
                     .from('products')
                     .select('stock_toko, name')
@@ -109,27 +129,27 @@ export function useStockShipments() {
                     
                 const stockBefore = prodData?.stock_toko || 0;
 
-                // NEW: Auto-increment Toko Stock
+                // Auto-increment Toko Stock
                 const { error: incrementError } = await supabase.rpc('atomic_increment_stock', {
                     p_product_id: item.product_id,
-                    p_quantity: item.quantity_shipped,
+                    p_quantity: baseQty,
                     p_location: 'toko',
                 });
 
                 if (incrementError) throw incrementError;
 
-                // NEW: Auto-log stock history for Toko
+                // Auto-log stock history for Toko
                 await supabase.from('stock_logs').insert({
                     product_id: item.product_id,
                     type: 'in',
-                    quantity: item.quantity_shipped,
+                    quantity: baseQty,
                     location: 'toko',
                     user_id: data.shippedBy,
-                    note: `Akses cepat - terima barang otomatis dari gudang`,
+                    note: `Permintaan stok ${reqNumber} - terima dari gudang${item.unit ? ` (${item.quantity_shipped} ${item.unit})` : ''}`,
                     reference_type: 'stock_request',
                     reference_id: data.requestId,
                     stock_before: stockBefore,
-                    stock_after: stockBefore + item.quantity_shipped
+                    stock_after: stockBefore + baseQty
                 });
             }
 

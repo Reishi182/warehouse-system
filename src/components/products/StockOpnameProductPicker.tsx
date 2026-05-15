@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef, memo } from 'react';
 import {
     Dialog,
     DialogContent,
@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Search, Package, CheckSquare } from 'lucide-react';
 import { Product } from '@/types';
+import ProductImage from '@/components/common/ProductImage';
 
 function formatStock(product: Product, stock: number) {
     if (!product.has_multi_unit || !product.pcs_per_box || product.pcs_per_box <= 0) {
@@ -35,7 +36,7 @@ interface StockOpnameProductPickerProps {
     alreadyAddedIds?: string[];
 }
 
-export function StockOpnameProductPicker({
+export const StockOpnameProductPicker = memo(function StockOpnameProductPicker({
     open,
     onOpenChange,
     products,
@@ -44,6 +45,17 @@ export function StockOpnameProductPicker({
 }: StockOpnameProductPickerProps) {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const searchInputRef = useRef<HTMLInputElement>(null);
+
+    // Focus input after dialog animation completes (avoid competing with CSS animation)
+    useEffect(() => {
+        if (open) {
+            const timer = setTimeout(() => {
+                searchInputRef.current?.focus();
+            }, 150);
+            return () => clearTimeout(timer);
+        }
+    }, [open]);
 
     // Reset selection when modal opens
     // Optional: Keep selection persistent if they close/reopen, but usually resetting makes sense
@@ -141,11 +153,11 @@ export function StockOpnameProductPicker({
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                         <Input
+                            ref={searchInputRef}
                             placeholder="Cari nama produk atau ketik barcode..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="pl-9 h-11 rounded-xl text-base"
-                            autoFocus
                         />
                     </div>
 
@@ -208,12 +220,14 @@ export function StockOpnameProductPicker({
                                                     />
                                                 </div>
                                                 
-                                                <div className="w-12 h-12 md:w-10 md:h-10 rounded-lg overflow-hidden bg-muted/50 flex items-center justify-center border shrink-0">
-                                                    {product.image_url ? (
-                                                        <img src={product.image_url} alt="" className="w-full h-full object-cover" />
-                                                    ) : (
-                                                        <Package className="w-6 h-6 md:w-5 md:h-5 text-muted-foreground/30" />
-                                                    )}
+                                                <div className="w-12 h-12 md:w-10 md:h-10 rounded-lg overflow-hidden flex items-center justify-center border shrink-0">
+                                                    <ProductImage
+                                                        src={product.image_url}
+                                                        alt={product.name}
+                                                        size="thumb"
+                                                        className="w-full h-full"
+                                                        placeholderClassName="w-full h-full bg-muted/50"
+                                                    />
                                                 </div>
 
                                                 <div className="flex-1 min-w-0 md:col-start-3">
@@ -294,4 +308,4 @@ export function StockOpnameProductPicker({
             </DialogContent>
         </Dialog>
     );
-}
+});

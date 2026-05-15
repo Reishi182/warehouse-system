@@ -11,12 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
+import { AppModal } from '@/components/ui/app-modal';
 import {
     Card,
     CardContent,
@@ -320,8 +315,14 @@ export default function PurchaseOrderReceipt() {
                 />
 
                 {/* View Dialog */}
-                <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
-                    <DialogContent className="max-w-3xl bg-slate-50 dark:bg-slate-900 border-none shadow-2xl p-0 overflow-hidden rounded-2xl">
+                <AppModal 
+                    open={isViewOpen} 
+                    onClose={() => setIsViewOpen(false)}
+                    hideHeader
+                    noPadding
+                    size="3xl"
+                >
+                    <div className="max-h-[90vh]">
                         {selectedPOLoading ? (
                             <div className="py-12 flex flex-col items-center justify-center space-y-4">
                                 <div className="w-8 h-8 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin"></div>
@@ -425,19 +426,22 @@ export default function PurchaseOrderReceipt() {
                                 </div>
                             </div>
                         ) : null}
-                    </DialogContent>
-                </Dialog>
+                    </div>
+                </AppModal>
 
                 {/* Confirm Receipt Dialog - Enhanced with per-item input */}
-                <Dialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
-                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                        <DialogHeader>
-                            <DialogTitle className="flex items-center gap-2">
-                                <Package className="w-5 h-5" />
-                                Konfirmasi Penerimaan Barang
-                            </DialogTitle>
-                        </DialogHeader>
-                        <div className="space-y-4 mt-4">
+                <AppModal 
+                    open={isConfirmOpen} 
+                    onClose={() => setIsConfirmOpen(false)}
+                    title={
+                        <div className="flex items-center gap-2">
+                            <Package className="w-5 h-5" />
+                            Konfirmasi Penerimaan Barang
+                        </div>
+                    }
+                    size="2xl"
+                >
+                    <div className="space-y-4 mt-2">
                             <p className="text-sm text-muted-foreground">
                                 Masukkan jumlah barang yang diterima dan kondisi barang rusak (jika ada).
                             </p>
@@ -590,8 +594,7 @@ export default function PurchaseOrderReceipt() {
                                 </Button>
                             </div>
                         </div>
-                    </DialogContent>
-                </Dialog>
+                </AppModal>
             </div>
         </MainLayout>
     );

@@ -7,7 +7,7 @@ import { DateInput, MonthInput } from '@/components/common/DatePicker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AppModal } from '@/components/ui/app-modal';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useExpenses, useCreateExpense, useDeleteExpense } from '@/hooks/useExpenses';
 import { useAuth } from '@/contexts/AuthContext';
@@ -152,77 +152,75 @@ export default function Expenses() {
                         placeholder="Pilih bulan"
                         className="w-44"
                     />
-                    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                        <DialogTrigger asChild>
-                            <Button className="rounded-xl">
-                                <Plus className="w-4 h-4 mr-2" /> Tambah Pengeluaran
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-md rounded-2xl">
-                            <DialogHeader>
-                                <DialogTitle>Catat Pengeluaran Baru</DialogTitle>
-                            </DialogHeader>
-                            <div className="space-y-4 py-2">
-                                <div className="space-y-2">
-                                    <Label>Kategori</Label>
-                                    <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v as ExpenseCategory })}>
-                                        <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
-                                        <SelectContent className="rounded-xl">
-                                            {Object.entries(CATEGORY_MAP).map(([key, val]) => (
-                                                <SelectItem key={key} value={key}>
-                                                    <span className="flex items-center gap-2">{val.icon} {val.label}</span>
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Jumlah (Rp)</Label>
-                                    <Input isCurrency
-                                        type="number"
-                                        placeholder="50000"
-                                        value={form.amount}
-                                        onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                                        className="rounded-xl"
-                                        min={1}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Tanggal</Label>
-                                    <DateInput
-                                        value={form.expense_date}
-                                        onChange={(v) => setForm({ ...form, expense_date: v })}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Metode Bayar</Label>
-                                    <Select value={form.payment_method} onValueChange={(v) => setForm({ ...form, payment_method: v as 'cash' | 'transfer' })}>
-                                        <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
-                                        <SelectContent className="rounded-xl">
-                                            <SelectItem value="cash">Cash</SelectItem>
-                                            <SelectItem value="transfer">Transfer</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Keterangan (opsional)</Label>
-                                    <Input
-                                        placeholder="Keterangan..."
-                                        value={form.description}
-                                        onChange={(e) => setForm({ ...form, description: e.target.value })}
-                                        className="rounded-xl"
-                                    />
-                                </div>
-                                <Button
-                                    onClick={handleSubmit}
-                                    className="w-full rounded-xl"
-                                    disabled={createExpense.isPending || !form.amount}
-                                >
-                                    {createExpense.isPending ? 'Menyimpan...' : 'Simpan Pengeluaran'}
-                                </Button>
+                    <Button className="rounded-xl" onClick={() => setDialogOpen(true)}>
+                        <Plus className="w-4 h-4 mr-2" /> Tambah Pengeluaran
+                    </Button>
+                    <AppModal
+                        open={dialogOpen}
+                        onClose={() => setDialogOpen(false)}
+                        title="Catat Pengeluaran Baru"
+                        size="sm"
+                    >
+                        <div className="space-y-4 py-2">
+                            <div className="space-y-2">
+                                <Label>Kategori</Label>
+                                <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v as ExpenseCategory })}>
+                                    <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
+                                    <SelectContent className="rounded-xl">
+                                        {Object.entries(CATEGORY_MAP).map(([key, val]) => (
+                                            <SelectItem key={key} value={key}>
+                                                <span className="flex items-center gap-2">{val.icon} {val.label}</span>
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
-                        </DialogContent>
-                    </Dialog>
+                            <div className="space-y-2">
+                                <Label>Jumlah (Rp)</Label>
+                                <Input isCurrency
+                                    type="number"
+                                    placeholder="50000"
+                                    value={form.amount}
+                                    onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                                    className="rounded-xl"
+                                    min={1}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Tanggal</Label>
+                                <DateInput
+                                    value={form.expense_date}
+                                    onChange={(v) => setForm({ ...form, expense_date: v })}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Metode Bayar</Label>
+                                <Select value={form.payment_method} onValueChange={(v) => setForm({ ...form, payment_method: v as 'cash' | 'transfer' })}>
+                                    <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
+                                    <SelectContent className="rounded-xl">
+                                        <SelectItem value="cash">Cash</SelectItem>
+                                        <SelectItem value="transfer">Transfer</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Keterangan (opsional)</Label>
+                                <Input
+                                    placeholder="Keterangan..."
+                                    value={form.description}
+                                    onChange={(e) => setForm({ ...form, description: e.target.value })}
+                                    className="rounded-xl"
+                                />
+                            </div>
+                            <Button
+                                onClick={handleSubmit}
+                                className="w-full rounded-xl"
+                                disabled={createExpense.isPending || !form.amount}
+                            >
+                                {createExpense.isPending ? 'Menyimpan...' : 'Simpan Pengeluaran'}
+                            </Button>
+                        </div>
+                    </AppModal>
                 </div>
             }
         >

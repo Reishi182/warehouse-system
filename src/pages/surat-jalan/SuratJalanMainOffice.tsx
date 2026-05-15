@@ -12,14 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogDescription,
-    DialogFooter,
-} from '@/components/ui/dialog';
+import { AppModal } from '@/components/ui/app-modal';
 import { FileText, CheckCircle, Clock, Package, TruckIcon, Eye, ThumbsUp, ThumbsDown, Ban, User, Camera } from 'lucide-react';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
@@ -294,18 +287,13 @@ export default function SuratJalanMainOffice() {
             </div>
 
             {/* Review Dialog */}
-            <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
-                <DialogContent className="rounded-2xl">
-                    <DialogHeader>
-                        <DialogTitle className={isApproving ? 'text-green-700' : 'text-red-700'}>
-                            {isApproving ? '✅ Setujui Surat Jalan' : '❌ Tolak Surat Jalan'}
-                        </DialogTitle>
-                        <DialogDescription>
-                            {isApproving
-                                ? 'Surat jalan akan diteruskan ke Kasir untuk diproses.'
-                                : 'Surat jalan akan ditolak dan dikembalikan ke Kasir.'}
-                        </DialogDescription>
-                    </DialogHeader>
+            <AppModal open={reviewDialogOpen} onClose={() => setReviewDialogOpen(false)} title={isApproving ? '✅ Setujui Surat Jalan' : '❌ Tolak Surat Jalan'}>
+                <div className="flex flex-col h-full space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                        {isApproving
+                            ? 'Surat jalan akan diteruskan ke Kasir untuk diproses.'
+                            : 'Surat jalan akan ditolak dan dikembalikan ke Kasir.'}
+                    </p>
 
                     {selectedSj && (
                         <div className="bg-muted p-4 rounded-md my-2 text-sm space-y-1">
@@ -326,7 +314,7 @@ export default function SuratJalanMainOffice() {
                         />
                     </div>
 
-                    <DialogFooter>
+                    <div className="flex justify-end gap-2 mt-4">
                         <Button variant="outline" onClick={() => setReviewDialogOpen(false)}>Batal</Button>
                         <Button
                             onClick={handleSubmitReview}
@@ -335,42 +323,47 @@ export default function SuratJalanMainOffice() {
                         >
                             {reviewSuratJalan.isPending ? 'Memproses...' : (isApproving ? 'Setujui' : 'Tolak')}
                         </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                    </div>
+                </div>
+            </AppModal>
 
             {/* Detail Dialog */}
-            <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
-                <DialogContent className="max-w-3xl bg-slate-50 dark:bg-slate-900 border-none shadow-2xl p-0 overflow-hidden rounded-2xl">
-                    {selectedSj && (
-                        <div className="flex flex-col h-full max-h-[90vh]">
-                            {/* Premium Gradient Header */}
-                            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white relative shrink-0">
-                                <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
-                                    <FileText className="w-32 h-32" />
+            <AppModal 
+                open={detailDialogOpen} 
+                onClose={() => setDetailDialogOpen(false)}
+                hideHeader
+                noPadding
+                size="xl"
+            >
+                {selectedSj && (
+                    <div className="flex flex-col h-full">
+                        {/* Premium Gradient Header */}
+                        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white relative shrink-0">
+                            <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+                                <FileText className="w-32 h-32" />
+                            </div>
+                            <div className="flex justify-between items-start relative z-10">
+                                <div>
+                                    <h2 className="text-2xl font-bold flex items-center gap-2">
+                                        Detail Surat Jalan
+                                    </h2>
+                                    <p className="text-blue-100 flex items-center gap-1.5 mt-1 font-mono text-sm">
+                                        {selectedSj.number || 'Memuat...'}
+                                    </p>
                                 </div>
-                                <div className="flex justify-between items-start relative z-10">
-                                    <div>
-                                        <h2 className="text-2xl font-bold flex items-center gap-2">
-                                            Detail Surat Jalan
-                                        </h2>
-                                        <p className="text-blue-100 flex items-center gap-1.5 mt-1 font-mono text-sm">
-                                            {selectedSj.number || 'Memuat...'}
-                                        </p>
-                                    </div>
-                                    <div className="bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-full text-sm font-semibold border border-white/30 shadow-sm flex items-center gap-2">
-                                        {selectedSj.status === 'completed' && <CheckCircle className="w-4 h-4" />}
-                                        {selectedSj.status === 'processing' && <TruckIcon className="w-4 h-4" />}
-                                        {selectedSj.status === 'pending_review' && <Clock className="w-4 h-4" />}
-                                        {selectedSj.status === 'approved' && <CheckCircle className="w-4 h-4" />}
-                                        {selectedSj.status === 'pending_review' ? 'Menunggu Review' :
-                                         selectedSj.status === 'approved' ? 'Disetujui' :
-                                         selectedSj.status === 'processing' ? 'Dalam Pengiriman' :
-                                         selectedSj.status === 'completed' ? 'Selesai' :
-                                         selectedSj.status === 'rejected' ? 'Ditolak' : selectedSj.status}
-                                    </div>
+                                <div className="bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-full text-sm font-semibold border border-white/30 shadow-sm flex items-center gap-2">
+                                    {selectedSj.status === 'completed' && <CheckCircle className="w-4 h-4" />}
+                                    {selectedSj.status === 'processing' && <TruckIcon className="w-4 h-4" />}
+                                    {selectedSj.status === 'pending_review' && <Clock className="w-4 h-4" />}
+                                    {selectedSj.status === 'approved' && <CheckCircle className="w-4 h-4" />}
+                                    {selectedSj.status === 'pending_review' ? 'Menunggu Review' :
+                                        selectedSj.status === 'approved' ? 'Disetujui' :
+                                        selectedSj.status === 'processing' ? 'Dalam Pengiriman' :
+                                        selectedSj.status === 'completed' ? 'Selesai' :
+                                        selectedSj.status === 'rejected' ? 'Ditolak' : selectedSj.status}
                                 </div>
                             </div>
+                        </div>
 
                             {/* Scrollable Content */}
                             <div className="p-6 overflow-y-auto custom-scrollbar space-y-6">
@@ -567,53 +560,48 @@ export default function SuratJalanMainOffice() {
                                 <Button variant="outline" className="rounded-xl px-6" onClick={() => setDetailDialogOpen(false)}>
                                     Tutup
                                 </Button>
-                            </div>
-                        </div>
-                    )}
-                </DialogContent>
-            </Dialog>
-
-            {/* Cancel SJ Confirmation Dialog */}
-            <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
-                <DialogContent className="max-w-md rounded-2xl">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2 text-destructive">
-                            <Ban className="w-5 h-5" />
-                            Batalkan Surat Jalan
-                        </DialogTitle>
-                        <DialogDescription>
-                            Tindakan ini akan membatalkan surat jalan dan mengembalikan stok yang sudah direservasi (jika ada).
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 mt-2">
-                        <p className="text-muted-foreground">
-                            Anda yakin ingin membatalkan SJ <span className="font-semibold text-foreground">{sjToCancel?.number}</span>?
-                        </p>
-                        <div className="space-y-2">
-                            <Label>Alasan Pembatalan (opsional)</Label>
-                            <Textarea
-                                value={cancelReason}
-                                onChange={(e) => setCancelReason(e.target.value)}
-                                placeholder="Masukkan alasan pembatalan..."
-                                className="rounded-xl"
-                                rows={3}
-                            />
-                        </div>
-                        <div className="flex gap-3 justify-end pt-2">
-                            <Button variant="outline" onClick={() => setCancelDialogOpen(false)}>
-                                Kembali
-                            </Button>
-                            <Button
-                                variant="destructive"
-                                onClick={confirmCancelSJ}
-                                disabled={cancelSuratJalan.isPending}
-                            >
-                                {cancelSuratJalan.isPending ? 'Membatalkan...' : 'Ya, Batalkan SJ'}
-                            </Button>
                         </div>
                     </div>
-                </DialogContent>
-            </Dialog>
+                )}
+            </AppModal>
+
+            {/* Cancel SJ Confirmation Dialog */}
+            <AppModal 
+                open={cancelDialogOpen} 
+                onClose={() => setCancelDialogOpen(false)}
+                title={<div className="flex items-center gap-2 text-destructive"><Ban className="w-5 h-5" /> Batalkan Surat Jalan</div>}
+            >
+                <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                        Tindakan ini akan membatalkan surat jalan dan mengembalikan stok yang sudah direservasi (jika ada).
+                    </p>
+                    <p className="text-muted-foreground">
+                        Anda yakin ingin membatalkan SJ <span className="font-semibold text-foreground">{sjToCancel?.number}</span>?
+                    </p>
+                    <div className="space-y-2">
+                        <Label>Alasan Pembatalan (opsional)</Label>
+                        <Textarea
+                            value={cancelReason}
+                            onChange={(e) => setCancelReason(e.target.value)}
+                            placeholder="Masukkan alasan pembatalan..."
+                            className="rounded-xl"
+                            rows={3}
+                        />
+                    </div>
+                    <div className="flex gap-3 justify-end pt-2">
+                        <Button variant="outline" onClick={() => setCancelDialogOpen(false)}>
+                            Kembali
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={confirmCancelSJ}
+                            disabled={cancelSuratJalan.isPending}
+                        >
+                            {cancelSuratJalan.isPending ? 'Membatalkan...' : 'Ya, Batalkan SJ'}
+                        </Button>
+                    </div>
+                </div>
+            </AppModal>
         </MainLayout>
     );
 }

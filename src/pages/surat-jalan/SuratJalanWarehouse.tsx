@@ -11,14 +11,7 @@ import { Label } from '@/components/ui/label';
 import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
 import { Package, Truck, CheckCircle, List, Clock, Camera, PenTool, User, AlertCircle } from 'lucide-react';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogDescription,
-    DialogFooter,
-} from '@/components/ui/dialog';
+import { AppModal } from '@/components/ui/app-modal';
 import SignaturePad, { SignaturePadRef } from '@/components/common/SignaturePad';
 import { supabase } from '@/integrations/supabase/client';
 import { compressImageToFile, isImageFile } from '@/lib/imageCompression';
@@ -423,20 +416,19 @@ export default function SuratJalanWarehouse() {
             </div>
 
             {/* Complete Order Dialog */}
-            <Dialog open={completeDialogOpen} onOpenChange={(open) => !isSubmitting && setCompleteDialogOpen(open)}>
-                <DialogContent className="max-w-2xl rounded-2xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                            <CheckCircle className="h-5 w-5 text-green-600" />
-                            Selesaikan Pengiriman
-                        </DialogTitle>
-                        <DialogDescription>
-                            Upload bukti pengiriman dan tanda tangan untuk menyelesaikan pesanan
-                        </DialogDescription>
-                    </DialogHeader>
+            <AppModal 
+                open={completeDialogOpen} 
+                onClose={() => !isSubmitting && setCompleteDialogOpen(false)}
+                title={<div className="flex items-center gap-2"><CheckCircle className="h-5 w-5 text-green-600" /> Selesaikan Pengiriman</div>}
+                size="2xl"
+            >
+                <div className="space-y-6">
+                    <p className="text-sm text-muted-foreground mt-2">
+                        Upload bukti pengiriman dan tanda tangan untuk menyelesaikan pesanan
+                    </p>
 
                     {selectedSj && (
-                        <div className="space-y-6">
+                        <>
                             {/* Order Info */}
                             <div className="bg-muted p-4 rounded-lg">
                                 <div className="grid grid-cols-2 gap-4 text-sm">
@@ -540,10 +532,10 @@ export default function SuratJalanWarehouse() {
                                     Pastikan semua data sudah benar. Stok akan dikurangi setelah pengiriman diselesaikan.
                                 </p>
                             </div>
-                        </div>
+                        </>
                     )}
 
-                    <DialogFooter>
+                    <div className="flex justify-end gap-2 mt-6">
                         <Button variant="outline" onClick={() => setCompleteDialogOpen(false)} disabled={isSubmitting}>
                             Batal
                         </Button>
@@ -554,19 +546,16 @@ export default function SuratJalanWarehouse() {
                         >
                             {isSubmitting ? 'Menyimpan...' : 'Selesaikan Pengiriman'}
                         </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                    </div>
+                </div>
+            </AppModal>
 
             {/* Process Confirmation Dialog */}
-            <Dialog open={processDialogOpen} onOpenChange={setProcessDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Proses Pesanan</DialogTitle>
-                        <DialogDescription>
-                            Pesanan akan disiapkan untuk pengiriman. Status pesanan akan berubah menjadi 'Dalam Pengiriman'.
-                        </DialogDescription>
-                    </DialogHeader>
+            <AppModal open={processDialogOpen} onClose={() => setProcessDialogOpen(false)} title="Proses Pesanan">
+                <div className="space-y-4 mt-2">
+                    <p className="text-sm text-muted-foreground">
+                        Pesanan akan disiapkan untuk pengiriman. Status pesanan akan berubah menjadi 'Dalam Pengiriman'.
+                    </p>
 
                     {sjToProcess && (
                         <div className="bg-muted p-4 rounded-md my-2 text-sm space-y-1">
@@ -577,7 +566,7 @@ export default function SuratJalanWarehouse() {
                         </div>
                     )}
 
-                    <DialogFooter>
+                    <div className="flex justify-end gap-2 mt-4">
                         <Button variant="outline" onClick={() => setProcessDialogOpen(false)}>Batal</Button>
                         <Button
                             onClick={handleProcessOrder}
@@ -586,9 +575,9 @@ export default function SuratJalanWarehouse() {
                         >
                             {processOrder.isPending ? 'Memproses...' : 'Ya, Proses Pesanan'}
                         </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                    </div>
+                </div>
+            </AppModal>
         </MainLayout>
     );
 }

@@ -2,6 +2,7 @@ import React, { memo } from 'react';
 import { Package, Plus, AlertTriangle, Pencil } from 'lucide-react';
 import { Product, Location } from '@/types';
 import { cn } from '@/lib/utils';
+import ProductImage from '@/components/common/ProductImage';
 
 interface ProductListItemProps {
     product: Product;
@@ -33,10 +34,12 @@ export const ProductListItem = memo(function ProductListItem({
             {/* Product Image */}
             <div className="w-12 h-12 rounded-lg bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
                 {product.image_url ? (
-                    <img
+                    <ProductImage
                         src={product.image_url}
                         alt={product.name}
-                        className="w-full h-full object-cover"
+                        size="thumb"
+                        className="w-full h-full"
+                        placeholderClassName="w-full h-full bg-muted/50"
                     />
                 ) : (
                     <Package className="w-5 h-5 text-muted-foreground/30" />

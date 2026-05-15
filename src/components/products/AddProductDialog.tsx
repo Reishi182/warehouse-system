@@ -23,6 +23,7 @@ import { Product, UserRole } from '@/types';
 
 // All available sell units matching the database seed
 import { useProductUnits, unitsToSelectOptions } from '@/hooks/useProductUnits';
+import ProductImage from '@/components/common/ProductImage';
 
 interface AddProductDialogProps {
     onAdd: (product: {
@@ -607,7 +608,14 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
                         <div className="flex items-center gap-3">
                             {imagePreview ? (
                                 <div className="relative w-20 h-20 rounded-xl overflow-hidden border">
-                                    <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                                    <ProductImage
+                                        src={imagePreview}
+                                        alt="Preview"
+                                        size="thumb"
+                                        className="w-full h-full"
+                                        placeholderClassName="w-full h-full bg-muted/50"
+                                        lazy={false}
+                                    />
                                     <button
                                         type="button"
                                         onClick={() => { setImageFile(null); setImagePreview(null); }}

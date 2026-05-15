@@ -25,6 +25,7 @@ import {
 import { PaymentMethod, Location } from '@/types';
 import { CartItem } from '@/hooks/usePOSCart';
 import { cn } from '@/lib/utils';
+import ProductImage from '@/components/common/ProductImage';
 
 interface POSMobileCartProps {
     items: CartItem[];
@@ -209,7 +210,13 @@ export function POSMobileCart({
                                                         isManualEntry ? "bg-amber-100 dark:bg-amber-900/50" : "bg-muted/50"
                                                     )}>
                                                         {it.product.image_url ? (
-                                                            <img src={it.product.image_url} alt={it.product.name} className="w-full h-full object-cover" />
+                                                            <ProductImage
+                                                                src={it.product.image_url}
+                                                                alt={it.product.name}
+                                                                size="thumb"
+                                                                className="w-full h-full"
+                                                                placeholderClassName="w-full h-full bg-muted/50"
+                                                            />
                                                         ) : (
                                                             <Package className={cn(
                                                                 "w-4 h-4",

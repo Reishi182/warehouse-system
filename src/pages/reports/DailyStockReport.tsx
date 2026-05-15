@@ -3,15 +3,29 @@ import MainLayout from '@/components/layout/MainLayout';
 import PageSkeleton from '@/components/common/PageSkeleton';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
-import { useState, useMemo } from 'react';
-import MainLayout from '@/components/layout/MainLayout';
-import PageSkeleton from '@/components/common/PageSkeleton';
-import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
-import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
 import { DateInput } from '@/components/common/DatePicker';
 import { useDataStore } from '@/store/useDataStore';
+import ProductImage from '@/components/common/ProductImage';
+import { useStockLogs } from '@/hooks/useStockLogs';
+import { format, parseISO } from 'date-fns';
+import { id as idLocale } from 'date-fns/locale';
+import { Product, StockLog } from '@/types';
+import { 
+    ArrowUpCircle, 
+    ArrowDownCircle, 
+    Calendar, 
+    Package, 
+    Boxes, 
+    TrendingUp, 
+    TrendingDown 
+} from 'lucide-react';
+
+const toISODate = (date: Date) => {
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
-}
+};
 
 export default function DailyStockReport() {
     const products = useDataStore(s => s.products);

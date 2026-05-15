@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { Upload, Loader2, ImagePlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import ProductImage from '@/components/common/ProductImage';
 
 interface QuickImageUploadProps {
     productId: string;
@@ -92,7 +93,14 @@ export function QuickImageUpload({ productId, currentUrl, className, onUploadSuc
 
             {currentUrl ? (
                 <>
-                    <img src={currentUrl} alt="" className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                    <ProductImage
+                        src={currentUrl}
+                        alt=""
+                        size="thumb"
+                        className="w-full h-full transition-transform group-hover:scale-105"
+                        placeholderClassName="w-full h-full bg-muted/50"
+                        lazy={false}
+                    />
                     <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white gap-1 backdrop-blur-[1px]">
                         <Upload className="w-4 h-4" />
                         <span className="text-[9px] font-medium tracking-wide">Ubah</span>

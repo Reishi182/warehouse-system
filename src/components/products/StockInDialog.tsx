@@ -1,4 +1,6 @@
 import { ArrowDownToLine, Plus } from 'lucide-react';
+import { useState } from 'react';
+import { Package } from 'lucide-react';
 import ProductImage from '@/components/common/ProductImage';
 import { Product, Location } from '@/types';
 import BarcodeScanner from '@/components/common/BarcodeScanner';

@@ -6,7 +6,6 @@ import PageSkeleton from '@/components/common/PageSkeleton';
 import {
   StatsGrid,
   LowStockAlertWidget,
-  DashboardActivityHub,
   RoleCharts,
   PODiscrepancyWidget,
 } from '@/components/dashboard';
@@ -119,14 +118,7 @@ export default function Dashboard() {
           <LowStockAlertWidget maxVisible={5} />
         )}
 
-        {/* Unified Activity Hub with Tabs - for all roles */}
-        <DashboardActivityHub
-          role={role}
-          requests={requests}
-          stockLogs={stockLogs}
-          sales={filteredSales}
-          suratJalans={suratJalans}
-        />
+
       </div>
     </MainLayout>
   );

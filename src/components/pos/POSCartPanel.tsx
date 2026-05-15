@@ -21,6 +21,7 @@ import { SearchableSelect } from '@/components/common/SearchableSelect';
 import { PaymentMethod, Location, CustomerTab } from '@/types';
 import { CartItem } from '@/hooks/usePOSCart';
 import { cn } from '@/lib/utils';
+import ProductImage from '@/components/common/ProductImage';
 
 interface POSCartPanelProps {
     items: CartItem[];
@@ -231,10 +232,12 @@ export const POSCartPanel = memo(function POSCartPanel({
                                                 isManualEntry ? "bg-amber-100 dark:bg-amber-900/50" : "bg-muted/50"
                                             )}>
                                                 {it.product.image_url ? (
-                                                    <img
+                                                    <ProductImage
                                                         src={it.product.image_url}
                                                         alt={it.product.name}
-                                                        className="w-full h-full object-cover"
+                                                        size="thumb"
+                                                        className="w-full h-full"
+                                                        placeholderClassName="w-full h-full bg-muted/50"
                                                     />
                                                 ) : (
                                                     <Package className={cn(

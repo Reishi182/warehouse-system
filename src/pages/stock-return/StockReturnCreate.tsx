@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import UnitSelector from '@/components/common/UnitSelector';
+import { getMaxQtyInUnit } from '@/lib/unitConversion';
 import { Plus, Trash2, Send, ShoppingCart, CheckCircle, Clock, Package, RefreshCw, XCircle, Eye, Sparkles, FileText, Calendar, User, Ban } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useDataStore } from '@/store/useDataStore';
@@ -246,8 +247,8 @@ export default function StockReturnCreate() {
             productId: product.id,
             name: product.name,
             quantity: 1,
-            maxStock: product.stock?.toko || 0, // Validate against TOKO stock safely
-            unit: 'pcs',
+            baseMaxStock: product.stock?.toko || 0, // Validate against TOKO stock safely
+            unit: product.sell_unit || 'pcs',
             note: ''
         }]);
     };
@@ -259,10 +260,18 @@ export default function StockReturnCreate() {
     const handeUpdateItem = (productId: string, field: string, value: any) => {
         setReturnItems(returnItems.map(i => {
             if (i.productId === productId) {
+                const product = products.find(p => p.id === productId);
                 if (field === 'quantity') {
-                    // Prevent returning more than available in Toko
-                    const clampedVal = Math.min(Math.max(0.1, value), i.maxStock);
+                    // Prevent returning more than available in Toko (unit-aware)
+                    const maxInUnit = getMaxQtyInUnit(i.baseMaxStock, i.unit, product || {});
+                    const clampedVal = Math.min(Math.max(0.1, value), maxInUnit);
                     return { ...i, [field]: clampedVal };
+                }
+                if (field === 'unit') {
+                    // Re-clamp quantity when unit changes
+                    const maxInUnit = getMaxQtyInUnit(i.baseMaxStock, value, product || {});
+                    const newQty = Math.min(i.quantity, maxInUnit);
+                    return { ...i, unit: value, quantity: Math.max(0.1, newQty) };
                 }
                 return { ...i, [field]: value };
             }
@@ -402,12 +411,12 @@ export default function StockReturnCreate() {
                                                 </div>
                                                 <div className="grid grid-cols-3 gap-2">
                                                     <div>
-                                                        <Label className="text-xs text-muted-foreground">Jumlah (Max: {item.maxStock})</Label>
+                                                        <Label className="text-xs text-muted-foreground">Jumlah (Max: {getMaxQtyInUnit(item.baseMaxStock, item.unit, products.find(p => p.id === item.productId) || {})})</Label>
                                                         <Input
                                                             type="number"
                                                             step="any"
                                                             min={0.1}
-                                                            max={item.maxStock}
+                                                            max={getMaxQtyInUnit(item.baseMaxStock, item.unit, products.find(p => p.id === item.productId) || {})}
                                                             value={item.quantity}
                                                             onChange={e => handeUpdateItem(item.productId, 'quantity', parseFloat(e.target.value) || 0)}
                                                             className="h-8 text-sm rounded-lg"

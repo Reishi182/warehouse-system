@@ -7,12 +7,7 @@ import StatusBadge from '@/components/common/StatusBadge';
 import LocationBadge from '@/components/common/LocationBadge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { AppModal } from '@/components/ui/app-modal';
 import {
   Tabs,
   TabsList,
@@ -23,6 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { SuratJalan } from '@/types';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
+import ProductImage from '@/components/common/ProductImage';
 
 export default function Approval() {
   const suratJalans = useDataStore(s => s.suratJalans);
@@ -168,17 +164,13 @@ export default function Approval() {
                       <div key={item.id} className="rounded-xl border bg-muted/10 p-3">
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-start gap-3 min-w-0">
-                            {item.image_url ? (
-                              <img
-                                src={item.image_url}
-                                alt={item.product_name}
-                                className="w-12 h-12 rounded-lg object-cover border flex-shrink-0"
-                              />
-                            ) : (
-                              <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                                <FileText className="w-6 h-6 text-muted-foreground" />
-                              </div>
-                            )}
+                            <ProductImage
+                              src={item.image_url}
+                              alt={item.product_name}
+                              size="thumb"
+                              className="w-12 h-12 rounded-lg border flex-shrink-0"
+                              placeholderClassName="w-12 h-12 rounded-lg bg-muted flex items-center justify-center flex-shrink-0"
+                            />
                             <div className="min-w-0">
                               <p className="font-semibold truncate">{item.product_name}</p>
                               <code className="text-xs bg-muted px-2 py-1 rounded inline-block mt-1">
@@ -215,17 +207,13 @@ export default function Approval() {
                         <tr key={item.id} className="border-t border-border">
                           <td className="py-2">
                             <div className="flex items-center gap-3">
-                              {item.image_url ? (
-                                <img
-                                  src={item.image_url}
-                                  alt={item.product_name}
-                                  className="w-10 h-10 rounded-lg object-cover border"
-                                />
-                              ) : (
-                                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                                  <FileText className="w-5 h-5 text-muted-foreground" />
-                                </div>
-                              )}
+                              <ProductImage
+                                src={item.image_url}
+                                alt={item.product_name}
+                                size="thumb"
+                                className="w-10 h-10 rounded-lg border"
+                                placeholderClassName="w-10 h-10 rounded-lg bg-muted flex items-center justify-center"
+                              />
                               <span className="font-medium">{item.product_name}</span>
                             </div>
                           </td>
@@ -291,32 +279,31 @@ export default function Approval() {
         )}
 
         {/* Reject Dialog */}
-        <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Tolak Surat Jalan</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 mt-4">
-              <p className="text-sm text-muted-foreground">
-                Masukkan alasan penolakan untuk {selectedSJ?.number}:
-              </p>
-              <Textarea
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-                placeholder="Alasan penolakan..."
-                rows={4}
-              />
-              <div className="flex gap-3 justify-end">
-                <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>
-                  Batal
-                </Button>
-                <Button variant="destructive" onClick={handleReject}>
-                  Tolak Surat Jalan
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <AppModal
+          open={rejectDialogOpen}
+          onClose={() => setRejectDialogOpen(false)}
+          title="Tolak Surat Jalan"
+          variant="danger"
+          size="sm"
+          footer={
+            <>
+              <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>Batal</Button>
+              <Button variant="destructive" onClick={handleReject}>Tolak Surat Jalan</Button>
+            </>
+          }
+        >
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Masukkan alasan penolakan untuk {selectedSJ?.number}:
+            </p>
+            <Textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="Alasan penolakan..."
+              rows={4}
+            />
+          </div>
+        </AppModal>
       </div>
     </MainLayout>
   );

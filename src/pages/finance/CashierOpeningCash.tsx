@@ -7,7 +7,7 @@ import { DateInput } from '@/components/common/DatePicker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AppModal } from '@/components/ui/app-modal';
 import { useCashierSessions, useCreateCashierSession } from '@/hooks/useCashierSessions';
 import { CashierSession } from '@/types';
 import { format } from 'date-fns';
@@ -109,63 +109,61 @@ export default function CashierOpeningCash() {
                             Reset
                         </Button>
                     )}
-                    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                        <DialogTrigger asChild>
-                            <Button className="rounded-xl">
-                                <Plus className="w-4 h-4 mr-2" /> Input Modal Awal
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-md rounded-2xl">
-                            <DialogHeader>
-                                <DialogTitle>Input Modal Awal Kasir</DialogTitle>
-                            </DialogHeader>
-                            <div className="space-y-4 py-2">
-                                <div className="space-y-2">
-                                    <Label>Nama Kasir</Label>
-                                    <Input
-                                        placeholder="Nama kasir..."
-                                        value={form.cashier_name}
-                                        onChange={(e) => setForm({ ...form, cashier_name: e.target.value })}
-                                        className="rounded-xl"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Modal Awal (Rp)</Label>
-                                    <Input
-                                        type="number"
-                                        placeholder="200000"
-                                        value={form.opening_cash}
-                                        onChange={(e) => setForm({ ...form, opening_cash: e.target.value })}
-                                        className="rounded-xl"
-                                        min={0}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Tanggal</Label>
-                                    <DateInput
-                                        value={form.session_date}
-                                        onChange={(v) => setForm({ ...form, session_date: v })}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Catatan (opsional)</Label>
-                                    <Input
-                                        placeholder="Catatan..."
-                                        value={form.note}
-                                        onChange={(e) => setForm({ ...form, note: e.target.value })}
-                                        className="rounded-xl"
-                                    />
-                                </div>
-                                <Button
-                                    onClick={handleSubmit}
-                                    className="w-full rounded-xl"
-                                    disabled={createSession.isPending || !form.cashier_name || !form.opening_cash}
-                                >
-                                    {createSession.isPending ? 'Menyimpan...' : 'Simpan Modal Awal'}
-                                </Button>
+                    <Button className="rounded-xl" onClick={() => setDialogOpen(true)}>
+                        <Plus className="w-4 h-4 mr-2" /> Input Modal Awal
+                    </Button>
+                    <AppModal
+                        open={dialogOpen}
+                        onClose={() => setDialogOpen(false)}
+                        title="Input Modal Awal Kasir"
+                        size="sm"
+                    >
+                        <div className="space-y-4 py-2">
+                            <div className="space-y-2">
+                                <Label>Nama Kasir</Label>
+                                <Input
+                                    placeholder="Nama kasir..."
+                                    value={form.cashier_name}
+                                    onChange={(e) => setForm({ ...form, cashier_name: e.target.value })}
+                                    className="rounded-xl"
+                                />
                             </div>
-                        </DialogContent>
-                    </Dialog>
+                            <div className="space-y-2">
+                                <Label>Modal Awal (Rp)</Label>
+                                <Input
+                                    type="number"
+                                    placeholder="200000"
+                                    value={form.opening_cash}
+                                    onChange={(e) => setForm({ ...form, opening_cash: e.target.value })}
+                                    className="rounded-xl"
+                                    min={0}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Tanggal</Label>
+                                <DateInput
+                                    value={form.session_date}
+                                    onChange={(v) => setForm({ ...form, session_date: v })}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Catatan (opsional)</Label>
+                                <Input
+                                    placeholder="Catatan..."
+                                    value={form.note}
+                                    onChange={(e) => setForm({ ...form, note: e.target.value })}
+                                    className="rounded-xl"
+                                />
+                            </div>
+                            <Button
+                                onClick={handleSubmit}
+                                className="w-full rounded-xl"
+                                disabled={createSession.isPending || !form.cashier_name || !form.opening_cash}
+                            >
+                                {createSession.isPending ? 'Menyimpan...' : 'Simpan Modal Awal'}
+                            </Button>
+                        </div>
+                    </AppModal>
                 </div>
             }
         >

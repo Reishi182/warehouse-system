@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 import { Package, Plus, AlertTriangle, Pencil } from 'lucide-react';
-import { LazyImage } from '@/components/common/LazyImage';
 import { Product, Location } from '@/types';
+import ProductImage from '@/components/common/ProductImage';
 import { cn } from '@/lib/utils';
 
 interface ProductCardProps {
@@ -34,12 +34,12 @@ export const ProductCard = memo(function ProductCard({
         >
             {/* Product Image */}
             <div className="relative aspect-square w-full bg-muted/50 overflow-hidden">
-                <LazyImage
+                <ProductImage
                     src={product.image_url}
                     alt={product.name}
-                    containerClassName="w-full h-full"
-                    className="group-hover:scale-105 transition-transform duration-300"
-                    fallbackIcon={<Package className="w-10 h-10 text-muted-foreground/20" />}
+                    size="card"
+                    className="group-hover:scale-105 transition-transform duration-300 w-full h-full"
+                    placeholderClassName="w-full h-full bg-muted/50"
                 />
 
                 {/* Out of stock overlay */}

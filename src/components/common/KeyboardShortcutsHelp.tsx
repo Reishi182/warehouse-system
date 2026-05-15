@@ -1,10 +1,4 @@
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
-;
+import { AppModal } from '@/components/ui/app-modal';
 import { Keyboard, Command } from 'lucide-react';
 
 interface KeyboardShortcutsHelpProps {
@@ -51,65 +45,59 @@ const SHORTCUT_CATEGORIES = [
  */
 export function KeyboardShortcutsHelp({ open, onOpenChange }: KeyboardShortcutsHelpProps) {
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[500px]">
-                <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                            <Keyboard className="w-4 h-4 text-primary" />
+        <AppModal
+            open={open}
+            onClose={() => onOpenChange(false)}
+            title="Pintasan Keyboard"
+            icon={<Keyboard className="w-4 h-4" />}
+            size="sm"
+        >
+            <div className="space-y-6">
+                {SHORTCUT_CATEGORIES.map((category) => (
+                    <div key={category.title}>
+                        <h3 className="text-sm font-semibold text-muted-foreground mb-3">
+                            {category.title}
+                        </h3>
+                        <div className="space-y-2">
+                            {category.shortcuts.map((shortcut, idx) => (
+                                <div
+                                    key={idx}
+                                    className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-muted/50 transition-colors"
+                                >
+                                    <span className="text-sm">{shortcut.description}</span>
+                                    <kbd className="inline-flex items-center gap-1 px-2 py-1 rounded bg-muted font-mono text-xs font-medium">
+                                        {shortcut.ctrlKey && (
+                                            <>
+                                                <Command className="w-3 h-3" />
+                                                <span>+</span>
+                                            </>
+                                        )}
+                                        {shortcut.shiftKey && (
+                                            <>
+                                                <span>Shift</span>
+                                                <span>+</span>
+                                            </>
+                                        )}
+                                        {shortcut.altKey && (
+                                            <>
+                                                <span>Alt</span>
+                                                <span>+</span>
+                                            </>
+                                        )}
+                                        <span>{shortcut.key.toUpperCase()}</span>
+                                    </kbd>
+                                </div>
+                            ))}
                         </div>
-                        Pintasan Keyboard
-                    </DialogTitle>
-                </DialogHeader>
-
-                <div className="space-y-6 max-h-[60vh] overflow-y-auto">
-                    {SHORTCUT_CATEGORIES.map((category) => (
-                        <div key={category.title}>
-                            <h3 className="text-sm font-semibold text-muted-foreground mb-3">
-                                {category.title}
-                            </h3>
-                            <div className="space-y-2">
-                                {category.shortcuts.map((shortcut, idx) => (
-                                    <div
-                                        key={idx}
-                                        className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-muted/50 transition-colors"
-                                    >
-                                        <span className="text-sm">{shortcut.description}</span>
-                                        <kbd className="inline-flex items-center gap-1 px-2 py-1 rounded bg-muted font-mono text-xs font-medium">
-                                            {shortcut.ctrlKey && (
-                                                <>
-                                                    <Command className="w-3 h-3" />
-                                                    <span>+</span>
-                                                </>
-                                            )}
-                                            {shortcut.shiftKey && (
-                                                <>
-                                                    <span>Shift</span>
-                                                    <span>+</span>
-                                                </>
-                                            )}
-                                            {shortcut.altKey && (
-                                                <>
-                                                    <span>Alt</span>
-                                                    <span>+</span>
-                                                </>
-                                            )}
-                                            <span>{shortcut.key.toUpperCase()}</span>
-                                        </kbd>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-
-                <div className="pt-4 border-t text-center">
-                    <p className="text-xs text-muted-foreground">
-                        Tekan <kbd className="px-1.5 py-0.5 rounded bg-muted font-mono text-[10px]">ESC</kbd> untuk menutup
-                    </p>
-                </div>
-            </DialogContent>
-        </Dialog>
+                    </div>
+                ))}
+            </div>
+            <div className="pt-4 mt-2 border-t text-center">
+                <p className="text-xs text-muted-foreground">
+                    Tekan <kbd className="px-1.5 py-0.5 rounded bg-muted font-mono text-[10px]">ESC</kbd> untuk menutup
+                </p>
+            </div>
+        </AppModal>
     );
 }
 

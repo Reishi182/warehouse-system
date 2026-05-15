@@ -5,6 +5,7 @@ import {
     Send, Clock, History, TrendingUp, TrendingDown, Minus,
     Eye, AlertCircle,
 } from 'lucide-react';
+import ProductImage from '@/components/common/ProductImage';
 import MainLayout from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -391,7 +392,7 @@ export default function StockOpname() {
     };
 
     // ─── BeautifulTable columns for session history ─────────
-    const historyColumns: Column<StockOpnameSession>[] = [
+    const historyColumns: Column<StockOpnameSession>[] = useMemo(() => [
         {
             header: 'No. Sesi',
             accessorKey: 'session_number',
@@ -461,7 +462,8 @@ export default function StockOpname() {
                 </Button>
             ),
         },
-    ];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    ], []);
 
     // ── Success screen ───────────────────────────────────────────
     if (submitted) {
@@ -603,10 +605,13 @@ export default function StockOpname() {
                                                 className="w-full flex items-center gap-3 p-3 hover:bg-muted/50 transition-colors text-left border-b last:border-b-0"
                                             >
                                                 <div className="w-10 h-10 rounded-lg bg-muted/50 overflow-hidden shrink-0">
-                                                    {product.image_url
-                                                        ? <img src={product.image_url} alt="" className="w-full h-full object-cover" />
-                                                        : <div className="w-full h-full flex items-center justify-center"><Package className="w-5 h-5 text-muted-foreground/30" /></div>
-                                                    }
+                                                    <ProductImage
+                                                        src={product.image_url}
+                                                        alt={product.name}
+                                                        size="thumb"
+                                                        className="w-full h-full"
+                                                        placeholderClassName="w-full h-full bg-muted/50"
+                                                    />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <p className="font-medium text-sm truncate">{product.name}</p>
@@ -876,7 +881,11 @@ export default function StockOpname() {
             <SessionDetailDialog
                 session={detailSession}
                 open={detailOpen}
-                onClose={() => { setDetailOpen(false); setDetailSession(null); }}
+                onClose={() => {
+                    setDetailOpen(false);
+                    // Delay clearing session data so close animation can finish
+                    setTimeout(() => setDetailSession(null), 300);
+                }}
             />
         </MainLayout>
     );

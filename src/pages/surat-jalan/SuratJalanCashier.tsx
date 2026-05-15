@@ -1,4 +1,14 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
+import MainLayout from '@/components/layout/MainLayout';
+import PageSkeleton from '@/components/common/PageSkeleton';
+import ProductSearchSelect from '@/components/common/ProductSearchSelect';
+import UnitSelector from '@/components/common/UnitSelector';
+import StatusBadge from '@/components/common/StatusBadge';
+import LocationBadge from '@/components/common/LocationBadge';
+import { useSuratJalanB2B } from '@/hooks/useSuratJalanB2B';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+import { useState } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import PageSkeleton from '@/components/common/PageSkeleton';
 import ProductSearchSelect from '@/components/common/ProductSearchSelect';
@@ -14,15 +24,7 @@ import { Label } from '@/components/ui/label';
 import { Package, Truck, CheckCircle, Plus, Trash2, Clock, FileText, Eye, User, Paperclip } from 'lucide-react';
 import { BeautifulTable, Column } from '@/components/common/BeautifulTable';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogDescription,
-    DialogFooter,
-    DialogTrigger,
-} from '@/components/ui/dialog';
+import { AppModal } from '@/components/ui/app-modal';
 import SearchableSelect from '@/components/common/SearchableSelect';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -277,16 +279,20 @@ export default function SuratJalanCashier() {
             title="Surat Jalan B2B (Kasir)"
             subtitle="Buat dan kelola surat jalan pengiriman ke customer"
             actions={
-                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                    <DialogTrigger asChild>
-                        <Button className="rounded-xl text-xs sm:text-sm">
-                            <Plus className="h-4 w-4 sm:mr-2" />
-                            <span className="hidden sm:inline">Buat Surat Jalan</span>
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-0 gap-0 rounded-2xl border-0 shadow-2xl">
+                <>
+                    <Button className="rounded-xl text-xs sm:text-sm" onClick={() => setDialogOpen(true)}>
+                        <Plus className="h-4 w-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Buat Surat Jalan</span>
+                    </Button>
+                    <AppModal
+                        open={dialogOpen}
+                        onClose={() => setDialogOpen(false)}
+                        hideHeader
+                        noPadding
+                        size="xl"
+                    >
                         {/* Premium Header */}
-                        <div className="relative p-6 text-white overflow-hidden rounded-t-2xl bg-gradient-to-r from-blue-600 to-indigo-600">
+                        <div className="relative p-6 text-white overflow-hidden bg-gradient-to-r from-blue-600 to-indigo-600">
                             <div className="absolute inset-0 opacity-10 pointer-events-none">
                                 <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-white" />
                                 <div className="absolute -bottom-12 -left-8 w-52 h-52 rounded-full bg-white" />
@@ -400,7 +406,7 @@ export default function SuratJalanCashier() {
                                                         : 'bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-slate-600'
                                                 }`}
                                             >
-                                                ðŸª Toko
+                                                🏪 Toko
                                             </button>
                                             <button
                                                 type="button"
@@ -411,7 +417,7 @@ export default function SuratJalanCashier() {
                                                         : 'bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-slate-600'
                                                 }`}
                                             >
-                                                ðŸ“¦ Gudang
+                                                📦 Gudang
                                             </button>
                                         </div>
                                     </div>
@@ -508,8 +514,8 @@ export default function SuratJalanCashier() {
                                 </Button>
                             </div>
                         </div>
-                    </DialogContent>
-                </Dialog>
+                    </AppModal>
+                </>
             }
         >
             <div className="space-y-6">
@@ -559,37 +565,42 @@ export default function SuratJalanCashier() {
             </div>
 
             {/* Detail Dialog */}
-            <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
-                <DialogContent className="max-w-3xl bg-slate-50 dark:bg-slate-900 border-none shadow-2xl p-0 overflow-hidden rounded-2xl">
-                    {selectedSjDetail && (
-                        <div className="flex flex-col h-full max-h-[90vh]">
-                            {/* Premium Gradient Header */}
-                            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white relative shrink-0">
-                                <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
-                                    <FileText className="w-32 h-32" />
+            <AppModal 
+                open={detailDialogOpen} 
+                onClose={() => setDetailDialogOpen(false)}
+                hideHeader
+                noPadding
+                size="xl"
+            >
+                {selectedSjDetail && (
+                    <div className="flex flex-col h-full">
+                        {/* Premium Gradient Header */}
+                        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white relative shrink-0">
+                            <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+                                <FileText className="w-32 h-32" />
+                            </div>
+                            <div className="flex justify-between items-start relative z-10">
+                                <div>
+                                    <h2 className="text-2xl font-bold flex items-center gap-2">
+                                        Detail Surat Jalan
+                                    </h2>
+                                    <p className="text-blue-100 flex items-center gap-1.5 mt-1 font-mono text-sm">
+                                        {selectedSjDetail.number || 'Memuat...'}
+                                    </p>
                                 </div>
-                                <div className="flex justify-between items-start relative z-10">
-                                    <div>
-                                        <h2 className="text-2xl font-bold flex items-center gap-2">
-                                            Detail Surat Jalan
-                                        </h2>
-                                        <p className="text-blue-100 flex items-center gap-1.5 mt-1 font-mono text-sm">
-                                            {selectedSjDetail.number || 'Memuat...'}
-                                        </p>
-                                    </div>
-                                    <div className="bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-full text-sm font-semibold border border-white/30 shadow-sm flex items-center gap-2">
-                                        {selectedSjDetail.status === 'completed' && <CheckCircle className="w-4 h-4" />}
-                                        {selectedSjDetail.status === 'processing' && <Truck className="w-4 h-4" />}
-                                        {selectedSjDetail.status === 'pending_review' && <Clock className="w-4 h-4" />}
-                                        {selectedSjDetail.status === 'approved' && <CheckCircle className="w-4 h-4" />}
-                                        {selectedSjDetail.status === 'pending_review' ? 'Menunggu Review' :
-                                         selectedSjDetail.status === 'approved' ? 'Disetujui' :
-                                         selectedSjDetail.status === 'processing' ? 'Dalam Pengiriman' :
-                                         selectedSjDetail.status === 'completed' ? 'Selesai' :
-                                         selectedSjDetail.status === 'rejected' ? 'Ditolak' : selectedSjDetail.status}
-                                    </div>
+                                <div className="bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-full text-sm font-semibold border border-white/30 shadow-sm flex items-center gap-2">
+                                    {selectedSjDetail.status === 'completed' && <CheckCircle className="w-4 h-4" />}
+                                    {selectedSjDetail.status === 'processing' && <Truck className="w-4 h-4" />}
+                                    {selectedSjDetail.status === 'pending_review' && <Clock className="w-4 h-4" />}
+                                    {selectedSjDetail.status === 'approved' && <CheckCircle className="w-4 h-4" />}
+                                    {selectedSjDetail.status === 'pending_review' ? 'Menunggu Review' :
+                                        selectedSjDetail.status === 'approved' ? 'Disetujui' :
+                                        selectedSjDetail.status === 'processing' ? 'Dalam Pengiriman' :
+                                        selectedSjDetail.status === 'completed' ? 'Selesai' :
+                                        selectedSjDetail.status === 'rejected' ? 'Ditolak' : selectedSjDetail.status}
                                 </div>
                             </div>
+                        </div>
 
                             {/* Scrollable Content */}
                             <div className="p-6 overflow-y-auto custom-scrollbar space-y-6">
@@ -696,8 +707,7 @@ export default function SuratJalanCashier() {
                             </div>
                         </div>
                     )}
-                </DialogContent>
-            </Dialog>
+            </AppModal>
 
         </MainLayout>
     );

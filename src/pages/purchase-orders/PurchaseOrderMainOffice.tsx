@@ -1,4 +1,4 @@
-﻿import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { Plus, FileText, Printer, Eye, Trash2, Package, Check, Ban, Calendar, Camera, User, CalendarCheck, AlertTriangle, Image, Pencil, DollarSign, MapPin } from 'lucide-react';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 import MainLayout from '@/components/layout/MainLayout';
@@ -26,12 +26,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
+import { AppModal } from '@/components/ui/app-modal';
 import {
     Tabs,
     TabsContent,
@@ -721,13 +716,19 @@ export default function PurchaseOrderMainOffice() {
                 />
 
                 {/* Create/Edit PO Dialog */}
-                <Dialog open={isCreateOpen} onOpenChange={(open) => {
-                    if (!open) setEditPOId(null);
-                    setIsCreateOpen(open);
-                }}>
-                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 gap-0 rounded-2xl border-0 shadow-2xl">
+                <AppModal 
+                    open={isCreateOpen} 
+                    onClose={() => {
+                        setEditPOId(null);
+                        setIsCreateOpen(false);
+                    }}
+                    hideHeader
+                    noPadding
+                    size="3xl"
+                >
+                    <div className="max-h-[90vh] overflow-y-auto rounded-2xl">
                         {/* Premium Gradient Header */}
-                        <div className={`relative p-6 text-white overflow-hidden rounded-t-2xl ${editPOId ? 'bg-gradient-to-r from-amber-500 to-orange-500' : 'bg-gradient-to-r from-indigo-600 to-violet-600'}`}>
+                        <div className={`relative p-6 text-white overflow-hidden ${editPOId ? 'bg-gradient-to-r from-amber-500 to-orange-500' : 'bg-gradient-to-r from-indigo-600 to-violet-600'}`}>
                             <div className="absolute inset-0 opacity-10 pointer-events-none">
                                 <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-white" />
                                 <div className="absolute -bottom-12 -left-8 w-52 h-52 rounded-full bg-white" />
@@ -1015,19 +1016,25 @@ export default function PurchaseOrderMainOffice() {
                                     )}
                                 </Button>
                             </div>
+                            </div>
                         </div>
-                    </DialogContent>
-                </Dialog>
+                </AppModal>
                 {/* View PO Dialog */}
-                <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
-                    <DialogContent className="max-w-4xl bg-slate-50 dark:bg-slate-900 border-none shadow-2xl p-0 overflow-hidden rounded-2xl">
+                <AppModal 
+                    open={isViewOpen} 
+                    onClose={() => setIsViewOpen(false)}
+                    hideHeader
+                    noPadding
+                    size="3xl"
+                >
+                    <div className="max-h-[90vh]">
                         {selectedPOLoading ? (
                             <div className="py-12 flex flex-col items-center justify-center space-y-4">
                                 <div className="w-8 h-8 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin"></div>
                                 <p className="text-muted-foreground animate-pulse">Memuat detail Purchase Order...</p>
                             </div>
                         ) : selectedPO ? (
-                            <div className="flex flex-col h-full max-h-[90vh]">
+                            <div className="flex flex-col h-full">
                                 {/* Premium Gradient Header */}
                                 <div className="bg-gradient-to-r from-indigo-600 to-violet-600 p-6 text-white relative shrink-0">
                                     <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
@@ -1316,19 +1323,18 @@ export default function PurchaseOrderMainOffice() {
                                 </div>
                             </div>
                         ) : null}
-                    </DialogContent>
-                </Dialog>
+                    </div>
+                </AppModal>
             </div>
 
             {/* Print Dialog */}
-            <Dialog open={isPrintDialogOpen} onOpenChange={setIsPrintDialogOpen}>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                            <Printer className="w-5 h-5" />
-                            Cetak Purchase Order
-                        </DialogTitle>
-                    </DialogHeader>
+            <AppModal 
+                open={isPrintDialogOpen} 
+                onClose={() => setIsPrintDialogOpen(false)}
+                title={<div className="flex items-center gap-2"><Printer className="w-5 h-5" /> Cetak Purchase Order</div>}
+                size="2xl"
+            >
+                <div className="max-h-[80vh] overflow-y-auto">
                     {selectedPOLoading ? (
                         <div className="py-8 text-center text-muted-foreground">Memuat...</div>
                     ) : selectedPO ? (
@@ -1355,19 +1361,21 @@ export default function PurchaseOrderMainOffice() {
                             </div>
                         </>
                     ) : null}
-                </DialogContent>
-            </Dialog>
+                </div>
+            </AppModal>
 
             {/* Cancel PO Confirmation Dialog */}
-            <Dialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
-                <DialogContent className="max-w-md">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2 text-destructive">
-                            <Ban className="w-5 h-5" />
-                            {isCompletedCancel ? 'Batalkan PO yang Sudah Selesai' : 'Batalkan Purchase Order'}
-                        </DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 mt-4">
+            <AppModal 
+                open={isCancelDialogOpen} 
+                onClose={() => setIsCancelDialogOpen(false)}
+                title={
+                    <div className="flex items-center gap-2 text-destructive">
+                        <Ban className="w-5 h-5" />
+                        {isCompletedCancel ? 'Batalkan PO yang Sudah Selesai' : 'Batalkan Purchase Order'}
+                    </div>
+                }
+            >
+                <div className="space-y-4 mt-2">
                         {/* Warning khusus untuk PO completed */}
                         {isCompletedCancel && (
                             <div className="bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-800 rounded-lg p-3 space-y-2">
@@ -1438,14 +1446,14 @@ export default function PurchaseOrderMainOffice() {
                             </Button>
                         </div>
                     </div>
-                </DialogContent>
-            </Dialog>
+            </AppModal>
             {/* Photo/Signature Fullscreen Modal */}
-            <Dialog open={!!photoModalUrl} onOpenChange={() => setPhotoModalUrl(null)}>
-                <DialogContent className="max-w-3xl p-2">
-                    <DialogHeader>
-                        <DialogTitle>Bukti Penerimaan</DialogTitle>
-                    </DialogHeader>
+            <AppModal 
+                open={!!photoModalUrl} 
+                onClose={() => setPhotoModalUrl(null)}
+                title="Bukti Penerimaan"
+                size="3xl"
+            >
                     {photoModalUrl && (
                         <img
                             src={photoModalUrl}
@@ -1453,18 +1461,20 @@ export default function PurchaseOrderMainOffice() {
                             className="w-full rounded-lg"
                         />
                     )}
-                </DialogContent>
-            </Dialog>
+                </AppModal>
             {/* Edit Price/Stock PO Dialog */}
-            <Dialog open={isEditPriceOpen} onOpenChange={setIsEditPriceOpen}>
-                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                            <DollarSign className="w-5 h-5 text-amber-500" />
-                            Koreksi Harga & Stok PO Selesai
-                        </DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 mt-2">
+            <AppModal 
+                open={isEditPriceOpen} 
+                onClose={() => setIsEditPriceOpen(false)}
+                title={
+                    <div className="flex items-center gap-2">
+                        <DollarSign className="w-5 h-5 text-amber-500" />
+                        Koreksi Harga & Stok PO Selesai
+                    </div>
+                }
+                size="4xl"
+            >
+                <div className="space-y-4 max-h-[80vh] overflow-y-auto mt-2">
                         {/* Info banner */}
                         <div className="bg-amber-50 dark:bg-amber-900/10 p-3 rounded-lg border border-amber-200 dark:border-amber-800 text-sm text-amber-800 dark:text-amber-300 space-y-1">
                             <p><strong>Koreksi Harga:</strong> Hanya mengubah nilai PO, stok tidak terpengaruh.</p>
@@ -1603,19 +1613,20 @@ export default function PurchaseOrderMainOffice() {
                             </Button>
                         </div>
                     </div>
-                </DialogContent>
-            </Dialog>
+            </AppModal>
 
             {/* Pindah Lokasi Tujuan PO Dialog */}
-            <Dialog open={isMoveDestionationOpen} onOpenChange={setIsMoveDestinationOpen}>
-                <DialogContent className="max-w-md">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                            <MapPin className="w-5 h-5 text-indigo-500" />
-                            Pindah Lokasi Tujuan PO
-                        </DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 mt-2">
+            <AppModal 
+                open={isMoveDestionationOpen} 
+                onClose={() => setIsMoveDestinationOpen(false)}
+                title={
+                    <div className="flex items-center gap-2">
+                        <MapPin className="w-5 h-5 text-indigo-500" />
+                        Pindah Lokasi Tujuan PO
+                    </div>
+                }
+            >
+                <div className="space-y-4 mt-2">
                         {/* Warning */}
                         <div className="bg-indigo-50 dark:bg-indigo-900/10 p-3 rounded-lg border border-indigo-200 dark:border-indigo-800 text-sm text-indigo-800 dark:text-indigo-300 space-y-1">
                             <p>
@@ -1672,9 +1683,8 @@ export default function PurchaseOrderMainOffice() {
                                 {updatePODestination.isPending ? 'Memindahkan...' : 'Ya, Pindahkan Stok'}
                             </Button>
                         </div>
-                    </div>
-                </DialogContent>
-            </Dialog>
+                </div>
+            </AppModal>
         </MainLayout>
     );
 }

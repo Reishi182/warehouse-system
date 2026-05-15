@@ -5,6 +5,7 @@ import { StockReturn } from '@/types';
 import { sendNotificationToRole, sendNotificationToUser } from '@/hooks/useRealtimeNotifications';
 import { broadcastTableChange } from '@/lib/broadcastSync';
 import { invalidateAndBroadcast } from '@/lib/queryBroadcast';
+import { convertToBaseUnit } from '@/lib/unitConversion';
 
 export function useStockReturns() {
     const { toast } = useToast();
@@ -113,16 +114,18 @@ export function useStockReturns() {
             if (fetchError) throw fetchError;
             const docNum = retData.return_number;
 
-            // 2. Get return items to update stock
+            // 2. Get return items with unit and product multi-unit data
             const { data: items, error: itemsError } = await supabase
                 .from('stock_return_items')
-                .select('product_id, quantity')
+                .select('product_id, quantity, unit, product:products(id, has_multi_unit, main_unit, pcs_per_box)')
                 .eq('stock_return_id', data.returnId);
 
             if (itemsError) throw itemsError;
 
-            // 3. Update stock: decrease toko, increase gudang (atomic)
+            // 3. Update stock: decrease toko, increase gudang (atomic, converted to base units)
             for (const item of items || []) {
+                const baseQty = convertToBaseUnit(item.quantity, item.unit, item.product || {});
+
                 // Fetch current stock levels BEFORE transfer for accurate logging
                 const { data: prodData } = await supabase
                     .from('products')
@@ -135,7 +138,7 @@ export function useStockReturns() {
 
                 const { error: transferError } = await supabase.rpc('atomic_transfer_stock', {
                     p_product_id: item.product_id,
-                    p_quantity: item.quantity,
+                    p_quantity: baseQty,
                     p_from: 'toko',
                     p_to: 'gudang',
                 });
@@ -145,27 +148,27 @@ export function useStockReturns() {
                 await supabase.from('stock_logs').insert({
                     product_id: item.product_id,
                     type: 'out',
-                    quantity: item.quantity,
+                    quantity: baseQty,
                     location: 'toko',
                     user_id: data.mainOfficeId,
-                    note: `Akses cepat - Retur ke gudang - ${docNum}`,
+                    note: `Akses cepat - Retur ke gudang - ${docNum}${item.unit ? ` (${item.quantity} ${item.unit})` : ''}`,
                     reference_type: 'stock_return',
                     reference_id: data.returnId,
                     stock_before: stockTokoBefore,
-                    stock_after: stockTokoBefore - item.quantity
+                    stock_after: stockTokoBefore - baseQty
                 });
 
                 await supabase.from('stock_logs').insert({
                     product_id: item.product_id,
                     type: 'in',
-                    quantity: item.quantity,
+                    quantity: baseQty,
                     location: 'gudang',
                     user_id: data.mainOfficeId,
-                    note: `Akses cepat - Terima retur dari toko - ${docNum}`,
+                    note: `Akses cepat - Terima retur dari toko - ${docNum}${item.unit ? ` (${item.quantity} ${item.unit})` : ''}`,
                     reference_type: 'stock_return',
                     reference_id: data.returnId,
                     stock_before: stockGudangBefore,
-                    stock_after: stockGudangBefore + item.quantity
+                    stock_after: stockGudangBefore + baseQty
                 });
             }
 

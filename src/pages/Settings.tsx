@@ -9,13 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+import { AppModal } from '@/components/ui/app-modal';
 import { useAuth, useRole } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { compressImageToFile, formatFileSize } from '@/lib/imageCompression';
@@ -169,54 +163,51 @@ export default function Settings() {
               </p>
             </div>
 
-            <Dialog open={profileDialogOpen} onOpenChange={handleOpenProfileDialog}>
-              <DialogTrigger asChild>
-                <Button variant="outline">Ubah</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Ubah Profil</DialogTitle>
-                </DialogHeader>
+            <Button variant="outline" onClick={() => handleOpenProfileDialog(true)}>Ubah</Button>
+            <AppModal
+              open={profileDialogOpen}
+              onClose={() => setProfileDialogOpen(false)}
+              title="Ubah Profil"
+              size="sm"
+            >
+              <div className="space-y-4 mt-2">
+                <div className="space-y-2">
+                  <Label>Nama</Label>
+                  <Input value={newName} onChange={(e) => setNewName(e.target.value)} />
+                </div>
 
-                <div className="space-y-4 mt-2">
-                  <div className="space-y-2">
-                    <Label>Nama</Label>
-                    <Input value={newName} onChange={(e) => setNewName(e.target.value)} />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Avatar</Label>
-                    <Input type="file" accept="image/*" onChange={handleAvatarChange} />
-                    <div className="flex items-center gap-3">
-                      <div className="w-16 h-16 rounded-full border bg-muted overflow-hidden flex items-center justify-center">
-                        {avatarPreviewUrl ? (
-                          <img src={avatarPreviewUrl} alt="Preview" className="w-full h-full object-cover" />
-                        ) : profile?.avatar ? (
-                          <img src={profile.avatar} alt="Avatar" className="w-full h-full object-cover" />
-                        ) : (
-                          <span className="text-sm font-semibold text-muted-foreground">
-                            {(profile?.name?.charAt(0) || 'U').toUpperCase()}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Maks 3MB. Format jpg/png/webp.
-                      </p>
+                <div className="space-y-2">
+                  <Label>Avatar</Label>
+                  <Input type="file" accept="image/*" onChange={handleAvatarChange} />
+                  <div className="flex items-center gap-3">
+                    <div className="w-16 h-16 rounded-full border bg-muted overflow-hidden flex items-center justify-center">
+                      {avatarPreviewUrl ? (
+                        <img src={avatarPreviewUrl} alt="Preview" className="w-full h-full object-cover" />
+                      ) : profile?.avatar ? (
+                        <img src={profile.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-sm font-semibold text-muted-foreground">
+                          {(profile?.name?.charAt(0) || 'U').toUpperCase()}
+                        </span>
+                      )}
                     </div>
-                  </div>
-
-                  <div className="flex gap-3 justify-end">
-                    <Button variant="outline" onClick={() => setProfileDialogOpen(false)} disabled={savingProfile}>
-                      Batal
-                    </Button>
-                    <Button onClick={handleSaveProfile} disabled={savingProfile}>
-                      <Upload className="w-4 h-4 mr-2" />
-                      Simpan
-                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                      Maks 3MB. Format jpg/png/webp.
+                    </p>
                   </div>
                 </div>
-              </DialogContent>
-            </Dialog>
+
+                <div className="flex gap-3 justify-end">
+                  <Button variant="outline" onClick={() => setProfileDialogOpen(false)} disabled={savingProfile}>
+                    Batal
+                  </Button>
+                  <Button onClick={handleSaveProfile} disabled={savingProfile}>
+                    <Upload className="w-4 h-4 mr-2" />
+                    Simpan
+                  </Button>
+                </div>
+              </div>
+            </AppModal>
           </div>
           <Separator className="my-4" />
           <div className="text-sm text-muted-foreground">

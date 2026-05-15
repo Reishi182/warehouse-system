@@ -1,0 +1,223 @@
+{
+  "simple": [
+    "src\\components\\common\\ExportButton.tsx",
+    "src\\components\\common\\QuickStockCheck.tsx",
+    "src\\components\\dashboard\\RecentRequests.tsx",
+    "src\\components\\pos\\SaveToTabDialog.tsx",
+    "src\\components\\products\\AddProductDialog.tsx",
+    "src\\components\\products\\EditProductDialog.tsx",
+    "src\\components\\products\\StockAdjustDialog.tsx",
+    "src\\components\\products\\StockInDialog.tsx",
+    "src\\components\\products\\StockThresholdDialog.tsx",
+    "src\\pages\\Approval.tsx",
+    "src\\pages\\direct-orders\\DirectOrderDetail.tsx",
+    "src\\pages\\direct-orders\\DirectOrders.tsx",
+    "src\\pages\\finance\\CashierOpeningCash.tsx",
+    "src\\pages\\finance\\Expenses.tsx",
+    "src\\pages\\marketplace\\MarketplaceOrders.tsx",
+    "src\\pages\\marketplace\\MarketplaceReturns.tsx",
+    "src\\pages\\Products.tsx",
+    "src\\pages\\Settings.tsx",
+    "src\\pages\\stock-request\\GoodsReceipt.tsx",
+    "src\\pages\\tabs\\Tabs.tsx",
+    "src\\pages\\tokopedia\\TokopediaOrders.tsx",
+    "src\\pages\\tokopedia\\TokopediaShipping.tsx"
+  ],
+  "complex": [
+    {
+      "rel": "src\\components\\common\\BarcodeScanner.tsx",
+      "dialogCount": 1,
+      "isComplex": true
+    },
+    {
+      "rel": "src\\components\\common\\GlobalSearch.tsx",
+      "dialogCount": 1,
+      "isComplex": true
+    },
+    {
+      "rel": "src\\components\\common\\ImageLightbox.tsx",
+      "dialogCount": 1,
+      "isComplex": true
+    },
+    {
+      "rel": "src\\components\\dashboard\\LowStockAlertWidget.tsx",
+      "dialogCount": 1,
+      "isComplex": true
+    },
+    {
+      "rel": "src\\components\\pos\\CreditListDialog.tsx",
+      "dialogCount": 1,
+      "isComplex": true
+    },
+    {
+      "rel": "src\\components\\pos\\POSCheckoutDialog.tsx",
+      "dialogCount": 1,
+      "isComplex": true
+    },
+    {
+      "rel": "src\\components\\pos\\POSReceiptDialog.tsx",
+      "dialogCount": 1,
+      "isComplex": true
+    },
+    {
+      "rel": "src\\components\\pos\\QuantityInputDialog.tsx",
+      "dialogCount": 1,
+      "isComplex": true
+    },
+    {
+      "rel": "src\\components\\pos\\QuickSaleDialog.tsx",
+      "dialogCount": 1,
+      "isComplex": true
+    },
+    {
+      "rel": "src\\components\\pos\\UnitPickerDialog.tsx",
+      "dialogCount": 1,
+      "isComplex": true
+    },
+    {
+      "rel": "src\\components\\products\\BarcodeLabelPrint.tsx",
+      "dialogCount": 1,
+      "isComplex": true
+    },
+    {
+      "rel": "src\\components\\products\\ProductPicker.tsx",
+      "dialogCount": 1,
+      "isComplex": true
+    },
+    {
+      "rel": "src\\components\\products\\StockOpnameProductPicker.tsx",
+      "dialogCount": 1,
+      "isComplex": true
+    },
+    {
+      "rel": "src\\components\\sales\\TransactionDetailDialog.tsx",
+      "dialogCount": 1,
+      "isComplex": true
+    },
+    {
+      "rel": "src\\components\\stock\\StockLogDetailDialog.tsx",
+      "dialogCount": 1,
+      "isComplex": true
+    },
+    {
+      "rel": "src\\pages\\CashTransfer.tsx",
+      "dialogCount": 2,
+      "isComplex": true
+    },
+    {
+      "rel": "src\\pages\\finance\\Backorders.tsx",
+      "dialogCount": 2,
+      "isComplex": false
+    },
+    {
+      "rel": "src\\pages\\finance\\SalesHistory.tsx",
+      "dialogCount": 3,
+      "isComplex": true
+    },
+    {
+      "rel": "src\\pages\\invoices\\InvoiceMainOffice.tsx",
+      "dialogCount": 2,
+      "isComplex": false
+    },
+    {
+      "rel": "src\\pages\\marketplace\\MarketplaceReceipt.tsx",
+      "dialogCount": 2,
+      "isComplex": false
+    },
+    {
+      "rel": "src\\pages\\purchase-orders\\PODiscrepancyReport.tsx",
+      "dialogCount": 3,
+      "isComplex": true
+    },
+    {
+      "rel": "src\\pages\\purchase-orders\\PurchaseOrderMainOffice.tsx",
+      "dialogCount": 7,
+      "isComplex": true
+    },
+    {
+      "rel": "src\\pages\\purchase-orders\\PurchaseOrderReceipt.tsx",
+      "dialogCount": 2,
+      "isComplex": true
+    },
+    {
+      "rel": "src\\pages\\stock\\StockHistory.tsx",
+      "dialogCount": 2,
+      "isComplex": true
+    },
+    {
+      "rel": "src\\pages\\stock-request\\StockApprovals.tsx",
+      "dialogCount": 1,
+      "isComplex": true
+    },
+    {
+      "rel": "src\\pages\\stock-request\\StockRequestsNew.tsx",
+      "dialogCount": 2,
+      "isComplex": true
+    },
+    {
+      "rel": "src\\pages\\stock-request\\StockShipments.tsx",
+      "dialogCount": 2,
+      "isComplex": true
+    },
+    {
+      "rel": "src\\pages\\stock-return\\StockReturnApproval.tsx",
+      "dialogCount": 2,
+      "isComplex": true
+    },
+    {
+      "rel": "src\\pages\\stock-return\\StockReturnCreate.tsx",
+      "dialogCount": 2,
+      "isComplex": true
+    },
+    {
+      "rel": "src\\pages\\StockOpname.tsx",
+      "dialogCount": 1,
+      "isComplex": true
+    },
+    {
+      "rel": "src\\pages\\StockOpnameApproval.tsx",
+      "dialogCount": 2,
+      "isComplex": true
+    },
+    {
+      "rel": "src\\pages\\StockRequests.tsx",
+      "dialogCount": 2,
+      "isComplex": false
+    },
+    {
+      "rel": "src\\pages\\surat-jalan\\SuratJalanAuditor.tsx",
+      "dialogCount": 1,
+      "isComplex": true
+    },
+    {
+      "rel": "src\\pages\\surat-jalan\\SuratJalanCashier.tsx",
+      "dialogCount": 2,
+      "isComplex": true
+    },
+    {
+      "rel": "src\\pages\\surat-jalan\\SuratJalanMainOffice.tsx",
+      "dialogCount": 3,
+      "isComplex": true
+    },
+    {
+      "rel": "src\\pages\\surat-jalan\\SuratJalanWarehouse.tsx",
+      "dialogCount": 2,
+      "isComplex": false
+    },
+    {
+      "rel": "src\\pages\\tokopedia\\TokopediaOrderDetail.tsx",
+      "dialogCount": 2,
+      "isComplex": false
+    }
+  ],
+  "withAlertDialog": [
+    "src\\components\\pos\\POSSalesHistoryDialog.tsx",
+    "src\\components\\pos\\TabDialog.tsx",
+    "src\\components\\products\\CategoryManager.tsx",
+    "src\\components\\settings\\BackupRestoreDialog.tsx",
+    "src\\pages\\customers\\Customers.tsx",
+    "src\\pages\\finance\\GeneralTransactions.tsx",
+    "src\\pages\\suppliers\\Suppliers.tsx",
+    "src\\pages\\tabs\\TabDetail.tsx"
+  ]
+}

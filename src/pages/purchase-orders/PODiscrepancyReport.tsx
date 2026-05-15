@@ -21,13 +21,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogDescription,
-} from '@/components/ui/dialog';
+import { AppModal } from '@/components/ui/app-modal';
 import {
     Select,
     SelectContent,
@@ -502,11 +496,12 @@ export default function PODiscrepancyReport() {
                 </Tabs>
 
                 {/* View PO Dialog */}
-                <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
-                    <DialogContent className="max-w-2xl">
-                        <DialogHeader>
-                            <DialogTitle>Detail PO dengan Selisih</DialogTitle>
-                        </DialogHeader>
+                <AppModal 
+                    open={isViewOpen} 
+                    onClose={() => setIsViewOpen(false)}
+                    title="Detail PO dengan Selisih"
+                    size="2xl"
+                >
                         {selectedPO && (
                             <div className="space-y-4 mt-4">
                                 <div className="grid grid-cols-2 gap-4">
@@ -571,23 +566,26 @@ export default function PODiscrepancyReport() {
                                 </div>
                             </div>
                         )}
-                    </DialogContent>
-                </Dialog>
+                </AppModal>
 
                 {/* Create Claim Dialog */}
-                <Dialog open={isClaimOpen} onOpenChange={setIsClaimOpen}>
-                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                        <DialogHeader>
-                            <DialogTitle className="flex items-center gap-2">
+                <AppModal 
+                    open={isClaimOpen} 
+                    onClose={() => setIsClaimOpen(false)}
+                    title={
+                        <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
                                 <FileText className="w-5 h-5" />
                                 Buat Klaim Supplier
-                            </DialogTitle>
-                            <DialogDescription>
+                            </div>
+                            <span className="text-sm font-normal text-muted-foreground">
                                 PO: {selectedPO?.po_number} - {selectedPO?.supplier?.name}
-                            </DialogDescription>
-                        </DialogHeader>
-
-                        <div className="space-y-4 mt-4">
+                            </span>
+                        </div>
+                    }
+                    size="2xl"
+                >
+                    <div className="space-y-4 max-h-[80vh] overflow-y-auto mt-2">
                             {/* Claimed Items */}
                             <Card>
                                 <CardHeader className="pb-3">
@@ -697,20 +695,22 @@ export default function PODiscrepancyReport() {
                                 </Button>
                             </div>
                         </div>
-                    </DialogContent>
-                </Dialog>
+                </AppModal>
 
                 {/* Update Status Dialog */}
-                <Dialog open={isUpdateStatusOpen} onOpenChange={setIsUpdateStatusOpen}>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Update Status Klaim</DialogTitle>
-                            <DialogDescription>
+                <AppModal 
+                    open={isUpdateStatusOpen} 
+                    onClose={() => setIsUpdateStatusOpen(false)}
+                    title={
+                        <div className="flex flex-col gap-1">
+                            <span>Update Status Klaim</span>
+                            <span className="text-sm font-normal text-muted-foreground">
                                 Klaim: {selectedClaim?.claim_number}
-                            </DialogDescription>
-                        </DialogHeader>
-
-                        <div className="space-y-4 mt-4">
+                            </span>
+                        </div>
+                    }
+                >
+                    <div className="space-y-4 mt-2">
                             <div className="space-y-2">
                                 <Label>Status Baru</Label>
                                 <Select value={newStatus} onValueChange={(v) => setNewStatus(v as POClaimStatus)}>
@@ -766,8 +766,7 @@ export default function PODiscrepancyReport() {
                                 </Button>
                             </div>
                         </div>
-                    </DialogContent>
-                </Dialog>
+                </AppModal>
             </div>
         </MainLayout>
     );
