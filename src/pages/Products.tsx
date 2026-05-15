@@ -437,8 +437,8 @@ export default function Products() {
 
     // Historical stock calculation
     const calculateHistoricalStock = useCallback(async (targetDate: string) => {
-        // targetDate is YYYY-MM-DD, we want end of that day
-        const endOfDay = `${targetDate}T23:59:59.999Z`;
+        // targetDate is YYYY-MM-DD, we want end of that day in WIB (UTC+7)
+        const endOfDay = `${targetDate}T23:59:59.999+07:00`;
 
         // Fetch all stock_logs AFTER the target date
         const { data: logsAfter, error } = await supabase

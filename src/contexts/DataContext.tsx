@@ -854,6 +854,39 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     // ✅ Broadcast instead of re-fetch — postgres_changes will also patch
     if (inserted) {
       broadcastTableChange('products', 'INSERT', ['products'], inserted);
+
+      // ── Log initial stock to stock_logs for historical export accuracy ──
+      const initialStockLogs: any[] = [];
+      if (product.stock.gudang > 0) {
+        initialStockLogs.push({
+          product_id: inserted.id,
+          type: 'in',
+          quantity: product.stock.gudang,
+          location: 'gudang',
+          user_id: user?.id,
+          note: `Stok awal gudang (produk baru)`,
+          stock_before: 0,
+          stock_after: product.stock.gudang,
+        });
+      }
+      if (product.stock.toko > 0) {
+        initialStockLogs.push({
+          product_id: inserted.id,
+          type: 'in',
+          quantity: product.stock.toko,
+          location: 'toko',
+          user_id: user?.id,
+          note: `Stok awal toko (produk baru)`,
+          stock_before: 0,
+          stock_after: product.stock.toko,
+        });
+      }
+      if (initialStockLogs.length > 0) {
+        supabase.from('stock_logs').insert(initialStockLogs).then(({ error: slErr }) => {
+          if (slErr) console.error('[StockLog] Failed to insert initial stock logs:', slErr);
+          else broadcastTableChange('stock_logs', 'INSERT', ['stock-logs']);
+        });
+      }
     }
 
     return true;
@@ -976,6 +1009,44 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           if (auditErr) console.error('[ProductAudit] Failed to insert audit logs:', auditErr);
           else broadcastTableChange('product_audit_logs', 'INSERT', ['product-audit-logs']);
         });
+      }
+
+      // ── Stock Logs for historical export accuracy ──
+      // Ensures calculateHistoricalStock can reverse these changes correctly
+      if (updates.stock) {
+        const stockLogsForUpdate: any[] = [];
+        if (prev.stock.gudang !== updates.stock.gudang) {
+          const diff = updates.stock.gudang - prev.stock.gudang;
+          stockLogsForUpdate.push({
+            product_id: id,
+            type: diff > 0 ? 'in' : diff < 0 ? 'out' : 'adjustment',
+            quantity: Math.abs(diff),
+            location: 'gudang',
+            user_id: user.id,
+            note: `Adjustment stok gudang oleh ${profile.name} (${prev.stock.gudang} → ${updates.stock.gudang})`,
+            stock_before: prev.stock.gudang,
+            stock_after: updates.stock.gudang,
+          });
+        }
+        if (prev.stock.toko !== updates.stock.toko) {
+          const diff = updates.stock.toko - prev.stock.toko;
+          stockLogsForUpdate.push({
+            product_id: id,
+            type: diff > 0 ? 'in' : diff < 0 ? 'out' : 'adjustment',
+            quantity: Math.abs(diff),
+            location: 'toko',
+            user_id: user.id,
+            note: `Adjustment stok toko oleh ${profile.name} (${prev.stock.toko} → ${updates.stock.toko})`,
+            stock_before: prev.stock.toko,
+            stock_after: updates.stock.toko,
+          });
+        }
+        if (stockLogsForUpdate.length > 0) {
+          supabase.from('stock_logs').insert(stockLogsForUpdate).then(({ error: slErr }) => {
+            if (slErr) console.error('[StockLog] Failed to insert stock logs from updateProduct:', slErr);
+            else broadcastTableChange('stock_logs', 'INSERT', ['stock-logs']);
+          });
+        }
       }
     }
 
