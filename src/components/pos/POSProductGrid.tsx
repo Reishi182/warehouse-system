@@ -295,7 +295,7 @@ export const POSProductGrid = memo(function POSProductGrid({
                     </div>
                 )}
             </ScrollArea>
-            
+
             {/* Status Info Footer */}
             {filteredProducts.length > 0 && (
                 <div className="mt-4 pt-4 border-t text-center text-xs sm:text-sm text-muted-foreground">

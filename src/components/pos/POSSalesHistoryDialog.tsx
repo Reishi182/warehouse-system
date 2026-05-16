@@ -383,19 +383,19 @@ export function POSSalesHistoryDialog({ open, onOpenChange, onCreateReturn }: PO
                                                                     "font-semibold text-sm truncate",
                                                                     (sale.is_cancelled || sale.is_exchanged) && "line-through opacity-60"
                                                                 )}>{sale.sale_number}</span>
-                                                                    <Badge
-                                                                        variant="outline"
-                                                                        className={cn(
-                                                                            "text-[10px] px-1.5 py-0",
-                                                                            sale.payment_method === 'cash'
-                                                                                ? "border-green-300 text-green-600 bg-green-50 dark:bg-green-900/20"
-                                                                                : sale.payment_method === 'split'
-                                                                                    ? "border-blue-300 text-blue-600 bg-blue-50 dark:bg-blue-900/20"
-                                                                                    : "border-purple-300 text-purple-600 bg-purple-50 dark:bg-purple-900/20"
-                                                                        )}
-                                                                    >
-                                                                        {sale.payment_method === 'cash' ? 'Tunai' : sale.payment_method === 'split' ? 'Split' : 'Transfer'}
-                                                                    </Badge>
+                                                                <Badge
+                                                                    variant="outline"
+                                                                    className={cn(
+                                                                        "text-[10px] px-1.5 py-0",
+                                                                        sale.payment_method === 'cash'
+                                                                            ? "border-green-300 text-green-600 bg-green-50 dark:bg-green-900/20"
+                                                                            : sale.payment_method === 'split'
+                                                                                ? "border-blue-300 text-blue-600 bg-blue-50 dark:bg-blue-900/20"
+                                                                                : "border-purple-300 text-purple-600 bg-purple-50 dark:bg-purple-900/20"
+                                                                    )}
+                                                                >
+                                                                    {sale.payment_method === 'cash' ? 'Tunai' : sale.payment_method === 'split' ? 'Split' : 'Transfer'}
+                                                                </Badge>
                                                                 {/* Status Badges */}
                                                                 {sale.is_cancelled && (
                                                                     <Badge className="text-[10px] px-1.5 py-0 bg-red-100 text-red-600 border-0">

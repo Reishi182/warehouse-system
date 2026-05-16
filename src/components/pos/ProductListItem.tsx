@@ -117,7 +117,7 @@ export const ProductListItem = memo(function ProductListItem({
                         <Pencil className="w-4 h-4" />
                     </div>
                 )}
-                
+
                 {/* Add Button */}
                 {!isOutOfStock && (
                     <div className="opacity-0 group-hover:opacity-100 transition-opacity ml-1">

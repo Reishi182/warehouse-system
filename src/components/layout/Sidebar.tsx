@@ -25,7 +25,7 @@ import {
   CreditCard,
   FileStack, RotateCcw,
   Banknote,
-  BookOpen,
+
   ClipboardList,
   AlertTriangle,
   ArrowLeftRight,
@@ -68,7 +68,7 @@ interface NavItem {
 // Grouped navigation with submenus
 const navGroups: NavItem[] = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/', roles: ['warehouse', 'cashier', 'auditor', 'admin', 'main_office'] },
-  { label: 'Panduan', icon: BookOpen, href: '/guide', roles: ['warehouse', 'cashier', 'auditor', 'admin', 'main_office'] },
+
   
   // Superadmin Exclusive Tools (Site Builder & User Management)
   { label: 'Site Builder', icon: Zap, href: '/site-builder', roles: ['admin'] },
@@ -404,7 +404,7 @@ export default function Sidebar() {
   };
 
   // Determine which items need a separator after them (group boundaries)
-  const groupBoundaries = new Set(['Panduan', 'Kasir (POS)', 'Produk', 'Persetujuan', 'Pengguna']);
+  const groupBoundaries = new Set(['Kasir (POS)', 'Produk', 'Persetujuan', 'Pengguna']);
 
   return (
     <>

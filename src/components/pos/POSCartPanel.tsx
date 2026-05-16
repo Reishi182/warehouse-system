@@ -204,7 +204,7 @@ export const POSCartPanel = memo(function POSCartPanel({
                                 const basePrice = it.unitPrice || it.product.price;
                                 let itemTotal = basePrice * it.quantity;
                                 let isBulkApplied = false;
-                                
+
                                 if (it.product.bulk_quantity && it.product.bulk_price && it.quantity >= it.product.bulk_quantity) {
                                     if (!it.sellUnit || it.sellUnit === 'sub') {
                                         const bulkBundles = Math.floor(it.quantity / it.product.bulk_quantity);

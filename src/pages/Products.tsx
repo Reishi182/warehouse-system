@@ -47,7 +47,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 type SortOption = 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc' | 'stock-asc' | 'stock-desc' | 'newest' | 'oldest';
 
-type PageSize = 5 | 10 | 15 | 'all';
+type PageSize = 5 | 10 | 15 | 25 | 50 | 100;
 
 export default function Products() {
     const products = useDataStore(s => s.products);
@@ -79,8 +79,8 @@ export default function Products() {
     });
     const [pageSize, setPageSize] = useState<PageSize>(() => {
         const saved = sessionStorage.getItem('products_page_size');
-        if (saved === 'all') return 'all';
-        return saved ? (parseInt(saved, 10) as PageSize) : 15;
+        if (saved === 'all') return 25; // migrate old 'all' setting
+        return saved ? (parseInt(saved, 10) as PageSize) : 25;
     });
 
     useEffect(() => {
@@ -249,13 +249,11 @@ export default function Products() {
 
     // Paginated products
     const paginatedProducts = useMemo(() => {
-        if (pageSize === 'all') return filteredProducts;
         const startIndex = (currentPage - 1) * pageSize;
         return filteredProducts.slice(startIndex, startIndex + pageSize);
     }, [filteredProducts, currentPage, pageSize]);
 
     const totalPages = useMemo(() => {
-        if (pageSize === 'all') return 1;
         return Math.ceil(filteredProducts.length / pageSize);
     }, [filteredProducts.length, pageSize]);
 
@@ -540,7 +538,7 @@ export default function Products() {
         );
     }
 
-    const pageSizeOptions: PageSize[] = [5, 10, 15, 'all'];
+    const pageSizeOptions: PageSize[] = [10, 15, 25, 50, 100];
 
     return (
         <MainLayout
@@ -695,7 +693,7 @@ export default function Products() {
                                                             : "hover:bg-background/50"
                                                     )}
                                                 >
-                                                    {size === 'all' ? 'All' : size}
+                                                    {size}
                                                 </button>
                                             ))}
                                         </div>
@@ -756,7 +754,7 @@ export default function Products() {
 
                         {/* Product Grid */}
                         {paginatedProducts.length > 0 ? (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4" style={{ contentVisibility: 'auto' }}>
                                 {paginatedProducts.map((product) => (
                                     <ProductManageCard
                                         key={product.id}
@@ -795,7 +793,7 @@ export default function Products() {
                         )}
 
                         {/* Pagination */}
-                        {pageSize !== 'all' && totalPages > 1 && (() => {
+                        {totalPages > 1 && (() => {
                             // Generate page numbers with ellipsis
                             const pages: (number | '...')[] = [];
                             if (totalPages <= 7) {

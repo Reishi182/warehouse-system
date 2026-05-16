@@ -8,7 +8,7 @@ import { NotificationBell } from './NotificationBell';
 // Each route maps to: [parentLabel, parentHref?, currentLabel]
 const ROUTE_MAP: Record<string, { segments: { label: string; href?: string }[] }> = {
   '/': { segments: [{ label: 'Dashboard' }] },
-  '/guide': { segments: [{ label: 'Panduan' }] },
+
   '/pos': { segments: [{ label: 'Kasir (POS)' }] },
   '/products': { segments: [{ label: 'Produk' }] },
 

@@ -101,8 +101,9 @@ export const ProductManageCard = memo(function ProductManageCard({
         <div
             data-product-id={product.id}
             className={cn(
-                "group relative flex flex-col rounded-2xl border bg-card overflow-hidden transition-all duration-200",
-                "hover:shadow-lg hover:border-primary/40 hover:-translate-y-0.5",
+                "group relative flex flex-col rounded-2xl border bg-card overflow-hidden",
+                "transition-[box-shadow,border-color] duration-200",
+                "hover:shadow-lg hover:border-primary/40",
                 isOutOfStock && "opacity-70",
                 product.is_active === false && "opacity-50 grayscale-[50%]",
                 isHighlighted && "ring-2 ring-primary ring-offset-2 shadow-lg shadow-primary/20 animate-pulse"
@@ -116,7 +117,7 @@ export const ProductManageCard = memo(function ProductManageCard({
                             variant="secondary"
                             size="icon"
                             className={cn(
-                                "h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm shadow-md transition-opacity",
+                                "h-8 w-8 rounded-full bg-background shadow-md transition-opacity",
                                 // Always visible if inactive so user can reactivate
                                 product.is_active === false
                                     ? "opacity-100"
@@ -184,19 +185,19 @@ export const ProductManageCard = memo(function ProductManageCard({
                     src={product.image_url}
                     alt={product.name}
                     containerClassName="w-full h-full"
-                    className="group-hover:scale-105 transition-transform duration-300"
+                    className=""
                     fallbackIcon={<Package className="w-12 h-12 text-muted-foreground/20" />}
                 />
 
                 {/* Out of stock or Inactive overlay */}
                 {product.is_active === false ? (
-                    <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10">
+                    <div className="absolute inset-0 bg-background/90 flex items-center justify-center z-10">
                         <div className="bg-muted text-muted-foreground border border-muted-foreground/30 text-xs font-bold px-3 py-1.5 rounded-full">
                             NONAKTIF
                         </div>
                     </div>
                 ) : isOutOfStock ? (
-                    <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10">
+                    <div className="absolute inset-0 bg-background/90 flex items-center justify-center z-10">
                         <div className="bg-destructive text-white text-xs font-bold px-3 py-1.5 rounded-full">
                             STOK HABIS
                         </div>
@@ -227,12 +228,12 @@ export const ProductManageCard = memo(function ProductManageCard({
                 </div>
                 <div className="absolute bottom-2 left-2 flex flex-col gap-1">
                     {product.has_multi_unit && (
-                        <span className="bg-blue-500/90 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm border border-blue-400/50">
+                        <span className="bg-blue-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm border border-blue-400/50">
                             📦 {(product.main_unit || 'box').toUpperCase()}/{(product.sell_unit || 'pcs').toUpperCase()}
                         </span>
                     )}
                     {product.sell_by_quantity && (
-                        <span className="bg-amber-500/90 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm border border-amber-400/50">
+                        <span className="bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm border border-amber-400/50">
                             📏 per {product.sell_unit}
                         </span>
                     )}

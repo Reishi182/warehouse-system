@@ -70,7 +70,7 @@ const TokopediaShipping = React.lazy(() => import('@/pages/tokopedia/TokopediaSh
 const TokopediaSalesReport = React.lazy(() => import('@/pages/tokopedia/TokopediaSalesReport'));
 const SiteBuilder = React.lazy(() => import("./pages/SiteBuilder"));
 const NotFound = React.lazy(() => import("./pages/NotFound"));
-const Guide = React.lazy(() => import("./pages/Guide"));
+
 import { UserRole } from '@/types';
 import { useGlobalRealtimeUpdates } from '@/hooks/useGlobalRealtimeUpdates';
 import { useBroadcastSync } from '@/hooks/useBroadcastSync';
@@ -181,12 +181,7 @@ function AppRoutes() {
           </ProtectedRoute>
         } />
 
-        {/* Guide - All roles */}
-        <Route path="/guide" element={
-          <ProtectedRoute allowedRoles={ALL_ROLES}>
-            <Guide />
-          </ProtectedRoute>
-        } />
+
 
         {/* Products - All roles */}
         <Route path="/products" element={

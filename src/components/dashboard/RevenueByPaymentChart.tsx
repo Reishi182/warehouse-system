@@ -100,7 +100,7 @@ export default function RevenueByPaymentChart({ sales, days = 30 }: RevenueByPay
 
 
     return (
-        <Card className="shadow-lg border-0 bg-gradient-to-br from-background to-muted/20">
+        <Card className="shadow-lg border-0 bg-gradient-to-br from-background to-muted/20 h-full">
             <CardHeader className="pb-2">
                 <div className="flex items-center gap-3">
                     <div className="p-2 rounded-xl bg-violet-500/10">

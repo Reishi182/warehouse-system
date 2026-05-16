@@ -12,7 +12,7 @@ export { default as ActivityFeed } from './ActivityFeed';
 export { default as CashierStatsGrid } from './CashierStatsGrid';
 export { default as TransactionHistory } from './TransactionHistory';
 export { default as DashboardActivityHub } from './DashboardActivityHub';
-export { PerformanceChart } from './PerformanceChart';
+
 export { DonutChart } from './DonutChart';
 export { RoleCharts } from './RoleCharts';
 

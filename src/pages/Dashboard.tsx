@@ -8,6 +8,7 @@ import {
   LowStockAlertWidget,
   RoleCharts,
   PODiscrepancyWidget,
+  RevenueByPaymentChart,
 } from '@/components/dashboard';
 import DashboardDateRangePicker, { getDefaultDateRange, DashboardDateRange } from '@/components/dashboard/DashboardDateRangePicker';
 import QuickActionBar from '@/components/dashboard/QuickActionBar';
@@ -113,8 +114,16 @@ export default function Dashboard() {
           <PODiscrepancyWidget />
         )}
 
-        {/* Low Stock Alert Widget - for warehouse, cashier, and admin */}
-        {(role === 'warehouse' || role === 'cashier' || role === 'admin') && (
+        {/* Cashier: Revenue by Payment + Low Stock side by side */}
+        {role === 'cashier' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <RevenueByPaymentChart sales={sales} days={7} />
+            <LowStockAlertWidget maxVisible={5} />
+          </div>
+        )}
+
+        {/* Low Stock Alert Widget - for warehouse and admin (cashier handled above) */}
+        {(role === 'warehouse' || role === 'admin') && (
           <LowStockAlertWidget maxVisible={5} />
         )}
 

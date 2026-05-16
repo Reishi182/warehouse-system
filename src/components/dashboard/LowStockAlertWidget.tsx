@@ -74,7 +74,7 @@ export function LowStockAlertWidget({
     return (
         <>
             <Card className={cn(
-                "border-orange-200 dark:border-orange-800/50 overflow-hidden",
+                "border-orange-200 dark:border-orange-800/50 overflow-hidden h-full flex flex-col",
                 className
             )}>
                 {/* Header with gradient */}
@@ -103,7 +103,7 @@ export function LowStockAlertWidget({
                     </CardTitle>
                 </CardHeader>
 
-                <CardContent className="p-0">
+                <CardContent className="p-0 flex-1">
                     <div className="divide-y divide-orange-100 dark:divide-orange-900/30">
                         {visibleProducts.map((product) => (
                             <div
