@@ -173,7 +173,7 @@ export const AppModal = React.memo(function AppModal({
                 <DialogPrimitive.Content
                     className={cn(
                         // Base
-                        'fixed z-50 w-full rounded-2xl',
+                        'fixed z-50 w-[calc(100%-2rem)] sm:w-full rounded-2xl',
                         // Positioning
                         !isFull && 'left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%]',
                         isFull  && 'left-0 top-0 sm:left-[50%] sm:top-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%]',

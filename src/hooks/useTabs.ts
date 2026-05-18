@@ -283,6 +283,8 @@ export function useAddTabTransaction() {
                         note: `Tab ${tabNumber} - Transaksi ${txNumber}`,
                         stock_before: product[stockField] || 0,
                         stock_after: newStock,
+                        reference_type: 'tab',
+                        reference_id: tabId,
                     });
                 }
             }
@@ -498,6 +500,8 @@ export function useCancelTab() {
                             note: `Tab ${tabData.tab_number} dibatalkan - stok dikembalikan`,
                             stock_before: product[stockField] || 0,
                             stock_after: newStock,
+                            reference_type: 'tab',
+                            reference_id: tabId,
                         });
                     }
                 }
@@ -597,6 +601,8 @@ export function useDeleteTabTransaction() {
                         note: `Transaksi dihapus dari Tab ${tabData.tab_number} - stok dikembalikan`,
                         stock_before: product[stockField] || 0,
                         stock_after: newStock,
+                        reference_type: 'tab',
+                        reference_id: tabId,
                     });
                 }
             }

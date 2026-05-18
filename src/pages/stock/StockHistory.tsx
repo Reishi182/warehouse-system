@@ -99,16 +99,16 @@ function AuditDetailDialog({
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
-            <DialogContent className="max-w-2xl bg-slate-50 dark:bg-slate-900 border-none shadow-2xl p-0 overflow-hidden rounded-2xl max-h-[85vh] flex flex-col">
+            <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] sm:w-full bg-slate-50 dark:bg-slate-900 border-none shadow-2xl p-0 overflow-hidden rounded-2xl max-h-[85vh] flex flex-col">
                 {/* Header */}
-                <div className="p-6 text-white grid gap-4 relative shrink-0 bg-gradient-to-r from-violet-600 to-indigo-600">
+                <div className="p-4 sm:p-6 text-white grid gap-4 relative shrink-0 bg-gradient-to-r from-violet-600 to-indigo-600">
                     <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
-                        <History className="w-32 h-32" />
+                        <History className="w-24 h-24 sm:w-32 sm:h-32" />
                     </div>
                     <div>
-                        <h2 className="text-2xl font-bold flex items-center gap-3">
+                        <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-3">
                             <span className="bg-white/20 p-2 rounded-xl backdrop-blur-sm">
-                                <History className="w-6 h-6 text-white" />
+                                <History className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                             </span>
                             Riwayat Perubahan Produk
                         </h2>
@@ -129,7 +129,7 @@ function AuditDetailDialog({
                 </div>
 
                 {/* Log list */}
-                <div className="p-6 overflow-y-auto flex-1 space-y-3">
+                <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-3">
                     {group.logs.map((log) => {
                         const cfg = actionConfig[log.action] || actionConfig.update_field;
                         const Icon = cfg.icon;
@@ -228,8 +228,8 @@ function AuditDetailDialog({
                     })}
                 </div>
 
-                <div className="py-4 px-6 bg-gray-50 dark:bg-slate-800/50 border-t border-gray-100 dark:border-gray-700 flex justify-end shrink-0">
-                    <Button variant="outline" className="rounded-xl shadow-sm" onClick={onClose}>Tutup</Button>
+                <div className="py-3 sm:py-4 px-4 sm:px-6 bg-gray-50 dark:bg-slate-800/50 border-t border-gray-100 dark:border-gray-700 flex justify-end shrink-0">
+                    <Button variant="outline" className="rounded-xl shadow-sm text-sm" size="sm" onClick={onClose}>Tutup</Button>
                 </div>
             </DialogContent>
         </Dialog>
@@ -271,21 +271,21 @@ function GroupDetailDialog({
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
-            <DialogContent className="max-w-2xl bg-slate-50 dark:bg-slate-900 border-none shadow-2xl p-0 overflow-hidden rounded-2xl max-h-[85vh] flex flex-col">
+            <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] sm:w-full bg-slate-50 dark:bg-slate-900 border-none shadow-2xl p-0 overflow-hidden rounded-2xl max-h-[85vh] flex flex-col">
                 {/* Header Section */}
                 <div className={cn(
-                    "p-6 text-white grid gap-4 relative shrink-0",
+                    "p-4 sm:p-6 text-white grid gap-4 relative shrink-0",
                     group.type === 'in' ? 'bg-gradient-to-r from-emerald-600 to-teal-600' :
                         group.type === 'out' ? 'bg-gradient-to-r from-rose-600 to-red-600' :
                             'bg-gradient-to-r from-blue-600 to-indigo-600'
                 )}>
                     <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
-                        <Package className="w-32 h-32" />
+                        <Package className="w-24 h-24 sm:w-32 sm:h-32" />
                     </div>
                     <div>
-                        <h2 className="text-2xl font-bold flex items-center gap-3">
+                        <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-3">
                             <span className="bg-white/20 p-2 rounded-xl backdrop-blur-sm">
-                                <TypeIcon className="w-6 h-6 text-white" />
+                                <TypeIcon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                             </span>
                             Detail Pergerakan Stok
                         </h2>
@@ -318,8 +318,8 @@ function GroupDetailDialog({
                 </div>
 
                 {/* Table Section */}
-                <div className="p-6 overflow-y-auto flex-1">
-                    <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+                <div className="p-4 sm:p-6 overflow-y-auto flex-1">
+                    <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden sm:overflow-x-visible overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead>
                                 <tr className="bg-gray-50/80 dark:bg-slate-700/50 text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">
@@ -407,8 +407,8 @@ function GroupDetailDialog({
                 </div>
                 </div>
 
-                <div className="py-4 px-6 bg-gray-50 dark:bg-slate-800/50 border-t border-gray-100 dark:border-gray-700 flex justify-end shrink-0">
-                    <Button variant="outline" className="rounded-xl shadow-sm" onClick={onClose}>Tutup Detail</Button>
+                <div className="py-3 sm:py-4 px-4 sm:px-6 bg-gray-50 dark:bg-slate-800/50 border-t border-gray-100 dark:border-gray-700 flex justify-end shrink-0">
+                    <Button variant="outline" className="rounded-xl shadow-sm text-sm" size="sm" onClick={onClose}>Tutup Detail</Button>
                 </div>
             </DialogContent>
         </Dialog>

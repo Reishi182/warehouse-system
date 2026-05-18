@@ -207,39 +207,41 @@ export function StockLogDetailDialog({ log, open, onOpenChange }: StockLogDetail
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-xl bg-slate-50 dark:bg-slate-900 border-none shadow-2xl p-0 overflow-hidden rounded-2xl max-h-[90vh] flex flex-col">
+            <DialogContent className="max-w-xl w-[calc(100vw-2rem)] sm:w-full bg-slate-50 dark:bg-slate-900 border-none shadow-2xl p-0 overflow-hidden rounded-2xl max-h-[85vh] sm:max-h-[90vh] flex flex-col">
                 {/* Header Section */}
                 <div className={cn(
-                    "p-6 text-white relative shrink-0",
+                    "p-4 sm:p-6 text-white relative shrink-0",
                     log.type === 'in' ? 'bg-gradient-to-r from-emerald-500 to-teal-600' :
                         log.type === 'out' ? 'bg-gradient-to-r from-rose-500 to-red-600' :
                             'bg-gradient-to-r from-blue-500 to-indigo-600'
                 )}>
                     <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
-                        <Package className="w-40 h-40" />
+                        <Package className="w-28 sm:w-40 h-28 sm:h-40" />
                     </div>
                     
-                    <div className="flex justify-between items-start relative z-10">
-                        <div className="flex items-center gap-4">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 relative z-10">
+                        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                             {/* Type Icon */}
-                            <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/20 shadow-sm">
-                                <TypeIcon className="w-7 h-7 text-white" />
+                            <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/20 shadow-sm shrink-0">
+                                <TypeIcon className="w-5 h-5 sm:w-7 sm:h-7 text-white" />
                             </div>
 
-                            <div>
-                                <DialogTitle className="text-2xl font-bold mb-1">
+                            <div className="min-w-0 flex-1">
+                                <DialogTitle className="text-lg sm:text-2xl font-bold mb-0.5 sm:mb-1">
                                     {typeInfo.label}
                                 </DialogTitle>
-                                <p className="text-white/80 flex items-center gap-1.5 text-sm font-medium font-mono">
-                                    <Hash className="w-4 h-4" />
-                                    {log.reference_id ? `${referenceTypeLabels[log.reference_type] || log.reference_type} #${log.reference_id.slice(0, 8)}` : log.id.slice(0, 12)}
+                                <p className="text-white/80 flex items-center gap-1 sm:gap-1.5 text-xs sm:text-sm font-medium font-mono truncate">
+                                    <Hash className="w-3 h-3 sm:w-4 sm:h-4 shrink-0" />
+                                    <span className="truncate">
+                                        {log.reference_id ? `${referenceTypeLabels[log.reference_type] || log.reference_type} #${log.reference_id.slice(0, 8)}` : log.id.slice(0, 12)}
+                                    </span>
                                 </p>
                             </div>
                         </div>
 
                         {/* Quantity Badge */}
-                        <div className="text-right">
-                            <div className="text-3xl font-extrabold tracking-tight drop-shadow-md">
+                        <div className="text-left sm:text-right pl-[52px] sm:pl-0 shrink-0">
+                            <div className="text-2xl sm:text-3xl font-extrabold tracking-tight drop-shadow-md">
                                 {stockChange}
                             </div>
                         </div>
@@ -247,9 +249,9 @@ export function StockLogDetailDialog({ log, open, onOpenChange }: StockLogDetail
                 </div>
 
                 {/* Content Section */}
-                <div className="p-6 overflow-y-auto flex-1 space-y-6">
+                <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-4 sm:space-y-6">
                     {/* Product Info Target */}
-                    <div className="flex items-center gap-4 p-4 bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                    <div className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
                         <ProductImage
                             src={log.product?.image_url}
                             size="medium"
@@ -258,7 +260,7 @@ export function StockLogDetailDialog({ log, open, onOpenChange }: StockLogDetail
                             lazy={false}
                         />
                         <div className="flex-1">
-                            <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100 leading-tight mb-1">{log.product?.name || 'Produk Tidak Diketahui'}</h3>
+                            <h3 className="font-bold text-sm sm:text-lg text-gray-900 dark:text-gray-100 leading-tight mb-1">{log.product?.name || 'Produk Tidak Diketahui'}</h3>
                             <p className="inline-flex px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-700 text-xs font-mono text-gray-600 dark:text-gray-300">
                                 {log.product?.barcode || '-'}
                             </p>
@@ -266,19 +268,19 @@ export function StockLogDetailDialog({ log, open, onOpenChange }: StockLogDetail
                     </div>
 
                     {/* Four Details Grid */}
-                    <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                    <div className="grid grid-cols-2 gap-x-4 sm:gap-x-6 gap-y-3 sm:gap-y-4">
                         <div className="space-y-1.5">
                             <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 font-semibold tracking-wide uppercase">
                                 <Calendar className="w-3.5 h-3.5" /> Tanggal
                             </div>
-                            <p className="font-bold text-gray-900 dark:text-white pl-5">{formattedDate}</p>
+                            <p className="font-bold text-xs sm:text-base text-gray-900 dark:text-white pl-5">{formattedDate}</p>
                         </div>
 
                         <div className="space-y-1.5">
                             <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 font-semibold tracking-wide uppercase">
                                 <Clock className="w-3.5 h-3.5" /> Waktu
                             </div>
-                            <p className="font-bold text-gray-900 dark:text-white pl-5">{formattedTime}</p>
+                            <p className="font-bold text-xs sm:text-base text-gray-900 dark:text-white pl-5">{formattedTime}</p>
                         </div>
 
                         <div className="space-y-1.5">
@@ -297,7 +299,7 @@ export function StockLogDetailDialog({ log, open, onOpenChange }: StockLogDetail
                                 <Activity className="w-3.5 h-3.5" /> Jumlah Mutasi
                             </div>
                             <p className={cn(
-                                "font-bold text-lg pl-5",
+                                "font-bold text-sm sm:text-lg pl-5",
                                 log.type === 'in' ? 'text-emerald-600 dark:text-emerald-400' :
                                     log.type === 'out' ? 'text-rose-600 dark:text-rose-400' : 'text-blue-600 dark:text-blue-400'
                             )}>
@@ -313,7 +315,7 @@ export function StockLogDetailDialog({ log, open, onOpenChange }: StockLogDetail
                         <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 font-semibold tracking-wide uppercase">
                             <TrendingUp className="w-3.5 h-3.5" /> Perubahan Total Stok
                         </div>
-                        <div className="flex items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm relative overflow-hidden">
+                        <div className="flex items-center justify-between p-3 sm:p-4 bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm relative overflow-hidden">
                             {/* Decorative background element */}
                             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gray-50/50 to-transparent dark:via-slate-700/20 pointer-events-none" />
                             
@@ -327,18 +329,18 @@ export function StockLogDetailDialog({ log, open, onOpenChange }: StockLogDetail
                                 </p>
                             </div>
                             
-                            <div className="px-4 shrink-0 relative z-10">
+                            <div className="px-2 sm:px-4 shrink-0 relative z-10">
                                 {log.type === 'in' ? (
-                                    <div className="w-10 h-10 rounded-full bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center">
-                                        <TrendingUp className="w-5 h-5 text-emerald-500" />
+                                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center">
+                                        <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500" />
                                     </div>
                                 ) : log.type === 'out' ? (
-                                    <div className="w-10 h-10 rounded-full bg-rose-50 dark:bg-rose-500/10 flex items-center justify-center">
-                                        <TrendingDown className="w-5 h-5 text-rose-500" />
+                                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-rose-50 dark:bg-rose-500/10 flex items-center justify-center">
+                                        <TrendingDown className="w-4 h-4 sm:w-5 sm:h-5 text-rose-500" />
                                     </div>
                                 ) : (
-                                    <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center">
-                                        <RefreshCw className="w-5 h-5 text-blue-500" />
+                                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center">
+                                        <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500" />
                                     </div>
                                 )}
                             </div>
@@ -447,14 +449,15 @@ export function StockLogDetailDialog({ log, open, onOpenChange }: StockLogDetail
                 </div>
 
                 {/* Footer */}
-                <div className="flex items-center justify-between px-6 py-4 bg-gray-50 dark:bg-slate-800/50 border-t border-gray-100 dark:border-gray-800 shrink-0">
-                    <p className="text-xs text-gray-500 font-medium">
+                <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 bg-gray-50 dark:bg-slate-800/50 border-t border-gray-100 dark:border-gray-800 shrink-0">
+                    <p className="text-[10px] sm:text-xs text-gray-500 font-medium">
                         Disimpan {relativeTime}
                     </p>
                     <Button
                         variant="outline"
+                        size="sm"
                         onClick={() => onOpenChange(false)}
-                        className="rounded-xl shadow-sm hover:bg-gray-100 dark:hover:bg-slate-700"
+                        className="rounded-xl shadow-sm hover:bg-gray-100 dark:hover:bg-slate-700 text-xs sm:text-sm"
                     >
                         Tutup Detail
                     </Button>

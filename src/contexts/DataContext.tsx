@@ -760,7 +760,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           user_id: user.id,
           note: note,
           stock_before: currentStock,
-          stock_after: newStock
+          stock_after: newStock,
+          reference_type: 'sale',
+          reference_id: saleRow.id,
         });
     }
 
