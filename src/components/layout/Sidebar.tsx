@@ -185,8 +185,17 @@ export default function Sidebar() {
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
   const { counts: pendingCounts } = usePendingCounts();
 
-  // Filter nav items based on role
+  // Filter nav items based on role — admin bypasses all restrictions
   const filterItems = (items: NavItem[]): NavItem[] => {
+    if (role === 'admin') {
+      // Admin sees everything — recursively keep all items and children
+      return items.map(item => {
+        if (item.children) {
+          return { ...item, children: item.children };
+        }
+        return item;
+      });
+    }
     return items
       .filter(item => role && item.roles.includes(role))
       .map(item => {

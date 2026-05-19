@@ -43,9 +43,9 @@ export default function PurchaseOrderReceipt() {
     const { user, profile } = useAuth();
     const role = useRole();
 
-    // Determine destination based on role
-    const destination = role === 'warehouse' ? 'gudang' : 'toko';
-    const roleLabel = role === 'warehouse' ? 'Gudang' : 'Kasir';
+    // Determine destination based on role (admin can view all)
+    const destination = role === 'admin' ? 'all' : (role === 'warehouse' ? 'gudang' : 'toko');
+    const roleLabel = role === 'admin' ? 'Admin' : (role === 'warehouse' ? 'Gudang' : 'Kasir');
 
     const { data: pendingPOs = [], isLoading } = usePendingReceiptPOs(destination);
     const confirmReceipt = useConfirmPOReceipt();
@@ -284,7 +284,7 @@ export default function PurchaseOrderReceipt() {
     }
 
     return (
-        <MainLayout title="Penerimaan PO" subtitle={`Konfirmasi penerimaan barang dari supplier ke ${destination === 'gudang' ? 'Gudang' : 'Toko'}`}>
+        <MainLayout title="Penerimaan PO" subtitle={`Konfirmasi penerimaan barang dari supplier ke ${destination === 'all' ? 'Gudang & Toko' : (destination === 'gudang' ? 'Gudang' : 'Toko')}`}>
             <div className="space-y-6">
                 <StatsGrid columns={2}>
                     <StatsCard
@@ -305,7 +305,7 @@ export default function PurchaseOrderReceipt() {
                 <BeautifulTable
                     data={pendingPOs}
                     columns={columns}
-                    title={`PO Pending (${destination === 'gudang' ? 'Gudang' : 'Toko'})`}
+                    title={`PO Pending (${destination === 'all' ? 'Semua Lokasi' : (destination === 'gudang' ? 'Gudang' : 'Toko')})`}
                     hideSelection
                     emptyState={{
                         icon: <Package className="w-10 h-10" />,
@@ -320,7 +320,7 @@ export default function PurchaseOrderReceipt() {
                     onClose={() => setIsViewOpen(false)}
                     hideHeader
                     noPadding
-                    size="3xl"
+                    size="2xl"
                 >
                     <div className="max-h-[90vh]">
                         {selectedPOLoading ? (

@@ -724,7 +724,7 @@ export default function PurchaseOrderMainOffice() {
                     }}
                     hideHeader
                     noPadding
-                    size="3xl"
+                    size="2xl"
                 >
                     <div className="max-h-[90vh] overflow-y-auto rounded-2xl">
                         {/* Premium Gradient Header */}
@@ -774,8 +774,8 @@ export default function PurchaseOrderMainOffice() {
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="gudang">ðŸ“¦ Gudang</SelectItem>
-                                                <SelectItem value="toko">ðŸª Toko</SelectItem>
+                                                <SelectItem value="gudang">📦 Gudang</SelectItem>
+                                                <SelectItem value="toko">🏪 Toko</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>
@@ -1025,7 +1025,7 @@ export default function PurchaseOrderMainOffice() {
                     onClose={() => setIsViewOpen(false)}
                     hideHeader
                     noPadding
-                    size="3xl"
+                    size="2xl"
                 >
                     <div className="max-h-[90vh]">
                         {selectedPOLoading ? (
@@ -1452,7 +1452,7 @@ export default function PurchaseOrderMainOffice() {
                 open={!!photoModalUrl} 
                 onClose={() => setPhotoModalUrl(null)}
                 title="Bukti Penerimaan"
-                size="3xl"
+                size="2xl"
             >
                     {photoModalUrl && (
                         <img

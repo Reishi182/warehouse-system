@@ -60,19 +60,24 @@ export function usePurchaseOrder(id: string) {
 }
 
 // Fetch POs pending receipt for specific destination
-export function usePendingReceiptPOs(destination: 'gudang' | 'toko') {
+export function usePendingReceiptPOs(destination: 'gudang' | 'toko' | 'all') {
     return useQuery({
         queryKey: ['purchase_orders', 'pending_receipt', destination],
         queryFn: async () => {
-            const { data, error } = await supabase
+            let query = supabase
                 .from('purchase_orders')
                 .select(`
                     *,
                     supplier:suppliers(*)
                 `)
                 .eq('status', 'pending_receipt')
-                .eq('destination', destination)
                 .order('created_at', { ascending: false });
+
+            if (destination !== 'all') {
+                query = query.eq('destination', destination);
+            }
+
+            const { data, error } = await query;
 
             if (error) throw error;
 

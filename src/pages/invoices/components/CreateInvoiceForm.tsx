@@ -92,33 +92,50 @@ export default function CreateInvoiceForm({ onSubmit, onCancel }: CreateInvoiceF
         }
     });
 
-    // Fetch Surat Jalan B2B for the selected customer (completed status only)
+    // Fetch Surat Jalan B2B for selected customer — excluding SJs already linked to an invoice
     const { data: suratJalans = [], isLoading: sjLoading } = useQuery({
         queryKey: ['surat-jalan-for-invoice', selectedCustomerId],
         queryFn: async () => {
             if (!selectedCustomerId) return [];
-            const customer = customers.find(c => c.id === selectedCustomerId);
-            if (!customer) return [];
 
-            const { data, error } = await supabase
+            // 1. Fetch SJ IDs already used in an invoice (via junction table)
+            const { data: usedLinks } = await supabase
+                .from('invoice_surat_jalan')
+                .select('surat_jalan_id');
+            const usedSjIds = (usedLinks || []).map((r: any) => r.surat_jalan_id as string);
+
+            // 2. Build SJ query — match by customer_id if column exists, else fall back to recipient_name
+            let query = supabase
                 .from('surat_jalan')
                 .select(`
-                    id, number, recipient_name, recipient_address, created_at, status,
+                    id, number, recipient_name, recipient_address, created_at, status, customer_id,
                     items:surat_jalan_items(
                         id, product_id, product_name, barcode, quantity, unit,
                         product:products(id, name, price)
                     )
                 `)
                 .eq('type', 'B2B')
-                .eq('recipient_name', customer.name)
                 .in('status', ['completed', 'approved', 'processing'])
                 .order('created_at', { ascending: false });
 
+            // Filter by customer_id (preferred — exact foreign key match)
+            query = query.eq('customer_id', selectedCustomerId);
+
+            const { data, error } = await query;
             if (error) throw error;
-            return (data || []) as SuratJalanData[];
+
+            // 3. Filter out SJs already linked to any invoice
+            const available = (data || []).filter(
+                (sj: any) => !usedSjIds.includes(sj.id)
+            );
+
+            return available as SuratJalanData[];
         },
-        enabled: !!selectedCustomerId && customers.length > 0,
+        enabled: !!selectedCustomerId,
     });
+
+
+
 
     // Filter SJ by search
     const filteredSuratJalans = useMemo(() => {
