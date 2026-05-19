@@ -84,6 +84,8 @@ export default function EditProductDialog({
     const subUnitLabel = SELL_UNITS.find(u => u.value === sellUnit)?.label ?? (sellUnit || '').toUpperCase();
     const computedBoxPrice = pcsPerBox && price ? price * pcsPerBox : null;
 
+    const disableStockEdit = userRole === 'warehouse' || userRole === 'cashier';
+
     // Populate form when product changes
     useEffect(() => {
         if (product) {
@@ -252,7 +254,7 @@ export default function EditProductDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-lg w-[calc(100vw-2rem)] sm:w-full max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <Pencil className="w-5 h-5" />
@@ -339,7 +341,8 @@ export default function EditProductDialog({
                                                     setMainStockGudang(val);
                                                     setStockGudang((val * (pcsPerBox || 1)) + subStockGudang);
                                                 }}
-                                                className="h-9 text-center font-bold"
+                                                disabled={disableStockEdit}
+                                                className={`h-9 text-center font-bold ${disableStockEdit ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                 placeholder="0"
                                             />
                                             <p className="text-[10px] text-center text-muted-foreground uppercase">{mainUnitLabel}</p>
@@ -355,7 +358,8 @@ export default function EditProductDialog({
                                                     setSubStockGudang(val);
                                                     setStockGudang((mainStockGudang * (pcsPerBox || 1)) + val);
                                                 }}
-                                                className="h-9 text-center"
+                                                disabled={disableStockEdit}
+                                                className={`h-9 text-center ${disableStockEdit ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                 placeholder="0"
                                             />
                                             <p className="text-[10px] text-center text-muted-foreground uppercase">{subUnitLabel}</p>
@@ -367,6 +371,8 @@ export default function EditProductDialog({
                                         min={0}
                                         value={stockGudang}
                                         onChange={(e) => setStockGudang(parseFloat(e.target.value) || 0)}
+                                        disabled={disableStockEdit}
+                                        className={disableStockEdit ? 'opacity-50 cursor-not-allowed' : ''}
                                     />
                                 )}
                             </div>
@@ -386,7 +392,8 @@ export default function EditProductDialog({
                                                     setMainStockToko(val);
                                                     setStockToko((val * (pcsPerBox || 1)) + subStockToko);
                                                 }}
-                                                className="h-9 text-center font-bold"
+                                                disabled={disableStockEdit}
+                                                className={`h-9 text-center font-bold ${disableStockEdit ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                 placeholder="0"
                                             />
                                             <p className="text-[10px] text-center text-muted-foreground uppercase">{mainUnitLabel}</p>
@@ -402,7 +409,8 @@ export default function EditProductDialog({
                                                     setSubStockToko(val);
                                                     setStockToko((mainStockToko * (pcsPerBox || 1)) + val);
                                                 }}
-                                                className="h-9 text-center"
+                                                disabled={disableStockEdit}
+                                                className={`h-9 text-center ${disableStockEdit ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                 placeholder="0"
                                             />
                                             <p className="text-[10px] text-center text-muted-foreground uppercase">{subUnitLabel}</p>
@@ -414,6 +422,8 @@ export default function EditProductDialog({
                                         min={0}
                                         value={stockToko}
                                         onChange={(e) => setStockToko(parseFloat(e.target.value) || 0)}
+                                        disabled={disableStockEdit}
+                                        className={disableStockEdit ? 'opacity-50 cursor-not-allowed' : ''}
                                     />
                                 )}
                             </div>
@@ -429,7 +439,7 @@ export default function EditProductDialog({
                             </div>
                         )}
                         <p className="text-[10px] text-amber-600 bg-amber-50 dark:bg-amber-950/20 p-2 rounded-lg border border-amber-100 dark:border-amber-900">
-                            <strong>⚠️ Perhatian:</strong> Mengubah stok di sini akan langsung memperbarui saldo stok. Gunakan dengan bijak untuk koreksi data.
+                            <strong>⚠️ Perhatian:</strong> Mengubah stok di sini akan langsung memperbarui saldo stok. Gunakan dengan bijak untuk koreksi data. {disableStockEdit && "Role Anda tidak diizinkan mengubah stok secara langsung."}
                         </p>
                     </div>
 
@@ -493,7 +503,7 @@ export default function EditProductDialog({
                                     </p>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <div className="space-y-2">
                                         <Label className="text-blue-900 dark:text-blue-100">
                                             Isi per {mainUnitLabel} ({subUnitLabel})
@@ -548,7 +558,7 @@ export default function EditProductDialog({
                             <Layers className="w-4 h-4 text-orange-500" />
                             <Label className="font-bold">Harga Grosir (Bulk Purchase)</Label>
                         </div>
-                        <div className="grid grid-cols-2 gap-3 p-4 rounded-xl border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/20 border-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-xl border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/20 border-2">
                             <div className="space-y-2">
                                 <Label className="text-orange-900 dark:text-orange-100">Minimal Pembelian</Label>
                                 <Input

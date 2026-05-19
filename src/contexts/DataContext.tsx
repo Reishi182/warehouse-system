@@ -696,8 +696,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       return null;
     }
 
-    // Bug fix #1+2+3: Atomic stock update with full rollback on failure using mapped net changes
-    const stockUpdated: { productId: string; quantity: number; field: string }[] = [];
+    // Bug fix #1+2+3: Atomic stock update with full rollback on failure using atomic RPCs
+    const stockUpdated: { productId: string; quantity: number; location: string }[] = [];
     const stockLogsToInsert: any[] = [];
     let stockUpdateFailed = false;
 
@@ -705,8 +705,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         if (info.change === 0) continue; // no net change
 
         const stockField = `stock_${info.location}`;
-        
-        // Read fresh stock from database
+        const absChange = Math.abs(info.change);
+
+        // Read stock BEFORE atomic operation for logging purposes
         const { data: freshProduct, error: freshError } = await supabase
           .from('products')
           .select(`id, ${stockField}`)
@@ -720,33 +721,47 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         }
 
         const currentStock = (freshProduct as any)?.[stockField] || 0;
+
+        // Use atomic RPC to prevent race conditions
+        if (info.change < 0) {
+          // Deducting stock (sale)
+          const { error: stockError } = await supabase.rpc('atomic_decrement_stock', {
+            p_product_id: info.productId,
+            p_quantity: absChange,
+            p_location: info.location,
+          });
+
+          if (stockError) {
+            stockUpdateFailed = true;
+            const msg = stockError.message.includes('Stok tidak cukup')
+              ? `${info.productName} stok terbaru tidak mencukupi`
+              : stockError.message;
+            toast({ title: 'Stok tidak cukup', description: msg, variant: 'destructive' });
+            break;
+          }
+        } else {
+          // Adding stock back (exchange return)
+          const { error: stockError } = await supabase.rpc('atomic_increment_stock', {
+            p_product_id: info.productId,
+            p_quantity: absChange,
+            p_location: info.location,
+          });
+
+          if (stockError) {
+            stockUpdateFailed = true;
+            toast({ title: 'Gagal update stok', description: stockError.message, variant: 'destructive' });
+            break;
+          }
+        }
+
         const newStock = currentStock + info.change;
 
-        if (newStock < 0) {
-          stockUpdateFailed = true;
-          toast({ title: 'Stok tidak cukup', description: `${info.productName} stok terbaru tidak mencukupi`, variant: 'destructive' });
-          break;
-        }
-
-        const { error: stockError } = await supabase
-          .from('products')
-          .update({ [stockField]: newStock })
-          .eq('id', info.productId);
-
-        if (stockError) {
-          stockUpdateFailed = true;
-          toast({ title: 'Gagal update stok', description: stockError.message, variant: 'destructive' });
-          break;
-        }
-
-        // Store opposite change to reverse if we need to rollback later
-        stockUpdated.push({ productId: info.productId, quantity: -info.change, field: stockField });
+        // Store change info for rollback if needed
+        stockUpdated.push({ productId: info.productId, quantity: absChange, location: info.location });
 
         const type = info.change > 0 ? 'in' : 'out';
-        const qty = Math.abs(info.change);
         let note = '';
         if (info.change > 0 && data.exchangeOriginalItems) {
-            note = `Ganti barang ke INV/xxx`; // Using generic since new saleNumber is not fully parsed? Actually we have saleNumber here!
             note = `Ganti barang ke ${saleNumber}`;
         } else {
             note = `Penjualan ${saleNumber} (${data.paymentMethod})`;
@@ -755,7 +770,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         stockLogsToInsert.push({
           product_id: info.productId,
           type: type,
-          quantity: qty,
+          quantity: absChange,
           location: info.location,
           user_id: user.id,
           note: note,
@@ -768,16 +783,25 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     // Rollback if stock update failed
     if (stockUpdateFailed) {
-      // Restore already-updated stock
+      // Restore already-updated stock using atomic RPCs (reverse the operations)
       for (const updated of stockUpdated) {
-        const { data: curr } = await supabase
-          .from('products')
-          .select(`id, ${updated.field}`)
-          .eq('id', updated.productId)
-          .single();
-        if (curr) {
-          const restored = ((curr as any)[updated.field] || 0) + updated.quantity;
-          await supabase.from('products').update({ [updated.field]: restored }).eq('id', updated.productId);
+        // Reverse: if we decremented, now increment; if we incremented, now decrement
+        // We need to know the direction — check the stockChangeMap
+        const mapEntry = stockChangeMap.get(`${updated.productId}_${updated.location}`);
+        if (mapEntry && mapEntry.change < 0) {
+          // We decremented, so increment back
+          await supabase.rpc('atomic_increment_stock', {
+            p_product_id: updated.productId,
+            p_quantity: updated.quantity,
+            p_location: updated.location,
+          });
+        } else {
+          // We incremented, so decrement back
+          await supabase.rpc('atomic_decrement_stock', {
+            p_product_id: updated.productId,
+            p_quantity: updated.quantity,
+            p_location: updated.location,
+          });
         }
       }
       // Delete sale items and sale record
@@ -1007,10 +1031,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (auditRows.length > 0) {
-        supabase.from('product_audit_logs').insert(auditRows).then(({ error: auditErr }) => {
-          if (auditErr) console.error('[ProductAudit] Failed to insert audit logs:', auditErr);
-          else broadcastTableChange('product_audit_logs', 'INSERT', ['product-audit-logs']);
-        });
+        const { error: auditErr } = await supabase.from('product_audit_logs').insert(auditRows);
+        if (auditErr) {
+          console.error('[ProductAudit] Failed to insert audit logs:', auditErr);
+        } else {
+          broadcastTableChange('product_audit_logs', 'INSERT', ['product-audit-logs']);
+        }
       }
 
       // ── Stock Logs for historical export accuracy ──
@@ -1044,10 +1070,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           });
         }
         if (stockLogsForUpdate.length > 0) {
-          supabase.from('stock_logs').insert(stockLogsForUpdate).then(({ error: slErr }) => {
-            if (slErr) console.error('[StockLog] Failed to insert stock logs from updateProduct:', slErr);
-            else broadcastTableChange('stock_logs', 'INSERT', ['stock-logs']);
-          });
+          const { error: slErr } = await supabase.from('stock_logs').insert(stockLogsForUpdate);
+          if (slErr) {
+            console.error('[StockLog] Failed to insert stock logs from updateProduct:', slErr);
+            toast({ title: 'Peringatan', description: 'Gagal menyimpan log perubahan stok', variant: 'destructive' });
+          } else {
+            broadcastTableChange('stock_logs', 'INSERT', ['stock-logs']);
+          }
         }
       }
     }
@@ -1159,7 +1188,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     const stockField = `stock_${location}`;
 
-    // Bug fix #11: Read fresh stock from DB instead of stale client state
+    // Read stock before for logging purposes
     const { data: freshProduct, error: readError } = await supabase
       .from('products')
       .select(`id, ${stockField}`)
@@ -1174,10 +1203,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const currentStock = (freshProduct as any)?.[stockField] || 0;
     const newStock = currentStock + quantity;
 
-    const { error: updateError } = await supabase
-      .from('products')
-      .update({ [stockField]: newStock })
-      .eq('id', productId);
+    // Bug fix: Use atomic RPC instead of read-then-write to prevent race conditions
+    const { error: updateError } = await supabase.rpc('atomic_increment_stock', {
+      p_product_id: productId,
+      p_quantity: quantity,
+      p_location: location,
+    });
 
     if (updateError) {
       toast({ title: 'Error', description: updateError.message, variant: 'destructive' });

@@ -300,10 +300,14 @@ export function usePOSCart(initialLocation: Location = 'toko'): UsePOSCartReturn
             // Validate stock for non-manual items
             if (item && !item.isManualEntry && qty > 0) {
                 const availableStock = item.product.stock[stockLocation];
-                if (qty > availableStock) {
+                // Bug fix #11: Multiply by unitMultiplier for multi-unit products
+                const multiplier = item.unitMultiplier || 1;
+                const requiredBaseUnits = qty * multiplier;
+                if (requiredBaseUnits > availableStock) {
+                    const maxQtyInUnit = Math.floor(availableStock / multiplier);
                     toast({
                         title: 'Stok tidak cukup',
-                        description: `Maksimal ${availableStock} unit tersedia di ${stockLocation}`,
+                        description: `Maksimal ${maxQtyInUnit} ${multiplier > 1 ? (item.product.main_unit || 'unit') : 'unit'} tersedia di ${stockLocation}`,
                         variant: 'destructive'
                     });
                     return prev;
@@ -325,8 +329,21 @@ export function usePOSCart(initialLocation: Location = 'toko'): UsePOSCartReturn
         );
     }, []);
 
-    const removeItem = useCallback((productId: string) => {
-        setItems((prev) => prev.filter((it) => it.product.id !== productId));
+    // Bug fix #12: Unit-aware removeItem - uses index-based removal to handle
+    // same product with different sell units (e.g. Box and Pcs) in cart
+    const removeItem = useCallback((productId: string, sellUnit?: string) => {
+        setItems((prev) => {
+            if (sellUnit) {
+                // Remove only the specific unit variant
+                const idx = prev.findIndex((it) => it.product.id === productId && it.sellUnit === sellUnit);
+                if (idx >= 0) {
+                    return [...prev.slice(0, idx), ...prev.slice(idx + 1)];
+                }
+                return prev;
+            }
+            // Fallback: remove first matching product (backwards compatible)
+            return prev.filter((it) => it.product.id !== productId);
+        });
     }, []);
 
     const clearCart = useCallback(() => {

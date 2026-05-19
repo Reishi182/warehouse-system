@@ -188,9 +188,12 @@ export function useCreateMarketplaceOrder() {
             const targetRole = input.destination === 'gudang' ? 'warehouse' : 'cashier';
             await sendNotificationToRole(
                 targetRole,
-                'Pesanan Marketplace Baru',
-                `Pesanan ${orderNumber} dari ${input.marketplace.toUpperCase()} siap diterima`,
-                `/marketplace/receipt`
+                {
+                    title: 'Pesanan Marketplace Baru',
+                    message: `Pesanan ${orderNumber} dari ${input.marketplace.toUpperCase()} siap diterima`,
+                    type: 'info',
+                    link: '/marketplace/receipt',
+                }
             );
 
             return order;
@@ -276,29 +279,30 @@ export function useReceiveMarketplaceOrder() {
                             .single();
 
                         if (product) {
-                            const stockField = order.destination === 'gudang' ? 'stock_gudang' : 'stock_toko';
                             const currentStock = order.destination === 'gudang' ? product.stock_gudang : product.stock_toko;
                             const newStock = (currentStock || 0) + actualReceived;
 
-                            await supabase
-                                .from('products')
-                                .update({ [stockField]: newStock })
-                                .eq('id', item.product_id);
+                            // Bug fix #5: Use atomic RPC instead of read-then-write
+                            const { error: incrementError } = await supabase.rpc('atomic_increment_stock', {
+                                p_product_id: item.product_id,
+                                p_quantity: actualReceived,
+                                p_location: order.destination,
+                            });
 
-                            // Create stock log entry for history
+                            if (incrementError) throw incrementError;
+
+                            // Bug fix #6: Create stock log with corrected field names
                             await supabase
                                 .from('stock_logs')
                                 .insert({
                                     product_id: item.product_id,
-                                    product_name: product.name || item.product_name,
                                     type: 'in',
                                     quantity: actualReceived,
                                     location: order.destination,
                                     reference_type: 'marketplace_order',
                                     reference_id: order.id,
-                                    notes: `Penerimaan dari Marketplace ${order.marketplace.toUpperCase()} - ${order.order_number}`,
-                                    created_by: input.receivedBy,
-                                    created_by_name: input.receivedByName,
+                                    note: `Penerimaan dari Marketplace ${order.marketplace.toUpperCase()} - ${order.order_number}`,
+                                    user_id: input.receivedBy,
                                     stock_before: currentStock || 0,
                                     stock_after: newStock,
                                 });
@@ -310,9 +314,12 @@ export function useReceiveMarketplaceOrder() {
             // Notify main_office
             await sendNotificationToRole(
                 'main_office',
-                hasDiscrepancy ? 'Pesanan Diterima Bermasalah' : 'Pesanan Diterima',
-                `Pesanan ${order.order_number} ${hasDiscrepancy ? 'ada item rusak/kurang' : 'lengkap'}`,
-                `/marketplace`
+                {
+                    title: hasDiscrepancy ? 'Pesanan Diterima Bermasalah' : 'Pesanan Diterima',
+                    message: `Pesanan ${order.order_number} ${hasDiscrepancy ? 'ada item rusak/kurang' : 'lengkap'}`,
+                    type: hasDiscrepancy ? 'warning' : 'success',
+                    link: '/marketplace',
+                }
             );
 
             return order;
@@ -367,9 +374,12 @@ export function useCreateMarketplaceReturn() {
             // Notify main_office
             await sendNotificationToRole(
                 'main_office',
-                'Return Request Dibuat',
-                `Return untuk pesanan akan diproses`,
-                `/marketplace/returns`
+                {
+                    title: 'Return Request Dibuat',
+                    message: `Return untuk pesanan akan diproses`,
+                    type: 'info',
+                    link: '/marketplace/returns',
+                }
             );
 
             return data;

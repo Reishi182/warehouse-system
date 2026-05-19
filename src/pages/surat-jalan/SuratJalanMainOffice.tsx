@@ -368,7 +368,7 @@ export default function SuratJalanMainOffice() {
                             {/* Scrollable Content */}
                             <div className="p-6 overflow-y-auto custom-scrollbar space-y-6">
                                 {/* Info Grid 1 */}
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
                                         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1.5">
                                             <Clock className="w-3.5 h-3.5 text-blue-500" /> Tanggal Dibuat
@@ -398,7 +398,7 @@ export default function SuratJalanMainOffice() {
                                             Informasi Penerima
                                         </h3>
                                     </div>
-                                    <div className="p-4 grid grid-cols-2 gap-4">
+                                    <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div>
                                             <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider mb-1">Nama Penerima</p>
                                             <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">{selectedSj.recipient_name}</p>

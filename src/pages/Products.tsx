@@ -947,7 +947,7 @@ export default function Products() {
                     </DialogHeader>
                     <div className="space-y-4 mt-2">
                         {/* Mode Selection */}
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <button
                                 type="button"
                                 onClick={() => { setExportMode('current'); setExportDate(''); }}
@@ -999,7 +999,7 @@ export default function Products() {
                         {/* Export Format Buttons */}
                         <div className="space-y-2">
                             <Label className="text-sm">Pilih Format</Label>
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <Button
                                     variant="outline"
                                     className="h-auto py-3 rounded-xl flex flex-col items-center gap-1"

@@ -81,9 +81,12 @@ export function useCreateMarketplaceOrder() {
             const targetRole = input.destination === 'gudang' ? 'warehouse' : 'cashier';
             await sendNotificationToRole(
                 targetRole,
-                'Pesanan Marketplace Baru',
-                `Pesanan ${orderNumber} dari ${input.marketplace.toUpperCase()} siap diterima`,
-                `/marketplace/receipt`
+                {
+                    title: 'Pesanan Marketplace Baru',
+                    message: `Pesanan ${orderNumber} dari ${input.marketplace.toUpperCase()} siap diterima`,
+                    type: 'info',
+                    link: '/marketplace/receipt',
+                }
             );
 
             return order;
@@ -192,9 +195,12 @@ export function useReceiveMarketplaceOrder() {
 
             await sendNotificationToRole(
                 'main_office',
-                hasDiscrepancy ? 'Pesanan Diterima Bermasalah' : 'Pesanan Diterima',
-                `Pesanan ${order.order_number} ${hasDiscrepancy ? 'ada item rusak/kurang' : 'lengkap'}`,
-                `/marketplace`
+                {
+                    title: hasDiscrepancy ? 'Pesanan Diterima Bermasalah' : 'Pesanan Diterima',
+                    message: `Pesanan ${order.order_number} ${hasDiscrepancy ? 'ada item rusak/kurang' : 'lengkap'}`,
+                    type: hasDiscrepancy ? 'warning' : 'success',
+                    link: '/marketplace',
+                }
             );
 
             return order;

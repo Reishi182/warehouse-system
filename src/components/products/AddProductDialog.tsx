@@ -89,6 +89,8 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
     const subUnitLabel = SELL_UNITS.find(u => u.value === sellUnit)?.label ?? (sellUnit || '').toUpperCase();
     const computedBoxPrice = pcsPerBox && price ? price * pcsPerBox : null;
 
+    const disableStockEdit = userRole === 'warehouse' || userRole === 'cashier';
+
     const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -353,7 +355,8 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
                                                     setMainStockGudang(val);
                                                     setStockGudang((val * (pcsPerBox || 1)) + subStockGudang);
                                                 }}
-                                                className="h-9 text-center font-bold"
+                                                disabled={disableStockEdit}
+                                                className={`h-9 text-center font-bold ${disableStockEdit ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                 placeholder="0"
                                             />
                                             <p className="text-[10px] text-center text-muted-foreground uppercase">{mainUnitLabel}</p>
@@ -369,7 +372,8 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
                                                     setSubStockGudang(val);
                                                     setStockGudang((mainStockGudang * (pcsPerBox || 1)) + val);
                                                 }}
-                                                className="h-9 text-center"
+                                                disabled={disableStockEdit}
+                                                className={`h-9 text-center ${disableStockEdit ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                 placeholder="0"
                                             />
                                             <p className="text-[10px] text-center text-muted-foreground uppercase">{subUnitLabel}</p>
@@ -381,6 +385,8 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
                                         min={0}
                                         value={stockGudang}
                                         onChange={(e) => setStockGudang(parseFloat(e.target.value) || 0)}
+                                        disabled={disableStockEdit}
+                                        className={disableStockEdit ? 'opacity-50 cursor-not-allowed' : ''}
                                     />
                                 )}
                             </div>
@@ -400,7 +406,8 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
                                                     setMainStockToko(val);
                                                     setStockToko((val * (pcsPerBox || 1)) + subStockToko);
                                                 }}
-                                                className="h-9 text-center font-bold"
+                                                disabled={disableStockEdit}
+                                                className={`h-9 text-center font-bold ${disableStockEdit ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                 placeholder="0"
                                             />
                                             <p className="text-[10px] text-center text-muted-foreground uppercase">{mainUnitLabel}</p>
@@ -416,7 +423,8 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
                                                     setSubStockToko(val);
                                                     setStockToko((mainStockToko * (pcsPerBox || 1)) + val);
                                                 }}
-                                                className="h-9 text-center"
+                                                disabled={disableStockEdit}
+                                                className={`h-9 text-center ${disableStockEdit ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                 placeholder="0"
                                             />
                                             <p className="text-[10px] text-center text-muted-foreground uppercase">{subUnitLabel}</p>
@@ -428,6 +436,8 @@ export default function AddProductDialog({ onAdd, getProductByBarcode, userRole 
                                         min={0}
                                         value={stockToko}
                                         onChange={(e) => setStockToko(parseFloat(e.target.value) || 0)}
+                                        disabled={disableStockEdit}
+                                        className={disableStockEdit ? 'opacity-50 cursor-not-allowed' : ''}
                                     />
                                 )}
                             </div>

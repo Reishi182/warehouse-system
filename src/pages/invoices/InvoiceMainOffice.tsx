@@ -89,17 +89,18 @@ export default function InvoiceMainOffice() {
     // Create Invoice Mutation - must be before conditional return
     const createInvoice = useMutation({
         mutationFn: async (formData: any) => {
-            // 1. Create Invoice
+            // 1. Create Invoice with surat_jalan_ids
             const { data: invoice, error: invError } = await supabase
                 .from('invoices')
                 .insert([{
-                    invoice_number: `INV/${new Date().getFullYear()}/${new Date().getMonth() + 1}/${Date.now().toString().slice(-4)}`,
+                    invoice_number: `INV/${new Date().getFullYear()}/${String(new Date().getMonth() + 1).padStart(2, '0')}/${Date.now().toString().slice(-4)}`,
                     recipient_name: formData.recipientName,
                     recipient_address: formData.recipientAddress,
                     customer_id: formData.customerId || null,
                     due_date: formData.dueDate,
                     total_amount: formData.totalAmount,
-                    status: 'unpaid'
+                    status: 'unpaid',
+                    surat_jalan_ids: formData.suratJalanIds || [],
                 }])
                 .select()
                 .single();
@@ -107,14 +108,17 @@ export default function InvoiceMainOffice() {
             if (invError) throw invError;
             if (!invoice) throw new Error('Failed to create invoice');
 
-            // 2. Create Invoice Items
+            // 2. Create Invoice Items (with SJ reference)
             const items = formData.items.map((item: any) => ({
                 invoice_id: invoice.id,
                 product_id: item.productId,
                 product_name: item.productName,
                 quantity: item.quantity,
+                unit: item.unit || null,
                 price: item.price,
-                total: item.total
+                total: item.total,
+                surat_jalan_id: item.suratJalanId || null,
+                surat_jalan_number: item.suratJalanNumber || null,
             }));
 
             const { error: itemsError } = await supabase
@@ -122,6 +126,16 @@ export default function InvoiceMainOffice() {
                 .insert(items);
 
             if (itemsError) throw itemsError;
+
+            // 3. Create junction records for invoice <-> surat_jalan
+            if (formData.suratJalanIds && formData.suratJalanIds.length > 0) {
+                const junctionRecords = formData.suratJalanIds.map((sjId: string) => ({
+                    invoice_id: invoice.id,
+                    surat_jalan_id: sjId,
+                }));
+                await supabase.from('invoice_surat_jalan').insert(junctionRecords);
+            }
+
             return invoice;
         },
         onSuccess: () => {

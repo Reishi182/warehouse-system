@@ -26,6 +26,7 @@ export interface OfflineSale {
         discount: number;
         subtotal: number;
         isManualEntry?: boolean; // Bug fix #3: track manual entries
+        stockDeductQty?: number; // Multi-unit: base units to deduct (e.g. 1 box = 70 pcs)
     }>;
     totalAmount: number;
     orderDiscount: number;
@@ -219,6 +220,8 @@ async function syncSaleToServer(sale: OfflineSale): Promise<boolean> {
             if (item.isManualEntry || !item.productId) continue;
 
             const stockField = `stock_${sale.stockLocation}`;
+            // Bug fix: Use stockDeductQty for multi-unit products (e.g. 1 box = 70 pcs)
+            const deductQty = item.stockDeductQty || item.quantity;
 
             // Get current stock
             const { data: product, error: productError } = await supabase
@@ -237,26 +240,28 @@ async function syncSaleToServer(sale: OfflineSale): Promise<boolean> {
                 : product.stock_toko;
 
             // Bug fix #7: Check if deducting would make stock negative
-            if (currentStock < item.quantity) {
-                console.warn(`[Sync] Insufficient stock for ${item.productId}: have ${currentStock}, need ${item.quantity}. Clamping to 0.`);
+            if (currentStock < deductQty) {
+                console.warn(`[Sync] Insufficient stock for ${item.productId}: have ${currentStock}, need ${deductQty}. Clamping to 0.`);
             }
-            const newStock = Math.max(0, currentStock - item.quantity);
+            const newStock = Math.max(0, currentStock - deductQty);
 
             await supabase
                 .from('products')
                 .update({ [stockField]: newStock })
                 .eq('id', item.productId);
 
-            // Log stock change
+            // Log stock change with reference_type for audit trail
             await supabase.from('stock_logs').insert({
                 product_id: item.productId,
                 type: 'out',
-                quantity: item.quantity,
+                quantity: deductQty,
                 location: sale.stockLocation,
                 user_id: sale.cashierId,
                 note: `Penjualan ${sale.saleNumber} (offline sync)`,
                 stock_before: currentStock,
                 stock_after: newStock,
+                reference_type: 'sale',
+                reference_id: saleRow.id,
             });
         }
 

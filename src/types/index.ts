@@ -58,6 +58,7 @@ export interface Invoice {
   invoice_number: string;
   customer_id?: string | null;
   surat_jalan_id?: string | null;
+  surat_jalan_ids?: string[] | null; // Multiple SJ references
   recipient_name: string;
   recipient_address?: string | null;
   total_amount: number;
@@ -81,6 +82,8 @@ export interface InvoiceItem {
   unit?: string | null;
   price: number;
   total: number;
+  surat_jalan_id?: string | null;
+  surat_jalan_number?: string | null;
   created_at: string;
 }
 

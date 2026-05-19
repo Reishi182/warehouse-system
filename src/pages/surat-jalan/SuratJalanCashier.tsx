@@ -345,7 +345,7 @@ export default function SuratJalanCashier() {
                                                     <p className="text-xs text-indigo-500 font-semibold uppercase tracking-wide mb-0.5">Telepon</p>
                                                     <p className="font-semibold text-gray-700 dark:text-gray-300">{recipientPhone || '-'}</p>
                                                 </div>
-                                                <div className="col-span-2">
+                                                <div className="sm:col-span-2">
                                                     <p className="text-xs text-indigo-500 font-semibold uppercase tracking-wide mb-0.5">Alamat</p>
                                                     <p className="font-semibold text-gray-700 dark:text-gray-300">{recipientAddress || '-'}</p>
                                                 </div>
@@ -353,7 +353,7 @@ export default function SuratJalanCashier() {
                                         </div>
                                     )}
 
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <div className="space-y-1.5">
                                             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Nomor Surat Jalan</label>
                                             <Input
@@ -605,7 +605,7 @@ export default function SuratJalanCashier() {
                             {/* Scrollable Content */}
                             <div className="p-6 overflow-y-auto custom-scrollbar space-y-6">
                                 {/* Info Grid 1 */}
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
                                         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1.5">
                                             <Clock className="w-3.5 h-3.5 text-blue-500" /> Tanggal
@@ -644,7 +644,7 @@ export default function SuratJalanCashier() {
                                             Informasi Penerima
                                         </h3>
                                     </div>
-                                    <div className="p-4 grid grid-cols-2 gap-4">
+                                    <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div>
                                             <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider mb-1">Nama Penerima</p>
                                             <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">{selectedSjDetail.recipient_name}</p>
@@ -653,7 +653,7 @@ export default function SuratJalanCashier() {
                                             <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider mb-1">Nomor Telepon</p>
                                             <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">{selectedSjDetail.recipient_phone || '-'}</p>
                                         </div>
-                                        <div className="col-span-2">
+                                        <div className="sm:col-span-2">
                                             <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider mb-1">Alamat Lengkap</p>
                                             <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">{selectedSjDetail.recipient_address || '-'}</p>
                                         </div>

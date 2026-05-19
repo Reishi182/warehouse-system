@@ -431,7 +431,7 @@ export default function SuratJalanWarehouse() {
                         <>
                             {/* Order Info */}
                             <div className="bg-muted p-4 rounded-lg">
-                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                                     <div>
                                         <p className="text-muted-foreground">No. Surat Jalan</p>
                                         <p className="font-bold text-lg">{selectedSj.number}</p>

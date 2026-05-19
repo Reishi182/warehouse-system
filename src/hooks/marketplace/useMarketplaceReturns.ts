@@ -59,11 +59,15 @@ export function useCreateMarketplaceReturn() {
                 .update({ status: 'return_pending' })
                 .eq('id', input.orderId);
 
+            // Bug fix #17: Use object format for sendNotificationToRole
             await sendNotificationToRole(
                 'main_office',
-                'Return Request Dibuat',
-                `Return untuk pesanan akan diproses`,
-                `/marketplace/returns`
+                {
+                    title: 'Return Request Dibuat',
+                    message: `Return untuk pesanan akan diproses`,
+                    type: 'info',
+                    link: '/marketplace/returns',
+                }
             );
 
             return data;

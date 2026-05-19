@@ -651,10 +651,13 @@ export function useConfirmPOReceipt() {
                 const actualReceivedQty = item.receivedQty * multiplier;
                 const newStock = currentStock + actualReceivedQty;
 
-                await supabase
-                    .from('products')
-                    .update({ [stockField]: newStock })
-                    .eq('id', productId);
+                // Bug fix #8: Use atomic RPC instead of read-then-write
+                const { error: incrementError } = await supabase.rpc('atomic_increment_stock', {
+                    p_product_id: productId,
+                    p_quantity: actualReceivedQty,
+                    p_location: destination,
+                });
+                if (incrementError) throw incrementError;
 
                 // Log stock change
                 const noteDetails = item.receivedQty < item.orderedQty

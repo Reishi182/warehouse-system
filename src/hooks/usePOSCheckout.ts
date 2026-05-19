@@ -405,7 +405,7 @@ export function usePOSCheckout(options: UsePOSCheckoutOptions): UsePOSCheckoutRe
         } finally {
             setIsProcessing(false);
         }
-    }, [items, paymentMethod, amountPaid, totalAmount, subtotal, orderDiscount, stockLocation, createSale, toast, onSuccess, processOfflineSale, returnRef, transactionDate]);
+    }, [items, paymentMethod, amountPaid, totalAmount, subtotal, orderDiscount, stockLocation, createSale, toast, onSuccess, processOfflineSale, returnRef, transactionDate, isCredit, creditCustomerName, splitCashAmount, splitTransferAmount, exchangeFromSale]);
 
     return {
         paymentMethod,
