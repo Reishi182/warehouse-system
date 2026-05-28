@@ -95,14 +95,16 @@ export default function PurchaseOrderReceipt() {
     };
 
     const updateReceivedQty = (itemId: string, qty: number) => {
+        const floatQty = Math.max(0, qty);
         setReceivedItems(prev => prev.map(item =>
-            item.itemId === itemId ? { ...item, receivedQty: Math.max(0, qty) } : item
+            item.itemId === itemId ? { ...item, receivedQty: floatQty } : item
         ));
     };
 
     const updateDamagedQty = (itemId: string, qty: number) => {
+        const floatQty = Math.max(0, qty);
         setReceivedItems(prev => prev.map(item =>
-            item.itemId === itemId ? { ...item, damagedQty: Math.max(0, qty) } : item
+            item.itemId === itemId ? { ...item, damagedQty: floatQty } : item
         ));
     };
 
@@ -148,6 +150,14 @@ export default function PurchaseOrderReceipt() {
 
     const handleConfirm = async () => {
         if (!selectedPOId) return;
+
+        // Validate all quantities are valid numbers before submitting
+        for (const item of receivedItems) {
+            if (isNaN(item.receivedQty) || isNaN(item.damagedQty)) {
+                alert(`Jumlah untuk "${item.productName}" tidak valid.`);
+                return;
+            }
+        }
 
         let photoUrl: string | undefined;
         let signatureUrl: string | undefined;
@@ -498,8 +508,9 @@ export default function PurchaseOrderReceipt() {
                                                                 type="number"
                                                                 min={0}
                                                                 max={item.orderedQty}
+                                                                step="any"
                                                                 value={item.receivedQty}
-                                                                onChange={(e) => updateReceivedQty(item.itemId, parseInt(e.target.value) || 0)}
+                                                                onChange={(e) => updateReceivedQty(item.itemId, parseFloat(e.target.value) || 0)}
                                                                 className="h-9 mt-1"
                                                             />
                                                         </div>
@@ -508,8 +519,9 @@ export default function PurchaseOrderReceipt() {
                                                             <Input
                                                                 type="number"
                                                                 min={0}
+                                                                step="any"
                                                                 value={item.damagedQty}
-                                                                onChange={(e) => updateDamagedQty(item.itemId, parseInt(e.target.value) || 0)}
+                                                                onChange={(e) => updateDamagedQty(item.itemId, parseFloat(e.target.value) || 0)}
                                                                 className="h-9 mt-1"
                                                             />
                                                         </div>

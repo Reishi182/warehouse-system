@@ -259,178 +259,315 @@ export function useConfirmPOReceipt() {
 
     return useMutation({
         mutationFn: async (input: ConfirmReceiptInput) => {
-            const { data: po, error: poError } = await supabase
-                .from('purchase_orders')
-                .select('*, items:purchase_order_items(*)')
-                .eq('id', input.poId)
-                .single();
+            let destination: 'gudang' | 'toko' = 'toko';
+            const createdProductIds: string[] = [];
+            const updatedPOItemIds: Array<{ itemId: string; originalProductId: string | null }> = [];
+            let insertedReceipt = false;
+            const updatedProducts: Array<{ productId: string; originalStock: number; originalSellUnit: string | null; updatePayload: any }> = [];
 
-            if (poError) throw poError;
-
-            let totalOrdered = 0;
-            let totalReceived = 0;
-            let totalDamaged = 0;
-            const discrepancyItems: string[] = [];
-
-            for (const item of input.receivedItems) {
-                totalOrdered += item.orderedQty;
-                totalReceived += item.receivedQty;
-                totalDamaged += item.damagedQty;
-
-                const shortage = item.orderedQty - item.receivedQty;
-                if (shortage > 0 || item.damagedQty > 0) {
-                    discrepancyItems.push(
-                        `${item.productName}: Dipesan ${item.orderedQty}, ` +
-                        `Diterima ${item.receivedQty}` +
-                        (item.damagedQty > 0 ? `, Rusak ${item.damagedQty}` : '')
-                    );
-                }
-            }
-
-            const hasDiscrepancy = totalReceived < totalOrdered || totalDamaged > 0;
-
-            const { error: receiptError } = await supabase
-                .from('po_receipts')
-                .insert([{
-                    purchase_order_id: input.poId,
-                    received_by: input.receivedBy,
-                    received_by_name: input.receivedByName,
-                    photo_url: input.photoUrl || null,
-                    signature_url: input.signatureUrl || null,
-                    notes: input.notes || null,
-                    has_discrepancy: hasDiscrepancy,
-                    total_ordered: totalOrdered,
-                    total_received: totalReceived,
-                    total_damaged: totalDamaged,
-                }]);
-
-            if (receiptError) throw receiptError;
-
-            const destination = po.destination as 'gudang' | 'toko';
-            for (const item of input.receivedItems) {
-                if (item.receivedQty <= 0) continue;
-
-                let productId = item.productId;
-
-                // If productId is empty, create a new product
-                if (!productId && item.productName) {
-                    // Generate barcode if not provided
-                    const barcode = item.barcode || `NEW-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
-
-                    const newProductData: Record<string, any> = {
-                        name: item.productName,
-                        barcode: barcode,
-                        price: item.unitPrice || 0,
-                        stock_gudang: 0,
-                        stock_toko: 0,
-                    };
-
-                    const { data: newProduct, error: createError } = await supabase
-                        .from('products')
-                        .insert([newProductData])
-                        .select()
-                        .single();
-
-                    if (createError) {
-                        console.error('Error creating new product:', createError);
-                        continue; // Skip this item if product creation fails
-                    }
-
-                    productId = newProduct.id;
-
-                    // Update PO item with the new product_id
-                    await supabase
-                        .from('purchase_order_items')
-                        .update({ product_id: productId })
-                        .eq('id', item.itemId);
-                }
-
-                if (!productId) continue;
-
-                // Get current stock
-                const { data: product, error: prodError } = await supabase
-                    .from('products')
-                    .select('stock_gudang, stock_toko, has_multi_unit, main_unit, sell_unit, pcs_per_box')
-                    .eq('id', productId)
+            try {
+                // Get PO details
+                const { data: po, error: poError } = await supabase
+                    .from('purchase_orders')
+                    .select('*, items:purchase_order_items(*)')
+                    .eq('id', input.poId)
                     .single();
 
-                if (prodError) continue;
+                if (poError) throw poError;
 
-                let multiplier = 1;
-                if (product.has_multi_unit && product.main_unit && product.pcs_per_box) {
-                    const receivedUnitStr = (item.unit || 'pcs').toLowerCase().trim();
-                    const mainUnitStr = product.main_unit.toLowerCase().trim();
-                    if (receivedUnitStr === mainUnitStr) {
-                        multiplier = product.pcs_per_box;
+                destination = po.destination as 'gudang' | 'toko';
+
+                // Calculate discrepancy
+                let totalOrdered = 0;
+                let totalReceived = 0;
+                let totalDamaged = 0;
+                const discrepancyItems: string[] = [];
+
+                for (const item of input.receivedItems) {
+                    totalOrdered += item.orderedQty;
+                    totalReceived += item.receivedQty;
+                    totalDamaged += item.damagedQty;
+
+                    const shortage = item.orderedQty - item.receivedQty;
+                    if (shortage > 0 || item.damagedQty > 0) {
+                        discrepancyItems.push(
+                            `${item.productName}: Dipesan ${item.orderedQty}, ` +
+                            `Diterima ${item.receivedQty}` +
+                            (item.damagedQty > 0 ? `, Rusak ${item.damagedQty}` : '')
+                        );
                     }
                 }
 
+                const hasDiscrepancy = totalReceived < totalOrdered || totalDamaged > 0;
+
+                // ── PHASE 1: Prepare data and new products BEFORE any stock writes ──
+                interface PreparedStockOp {
+                    productId: string;
+                    actualAddedQty: number;
+                    currentStock: number;
+                    newStock: number;
+                    noteDetails: string;
+                    updatePayload: any;
+                    originalStock: number;
+                    originalSellUnit: string | null;
+                }
+                const preparedStockOps: PreparedStockOp[] = [];
+
+                for (const item of input.receivedItems) {
+                    if (item.receivedQty <= 0) continue;
+
+                    let productId = item.productId;
+
+                    // If productId is empty, create a new product
+                    if (!productId && item.productName) {
+                        const barcode = item.barcode || `NEW-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
+
+                        const newProductData: Record<string, any> = {
+                            name: item.productName,
+                            barcode: barcode,
+                            price: item.unitPrice || 0,
+                            stock_gudang: 0,
+                            stock_toko: 0,
+                        };
+
+                        const { data: newProduct, error: createError } = await supabase
+                            .from('products')
+                            .insert([newProductData])
+                            .select()
+                            .single();
+
+                        if (createError) {
+                            throw new Error(`Gagal membuat produk baru "${item.productName}": ${createError.message}`);
+                        }
+
+                        productId = newProduct.id;
+                        createdProductIds.push(productId);
+
+                        // Update PO item with the new product_id
+                        const { error: poItemUpdateError } = await supabase
+                            .from('purchase_order_items')
+                            .update({ product_id: productId })
+                            .eq('id', item.itemId);
+
+                        if (poItemUpdateError) {
+                            throw new Error(`Gagal memperbarui item PO "${item.productName}" dengan produk baru: ${poItemUpdateError.message}`);
+                        }
+
+                        updatedPOItemIds.push({ itemId: item.itemId, originalProductId: null });
+                    }
+
+                    if (!productId) continue;
+
+                    // Get current stock
+                    const { data: product, error: prodError } = await supabase
+                        .from('products')
+                        .select('stock_gudang, stock_toko, has_multi_unit, main_unit, sell_unit, pcs_per_box')
+                        .eq('id', productId)
+                        .single();
+
+                    if (prodError) {
+                        throw new Error(`Gagal mengambil data produk "${item.productName}": ${prodError.message}`);
+                    }
+
+                    // Calculate multiplier for multi-unit
+                    let multiplier = 1;
+                    if (product.has_multi_unit && product.main_unit && product.pcs_per_box) {
+                        const receivedUnitStr = (item.unit || 'pcs').toLowerCase().trim();
+                        const mainUnitStr = product.main_unit.toLowerCase().trim();
+                        if (receivedUnitStr === mainUnitStr) {
+                            multiplier = product.pcs_per_box;
+                        }
+                    }
+
+                    const stockField = destination === 'gudang' ? 'stock_gudang' : 'stock_toko';
+                    const currentStock = destination === 'gudang' ? (product.stock_gudang || 0) : (product.stock_toko || 0);
+                    const actualAddedQty = item.receivedQty * multiplier;
+                    const newStock = currentStock + actualAddedQty;
+
+                    const updatePayload: any = { [stockField]: newStock };
+
+                    // Auto-update sell_unit for standard products if it was changed in PO
+                    if (!product.has_multi_unit && item.unit && item.unit !== (product.sell_unit || 'pcs')) {
+                        updatePayload.sell_unit = item.unit;
+                    }
+
+                    const unitText = multiplier > 1 ? ` (${item.receivedQty} ${item.unit} x ${multiplier})` : '';
+                    const noteDetails = item.receivedQty < item.orderedQty
+                        ? `Penerimaan PO: ${po.po_number} (Selisih: ${item.orderedQty - item.receivedQty})${unitText}`
+                        : `Penerimaan PO: ${po.po_number}${unitText}`;
+
+                    preparedStockOps.push({
+                        productId,
+                        actualAddedQty,
+                        currentStock,
+                        newStock,
+                        noteDetails,
+                        updatePayload,
+                        originalStock: currentStock,
+                        originalSellUnit: product.sell_unit,
+                    });
+                }
+
+                // Create receipt record with discrepancy info
+                const { error: receiptError } = await supabase
+                    .from('po_receipts')
+                    .insert([{
+                        purchase_order_id: input.poId,
+                        received_by: input.receivedBy,
+                        received_by_name: input.receivedByName,
+                        photo_url: input.photoUrl || null,
+                        signature_url: input.signatureUrl || null,
+                        notes: input.notes || null,
+                        has_discrepancy: hasDiscrepancy,
+                        total_ordered: totalOrdered,
+                        total_received: totalReceived,
+                        total_damaged: totalDamaged,
+                    }]);
+
+                if (receiptError) throw receiptError;
+                insertedReceipt = true;
+
+                // ── PHASE 2: Execute all stock operations and logs ──
+                for (const op of preparedStockOps) {
+                    const { error: updateError } = await supabase
+                        .from('products')
+                        .update(op.updatePayload)
+                        .eq('id', op.productId);
+
+                    if (updateError) throw updateError;
+                    updatedProducts.push({
+                        productId: op.productId,
+                        originalStock: op.originalStock,
+                        originalSellUnit: op.originalSellUnit,
+                        updatePayload: op.updatePayload
+                    });
+
+                    const { error: logError } = await supabase.from('stock_logs').insert([{
+                        product_id: op.productId,
+                        type: 'in',
+                        quantity: op.actualAddedQty,
+                        location: destination,
+                        user_id: input.receivedBy,
+                        note: op.noteDetails,
+                        stock_before: op.currentStock,
+                        stock_after: op.newStock,
+                        reference_type: 'purchase_order',
+                        reference_id: input.poId,
+                    }]);
+
+                    if (logError) throw logError;
+                }
+
+                // Update PO status
+                const { error: updateError } = await supabase
+                    .from('purchase_orders')
+                    .update({
+                        status: hasDiscrepancy ? 'completed_with_discrepancy' : 'completed',
+                        updated_at: new Date().toISOString(),
+                    })
+                    .eq('id', input.poId);
+
+                if (updateError) throw updateError;
+
+                // If discrepancy, notify main_office and auditor
+                if (hasDiscrepancy) {
+                    const discrepancyMessage =
+                        `PO ${po.po_number}: Dipesan ${totalOrdered} unit, Diterima ${totalReceived} unit` +
+                        (totalDamaged > 0 ? `, Rusak ${totalDamaged} unit` : '') +
+                        `. Perlu follow-up dengan supplier.`;
+
+                    await sendNotificationToRole(['main_office', 'auditor'], {
+                        title: `⚠️ Selisih Penerimaan PO`,
+                        message: discrepancyMessage,
+                        type: 'warning',
+                        link: '/purchase-orders',
+                    });
+                }
+
+                return { po, hasDiscrepancy, discrepancyItems };
+
+            } catch (err) {
+                console.error("Error confirming PO receipt. Rolling back changes...", err);
+
+                // 1. Rollback stock updates
                 const stockField = destination === 'gudang' ? 'stock_gudang' : 'stock_toko';
-                const currentStock = destination === 'gudang' ? (product.stock_gudang || 0) : (product.stock_toko || 0);
-                
-                const actualAddedQty = item.receivedQty * multiplier;
-                const newStock = currentStock + actualAddedQty;
-
-                const updatePayload: any = { [stockField]: newStock };
-
-                // Auto-update sell_unit for standard products if it was changed in PO
-                if (!product.has_multi_unit && item.unit && item.unit !== (product.sell_unit || 'pcs')) {
-                    updatePayload.sell_unit = item.unit;
+                for (const prod of updatedProducts) {
+                    try {
+                        const rollbackPayload: any = { [stockField]: prod.originalStock };
+                        if (prod.originalSellUnit !== undefined) {
+                            rollbackPayload.sell_unit = prod.originalSellUnit;
+                        }
+                        await supabase
+                            .from('products')
+                            .update(rollbackPayload)
+                            .eq('id', prod.productId);
+                    } catch (rollbackErr) {
+                        console.error(`Failed to rollback product ${prod.productId}:`, rollbackErr);
+                    }
                 }
 
-                await supabase
-                    .from('products')
-                    .update(updatePayload)
-                    .eq('id', productId);
-
-                const unitText = multiplier > 1 ? ` (${item.receivedQty} ${item.unit} x ${multiplier})` : '';
-                const noteDetails = item.receivedQty < item.orderedQty
-                    ? `Penerimaan PO: ${po.po_number} (Selisih: ${item.orderedQty - item.receivedQty})${unitText}`
-                    : `Penerimaan PO: ${po.po_number}${unitText}`;
-
-                const { error: stockLogError } = await supabase.from('stock_logs').insert([{
-                    product_id: productId,
-                    type: 'in',
-                    quantity: actualAddedQty,
-                    location: destination,
-                    user_id: input.receivedBy,
-                    note: noteDetails,
-                    reference_type: 'purchase_order',
-                    reference_id: input.poId,
-                    stock_before: currentStock,
-                    stock_after: newStock
-                }]);
-                
-                if (stockLogError) {
-                    console.error('Failed to insert stock log:', stockLogError);
+                // 2. Delete inserted stock logs
+                try {
+                    await supabase
+                        .from('stock_logs')
+                        .delete()
+                        .eq('reference_type', 'purchase_order')
+                        .eq('reference_id', input.poId);
+                } catch (rollbackErr) {
+                    console.error("Failed to delete stock logs during rollback:", rollbackErr);
                 }
+
+                // 3. Delete inserted receipt record
+                if (insertedReceipt) {
+                    try {
+                        await supabase
+                            .from('po_receipts')
+                            .delete()
+                            .eq('purchase_order_id', input.poId);
+                    } catch (rollbackErr) {
+                        console.error("Failed to delete po_receipt during rollback:", rollbackErr);
+                    }
+                }
+
+                // 4. Restore PO status
+                try {
+                    await supabase
+                        .from('purchase_orders')
+                        .update({
+                            status: 'pending_receipt',
+                            updated_at: new Date().toISOString(),
+                        })
+                        .eq('id', input.poId);
+                } catch (rollbackErr) {
+                    console.error("Failed to restore PO status during rollback:", rollbackErr);
+                }
+
+                // 5. Restore purchase_order_items product_ids
+                for (const item of updatedPOItemIds) {
+                    try {
+                        await supabase
+                            .from('purchase_order_items')
+                            .update({ product_id: item.originalProductId })
+                            .eq('id', item.itemId);
+                    } catch (rollbackErr) {
+                        console.error(`Failed to restore PO item ${item.itemId} product_id:`, rollbackErr);
+                    }
+                }
+
+                // 6. Delete created products
+                for (const prodId of createdProductIds) {
+                    try {
+                        await supabase
+                            .from('products')
+                            .delete()
+                            .eq('id', prodId);
+                    } catch (rollbackErr) {
+                        console.error(`Failed to delete created product ${prodId}:`, rollbackErr);
+                    }
+                }
+
+                throw err;
             }
-
-            const { error: updateError } = await supabase
-                .from('purchase_orders')
-                .update({
-                    status: hasDiscrepancy ? 'completed_with_discrepancy' : 'completed',
-                    updated_at: new Date().toISOString(),
-                })
-                .eq('id', input.poId);
-
-            if (updateError) throw updateError;
-
-            if (hasDiscrepancy) {
-                const discrepancyMessage =
-                    `PO ${po.po_number}: Dipesan ${totalOrdered} unit, Diterima ${totalReceived} unit` +
-                    (totalDamaged > 0 ? `, Rusak ${totalDamaged} unit` : '') +
-                    `. Perlu follow-up dengan supplier.`;
-
-                await sendNotificationToRole(['main_office', 'auditor'], {
-                    title: `⚠️ Selisih Penerimaan PO`,
-                    message: discrepancyMessage,
-                    type: 'warning',
-                    link: '/purchase-orders',
-                });
-            }
-
-            return { po, hasDiscrepancy, discrepancyItems };
         },
         onSuccess: (result) => {
             invalidateAndBroadcast(queryClient, ['purchase_orders', 'products']);

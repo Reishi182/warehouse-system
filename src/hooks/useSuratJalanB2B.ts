@@ -120,6 +120,7 @@ export function useSuratJalanB2B() {
             sourceLocation?: 'gudang' | 'toko';
             customNumber?: string;
             customerPoUrl?: string;
+            customerId?: string;
         }) => {
             const location = data.sourceLocation || 'toko'; // Default to toko for cashier
 
@@ -146,6 +147,7 @@ export function useSuratJalanB2B() {
                 reviewed_at: new Date().toISOString(),
                 completed_by: data.userId, // auto complete
                 completed_at: new Date().toISOString(),
+                customer_id: data.customerId || null,
             };
 
             if (data.customerPoUrl) {

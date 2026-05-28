@@ -1,11 +1,10 @@
-
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Customer } from '@/types';
+import { Customer, Invoice } from '@/types';
 import { Check, FileText, Package, User, Calendar, ChevronRight, Search, AlertCircle } from 'lucide-react';
 import {
     Table,
@@ -21,7 +20,7 @@ import {
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
 import { DateInput } from '@/components/common/DatePicker';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
@@ -60,25 +59,49 @@ interface InvoiceItemFromSJ {
     price: number; // Manual price
 }
 
-interface CreateInvoiceFormProps {
+interface EditInvoiceFormProps {
+    invoice: Invoice;
     onSubmit: (data: any) => void;
     onCancel: () => void;
 }
 
-export default function CreateInvoiceForm({ onSubmit, onCancel }: CreateInvoiceFormProps) {
-    // Step 1: Customer
-    const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
-    const [recipientName, setRecipientName] = useState('');
-    const [recipientAddress, setRecipientAddress] = useState('');
+export default function EditInvoiceForm({ invoice, onSubmit, onCancel }: EditInvoiceFormProps) {
+    // Lock/Store selected customer
+    const [selectedCustomerId, setSelectedCustomerId] = useState<string>(invoice.customer_id || '');
+    const [recipientName, setRecipientName] = useState(invoice.recipient_name || '');
+    const [recipientAddress, setRecipientAddress] = useState(invoice.recipient_address || '');
     const [recipientPhone, setRecipientPhone] = useState('');
     const [recipientEmail, setRecipientEmail] = useState('');
-    const [dueDate, setDueDate] = useState('');
+    
+    // Parse due date to 'yyyy-MM-dd' for DateInput
+    const formatInitialDate = (dateStr?: string | null) => {
+        if (!dateStr) return '';
+        try {
+            return format(new Date(dateStr), 'yyyy-MM-dd');
+        } catch (e) {
+            return '';
+        }
+    };
+    const [dueDate, setDueDate] = useState(formatInitialDate(invoice.due_date));
 
-    // Step 2: Selected Surat Jalan
-    const [selectedSJIds, setSelectedSJIds] = useState<Set<string>>(new Set());
+    // Step 2: Selected Surat Jalan (initialized from current invoice links)
+    const [selectedSJIds, setSelectedSJIds] = useState<Set<string>>(
+        new Set(invoice.surat_jalan_ids || [])
+    );
 
-    // Step 3: Items with manual prices
-    const [itemPrices, setItemPrices] = useState<Record<string, number>>({});
+    // Step 3: Items with manual prices (pre-populate with existing invoice items price)
+    const [itemPrices, setItemPrices] = useState<Record<string, number>>(() => {
+        const prices: Record<string, number> = {};
+        if (invoice.items) {
+            for (const item of invoice.items) {
+                if (item.surat_jalan_id && item.product_id) {
+                    const key = `${item.surat_jalan_id}_${item.product_id}`;
+                    prices[key] = item.price;
+                }
+            }
+        }
+        return prices;
+    });
 
     // Search
     const [sjSearch, setSjSearch] = useState('');
@@ -92,19 +115,31 @@ export default function CreateInvoiceForm({ onSubmit, onCancel }: CreateInvoiceF
         }
     });
 
-    // Fetch Surat Jalan B2B for selected customer — excluding SJs already linked to an invoice
+    // Sync recipient details on mount/load
+    useEffect(() => {
+        if (customers.length > 0 && selectedCustomerId) {
+            const customer = customers.find(c => c.id === selectedCustomerId);
+            if (customer) {
+                setRecipientPhone(customer.phone || '');
+                setRecipientEmail(customer.email || '');
+            }
+        }
+    }, [customers, selectedCustomerId]);
+
+    // Fetch Surat Jalan B2B for selected customer — excluding SJs already linked to OTHER invoices
     const { data: suratJalans = [], isLoading: sjLoading } = useQuery({
-        queryKey: ['surat-jalan-for-invoice', selectedCustomerId, customers],
+        queryKey: ['surat-jalan-for-edit-invoice', selectedCustomerId, invoice.id, customers],
         queryFn: async () => {
             if (!selectedCustomerId) return [];
 
-            // 1. Fetch SJ IDs already used in an invoice (via junction table)
+            // 1. Fetch SJ IDs already used in OTHER invoices (via junction table)
             const { data: usedLinks } = await supabase
                 .from('invoice_surat_jalan')
-                .select('surat_jalan_id');
-            const usedSjIds = (usedLinks || []).map((r: any) => r.surat_jalan_id as string);
+                .select('surat_jalan_id')
+                .neq('invoice_id', invoice.id);
+            const excludedSjIds = (usedLinks || []).map((r: any) => r.surat_jalan_id as string);
 
-            // 2. Build SJ query — match by customer_id if column exists, else fall back to recipient_name
+            // 2. Build SJ query
             let query = supabase
                 .from('surat_jalan')
                 .select(`
@@ -130,18 +165,15 @@ export default function CreateInvoiceForm({ onSubmit, onCancel }: CreateInvoiceF
             const { data, error } = await query;
             if (error) throw error;
 
-            // 3. Filter out SJs already linked to any invoice
+            // 3. Filter out SJs already linked to OTHER invoices
             const available = (data || []).filter(
-                (sj: any) => !usedSjIds.includes(sj.id)
+                (sj: any) => !excludedSjIds.includes(sj.id)
             );
 
             return available as SuratJalanData[];
         },
-        enabled: !!selectedCustomerId,
+        enabled: !!selectedCustomerId && customers.length > 0,
     });
-
-
-
 
     // Filter SJ by search
     const filteredSuratJalans = useMemo(() => {
@@ -159,7 +191,7 @@ export default function CreateInvoiceForm({ onSubmit, onCancel }: CreateInvoiceF
         for (const sj of suratJalans) {
             if (!selectedSJIds.has(sj.id)) continue;
             for (const sjItem of sj.items) {
-                const key = `${sj.id}_${sjItem.id}`;
+                const key = `${sj.id}_${sjItem.product_id}`;
                 items.push({
                     sjId: sj.id,
                     sjNumber: sj.number,
@@ -224,8 +256,8 @@ export default function CreateInvoiceForm({ onSubmit, onCancel }: CreateInvoiceF
         }
     }, [filteredSuratJalans, selectedSJIds.size]);
 
-    const handlePriceChange = useCallback((sjId: string, sjItemId: string, price: number) => {
-        const key = `${sjId}_${sjItemId}`;
+    const handlePriceChange = useCallback((sjId: string, productId: string, price: number) => {
+        const key = `${sjId}_${productId}`;
         setItemPrices(prev => ({ ...prev, [key]: price }));
     }, []);
 
@@ -242,6 +274,7 @@ export default function CreateInvoiceForm({ onSubmit, onCancel }: CreateInvoiceF
         }));
 
         onSubmit({
+            id: invoice.id,
             customerId: selectedCustomerId || null,
             recipientName,
             recipientAddress,
@@ -257,6 +290,20 @@ export default function CreateInvoiceForm({ onSubmit, onCancel }: CreateInvoiceF
 
     return (
         <div className="space-y-6">
+            {/* Invoice Number Header Banner */}
+            <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex items-center justify-between">
+                <div>
+                    <span className="text-xs font-semibold text-indigo-500 uppercase tracking-wider block">Nomor Invoice</span>
+                    <span className="text-lg font-bold text-indigo-900">{invoice.invoice_number}</span>
+                </div>
+                <div className="text-right">
+                    <span className="text-xs font-semibold text-indigo-500 uppercase tracking-wider block">Status</span>
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 capitalize border border-yellow-200">
+                        {invoice.status}
+                    </span>
+                </div>
+            </div>
+
             {/* ═══════════════════════════════════════════ */}
             {/* STEP 1: PELANGGAN & TANGGAL                */}
             {/* ═══════════════════════════════════════════ */}
@@ -270,8 +317,8 @@ export default function CreateInvoiceForm({ onSubmit, onCancel }: CreateInvoiceF
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label className="text-gray-600 font-medium text-xs uppercase tracking-wider">Nama Pelanggan</Label>
-                            <Select value={selectedCustomerId} onValueChange={handleCustomerSelect}>
-                                <SelectTrigger className="w-full bg-white border-gray-200 rounded-xl h-11 focus:ring-indigo-100 focus:border-indigo-300">
+                            <Select value={selectedCustomerId} onValueChange={handleCustomerSelect} disabled={true}>
+                                <SelectTrigger className="w-full bg-white border-gray-200 rounded-xl h-11 focus:ring-indigo-100 focus:border-indigo-300 disabled:opacity-75 disabled:cursor-not-allowed">
                                     <SelectValue placeholder="Cari pelanggan..." />
                                 </SelectTrigger>
                                 <SelectContent className="rounded-xl border-gray-100 shadow-lg max-h-60">
@@ -291,6 +338,7 @@ export default function CreateInvoiceForm({ onSubmit, onCancel }: CreateInvoiceF
                                     ))}
                                 </SelectContent>
                             </Select>
+                            <p className="text-[10px] text-muted-foreground">Pelanggan tidak dapat diubah setelah invoice dibuat</p>
                         </div>
                         <div className="space-y-2">
                             <Label className="text-gray-600 font-medium text-xs uppercase tracking-wider">Tanggal Jatuh Tempo</Label>
@@ -481,7 +529,7 @@ export default function CreateInvoiceForm({ onSubmit, onCancel }: CreateInvoiceF
                                 {invoiceItems.map((item, idx) => {
                                     const lineTotal = item.quantity * item.price;
                                     return (
-                                        <TableRow key={`${item.sjId}_${item.sjItemId}`} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                                        <TableRow key={`${item.sjId}_${item.productId}`} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                                             <TableCell className="font-medium text-gray-800 text-sm max-w-[200px]">
                                                 <span className="truncate block" title={item.productName}>{item.productName}</span>
                                             </TableCell>
@@ -501,7 +549,7 @@ export default function CreateInvoiceForm({ onSubmit, onCancel }: CreateInvoiceF
                                                         className={`pl-8 w-[150px] h-9 text-right text-sm rounded-lg border-gray-200 focus:ring-indigo-200 focus:border-indigo-400 ${item.price <= 0 ? 'border-amber-300 bg-amber-50' : 'bg-white'}`}
                                                         value={item.price || ''}
                                                         placeholder="0"
-                                                        onChange={e => handlePriceChange(item.sjId, item.sjItemId, Number(e.target.value) || 0)}
+                                                        onChange={e => handlePriceChange(item.sjId, item.productId, Number(e.target.value) || 0)}
                                                     />
                                                 </div>
                                             </TableCell>
@@ -546,7 +594,7 @@ export default function CreateInvoiceForm({ onSubmit, onCancel }: CreateInvoiceF
                     className="rounded-xl h-11 px-8 shadow-lg bg-indigo-600 hover:bg-indigo-700 gap-2 transition-all"
                 >
                     <FileText className="w-4 h-4" />
-                    Simpan Invoice
+                    Simpan Perubahan
                     <ChevronRight className="w-4 h-4" />
                 </Button>
             </div>

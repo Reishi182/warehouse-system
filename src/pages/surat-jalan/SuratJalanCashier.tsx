@@ -253,6 +253,7 @@ export default function SuratJalanCashier() {
             sourceLocation,
             customNumber: customNumber.trim() || undefined,
             customerPoUrl,
+            customerId: selectedCustomerId || undefined,
         }, {
             onSuccess: () => {
                 setDialogOpen(false);

@@ -14,20 +14,23 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import CreateInvoiceForm from './components/CreateInvoiceForm';
+import EditInvoiceForm from './components/EditInvoiceForm';
 import PrintInvoice from '@/components/print/PrintInvoice';
 import { useStoreSettings } from '@/hooks/useStoreSettings';
 import { useReactToPrint } from 'react-to-print';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { toast } from 'sonner';
-import { FileText, Download, Plus, Wallet, Printer } from 'lucide-react';
+import { FileText, Download, Plus, Wallet, Printer, Edit } from 'lucide-react';
 import { StatsCard, StatsGrid } from '@/components/common/StatsCard';
 
 
 export default function InvoiceMainOffice() {
     const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [isEditOpen, setIsEditOpen] = useState(false);
     const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false);
     const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
+    const [selectedEditInvoiceId, setSelectedEditInvoiceId] = useState<string | null>(null);
     const printRef = useRef<HTMLDivElement>(null);
     const queryClient = useQueryClient();
     const { data: storeSettings } = useStoreSettings();
@@ -148,6 +151,108 @@ export default function InvoiceMainOffice() {
         }
     });
 
+    // Fetch single invoice with items for edit
+    const { data: editInvoiceData, isLoading: editInvoiceLoading } = useQuery({
+        queryKey: ['invoice-edit-detail', selectedEditInvoiceId],
+        queryFn: async () => {
+            if (!selectedEditInvoiceId) return null;
+
+            const { data: inv, error: invError } = await supabase
+                .from('invoices')
+                .select('*')
+                .eq('id', selectedEditInvoiceId)
+                .single();
+
+            if (invError) throw invError;
+
+            const { data: items, error: itemsError } = await supabase
+                .from('invoice_items')
+                .select('*')
+                .eq('invoice_id', selectedEditInvoiceId);
+
+            if (itemsError) throw itemsError;
+
+            return { ...inv, items } as Invoice;
+        },
+        enabled: !!selectedEditInvoiceId
+    });
+
+    // Update Invoice Mutation
+    const updateInvoice = useMutation({
+        mutationFn: async (formData: any) => {
+            const invoiceId = formData.id;
+
+            // 1. Update Invoice header
+            const { error: invError } = await supabase
+                .from('invoices')
+                .update({
+                    recipient_name: formData.recipientName,
+                    recipient_address: formData.recipientAddress,
+                    due_date: formData.dueDate || null,
+                    total_amount: formData.totalAmount,
+                    surat_jalan_ids: formData.suratJalanIds || [],
+                })
+                .eq('id', invoiceId);
+
+            if (invError) throw invError;
+
+            // 2. Delete existing items
+            const { error: deleteItemsError } = await supabase
+                .from('invoice_items')
+                .delete()
+                .eq('invoice_id', invoiceId);
+
+            if (deleteItemsError) throw deleteItemsError;
+
+            // 3. Insert new items
+            const items = formData.items.map((item: any) => ({
+                invoice_id: invoiceId,
+                product_id: item.productId,
+                product_name: item.productName,
+                quantity: item.quantity,
+                unit: item.unit || null,
+                price: item.price,
+                total: item.total,
+                surat_jalan_id: item.suratJalanId || null,
+                surat_jalan_number: item.suratJalanNumber || null,
+            }));
+
+            const { error: itemsError } = await supabase
+                .from('invoice_items')
+                .insert(items);
+
+            if (itemsError) throw itemsError;
+
+            // 4. Delete existing junction records for invoice <-> surat_jalan
+            const { error: deleteJunctionError } = await supabase
+                .from('invoice_surat_jalan')
+                .delete()
+                .eq('invoice_id', invoiceId);
+
+            if (deleteJunctionError) throw deleteJunctionError;
+
+            // 5. Create new junction records for invoice <-> surat_jalan
+            if (formData.suratJalanIds && formData.suratJalanIds.length > 0) {
+                const junctionRecords = formData.suratJalanIds.map((sjId: string) => ({
+                    invoice_id: invoiceId,
+                    surat_jalan_id: sjId,
+                }));
+                await supabase.from('invoice_surat_jalan').insert(junctionRecords);
+            }
+        },
+        onSuccess: () => {
+            setIsEditOpen(false);
+            setSelectedEditInvoiceId(null);
+            queryClient.invalidateQueries({ queryKey: ['invoices'] });
+            queryClient.invalidateQueries({ queryKey: ['invoice'] });
+            queryClient.invalidateQueries({ queryKey: ['invoice-edit-detail'] });
+            toast.success('Invoice berhasil diperbarui!');
+        },
+        onError: (error) => {
+            toast.error(`Gagal memperbarui invoice: ${error.message}`);
+        }
+    });
+
     if (isLoading) {
         return (
             <MainLayout title="Invoices" subtitle="Kelola tagihan pelanggan (B2B)">
@@ -158,6 +263,15 @@ export default function InvoiceMainOffice() {
 
     const handleCreateInvoice = (data: any) => {
         createInvoice.mutate(data);
+    };
+
+    const handleEdit = (invoice: Invoice) => {
+        setSelectedEditInvoiceId(invoice.id);
+        setIsEditOpen(true);
+    };
+
+    const handleUpdateInvoice = (data: any) => {
+        updateInvoice.mutate(data);
     };
 
     const handlePrint = (invoice: Invoice) => {
@@ -223,6 +337,14 @@ export default function InvoiceMainOffice() {
             header: '',
             cell: (item: Invoice) => (
                 <div className="flex justify-end gap-1">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full"
+                        onClick={() => handleEdit(item)}
+                    >
+                        <Edit className="w-5 h-5" />
+                    </Button>
                     <Button
                         variant="ghost"
                         size="icon"
@@ -304,6 +426,40 @@ export default function InvoiceMainOffice() {
                             onSubmit={handleCreateInvoice}
                             onCancel={() => setIsCreateOpen(false)}
                         />
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isEditOpen} onOpenChange={(open) => {
+                setIsEditOpen(open);
+                if (!open) setSelectedEditInvoiceId(null);
+            }}>
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl p-0 gap-0">
+                    <div className="p-6 pb-0">
+                        <DialogHeader>
+                            <DialogTitle className="text-2xl font-bold">Edit Invoice</DialogTitle>
+                        </DialogHeader>
+                    </div>
+                    <div className="p-6">
+                        {editInvoiceLoading ? (
+                            <div className="py-12 text-center text-muted-foreground flex flex-col items-center justify-center gap-3">
+                                <div className="animate-spin h-8 w-8 border-2 border-indigo-500 border-t-transparent rounded-full" />
+                                <p className="text-sm">Memuat data invoice...</p>
+                            </div>
+                        ) : editInvoiceData ? (
+                            <EditInvoiceForm
+                                invoice={editInvoiceData}
+                                onSubmit={handleUpdateInvoice}
+                                onCancel={() => {
+                                    setIsEditOpen(false);
+                                    setSelectedEditInvoiceId(null);
+                                }}
+                            />
+                        ) : (
+                            <div className="py-12 text-center text-muted-foreground">
+                                Gagal memuat data invoice. Silakan coba lagi.
+                            </div>
+                        )}
                     </div>
                 </DialogContent>
             </Dialog>

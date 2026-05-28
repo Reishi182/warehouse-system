@@ -588,7 +588,13 @@ export default function StockHistory() {
             const extractedRef = poMatch?.[0] || opMatch?.[0] || sjMatch?.[0] || retMatch?.[0] || reqMatch?.[0] || rtrMatch?.[0] || invMatch?.[0] || null;
 
             // Priority: reference_id > extracted note label > individual log.id
-            const groupKey = log.reference_id || extractedRef || log.id;
+            // Include location in groupKey so gudang OUT and toko IN logs
+            // for the same transfer are displayed as separate groups
+            // (prevents each product appearing twice in one group detail)
+            const baseKey = log.reference_id || extractedRef || log.id;
+            const groupKey = log.reference_id || extractedRef
+                ? `${baseKey}_${log.location}`
+                : baseKey;
 
             // Determine display label
             let refLabel = extractedRef || log.reference_type || 'Transaksi';
