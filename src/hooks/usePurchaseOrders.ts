@@ -538,7 +538,7 @@ export function useConfirmPOReceipt() {
             const createdProductIds: string[] = [];
             const updatedPOItemIds: Array<{ itemId: string; originalProductId: string | null }> = [];
             let insertedReceipt = false;
-            const incrementedStocks: Array<{ productId: string; quantity: number }> = [];
+            const incrementedStocks: Array<{ productId: string; quantity: number; originalStock: number }> = [];
 
             try {
                 // Get PO details
@@ -688,15 +688,17 @@ export function useConfirmPOReceipt() {
                 insertedReceipt = true;
 
                 // ── PHASE 2: Execute all stock operations and logs ──
+                // Using atomic_increment_stock RPC since it now supports NUMERIC parameters for decimal quantities.
                 for (const op of preparedStockOps) {
-                    const { error: incrementError } = await supabase.rpc('atomic_increment_stock', {
+                    const { error: stockUpdateError } = await supabase.rpc('atomic_increment_stock', {
                         p_product_id: op.productId,
                         p_quantity: op.actualReceivedQty,
                         p_location: destination,
                     });
 
-                    if (incrementError) throw incrementError;
-                    incrementedStocks.push({ productId: op.productId, quantity: op.actualReceivedQty });
+                    if (stockUpdateError) throw stockUpdateError;
+                    // Track original stock so rollback can restore exactly
+                    incrementedStocks.push({ productId: op.productId, quantity: op.actualReceivedQty, originalStock: op.currentStock });
 
                     const { error: logError } = await supabase.from('stock_logs').insert([{
                         product_id: op.productId,
@@ -745,16 +747,16 @@ export function useConfirmPOReceipt() {
             } catch (err) {
                 console.error("Error confirming PO receipt. Rolling back changes...", err);
 
-                // 1. Rollback stock increments
+                // 1. Rollback stock updates — decrement the added quantities atomically
                 for (const stock of incrementedStocks) {
                     try {
                         await supabase.rpc('atomic_decrement_stock', {
                             p_product_id: stock.productId,
-                            p_quantity: stock.quantity,
                             p_location: destination,
+                            p_quantity: stock.quantity,
                         });
                     } catch (rollbackErr) {
-                        console.error(`Failed to rollback stock increment for product ${stock.productId}:`, rollbackErr);
+                        console.error(`Failed to rollback stock for product ${stock.productId}:`, rollbackErr);
                     }
                 }
 
@@ -998,66 +1000,100 @@ export function useCancelCompletedPurchaseOrder() {
                     continue;
                 }
 
-                const updates: Record<string, number> = {};
                 const logEntries: any[] = [];
+                let hasSucceeded = true;
 
                 // Reverse gudang impact
                 if (impact.gudang !== 0) {
                     const currentGudang = product.stock_gudang || 0;
                     const newGudang = Math.max(0, currentGudang - impact.gudang);
-                    updates.stock_gudang = newGudang;
 
-                    logEntries.push({
-                        product_id: productId,
-                        type: impact.gudang > 0 ? 'out' : 'in',
-                        quantity: Math.abs(impact.gudang),
-                        location: 'gudang',
-                        user_id: input.cancelledBy,
-                        note: `Pembatalan PO Selesai: ${po.po_number} — Rollback stok gudang`,
-                        reference_type: 'purchase_order',
-                        reference_id: input.poId,
-                        stock_before: currentGudang,
-                        stock_after: newGudang,
-                    });
+                    if (impact.gudang > 0) {
+                        const { error: decError } = await supabase.rpc('atomic_decrement_stock', {
+                            p_product_id: productId,
+                            p_location: 'gudang',
+                            p_quantity: Math.abs(impact.gudang),
+                        });
+                        if (decError) {
+                            console.error(`Failed atomic decrement stock for product ${productId} in gudang:`, decError);
+                            hasSucceeded = false;
+                        }
+                    } else {
+                        const { error: incError } = await supabase.rpc('atomic_increment_stock', {
+                            p_product_id: productId,
+                            p_quantity: Math.abs(impact.gudang),
+                            p_location: 'gudang',
+                        });
+                        if (incError) {
+                            console.error(`Failed atomic increment stock for product ${productId} in gudang:`, incError);
+                            hasSucceeded = false;
+                        }
+                    }
+
+                    if (hasSucceeded) {
+                        logEntries.push({
+                            product_id: productId,
+                            type: impact.gudang > 0 ? 'out' : 'in',
+                            quantity: Math.abs(impact.gudang),
+                            location: 'gudang',
+                            user_id: input.cancelledBy,
+                            note: `Pembatalan PO Selesai: ${po.po_number} — Rollback stok gudang`,
+                            reference_type: 'purchase_order',
+                            reference_id: input.poId,
+                            stock_before: currentGudang,
+                            stock_after: newGudang,
+                        });
+                    }
                 }
 
                 // Reverse toko impact
-                if (impact.toko !== 0) {
+                if (hasSucceeded && impact.toko !== 0) {
                     const currentToko = product.stock_toko || 0;
                     const newToko = Math.max(0, currentToko - impact.toko);
-                    updates.stock_toko = newToko;
 
-                    logEntries.push({
-                        product_id: productId,
-                        type: impact.toko > 0 ? 'out' : 'in',
-                        quantity: Math.abs(impact.toko),
-                        location: 'toko',
-                        user_id: input.cancelledBy,
-                        note: `Pembatalan PO Selesai: ${po.po_number} — Rollback stok toko`,
-                        reference_type: 'purchase_order',
-                        reference_id: input.poId,
-                        stock_before: currentToko,
-                        stock_after: newToko,
-                    });
-                }
-
-                // Update stok produk
-                if (Object.keys(updates).length > 0) {
-                    const { error: updateErr } = await supabase
-                        .from('products')
-                        .update(updates)
-                        .eq('id', productId);
-
-                    if (updateErr) {
-                        console.error(`Gagal update stok produk ${productId}:`, updateErr);
-                        continue;
+                    if (impact.toko > 0) {
+                        const { error: decError } = await supabase.rpc('atomic_decrement_stock', {
+                            p_product_id: productId,
+                            p_location: 'toko',
+                            p_quantity: Math.abs(impact.toko),
+                        });
+                        if (decError) {
+                            console.error(`Failed atomic decrement stock for product ${productId} in toko:`, decError);
+                            hasSucceeded = false;
+                        }
+                    } else {
+                        const { error: incError } = await supabase.rpc('atomic_increment_stock', {
+                            p_product_id: productId,
+                            p_quantity: Math.abs(impact.toko),
+                            p_location: 'toko',
+                        });
+                        if (incError) {
+                            console.error(`Failed atomic increment stock for product ${productId} in toko:`, incError);
+                            hasSucceeded = false;
+                        }
                     }
 
+                    if (hasSucceeded) {
+                        logEntries.push({
+                            product_id: productId,
+                            type: impact.toko > 0 ? 'out' : 'in',
+                            quantity: Math.abs(impact.toko),
+                            location: 'toko',
+                            user_id: input.cancelledBy,
+                            note: `Pembatalan PO Selesai: ${po.po_number} — Rollback stok toko`,
+                            reference_type: 'purchase_order',
+                            reference_id: input.poId,
+                            stock_before: currentToko,
+                            stock_after: newToko,
+                        });
+                    }
+                }
+
+                if (hasSucceeded && (impact.gudang !== 0 || impact.toko !== 0)) {
                     // Insert stock_log entries
                     if (logEntries.length > 0) {
                         await supabase.from('stock_logs').insert(logEntries);
                     }
-
                     reversedProducts.push(product.name || productId);
                 }
             }
@@ -1207,7 +1243,7 @@ export function useUpdatePOPrices() {
 
                 // Jika qty berubah dan ada productId → adjust stok produk
                 if (qtyChanged && item.productId && qtyDelta !== 0) {
-                    // Ambil data produk (stok saat ini + multi-unit info)
+                    // Ambil data produk (multi-unit info + stok untuk logging)
                     const { data: product, error: prodErr } = await supabase
                         .from('products')
                         .select('stock_gudang, stock_toko, has_multi_unit, main_unit, pcs_per_box')
@@ -1230,20 +1266,32 @@ export function useUpdatePOPrices() {
                     }
 
                     const actualDelta = qtyDelta * multiplier;
-                    const currentStock = destination === 'gudang'
+                    // Read stock before RPC for logging only (not for calculating new value)
+                    const stockBefore = destination === 'gudang'
                         ? (product.stock_gudang || 0)
                         : (product.stock_toko || 0);
-                    const newStock = Math.max(0, currentStock + actualDelta);
 
-                    // Update stok produk
-                    const { error: stockErr } = await supabase
-                        .from('products')
-                        .update({ [stockField]: newStock })
-                        .eq('id', item.productId);
-
-                    if (stockErr) {
-                        console.error('Gagal update stok produk:', stockErr);
-                        continue;
+                    // Bug fix: Use atomic RPC instead of read-then-write to prevent race conditions
+                    if (actualDelta > 0) {
+                        const { error: stockErr } = await supabase.rpc('atomic_increment_stock', {
+                            p_product_id: item.productId,
+                            p_quantity: actualDelta,
+                            p_location: destination,
+                        });
+                        if (stockErr) {
+                            console.error('Gagal increment stok produk:', stockErr);
+                            continue;
+                        }
+                    } else {
+                        const { error: stockErr } = await supabase.rpc('atomic_decrement_stock', {
+                            p_product_id: item.productId,
+                            p_quantity: Math.abs(actualDelta),
+                            p_location: destination,
+                        });
+                        if (stockErr) {
+                            console.error('Gagal decrement stok produk:', stockErr);
+                            continue;
+                        }
                     }
 
                     // Catat ke stock_logs sebagai koreksi
@@ -1256,8 +1304,8 @@ export function useUpdatePOPrices() {
                         note: `Koreksi qty PO: ${po.po_number} (${item.originalQuantity} → ${item.quantity} ${item.unit || 'pcs'})`,
                         reference_type: 'purchase_order',
                         reference_id: input.poId,
-                        stock_before: currentStock,
-                        stock_after: newStock,
+                        stock_before: stockBefore,
+                        stock_after: stockBefore + actualDelta,
                     }]);
                 }
             }
@@ -1388,31 +1436,29 @@ export function useUpdatePODestination() {
 
                 const actualQty = item.quantity * multiplier;
 
+                // Read stock before RPC for logging only (not for calculating new value)
                 const oldStock = oldDest === 'gudang'
                     ? (product.stock_gudang || 0)
                     : (product.stock_toko || 0);
-                const newStockOld = Math.max(0, oldStock - actualQty); // kurangi dari lama
-
                 const newStockCurrent = newDest === 'gudang'
                     ? (product.stock_gudang || 0)
                     : (product.stock_toko || 0);
-                const newStockNew = newStockCurrent + actualQty; // tambah ke baru
 
                 const unitText = multiplier > 1
                     ? ` (${item.quantity} ${item.unit} × ${multiplier})`
                     : ` ${item.unit}`;
 
-                // Update kedua kolom stok sekaligus
-                const { error: stockUpdateErr } = await supabase
-                    .from('products')
-                    .update({
-                        [oldStockField]: newStockOld,
-                        [newStockField]: newStockNew,
-                    })
-                    .eq('id', item.product_id);
+                // Bug fix: Use atomic_transfer_stock RPC instead of read-then-write to prevent race conditions
+                // This atomically decrements old location and increments new location in one transaction
+                const { error: transferErr } = await supabase.rpc('atomic_transfer_stock', {
+                    p_product_id: item.product_id,
+                    p_quantity: actualQty,
+                    p_from: oldDest,
+                    p_to: newDest,
+                });
 
-                if (stockUpdateErr) {
-                    console.error('Gagal update stok:', stockUpdateErr);
+                if (transferErr) {
+                    console.error('Gagal transfer stok antar lokasi:', transferErr);
                     continue;
                 }
 
@@ -1429,7 +1475,7 @@ export function useUpdatePODestination() {
                     reference_type: 'purchase_order',
                     reference_id: input.poId,
                     stock_before: oldStock,
-                    stock_after: newStockOld,
+                    stock_after: Math.max(0, oldStock - actualQty),
                 }]);
 
                 // Log IN ke lokasi baru
@@ -1443,7 +1489,7 @@ export function useUpdatePODestination() {
                     reference_type: 'purchase_order',
                     reference_id: input.poId,
                     stock_before: newStockCurrent,
-                    stock_after: newStockNew,
+                    stock_after: newStockCurrent + actualQty,
                 }]);
             }
 

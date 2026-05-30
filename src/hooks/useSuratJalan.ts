@@ -194,25 +194,35 @@ export function useUpdateSuratJalanStatus() {
                     if (product) {
                         const fromStockBefore = product[fromField] || 0;
                         const fromStock = Math.max(0, fromStockBefore - item.quantity);
-                        const updateData: any = { [fromField]: fromStock };
 
                         const toField = `stock_${item.to_location}`;
-                        const toStockBefore = ['gudang', 'toko'].includes(item.to_location) ? (product[toField] || 0) : 0;
+                        const isInternal = ['gudang', 'toko'].includes(item.to_location);
+                        const toStockBefore = isInternal ? (product[toField] || 0) : 0;
                         let toStockAfter = toStockBefore;
 
-                        // Only increase destination stock if it's an internal location
-                        if (['gudang', 'toko'].includes(item.to_location)) {
+                        if (isInternal) {
                             toStockAfter = toStockBefore + item.quantity;
-                            updateData[toField] = toStockAfter;
                         }
 
-                        await supabase
-                            .from('products')
-                            .update(updateData)
-                            .eq('id', item.product_id);
+                        if (isInternal) {
+                            const { error: transferErr } = await supabase.rpc('atomic_transfer_stock', {
+                                p_product_id: item.product_id,
+                                p_quantity: item.quantity,
+                                p_from: item.from_location,
+                                p_to: item.to_location,
+                            });
+                            if (transferErr) throw transferErr;
+                        } else {
+                            const { error: decrementErr } = await supabase.rpc('atomic_decrement_stock', {
+                                p_product_id: item.product_id,
+                                p_location: item.from_location,
+                                p_quantity: item.quantity,
+                            });
+                            if (decrementErr) throw decrementErr;
+                        }
 
                         // Log the movement
-                        await supabase.from('stock_logs').insert([
+                        const logsToInsert = [
                             {
                                 product_id: item.product_id,
                                 type: 'out',
@@ -221,8 +231,11 @@ export function useUpdateSuratJalanStatus() {
                                 note: `Transfer ke ${item.to_location} via ${suratJalan.number}`,
                                 stock_before: fromStockBefore,
                                 stock_after: fromStock,
-                            },
-                            {
+                            }
+                        ];
+
+                        if (isInternal) {
+                            logsToInsert.push({
                                 product_id: item.product_id,
                                 type: 'in',
                                 quantity: item.quantity,
@@ -230,8 +243,10 @@ export function useUpdateSuratJalanStatus() {
                                 note: `Transfer dari ${item.from_location} via ${suratJalan.number}`,
                                 stock_before: toStockBefore,
                                 stock_after: toStockAfter,
-                            },
-                        ]);
+                            });
+                        }
+
+                        await supabase.from('stock_logs').insert(logsToInsert);
                     }
                 }
             }

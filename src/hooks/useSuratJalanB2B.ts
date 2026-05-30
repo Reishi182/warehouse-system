@@ -554,36 +554,41 @@ export function useSuratJalanB2B() {
                         stock_after: stockBefore - actualQty,
                     });
                 } else {
-                    // Toko: directly deduct stock_toko
+                    // Toko: directly deduct stock_toko using atomic RPC
                     const { data: prod } = await supabase
                         .from('products')
                         .select('stock_toko')
                         .eq('id', item.product_id)
                         .single();
 
-                    if (prod) {
-                        // Bug fix #5: Validate stock before deducting
-                        const currentStock = prod.stock_toko || 0;
-                        if (currentStock < actualQty) {
-                            throw new Error(`Stok toko tidak cukup untuk ${item.product_name || 'produk'}: tersedia ${currentStock}, dibutuhkan ${actualQty}`);
-                        }
-                        const newStock = currentStock - actualQty;
-                        await supabase.from('products')
-                            .update({ stock_toko: newStock })
-                            .eq('id', item.product_id);
+                    const currentStock = prod?.stock_toko || 0;
 
-                        // Log stock-out for toko
-                        await supabase.from('stock_logs').insert({
-                            product_id: item.product_id,
-                            type: 'out',
-                            quantity: actualQty,
-                            location: 'toko',
-                            user_id: completedBy,
-                            note: `Surat Jalan B2B - ${item.product_name || 'Produk'} (Input: ${item.quantity} ${item.unit || 'pcs'})`,
-                            stock_before: currentStock,
-                            stock_after: newStock,
-                        });
+                    const { error: decrementError } = await supabase.rpc('atomic_decrement_stock', {
+                        p_product_id: item.product_id,
+                        p_location: 'toko',
+                        p_quantity: actualQty,
+                    });
+
+                    if (decrementError) {
+                        const msg = decrementError.message.includes('Stok tidak cukup')
+                            ? `Stok toko tidak cukup untuk ${item.product_name || 'produk'}: tersedia ${currentStock}, dibutuhkan ${actualQty}`
+                            : decrementError.message;
+                        throw new Error(msg);
                     }
+
+                    const newStock = currentStock - actualQty;
+
+                    // Log stock-out for toko
+                    await supabase.from('stock_logs').insert({
+                        product_id: item.product_id,
+                        type: 'out',
+                        quantity: actualQty,
+                        location: 'toko',
+                        user_id: completedBy,
+                        note: `Surat Jalan B2B - ${item.product_name || 'Produk'} (Input: ${item.quantity} ${item.unit || 'pcs'})`,
+                        stock_before: currentStock,
+                        stock_after: newStock,
+                    });
                 }
             }
         },

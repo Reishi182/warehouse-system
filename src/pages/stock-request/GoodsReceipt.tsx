@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Camera, CheckCircle, PackageCheck, AlertTriangle, Loader2, Pen, Search, Barcode } from 'lucide-react';
+import { Camera, CheckCircle, PackageCheck, AlertTriangle, Loader2, Pen, Search, Barcode, Minus, Plus, Boxes } from 'lucide-react';
 import { format } from 'date-fns';
 import {
     Dialog,
@@ -194,102 +194,222 @@ export default function GoodsReceipt() {
             </div>
 
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle>Konfirmasi Penerimaan Barang</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-6 py-4">
+                <DialogContent className="max-w-2xl max-h-[90vh] p-0 overflow-hidden flex flex-col bg-slate-50/50 dark:bg-slate-900/50 border-none">
+                    {/* Header */}
+                    <div className="bg-white dark:bg-slate-900 border-b border-border/60 p-5 shrink-0">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                                <PackageCheck className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <DialogTitle className="text-lg font-bold text-slate-900 dark:text-white leading-tight">
+                                    Konfirmasi Penerimaan Barang
+                                </DialogTitle>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    Masukkan jumlah barang yang diterima dan kondisi barang rusak (jika ada).
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Scrollable Body */}
+                    <div className="overflow-y-auto flex-1 p-5 space-y-5 custom-scrollbar">
                         {/* Discrepancy Alert */}
                         {hasDiscrepancy && (
-                            <Alert variant="destructive" className="bg-amber-50 border-amber-200 text-amber-800">
-                                <AlertTriangle className="w-4 h-4" />
-                                <AlertDescription>
-                                    <strong>Terdeteksi Selisih!</strong> Jumlah diterima berbeda dengan jumlah dikirim.
-                                    Foto bukti dan tanda tangan <strong>WAJIB</strong> diisi.
-                                </AlertDescription>
-                            </Alert>
+                            <div className="flex items-start gap-3 p-4 bg-amber-50/80 dark:bg-amber-955/20 border border-amber-200 dark:border-amber-900/30 rounded-xl animate-fade-in">
+                                <div className="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center flex-shrink-0">
+                                    <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                                </div>
+                                <div>
+                                    <p className="font-bold text-amber-850 dark:text-amber-300 text-sm">Terdeteksi Selisih Penerimaan</p>
+                                    <p className="text-xs text-amber-700 dark:text-amber-450 mt-0.5">
+                                        Jumlah diterima berbeda dengan jumlah dikirim. Foto bukti dan tanda tangan <strong>WAJIB</strong> diisi.
+                                    </p>
+                                </div>
+                            </div>
                         )}
 
-                        {/* Items listed as cards */}
-                        <div className="space-y-4">
-                            <Label className="text-base font-semibold">Daftar Barang</Label>
-                            {receivedItems.map((item, idx) => {
-                                const hasItemDiscrepancy = item.quantityReceived !== item.quantityShipped || item.quantityDamaged > 0;
-                                return (
-                                    <div key={item.productId} className={`border rounded-xl p-4 space-y-4 bg-card ${hasItemDiscrepancy ? 'border-amber-300 dark:border-amber-700/50' : 'border-border'}`}>
-                                        <div className="flex items-start justify-between gap-2">
-                                            <h4 className="font-semibold text-base">{item.productName}</h4>
-                                            <Badge variant="outline" className="shrink-0 rounded-full font-medium shadow-sm bg-background">
-                                                Dipesan: {item.quantityShipped} {item.unit?.toUpperCase() || 'PCS'}
-                                            </Badge>
-                                        </div>
+                        {/* Daftar Barang Card */}
+                        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-border/50 p-4 shadow-[0_4px_12px_rgba(0,0,0,0.02)]">
+                            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
+                                <Boxes className="w-4 h-4 text-indigo-500" />
+                                Daftar Barang
+                            </h3>
 
-                                        <div className="space-y-2">
-                                            <Label className="text-xs text-blue-600 dark:text-blue-400 font-medium">Barcode Produk Baru (Wajib)</Label>
-                                            <div className="relative">
-                                                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-muted-foreground">
-                                                    <Search className="w-4 h-4" />
-                                                </div>
-                                                <Input
-                                                    placeholder="Scan atau ketik barcode..."
-                                                    className="pl-9 pr-10"
-                                                    value={item.scannedBarcode || ''}
-                                                    onChange={(e) => updateReceivedItem(idx, 'scannedBarcode', e.target.value)}
-                                                />
-                                                <div className="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer text-muted-foreground hover:text-foreground">
-                                                    <Camera className="w-4 h-4" />
-                                                </div>
-                                            </div>
-                                            {item.scannedBarcode && (
-                                                <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-500 mt-1">
-                                                    <CheckCircle className="w-3.5 h-3.5" />
-                                                    <span>{item.scannedBarcode}</span>
-                                                </div>
-                                            )}
-                                        </div>
+                            <div className="space-y-3">
+                                {receivedItems.map((item, idx) => {
+                                    const hasItemDiscrepancy = item.quantityReceived !== item.quantityShipped || item.quantityDamaged > 0;
+                                    const receivePercent = item.quantityShipped > 0 ? Math.min(100, (item.quantityReceived / item.quantityShipped) * 100) : 100;
 
-                                        <div className="grid grid-cols-2 gap-4 pt-2">
-                                            <div className="space-y-1.5">
-                                                <Label className="text-sm">Diterima</Label>
-                                                <Input
-                                                    type="number"
-                                                    min={0}
-                                                    max={item.quantityShipped}
-                                                    value={item.quantityReceived}
-                                                    onChange={e => updateReceivedItem(idx, 'quantityReceived', e.target.value)}
-                                                    className="h-10 text-lg"
+                                    return (
+                                        <div
+                                            key={item.productId}
+                                            className={`rounded-xl border transition-all duration-200 overflow-hidden bg-card hover:border-slate-300 dark:hover:border-slate-700 ${
+                                                item.quantityDamaged > 0
+                                                    ? 'border-l-4 border-l-red-500 border-red-100 dark:border-red-900/30'
+                                                    : item.quantityReceived !== item.quantityShipped
+                                                    ? 'border-l-4 border-l-amber-500 border-amber-100 dark:border-amber-900/30'
+                                                    : 'border-l-4 border-l-emerald-500 border-border'
+                                            }`}
+                                        >
+                                            {/* Progress bar indicator */}
+                                            <div className="h-0.5 bg-slate-100 dark:bg-slate-800">
+                                                <div
+                                                    className={`h-full transition-all duration-500 ${
+                                                        item.quantityDamaged > 0 
+                                                            ? 'bg-red-500' 
+                                                            : receivePercent >= 100 
+                                                            ? 'bg-emerald-500' 
+                                                            : 'bg-amber-400'
+                                                    }`}
+                                                    style={{ width: `${receivePercent}%` }}
                                                 />
                                             </div>
-                                            <div className="space-y-1.5">
-                                                <Label className="text-sm text-red-500">Rusak</Label>
-                                                <Input
-                                                    type="number"
-                                                    min={0}
-                                                    max={item.quantityReceived}
-                                                    value={item.quantityDamaged}
-                                                    onChange={e => updateReceivedItem(idx, 'quantityDamaged', e.target.value)}
-                                                    className="h-10 text-lg border-red-200 focus-visible:ring-red-500"
-                                                />
+
+                                            <div className="p-4 space-y-3">
+                                                {/* Header item */}
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className="flex items-start gap-2.5">
+                                                        <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                                                            item.quantityDamaged > 0
+                                                                ? 'bg-red-50 text-red-600 dark:bg-red-955/30 dark:text-red-400'
+                                                                : item.quantityReceived !== item.quantityShipped
+                                                                ? 'bg-amber-50 text-amber-600 dark:bg-amber-955/30 dark:text-amber-400'
+                                                                : 'bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                                                        }`}>
+                                                            {idx + 1}
+                                                        </div>
+                                                        <p className="font-semibold text-sm text-slate-800 dark:text-slate-100 leading-tight">
+                                                            {item.productName}
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex-shrink-0">
+                                                        <Badge variant="outline" className="rounded-full text-xs font-semibold px-2.5 py-0.5 bg-slate-50 dark:bg-slate-800 border-slate-200/60 dark:border-slate-700/50">
+                                                            Dipesan: {item.quantityShipped} {item.unit?.toUpperCase() || 'PCS'}
+                                                        </Badge>
+                                                    </div>
+                                                </div>
+
+                                                {/* Barcode scanner */}
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-xs text-blue-600 dark:text-blue-400 font-semibold flex items-center gap-1">
+                                                        Barcode Produk Baru (Wajib)
+                                                    </Label>
+                                                    <div className="relative">
+                                                        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+                                                            <Search className="w-4 h-4" />
+                                                        </div>
+                                                        <Input
+                                                            placeholder="Scan atau ketik barcode..."
+                                                            className="pl-9 pr-10 h-10 rounded-lg border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 focus-visible:ring-indigo-500"
+                                                            value={item.scannedBarcode || ''}
+                                                            onChange={(e) => updateReceivedItem(idx, 'scannedBarcode', e.target.value)}
+                                                        />
+                                                        <div className="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer text-slate-400 hover:text-slate-650">
+                                                            <Camera className="w-4 h-4" />
+                                                        </div>
+                                                    </div>
+                                                    {item.scannedBarcode && (
+                                                        <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-500 mt-1 font-mono font-semibold">
+                                                            <CheckCircle className="w-3.5 h-3.5" />
+                                                            <span>{item.scannedBarcode}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Inputs Row with Steppers */}
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    {/* Received Stepper */}
+                                                    <div className="space-y-1.5">
+                                                        <Label className="text-xs font-semibold text-emerald-700 dark:text-emerald-450 flex items-center gap-1">
+                                                            Diterima
+                                                        </Label>
+                                                        <div className="flex items-center">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => updateReceivedItem(idx, 'quantityReceived', Math.max(0, item.quantityReceived - 1))}
+                                                                className="h-10 w-10 border border-r-0 border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-l-lg flex items-center justify-center transition-colors text-slate-500"
+                                                            >
+                                                                <Minus className="w-3.5 h-3.5" />
+                                                            </button>
+                                                            <div className="relative flex-1">
+                                                                <Input
+                                                                    type="number"
+                                                                    min={0}
+                                                                    max={item.quantityShipped}
+                                                                    value={item.quantityReceived}
+                                                                    onChange={e => updateReceivedItem(idx, 'quantityReceived', parseFloat(e.target.value) || 0)}
+                                                                    className="h-10 text-center font-bold text-base rounded-none border-x-0 border-slate-200 dark:border-slate-800 focus:border-indigo-450 focus:ring-0 focus-visible:ring-0"
+                                                                />
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => updateReceivedItem(idx, 'quantityReceived', Math.min(item.quantityShipped, item.quantityReceived + 1))}
+                                                                className="h-10 w-10 border border-l-0 border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-r-lg flex items-center justify-center transition-colors text-slate-500"
+                                                            >
+                                                                <Plus className="w-3.5 h-3.5" />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Damaged Stepper */}
+                                                    <div className="space-y-1.5">
+                                                        <Label className="text-xs font-semibold text-red-650 dark:text-red-400 flex items-center gap-1">
+                                                            Rusak
+                                                        </Label>
+                                                        <div className="flex items-center">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => updateReceivedItem(idx, 'quantityDamaged', Math.max(0, item.quantityDamaged - 1))}
+                                                                className="h-10 w-10 border border-r-0 border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-l-lg flex items-center justify-center transition-colors text-slate-500"
+                                                            >
+                                                                <Minus className="w-3.5 h-3.5" />
+                                                            </button>
+                                                            <div className="relative flex-1">
+                                                                <Input
+                                                                    type="number"
+                                                                    min={0}
+                                                                    max={item.quantityReceived}
+                                                                    value={item.quantityDamaged}
+                                                                    onChange={e => updateReceivedItem(idx, 'quantityDamaged', parseFloat(e.target.value) || 0)}
+                                                                    className={`h-10 text-center font-bold text-base rounded-none border-x-0 border-slate-200 dark:border-slate-800 focus:border-red-450 focus:ring-0 focus-visible:ring-0 ${
+                                                                        item.quantityDamaged > 0 ? 'text-red-600 dark:text-red-455 border-y-red-200 dark:border-y-red-900/30' : ''
+                                                                    }`}
+                                                                />
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => updateReceivedItem(idx, 'quantityDamaged', Math.min(item.quantityReceived, item.quantityDamaged + 1))}
+                                                                className="h-10 w-10 border border-l-0 border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-r-lg flex items-center justify-center transition-colors text-slate-500"
+                                                            >
+                                                                <Plus className="w-3.5 h-3.5" />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                );
-                            })}
+                                    );
+                                })}
+                            </div>
                         </div>
 
-                        {/* Photo Upload */}
-                        <div className="space-y-2">
-                            <Label>Upload Foto Bukti {hasDiscrepancy && <span className="text-red-500">*</span>}</Label>
+                        {/* Photo Upload Card */}
+                        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-border/50 p-4 shadow-[0_4px_12px_rgba(0,0,0,0.02)] space-y-2">
+                            <Label className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                                Upload Foto Bukti {hasDiscrepancy && <span className="text-red-500">*</span>}
+                            </Label>
                             <div
-                                className="border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors"
+                                className="border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors"
                                 onClick={() => fileInputRef.current?.click()}
                             >
                                 {photoPreview ? (
-                                    <img src={photoPreview} alt="Preview" className="max-h-48 rounded object-contain" />
+                                    <img src={photoPreview} alt="Preview" className="max-h-48 rounded-lg object-contain border bg-slate-50" />
                                 ) : (
                                     <>
-                                        <Camera className="w-8 h-8 text-muted-foreground mb-2" />
-                                        <p className="text-sm text-muted-foreground">Klik untuk ambil/upload foto</p>
+                                        <Camera className="w-8 h-8 text-indigo-500 mb-2" />
+                                        <p className="text-sm text-slate-650 dark:text-slate-300 font-medium">Klik untuk ambil/upload foto</p>
+                                        <p className="text-xs text-slate-400 mt-1">Mendukung format PNG, JPG, atau JPEG</p>
                                     </>
                                 )}
                                 <input
@@ -304,50 +424,69 @@ export default function GoodsReceipt() {
 
                         {/* Signature - only required if discrepancy */}
                         {hasDiscrepancy && (
-                            <div className="space-y-2">
-                                <Label className="flex items-center gap-2">
-                                    <Pen className="w-4 h-4" />
+                            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-border/50 p-4 shadow-[0_4px_12px_rgba(0,0,0,0.02)] space-y-3">
+                                <Label className="text-sm font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                                    <Pen className="w-4 h-4 text-indigo-500" />
                                     Tanda Tangan Penerima <span className="text-red-500">*</span>
                                 </Label>
-                                <SignaturePad
-                                    onSignatureChange={handleSignatureSave}
-                                    width={400}
-                                    height={150}
-                                />
+                                <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-slate-50 dark:bg-slate-950/20">
+                                    <SignaturePad
+                                        onSignatureChange={handleSignatureSave}
+                                        width={400}
+                                        height={150}
+                                    />
+                                </div>
                                 {signatureDataUrl && (
-                                    <p className="text-xs text-green-600 flex items-center gap-1">
-                                        <CheckCircle className="w-3 h-3" /> Tanda tangan tersimpan
+                                    <p className="text-xs text-green-600 flex items-center gap-1 font-semibold">
+                                        <CheckCircle className="w-3.5 h-3.5" /> Tanda tangan berhasil tersimpan
                                     </p>
                                 )}
                             </div>
                         )}
 
                         {/* Note */}
-                        <div className="space-y-2">
-                            <Label>Catatan Penerimaan</Label>
+                        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-border/50 p-4 shadow-[0_4px_12px_rgba(0,0,0,0.02)] space-y-2">
+                            <Label className="text-sm font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                                <FileText className="w-4 h-4 text-indigo-500" />
+                                Catatan Penerimaan
+                            </Label>
                             <Textarea
-                                placeholder="Kondisi barang, catatan khusus..."
+                                placeholder="Kondisi fisik barang, catatan khusus, dsb..."
                                 value={note}
                                 onChange={e => setNote(e.target.value)}
+                                rows={3}
+                                className="rounded-xl resize-none border-slate-200 dark:border-slate-800 focus:border-indigo-300 focus:ring-indigo-200 bg-slate-50/50 dark:bg-slate-950/20"
                             />
                         </div>
                     </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Batal</Button>
+
+                    {/* Footer */}
+                    <div className="flex-shrink-0 border-t border-border/60 bg-white dark:bg-slate-900 p-4 flex gap-3 justify-end">
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsDialogOpen(false)}
+                            className="rounded-xl px-5 border-slate-200 dark:border-slate-800 font-semibold"
+                        >
+                            Batal
+                        </Button>
                         <Button
                             onClick={handleSubmit}
                             disabled={!canSubmit || receiveGoods.isPending}
-                            className={hasDiscrepancy ? 'bg-amber-600 hover:bg-amber-700' : ''}
+                            className={`rounded-xl px-6 gap-2 font-semibold border-0 shadow-sm transition-all hover:scale-[1.01] active:scale-[0.99] ${
+                                hasDiscrepancy
+                                    ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-amber-200/50'
+                                    : 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-emerald-200/50'
+                            }`}
                         >
                             {receiveGoods.isPending ? (
                                 <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Memproses...</>
                             ) : hasDiscrepancy ? (
-                                'Konfirmasi dengan Selisih'
+                                <><AlertTriangle className="w-4.5 h-4.5" /> Konfirmasi dengan Selisih</>
                             ) : (
-                                'Konfirmasi & Tambah Stok'
+                                <><CheckCircle className="w-4.5 h-4.5" /> Konfirmasi & Tambah Stok</>
                             )}
                         </Button>
-                    </DialogFooter>
+                    </div>
                 </DialogContent>
             </Dialog>
         </MainLayout>

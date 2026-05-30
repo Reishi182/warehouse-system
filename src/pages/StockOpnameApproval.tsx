@@ -177,12 +177,21 @@ function ApprovalDetailDialog({
                 const currentStock = (freshProduct as any)?.[stockField] ?? 0;
                 const newStock = Math.max(0, currentStock + item.difference);
 
-                const { error: updateErr } = await supabase
-                    .from('products')
-                    .update({ [stockField]: newStock } as any)
-                    .eq('id', item.product_id);
-
-                if (updateErr) throw updateErr;
+                if (item.difference > 0) {
+                    const { error: updateErr } = await supabase.rpc('atomic_increment_stock', {
+                        p_product_id: item.product_id,
+                        p_quantity: item.difference,
+                        p_location: location,
+                    });
+                    if (updateErr) throw updateErr;
+                } else if (item.difference < 0) {
+                    const { error: updateErr } = await supabase.rpc('atomic_decrement_stock', {
+                        p_product_id: item.product_id,
+                        p_location: location,
+                        p_quantity: Math.abs(item.difference),
+                    });
+                    if (updateErr) throw updateErr;
+                }
 
                 // Log adjustment
                 await supabase.from('stock_logs').insert({

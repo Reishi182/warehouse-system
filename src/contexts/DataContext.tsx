@@ -1367,7 +1367,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         const product = products.find(p => p.barcode === item.barcode);
         if (product) {
           const fromField = `stock_${item.from_location}`;
-          const toField = `stock_${item.to_location}`;
 
           // Bug fix #5: Read fresh stock from DB instead of stale client state
           const { data: freshProduct, error: freshErr } = await supabase
@@ -1382,43 +1381,64 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           }
 
           const freshFrom = item.from_location === 'gudang' ? freshProduct.stock_gudang : freshProduct.stock_toko;
-          const freshTo = item.to_location === 'gudang' ? freshProduct.stock_gudang : freshProduct.stock_toko;
+          const isInternal = ['gudang', 'toko'].includes(item.to_location);
+          const freshTo = isInternal ? (item.to_location === 'gudang' ? freshProduct.stock_gudang : freshProduct.stock_toko) : 0;
 
           // Outgoing
           const outAfter = Math.max(0, freshFrom - item.quantity);
           // Incoming
-          const inAfter = freshTo + item.quantity;
+          const inAfter = isInternal ? freshTo + item.quantity : 0;
 
-          await supabase
-            .from('products')
-            .update({
-              [fromField]: outAfter,
-              [toField]: inAfter
-            })
-            .eq('id', product.id);
+          if (isInternal) {
+            const { error: transferErr } = await supabase.rpc('atomic_transfer_stock', {
+              p_product_id: product.id,
+              p_quantity: item.quantity,
+              p_from: item.from_location,
+              p_to: item.to_location,
+            });
+            if (transferErr) {
+              console.error('Failed atomic transfer stock:', transferErr);
+              continue;
+            }
+          } else {
+            const { error: decrementErr } = await supabase.rpc('atomic_decrement_stock', {
+              p_product_id: product.id,
+              p_location: item.from_location,
+              p_quantity: item.quantity,
+            });
+            if (decrementErr) {
+              console.error('Failed atomic decrement stock:', decrementErr);
+              continue;
+            }
+          }
 
-          await supabase.from('stock_logs').insert([
+          const stockLogsToInsert = [
             {
               product_id: product.id,
-              type: 'out',
+              type: 'out' as const,
               quantity: item.quantity,
               location: item.from_location,
               user_id: user.id,
               note: `Transfer keluar ke ${item.to_location} via ${sj.number}`,
               stock_before: freshFrom,
               stock_after: outAfter
-            },
-            {
+            }
+          ];
+
+          if (isInternal) {
+            stockLogsToInsert.push({
               product_id: product.id,
-              type: 'in',
+              type: 'in' as const,
               quantity: item.quantity,
-              location: item.to_location,
+              location: item.to_location as Location,
               user_id: user.id,
               note: `Transfer masuk dari ${item.from_location} via ${sj.number}`,
               stock_before: freshTo,
               stock_after: inAfter
-            }
-          ]);
+            });
+          }
+
+          await supabase.from('stock_logs').insert(stockLogsToInsert);
         }
       }
 
