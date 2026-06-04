@@ -37,19 +37,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [sessionExpired, setSessionExpired] = useState(false);
   const sessionCheckInterval = useRef<NodeJS.Timeout | null>(null);
   const hadSession = useRef(false); // Track if user had a session before
+  const isFetchingProfile = useRef(false); // Prevent duplicate concurrent fetches
+  const initialSessionLoaded = useRef(false); // Track if getSession already ran
 
   const fetchProfile = async (userId: string) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
+    // Guard: prevent duplicate concurrent fetches (race condition on cached sessions)
+    if (isFetchingProfile.current) return null;
+    isFetchingProfile.current = true;
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .limit(1)
+        .maybeSingle();
 
-    if (error) {
-      console.error('Error fetching profile:', error);
-      return null;
+      if (error) {
+        console.error('Error fetching profile:', error);
+        return null;
+      }
+      return data as Profile;
+    } finally {
+      isFetchingProfile.current = false;
     }
-    return data as Profile;
   };
 
   // Handle going to login page
@@ -90,10 +100,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(newSession?.user ?? null);
 
         // Defer profile fetch with setTimeout to avoid deadlock
+        // Skip INITIAL_SESSION: getSession() below already handles the first load
         if (newSession?.user) {
-          setTimeout(() => {
-            fetchProfile(newSession.user.id).then(setProfile);
-          }, 0);
+          if (event !== 'INITIAL_SESSION') {
+            setTimeout(() => {
+              fetchProfile(newSession.user.id).then(setProfile);
+            }, 0);
+          }
         } else {
           setProfile(null);
         }
